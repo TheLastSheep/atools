@@ -23,6 +23,7 @@
     "test:ci-workflow": "node scripts/test-ci-workflow.mjs",
     "test:publish-workflow": "node scripts/test-publish-workflow.mjs",
     "test:github-release-updater": "node scripts/test-github-release-updater.mjs",
+    "test:smoke-updater-package": "node scripts/test-smoke-updater-package.mjs",
     "test:updater-contract": "node scripts/test-updater-contract.mjs",
     "test:web-quick-open": "node scripts/test-web-quick-open.mjs",
     "test:web-quick-open-settings": "node scripts/test-web-quick-open-settings.mjs",
@@ -171,6 +172,7 @@
     "release:check:macos": "node scripts/check-macos-release-readiness.mjs",
     "release:check:macos:unsigned": "node scripts/check-macos-release-readiness.mjs --expect-signing-free",
     "smoke:macos-release-app": "node scripts/smoke-macos-release-app.mjs",
+    "smoke:updater-package": "node scripts/smoke-updater-package.mjs",
     "smoke:tauri-desktop": "node scripts/smoke-tauri-desktop.mjs"
   },
   "devDependencies": {

@@ -42,6 +42,7 @@
         { "path": "$DOCUMENT/**" },
         { "path": "$DOWNLOAD/**" },
         { "path": "$DESKTOP/**" },
+        { "path": "$DESKTOP/**/.worktrees/**" },
         { "path": "$HOME/.atools/**" },
         { "path": "/tmp/atools-ztools-plugin-smoke/**" },
         { "path": "$RESOURCE/**" }

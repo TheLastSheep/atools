@@ -303,6 +303,7 @@ pub fn run() {
             app_state
                 .inner()
                 .record_runtime_event("info", "ATools 3.0 started");
+            updater::start_package_smoke_if_requested(&handle);
             Ok(())
         })
         .on_window_event(|window, event| match event {

@@ -26,7 +26,7 @@ pnpm release:check:macos:unsigned
 - `pnpm release:check:macos` 在未注入发布凭据时预期为 `warn`，仅缺正式签名与公证凭据；自动更新配置必须保持为 `ok`。
 - 真实 Tauri smoke 不应再出现 `json-viewer` feature code 冲突 warning；若复现，说明 feature 索引幂等替换或内置资源路径回归。
 
-2026-07-14 自动化基线：`pnpm test` 134/134、Vitest 组件行为 2/2、`pnpm test:browser` 8/8、Rust 308/308、严格 Clippy 零告警、Svelte check 0 errors / 0 warnings。应用发布版本已在 `package.json`、Tauri bundle、Rust workspace/crates 与 `Cargo.lock` 统一为 `3.0.0`，并由 fast tier 一致性测试约束；发布包预算测试会在隔离临时目录执行 production build，不再受 `tauri build --debug` 覆盖共享 `dist` 的影响。真实 `pnpm test:desktop` 于 `2026-07-14T04:36:06Z` 通过，PluginPanel render 2/2、bridge 10/10、native method 8/8、BrowserWindow isolation 9/9；重建 `.app` 的 Info.plist 版本为 `3.0.0 / 3.0.0`，`pnpm smoke:macos-release-app` 于 `2026-07-14T04:59:44Z` 为 10 ok / 1 个预期 Gatekeeper warning / 0 error；自动更新产物、公钥与 `TheLastSheep/atools` 稳定版清单地址已配置，`pnpm release:check:macos:unsigned` 精确为 9 ok / 2 warn / 0 error。剩余 warning 仅为正式 Developer ID 签名和 Apple 公证凭据。
+2026-07-14 自动化基线：`pnpm test` 138/138、Vitest 组件行为 14/14、`pnpm test:browser` 8/8、Rust 316/316、严格 Clippy 零告警、Svelte check 0 errors / 0 warnings。应用发布版本已在 `package.json`、Tauri bundle、Rust workspace/crates 与 `Cargo.lock` 统一为 `3.0.0`，并由 fast tier 一致性测试约束；发布包预算测试会在隔离临时目录执行 production build，不再受 `tauri build --debug` 覆盖共享 `dist` 的影响。真实 `pnpm test:desktop` 于 `2026-07-14T08:30:10Z` 通过，PluginPanel render 2/2、bridge 10/10、native method 8/8、BrowserWindow isolation 9/9；重建 `.app` 的 Info.plist 版本为 `3.0.0 / 3.0.0`，`pnpm smoke:macos-release-app` 为 10 ok / 1 个预期 Gatekeeper warning / 0 error；隔离打包更新冒烟四种场景全部通过；自动更新产物、公钥与 `TheLastSheep/atools` 稳定版清单地址已配置，`pnpm release:check:macos:unsigned` 精确为 9 ok / 2 warn / 0 error。剩余 warning 仅为正式 Developer ID 签名和 Apple 公证凭据。
 
 ## 2. Web Preview Smoke
 
@@ -714,6 +714,7 @@ pnpm test:release-bundle-budget
 ```bash
 pnpm tauri build
 pnpm smoke:macos-release-app
+pnpm smoke:updater-package
 ```
 
 检查项：
@@ -722,6 +723,8 @@ pnpm smoke:macos-release-app
 - [x] 首次启动不崩溃；release app smoke 观测到进程存活 1500ms 以上，并在验证后清理该进程。
 - [x] `Option+Z`、设置页、插件页、Agent/MCP 页可打开。
 - [x] 签名状态检查：当前本地构建为 ad-hoc 签名，`codesign` 可读取签名状态且退出码为 0。
+- [x] 隔离更新器冒烟以临时密钥和回环服务构建 `2.99.99` 基线与签名 `3.0.0` 更新包；无更新、缺架构、坏签名均不安装，有效更新安装后重启并确认 `3.0.0`，临时密钥和应用副本最终清理。
+- [x] GitHub 发布工作流仅响应 `vX.Y.Z` tag；Apple Silicon 与 Intel 串行上传到同一 Draft，`latest.json`、两架构资产、签名、公证和 DMG 冒烟全部通过后才公开为 latest stable。
 
 ```bash
 codesign -dv --verbose=4 "target/release/bundle/macos/ATools 3.0.app"
@@ -735,7 +738,7 @@ spctl --assess --type execute --verbose "target/release/bundle/macos/ATools 3.0.
 
 当前发布限制：
 
-- 自动更新未完成。
+- 自动更新代码、签名信任链、双架构草稿发布、清单校验和隔离打包升级冒烟已完成；真实公开 Release 仍需仓库 secrets 与 tag 工作流执行。
 - 公证流程未完成。
 - 签名 identity 未配置；本地构建目前是 ad-hoc 签名，entitlements 会在正式签名时应用。
 - 当前本地 `spctl --assess` 仍失败，原因是 `code has no resources but signature indicates they must be present`；需完成正式签名/资源封装/公证后再勾选 Gatekeeper。

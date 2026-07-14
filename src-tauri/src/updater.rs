@@ -179,14 +179,43 @@ struct TauriUpdateBackend {
     app: tauri::AppHandle,
 }
 
+fn updater_for_app(
+    app: &tauri::AppHandle,
+) -> Result<tauri_plugin_updater::Updater, tauri_plugin_updater::Error> {
+    use tauri_plugin_updater::UpdaterExt;
+
+    let mut builder = app.updater_builder();
+    if let Some(endpoint) = updater_smoke_endpoint_override() {
+        let endpoint = endpoint
+            .parse::<tauri::Url>()
+            .map_err(tauri_plugin_updater::Error::UrlParse)?;
+        builder = builder.endpoints(vec![endpoint])?;
+    }
+    builder.build()
+}
+
+fn updater_smoke_endpoint_override() -> Option<String> {
+    let endpoint = std::env::var("ATOOLS_UPDATER_SMOKE_ENDPOINT").ok()?;
+    (cfg!(debug_assertions)
+        && std::env::var_os("ATOOLS_UPDATER_SMOKE").as_deref() == Some(std::ffi::OsStr::new("1"))
+        && endpoint.starts_with("http://127.0.0.1:")
+        && updater_smoke_endpoint_allowed(true, true, &endpoint))
+    .then_some(endpoint)
+}
+
+fn updater_smoke_endpoint_allowed(debug: bool, enabled: bool, endpoint: &str) -> bool {
+    debug
+        && enabled
+        && endpoint.starts_with("http://127.0.0.1:")
+        && endpoint
+            .parse::<tauri::Url>()
+            .is_ok_and(|url| url.scheme() == "http" && url.host_str() == Some("127.0.0.1"))
+}
+
 #[async_trait::async_trait]
 impl UpdateBackend for TauriUpdateBackend {
     async fn check(&self) -> Result<Option<UpdateMetadata>, UpdateCommandError> {
-        use tauri_plugin_updater::UpdaterExt;
-
-        let update = self
-            .app
-            .updater()
+        let update = updater_for_app(&self.app)
             .map_err(classify_check_error)?
             .check()
             .await
@@ -206,11 +235,7 @@ impl UpdateBackend for TauriUpdateBackend {
     ) -> Result<(), UpdateCommandError> {
         use std::sync::atomic::{AtomicU64, Ordering};
         use std::sync::{Arc, Mutex};
-        use tauri_plugin_updater::UpdaterExt;
-
-        let update = self
-            .app
-            .updater()
+        let update = updater_for_app(&self.app)
             .map_err(classify_check_error)?
             .check()
             .await
@@ -267,6 +292,7 @@ impl UpdateBackend for TauriUpdateBackend {
 fn classify_check_error(error: tauri_plugin_updater::Error) -> UpdateCommandError {
     use tauri_plugin_updater::Error;
 
+    let detail = error.to_string();
     let code = match error {
         Error::Reqwest(_) | Error::Network(_) => "network",
         Error::ReleaseNotFound
@@ -288,6 +314,11 @@ fn classify_check_error(error: tauri_plugin_updater::Error) -> UpdateCommandErro
         "missing_architecture" => "当前 Mac 架构没有可用更新",
         "invalid_signature" => "更新签名无效，已停止安装",
         _ => "检查更新失败",
+    };
+    let message = if updater_smoke_endpoint_override().is_some() {
+        format!("{message}: {detail}")
+    } else {
+        message.to_string()
     };
     UpdateCommandError::new(code, message)
 }
@@ -360,6 +391,174 @@ pub async fn get_app_update_status(
 ) -> Result<UpdateStatus, UpdateCommandError> {
     ensure_updater_window(window.label())?;
     Ok(state.status().await)
+}
+
+#[derive(Debug, Clone)]
+struct PackageSmokeConfig {
+    scenario: String,
+    report_path: std::path::PathBuf,
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PackageSmokeReport<'a> {
+    status: &'a str,
+    outcome: &'a str,
+    current_version: String,
+    message: Option<String>,
+}
+
+pub fn start_package_smoke_if_requested(app: &tauri::AppHandle) {
+    let Some(config) = package_smoke_config() else {
+        return;
+    };
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        run_package_smoke(app, config).await;
+    });
+}
+
+fn package_smoke_config() -> Option<PackageSmokeConfig> {
+    updater_smoke_endpoint_override()?;
+    let scenario = std::env::var("ATOOLS_UPDATER_SMOKE_SCENARIO").ok()?;
+    if !matches!(
+        scenario.as_str(),
+        "no-update" | "missing-architecture" | "invalid-signature" | "valid-update-relaunch"
+    ) {
+        return None;
+    }
+    let report_path = std::env::var_os("ATOOLS_UPDATER_SMOKE_REPORT")?;
+    Some(PackageSmokeConfig {
+        scenario,
+        report_path: report_path.into(),
+    })
+}
+
+async fn run_package_smoke(app: tauri::AppHandle, config: PackageSmokeConfig) {
+    let current_version = app.package_info().version.to_string();
+    if config.scenario == "valid-update-relaunch" && current_version == "3.0.0" {
+        finish_package_smoke(
+            &app,
+            &config,
+            PackageSmokeReport {
+                status: "ok",
+                outcome: "valid-update-relaunch",
+                current_version,
+                message: None,
+            },
+        );
+        return;
+    }
+
+    let backend = TauriUpdateBackend { app: app.clone() };
+    let result = match config.scenario.as_str() {
+        "no-update" => match backend.check().await {
+            Ok(None) => Ok("no-update"),
+            Ok(Some(_)) => Err("no-update scenario unexpectedly returned an update".to_string()),
+            Err(error) => Err(format!(
+                "no-update check failed with {}: {}",
+                error.code, error.message
+            )),
+        },
+        "missing-architecture" => match backend.check().await {
+            Err(error) if error.code == "missing_architecture" => Ok("missing-architecture"),
+            Err(error) => Err(format!(
+                "missing-architecture returned unexpected error {}",
+                error.code
+            )),
+            Ok(_) => Err("missing-architecture scenario unexpectedly passed".to_string()),
+        },
+        "invalid-signature" => match backend.check().await {
+            Ok(Some(update)) => match backend.install(&update.version, Box::new(|_| {})).await {
+                Err(error) if error.code == "invalid_signature" => Ok("invalid-signature"),
+                Err(error) => Err(format!(
+                    "invalid-signature returned unexpected error {}",
+                    error.code
+                )),
+                Ok(()) => Err("invalid-signature scenario unexpectedly installed".to_string()),
+            },
+            Ok(None) => Err("invalid-signature scenario returned no update".to_string()),
+            Err(error) => Err(format!(
+                "invalid-signature check failed with {}: {}",
+                error.code, error.message
+            )),
+        },
+        "valid-update-relaunch" => match backend.check().await {
+            Ok(Some(update)) => match backend.install(&update.version, Box::new(|_| {})).await {
+                Ok(()) => {
+                    let report = PackageSmokeReport {
+                        status: "ok",
+                        outcome: "install-complete",
+                        current_version,
+                        message: None,
+                    };
+                    if let Err(error) = write_package_smoke_report(&config.report_path, &report) {
+                        tracing::error!("Failed to write updater smoke report: {error}");
+                        app.exit(1);
+                        return;
+                    }
+                    app.restart()
+                }
+                Err(error) => Err(format!("valid update install failed with {}", error.code)),
+            },
+            Ok(None) => Err("valid update scenario returned no update".to_string()),
+            Err(error) => Err(format!(
+                "valid update check failed with {}: {}",
+                error.code, error.message
+            )),
+        },
+        _ => Err("unsupported updater smoke scenario".to_string()),
+    };
+
+    match result {
+        Ok(outcome) => finish_package_smoke(
+            &app,
+            &config,
+            PackageSmokeReport {
+                status: "ok",
+                outcome,
+                current_version,
+                message: None,
+            },
+        ),
+        Err(message) => finish_package_smoke(
+            &app,
+            &config,
+            PackageSmokeReport {
+                status: "error",
+                outcome: &config.scenario,
+                current_version,
+                message: Some(message),
+            },
+        ),
+    }
+}
+
+fn finish_package_smoke(
+    app: &tauri::AppHandle,
+    config: &PackageSmokeConfig,
+    report: PackageSmokeReport<'_>,
+) {
+    let exit_code = if report.status == "ok" { 0 } else { 1 };
+    if let Err(error) = write_package_smoke_report(&config.report_path, &report) {
+        tracing::error!("Failed to write updater smoke report: {error}");
+        app.exit(1);
+    } else {
+        app.exit(exit_code);
+    }
+}
+
+fn write_package_smoke_report(
+    path: &std::path::Path,
+    report: &PackageSmokeReport<'_>,
+) -> Result<(), std::io::Error> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let temp_path = path.with_extension("tmp");
+    let bytes = serde_json::to_vec(report).map_err(std::io::Error::other)?;
+    std::fs::write(&temp_path, bytes)?;
+    std::fs::rename(temp_path, path)
 }
 
 #[cfg(test)]
@@ -579,5 +778,39 @@ mod tests {
                 .code,
             "forbidden_window"
         );
+    }
+
+    #[test]
+    fn updater_smoke_override_requires_debug_flag_and_loopback_http() {
+        assert!(!updater_smoke_endpoint_allowed(
+            false,
+            true,
+            "http://127.0.0.1:4321/latest.json"
+        ));
+        assert!(!updater_smoke_endpoint_allowed(
+            true,
+            false,
+            "http://127.0.0.1:4321/latest.json"
+        ));
+        assert!(!updater_smoke_endpoint_allowed(
+            true,
+            true,
+            "https://127.0.0.1:4321/latest.json"
+        ));
+        assert!(!updater_smoke_endpoint_allowed(
+            true,
+            true,
+            "http://localhost:4321/latest.json"
+        ));
+        assert!(!updater_smoke_endpoint_allowed(
+            true,
+            true,
+            "http://127.0.0.1.evil:4321/latest.json"
+        ));
+        assert!(updater_smoke_endpoint_allowed(
+            true,
+            true,
+            "http://127.0.0.1:4321/latest.json"
+        ));
     }
 }

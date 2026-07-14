@@ -5,11 +5,19 @@ import { pathToFileURL } from "node:url";
 const root = new URL("../", import.meta.url);
 const smokeScript = await import(pathToFileURL(new URL("smoke-tauri-desktop.mjs", import.meta.url).pathname).href);
 
-const [appSource, desktopSmokeSource, smokeChecklist] = await Promise.all([
+const [appSource, desktopSmokeSource, smokeChecklist, defaultCapability] = await Promise.all([
   readFile(new URL("src/App.svelte", root), "utf8"),
   readFile(new URL("src-tauri/src/desktop_smoke.rs", root), "utf8"),
   readFile(new URL("docs/macos-smoke-checklist.md", root), "utf8"),
+  readFile(new URL("src-tauri/capabilities/default.json", root), "utf8").then(JSON.parse),
 ]);
+
+const fsScope = defaultCapability.permissions.find((permission) => permission.identifier === "fs:scope");
+assert.ok(fsScope, "default capability should declare its filesystem scope");
+assert.ok(
+  fsScope.allow.some((entry) => entry.path === "$DESKTOP/**/.worktrees/**"),
+  "desktop smoke should be able to load plugin files from a hidden Git worktree",
+);
 
 function sourceSliceBetween(source, startMarker, endMarker) {
   const start = source.indexOf(startMarker);
