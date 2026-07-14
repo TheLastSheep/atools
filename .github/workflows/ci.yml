@@ -137,3 +137,26 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm release:check:macos:unsigned
+
+  performance-evidence:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Record 10k and 100k search latency evidence
+        run: pnpm benchmark:search:ci
+      - name: Upload reproducible performance report
+        uses: actions/upload-artifact@v7
+        with:
+          name: search-performance-${{ github.sha }}
+          path: artifacts/performance/search-index.json
+          if-no-files-found: error
+          retention-days: 30

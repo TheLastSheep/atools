@@ -165,6 +165,7 @@
     "test:desktop-browser-window-isolation-probe": "node scripts/test-desktop-browser-window-isolation-probe.mjs",
     "test:desktop-smoke-plugin-queue": "node scripts/test-desktop-smoke-plugin-queue.mjs",
     "benchmark:search": "node scripts/benchmark-search-index.mjs",
+    "benchmark:search:ci": "node scripts/benchmark-search-index.mjs --scales 10000,100000 --iterations 20 --warmup-iterations 3 --output artifacts/performance/search-index.json",
     "report:ztools-compat": "node scripts/ztools-plugin-compatibility-report.mjs",
     "report:ztools-runtime-samples": "node scripts/ztools-plugin-runtime-sample-report.mjs",
     "report:ztools-activation-plan": "node scripts/ztools-plugin-activation-plan.mjs",

@@ -1,12 +1,13 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { arch, cpus, hostname, platform, release, totalmem } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import { pathToFileURL } from "node:url";
 import { transformWithEsbuild } from "vite";
 
 const root = new URL("../", import.meta.url);
 const BENCHMARK_PREFIX = "ATOOLS_SEARCH_BENCHMARK ";
+const DEFAULT_SCALES = [10_000, 100_000];
 
 export function parseBenchmarkOutput(output) {
   const line = output
@@ -18,54 +19,110 @@ export function parseBenchmarkOutput(output) {
   return JSON.parse(line.slice(BENCHMARK_PREFIX.length));
 }
 
+export function percentile(values, requestedPercentile) {
+  if (values.length === 0) {
+    throw new Error("Cannot calculate a percentile from an empty sample");
+  }
+  if (requestedPercentile < 0 || requestedPercentile > 100) {
+    throw new Error("Percentile must be between 0 and 100");
+  }
+  const sorted = [...values].sort((left, right) => left - right);
+  const index = Math.max(0, Math.ceil((requestedPercentile / 100) * sorted.length) - 1);
+  return sorted[index];
+}
+
 export async function runSearchBenchmark(options = {}) {
-  const scale = Math.max(1, Number(options.scale ?? 2_000));
-  const iterations = Math.max(1, Number(options.iterations ?? 5));
-  const thresholdMs = Math.max(1, Number(options.thresholdMs ?? 80));
+  const scales = normalizeScales(options.scales ?? (options.scale ? [options.scale] : DEFAULT_SCALES));
+  const iterations = positiveInteger(options.iterations, 20);
+  const warmupIterations = nonNegativeInteger(options.warmupIterations, 3);
+  const thresholdMs = positiveNumber(options.thresholdMs, 80);
   const timestamp = options.timestamp ?? new Date().toISOString();
-  const outDir = await mkdtemp(join(tmpdir(), "atools-search-benchmark-"));
+  const outDir = await mkdtemp(join(options.tmpDir ?? process.env.RUNNER_TEMP ?? process.env.TMPDIR ?? "/tmp", "atools-search-benchmark-"));
 
   try {
     const modules = await loadSearchModules(outDir);
-    const datasets = createBenchmarkDatasets(scale);
-    const resolveTarget = (code) => datasets.targets.get(code) ?? null;
-    const aggregate = (query) => [
-      ...modules.commandAliases.commandAliasResultsForQuery(query, datasets.aliases, resolveTarget),
-      ...modules.localLaunch.localLaunchResultsForQuery(query, datasets.localLaunch),
-      ...modules.webQuickOpen.webQuickOpenResultsForQuery(query, datasets.webQuickOpen),
-    ].sort((a, b) => b.score - a.score);
+    const runs = [];
+    for (const scale of scales) {
+      runs.push(runScaleBenchmark({ modules, scale, iterations, warmupIterations, thresholdMs }));
+    }
 
-    const cases = [
-      measureCase("alias_exact", `alias${scale - 1}`, iterations, (query) =>
-        modules.commandAliases.commandAliasResultsForQuery(query, datasets.aliases, resolveTarget)),
-      measureCase("local_launch_path_contains", `workspace-${scale - 1}`, iterations, (query) =>
-        modules.localLaunch.localLaunchResultsForQuery(query, datasets.localLaunch)),
-      measureCase("web_quick_open_prefix", `site${scale - 1} rust tauri`, iterations, (query) =>
-        modules.webQuickOpen.webQuickOpenResultsForQuery(query, datasets.webQuickOpen)),
-      measureCase("aggregate_keyword", "project", iterations, aggregate),
-      measureCase("aggregate_no_match", "zzzz-no-match", iterations, aggregate),
-    ];
-    const maxDurationMs = Math.max(...cases.map((item) => item.max_duration_ms));
-
-    return {
-      status: maxDurationMs <= thresholdMs ? "ok" : "warn",
+    const allCases = runs.flatMap((run) => run.cases);
+    const worstP99Ms = Math.max(...allCases.map((item) => item.p99_ms));
+    const worstMaxDurationMs = Math.max(...allCases.map((item) => item.max_duration_ms));
+    const result = {
+      schema_version: 2,
+      status: runs.every((run) => run.status === "ok") ? "ok" : "warn",
       timestamp,
-      iterations,
-      datasets: {
-        aliases: datasets.aliases.length,
-        local_launch: datasets.localLaunch.length,
-        web_quick_open: datasets.webQuickOpen.length,
+      source: {
+        repository: process.env.GITHUB_REPOSITORY ?? null,
+        commit: process.env.GITHUB_SHA ?? null,
+        run_id: process.env.GITHUB_RUN_ID ?? null,
       },
-      summary: {
-        total_cases: cases.length,
-        max_duration_ms: roundMs(maxDurationMs),
+      machine: machineMetadata(),
+      config: {
+        scales,
+        iterations,
+        warmup_iterations: warmupIterations,
         threshold_ms: thresholdMs,
       },
-      cases,
+      summary: {
+        scale_count: runs.length,
+        total_cases: allCases.length,
+        worst_p99_ms: roundMs(worstP99Ms),
+        worst_max_duration_ms: roundMs(worstMaxDurationMs),
+        threshold_ms: thresholdMs,
+      },
+      runs,
     };
+
+    if (options.outputPath) {
+      const outputPath = resolve(options.outputPath);
+      await mkdir(dirname(outputPath), { recursive: true });
+      await writeFile(outputPath, `${JSON.stringify(result, null, 2)}\n`);
+    }
+    return result;
   } finally {
     await rm(outDir, { recursive: true, force: true });
   }
+}
+
+function runScaleBenchmark({ modules, scale, iterations, warmupIterations, thresholdMs }) {
+  const datasets = createBenchmarkDatasets(scale);
+  const resolveTarget = (code) => datasets.targets.get(code) ?? null;
+  const aggregate = (query) => [
+    ...modules.commandAliases.commandAliasResultsForQuery(query, datasets.aliases, resolveTarget),
+    ...modules.localLaunch.localLaunchResultsForQuery(query, datasets.localLaunch),
+    ...modules.webQuickOpen.webQuickOpenResultsForQuery(query, datasets.webQuickOpen),
+  ].sort((a, b) => b.score - a.score);
+
+  const cases = [
+    measureCase("alias_exact", `alias${scale - 1}`, iterations, warmupIterations, (query) =>
+      modules.commandAliases.commandAliasResultsForQuery(query, datasets.aliases, resolveTarget)),
+    measureCase("local_launch_path_contains", `workspace-${scale - 1}`, iterations, warmupIterations, (query) =>
+      modules.localLaunch.localLaunchResultsForQuery(query, datasets.localLaunch)),
+    measureCase("web_quick_open_prefix", `site${scale - 1} rust tauri`, iterations, warmupIterations, (query) =>
+      modules.webQuickOpen.webQuickOpenResultsForQuery(query, datasets.webQuickOpen)),
+    measureCase("aggregate_keyword", "project", iterations, warmupIterations, aggregate),
+    measureCase("aggregate_no_match", "zzzz-no-match", iterations, warmupIterations, aggregate),
+  ];
+  const worstP99Ms = Math.max(...cases.map((item) => item.p99_ms));
+
+  return {
+    scale,
+    status: worstP99Ms <= thresholdMs ? "ok" : "warn",
+    datasets: {
+      aliases: datasets.aliases.length,
+      local_launch: datasets.localLaunch.length,
+      web_quick_open: datasets.webQuickOpen.length,
+      total_records: datasets.aliases.length + datasets.localLaunch.length + datasets.webQuickOpen.length,
+    },
+    summary: {
+      total_cases: cases.length,
+      worst_p99_ms: roundMs(worstP99Ms),
+      threshold_ms: thresholdMs,
+    },
+    cases,
+  };
 }
 
 async function loadSearchModules(outDir) {
@@ -157,24 +214,45 @@ function createBenchmarkDatasets(scale) {
   };
 }
 
-function measureCase(name, query, iterations, run) {
+function measureCase(name, query, iterations, warmupIterations, run) {
   let result = [];
+  for (let index = 0; index < warmupIterations; index += 1) {
+    result = run(query);
+  }
+
   const durations = [];
   for (let index = 0; index < iterations; index += 1) {
     const start = performance.now();
     result = run(query);
     durations.push(performance.now() - start);
   }
-  const durationMs = durations.reduce((sum, value) => sum + value, 0) / durations.length;
-  const maxDurationMs = Math.max(...durations);
 
   return {
     name,
     query,
     result_count: result.length,
     top_label: result[0]?.label ?? null,
-    duration_ms: roundMs(durationMs),
-    max_duration_ms: roundMs(maxDurationMs),
+    samples: durations.length,
+    mean_ms: roundMs(durations.reduce((sum, value) => sum + value, 0) / durations.length),
+    p50_ms: roundMs(percentile(durations, 50)),
+    p95_ms: roundMs(percentile(durations, 95)),
+    p99_ms: roundMs(percentile(durations, 99)),
+    min_duration_ms: roundMs(Math.min(...durations)),
+    max_duration_ms: roundMs(Math.max(...durations)),
+  };
+}
+
+function machineMetadata() {
+  const cpuList = cpus();
+  return {
+    platform: platform(),
+    release: release(),
+    arch: arch(),
+    hostname: hostname(),
+    node: process.version,
+    cpu_model: cpuList[0]?.model ?? "unknown",
+    cpu_count: cpuList.length,
+    total_memory_bytes: totalmem(),
   };
 }
 
@@ -182,13 +260,40 @@ function roundMs(value) {
   return Math.round(value * 1_000) / 1_000;
 }
 
+function normalizeScales(scales) {
+  const values = Array.isArray(scales) ? scales : String(scales).split(",");
+  const normalized = [...new Set(values.map((value) => positiveInteger(value, null)).filter((value) => value !== null))];
+  if (normalized.length === 0) {
+    throw new Error("At least one positive benchmark scale is required");
+  }
+  return normalized;
+}
+
+function positiveInteger(value, fallback) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function nonNegativeInteger(value, fallback) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function positiveNumber(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 function parseCliArgs(argv) {
   const options = {};
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
-    if (arg === "--scale") options.scale = Number(argv[++index]);
-    if (arg === "--iterations") options.iterations = Number(argv[++index]);
-    if (arg === "--threshold-ms") options.thresholdMs = Number(argv[++index]);
+    if (arg === "--scale") options.scales = [argv[++index]];
+    if (arg === "--scales") options.scales = argv[++index];
+    if (arg === "--iterations") options.iterations = argv[++index];
+    if (arg === "--warmup-iterations") options.warmupIterations = argv[++index];
+    if (arg === "--threshold-ms") options.thresholdMs = argv[++index];
+    if (arg === "--output") options.outputPath = argv[++index];
     if (arg === "--fail-on-threshold") options.failOnThreshold = true;
   }
   return options;
