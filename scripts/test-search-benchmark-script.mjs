@@ -41,6 +41,8 @@ assert.equal(fixture.runs[1].datasets.total_records, 54);
 assert.equal(fixture.summary.total_cases, fixture.runs.flatMap((run) => run.cases).length);
 assert.ok(fixture.summary.worst_p99_ms >= 0);
 assert.ok(fixture.summary.threshold_ms === 100);
+assert.ok(fixture.runs.every((run) => run.summary.worst_p95_ms >= run.summary.worst_p50_ms));
+assert.ok(fixture.runs.every((run) => run.summary.worst_p99_ms >= run.summary.worst_p95_ms));
 const fixtureCases = fixture.runs.flatMap((run) => run.cases);
 assert.ok(fixtureCases.length >= 8);
 assert.ok(fixtureCases.every((item) => typeof item.name === "string" && item.p50_ms >= 0));

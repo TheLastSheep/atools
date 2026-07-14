@@ -105,6 +105,8 @@ function runScaleBenchmark({ modules, scale, iterations, warmupIterations, thres
     measureCase("aggregate_keyword", "project", iterations, warmupIterations, aggregate),
     measureCase("aggregate_no_match", "zzzz-no-match", iterations, warmupIterations, aggregate),
   ];
+  const worstP50Ms = Math.max(...cases.map((item) => item.p50_ms));
+  const worstP95Ms = Math.max(...cases.map((item) => item.p95_ms));
   const worstP99Ms = Math.max(...cases.map((item) => item.p99_ms));
 
   return {
@@ -118,6 +120,8 @@ function runScaleBenchmark({ modules, scale, iterations, warmupIterations, thres
     },
     summary: {
       total_cases: cases.length,
+      worst_p50_ms: roundMs(worstP50Ms),
+      worst_p95_ms: roundMs(worstP95Ms),
       worst_p99_ms: roundMs(worstP99Ms),
       threshold_ms: thresholdMs,
     },
@@ -303,6 +307,13 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const options = parseCliArgs(process.argv.slice(2));
   const result = await runSearchBenchmark(options);
   console.log(`${BENCHMARK_PREFIX}${JSON.stringify(result)}`);
+  if (process.env.GITHUB_ACTIONS === "true") {
+    const message = result.runs
+      .map((run) => `${run.scale}: P50 ${run.summary.worst_p50_ms} ms / P95 ${run.summary.worst_p95_ms} ms / P99 ${run.summary.worst_p99_ms} ms`)
+      .join("; ");
+    const annotation = result.status === "ok" ? "notice" : "warning";
+    console.log(`::${annotation} title=ATools search benchmark::${message}`);
+  }
   if (options.failOnThreshold && result.status !== "ok") {
     process.exitCode = 1;
   }

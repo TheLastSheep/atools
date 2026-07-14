@@ -18,11 +18,11 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 11.7.0
           run_install: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: pnpm
@@ -125,11 +125,11 @@ jobs:
             runner: macos-15-intel
     steps:
       - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 11.7.0
           run_install: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: pnpm
@@ -167,7 +167,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
       - name: Download and verify updater assets
@@ -203,11 +203,11 @@ jobs:
             dmgPattern: "*x64*.dmg"
     steps:
       - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 11.7.0
           run_install: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: pnpm
