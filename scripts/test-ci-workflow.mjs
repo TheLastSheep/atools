@@ -27,6 +27,7 @@ assert.match(workflow, /::error title=Browser-tier diagnostics::\$diagnostic/);
 assert.match(workflow, /::error title=Desktop-tier diagnostics::\$diagnostic/);
 assert.match(workflow, /tr '\\r' '\\n' < test-desktop\.log/);
 assert.ok(workflow.includes("perl -pe 's/\\e\\[[0-9;?]*[ -\\/]*[@-~]//g'"));
+assert.ok(workflow.includes("<snapshot omitted; validation result follows>"));
 assert.ok(workflow.includes("awk '/Running `.*target\\/debug\\/atools`/ { runtime = 1 } runtime'"));
 assert.match(workflow, /tail -n 24/);
 assert.match(workflow, /cargo test --workspace/);

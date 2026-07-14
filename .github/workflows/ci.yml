@@ -103,6 +103,7 @@ jobs:
             diagnostic="$(
               tr '\r' '\n' < test-desktop.log |
                 perl -pe 's/\e\[[0-9;?]*[ -\/]*[@-~]//g' |
+                sed -E 's/^(ATOOLS_DESKTOP_SMOKE ).*/\1<snapshot omitted; validation result follows>/' |
                 awk '/Running `.*target\/debug\/atools`/ { runtime = 1 } runtime' |
                 tail -n 24
             )"
@@ -110,6 +111,7 @@ jobs:
               diagnostic="$(
                 tr '\r' '\n' < test-desktop.log |
                   perl -pe 's/\e\[[0-9;?]*[ -\/]*[@-~]//g' |
+                  sed -E 's/^(ATOOLS_DESKTOP_SMOKE ).*/\1<snapshot omitted; validation result follows>/' |
                   tail -n 24
               )"
             fi
