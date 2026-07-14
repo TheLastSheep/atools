@@ -15,6 +15,14 @@ assert.ok(source.includes("打开调试日志"), "About page should link to Debu
 assert.ok(source.includes("打开 MCP 服务"), "About page should link to MCP Service");
 assert.ok(source.includes("本地数据路径"), "About page should show local data path information");
 assert.ok(source.includes("本地 Agent 能力"), "About page should summarize local Agent capability counts");
+assert.ok(source.includes('appUpdater.check("manual")'), "About page should trigger an explicit manual update check");
+assert.ok(source.includes("appUpdater.installAndRestart()"), "About page should install the exact discovered update on confirmation");
+assert.ok(source.includes("应用更新"), "About page should render an application update section");
+assert.ok(source.includes("检查更新"), "About page should render a manual update button");
+assert.ok(source.includes("更新并重启"), "About page should render an install-and-restart button when an update is available");
+assert.ok(source.includes("上次检查"), "About page should display the last successful check time");
+assert.ok(source.includes("桌面应用中可用"), "Browser preview should explain that updates require the desktop app");
+assert.doesNotMatch(source, /\{@html[^}]*update/i, "Release notes must be rendered as text, never raw HTML");
 assert.match(source, /token:\s*mcp\?\.token\s*\?\s*"<hidden>"\s*:\s*""/, "Copied runtime info must not include the raw MCP token");
 assert.match(source, /<button class="plain-button" onclick=\{\(\) => activeMenu = "mcp"\}>打开 MCP 服务<\/button>/, "About page should navigate directly to the MCP Service page");
 

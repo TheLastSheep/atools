@@ -63,6 +63,10 @@ try {
   assert.match(panel, /关于概览/);
   assert.match(panel, /产品方向/);
   assert.match(panel, /诊断包只包含本机运行状态/);
+  assert.match(panel, /应用更新/);
+  assert.match(panel, /appUpdaterStatusText/);
+  assert.match(panel, /appUpdater\.check\("manual"\)/);
+  assert.match(panel, /appUpdater\.installAndRestart\(\)/);
   assert.match(panel, /class="about-overview-grid"/);
   assert.match(panel, /class="about-overview-card"/);
 } finally {

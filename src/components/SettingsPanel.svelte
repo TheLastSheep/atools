@@ -191,6 +191,7 @@
     type SettingsIconName,
     type SettingsMenuId,
   } from "../lib/settingsPages";
+  import { appUpdater, appUpdaterState, type AppUpdaterState } from "../lib/appUpdater";
 
   type MenuId = SettingsMenuId;
   type IconName = SettingsIconName;
@@ -3135,6 +3136,36 @@
   function hasTauriRuntime() {
     const runtime = (window as Window & { __TAURI_INTERNALS__?: { invoke?: unknown } }).__TAURI_INTERNALS__;
     return typeof runtime?.invoke === "function";
+  }
+
+  function appUpdaterStatusText(state: AppUpdaterState) {
+    if (!hasTauriRuntime()) return "桌面应用中可用";
+    if (state.phase === "checking") return "正在检查更新";
+    if (state.phase === "up-to-date") return "已是最新版本";
+    if (state.phase === "available") return `发现 v${state.update?.version ?? "新版本"}`;
+    if (state.phase === "downloading") return "正在下载更新";
+    if (state.phase === "installing") return "正在安装更新";
+    if (state.phase === "restarting") return "正在重启应用";
+    if (state.phase === "error") return state.errorMessage || "更新操作失败";
+    return "尚未检查更新";
+  }
+
+  function appUpdaterCheckedAtText(state: AppUpdaterState) {
+    if (!state.checkedAt) return "尚无记录";
+    const checkedAt = new Date(state.checkedAt);
+    return Number.isNaN(checkedAt.getTime()) ? "时间未知" : checkedAt.toLocaleString();
+  }
+
+  function appUpdaterBusy(state: AppUpdaterState) {
+    return ["checking", "downloading", "installing", "restarting"].includes(state.phase);
+  }
+
+  function checkForAppUpdate() {
+    void appUpdater.check("manual").catch(() => undefined);
+  }
+
+  function installAppUpdate() {
+    void appUpdater.installAndRestart().catch(() => undefined);
   }
 
   function commandHistoryDetail() {
@@ -6462,6 +6493,47 @@
                 <code>{row.value}</code>
               </div>
             {/each}
+          </div>
+        </section>
+
+        <section class="setting-group">
+          <div class="section-heading">
+            <div>
+              <h3>应用更新</h3>
+              <small>通过 GitHub Releases 获取经过签名验证的稳定版更新</small>
+            </div>
+            <span
+              class="state-pill"
+              class:enabled={$appUpdaterState.phase === "up-to-date" || $appUpdaterState.phase === "available"}
+              class:error={$appUpdaterState.phase === "error"}
+            >{appUpdaterStatusText($appUpdaterState)}</span>
+          </div>
+          <div class="compact-list">
+            <div class="data-row">
+              <div class="setting-label">
+                <span>稳定版通道</span>
+                <small>
+                  当前 v{about.version} · 上次检查：{appUpdaterCheckedAtText($appUpdaterState)}
+                </small>
+                {#if $appUpdaterState.update?.body}
+                  <small>更新说明：{$appUpdaterState.update.body}</small>
+                {/if}
+              </div>
+              <div class="row-actions">
+                <button
+                  class="plain-button"
+                  onclick={checkForAppUpdate}
+                  disabled={!hasTauriRuntime() || appUpdaterBusy($appUpdaterState)}
+                >检查更新</button>
+                {#if $appUpdaterState.update}
+                  <button
+                    class="plain-button primary"
+                    onclick={installAppUpdate}
+                    disabled={!hasTauriRuntime() || appUpdaterBusy($appUpdaterState)}
+                  >更新并重启</button>
+                {/if}
+              </div>
+            </div>
           </div>
         </section>
 
