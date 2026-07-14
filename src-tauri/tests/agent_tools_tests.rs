@@ -882,7 +882,7 @@ async fn ocr_image_uses_input_mime_type_in_local_request() {
 async fn ocr_image_returns_actionable_error_when_local_service_is_unavailable() {
     let temp = TempDir::new().unwrap();
     let input = temp.path().join("scan.gif");
-    fs::write(&input, [b'G', b'I', b'F', b'8']).unwrap();
+    fs::write(&input, *b"GIF8").unwrap();
 
     let error = ocr_image(serde_json::json!({
         "path": input,
