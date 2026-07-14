@@ -99,7 +99,8 @@ pub fn activate_feature(
         TaskRunInitiator::human(Some("atools-ui".to_string())),
         input,
     );
-    run.transition(TaskRunStatus::Running);
+    run.transition(TaskRunStatus::Running)
+        .expect("human plugin TaskRun can start");
     state
         .db
         .upsert_task_run(&run)
@@ -130,7 +131,8 @@ pub fn activate_feature(
                 "Plugin feature resolved through the shared local capability store".to_string(),
             );
             run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
-            run.transition(TaskRunStatus::Succeeded);
+            run.transition(TaskRunStatus::Succeeded)
+                .expect("running human plugin TaskRun can succeed");
             state
                 .db
                 .upsert_task_run(&run)
@@ -145,7 +147,8 @@ pub fn activate_feature(
             run.validation.status = TaskValidationStatus::Failed;
             run.validation.summary = Some("Plugin feature activation failed".to_string());
             run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
-            run.transition(TaskRunStatus::Failed);
+            run.transition(TaskRunStatus::Failed)
+                .expect("running human plugin TaskRun can fail");
             let _ = state.db.upsert_task_run(&run);
             Err(error)
         }
@@ -4315,7 +4318,8 @@ pub fn dismiss_pending_agent_request(state: tauri::State<AppState>, request_id: 
         if let Ok(Some(mut run)) = state.db.get_task_run(run_id) {
             if !run.status.is_terminal() {
                 run.summary = Some("Permission request was dismissed".to_string());
-                run.transition(TaskRunStatus::Cancelled);
+                run.transition(TaskRunStatus::Cancelled)
+                    .expect("pending TaskRun can be cancelled");
                 let _ = state.db.upsert_task_run(&run);
             }
         }
@@ -4392,7 +4396,8 @@ pub fn cancel_task_run(state: tauri::State<AppState>, id: String) -> Result<Task
         .lock()
         .retain(|_, request| request.run_id.as_deref() != Some(run.id.as_str()));
     run.summary = Some("TaskRun was cancelled by the user".to_string());
-    run.transition(TaskRunStatus::Cancelled);
+    run.transition(TaskRunStatus::Cancelled)
+        .map_err(|error| error.to_string())?;
     state
         .db
         .upsert_task_run(&run)
@@ -7093,8 +7098,8 @@ mod tests {
         assert_eq!(snapshot.plugins_dir, config.plugins_dir().to_string_lossy());
         assert_eq!(snapshot.plugin_count, 0);
         assert_eq!(snapshot.feature_count, 0);
-        assert_eq!(snapshot.agent_tool_count, 8);
-        assert_eq!(snapshot.enabled_agent_tool_count, 8);
+        assert_eq!(snapshot.agent_tool_count, 9);
+        assert_eq!(snapshot.enabled_agent_tool_count, 9);
         assert!(db.get_agent_tool("ask_ai_model").unwrap().is_some());
         assert_eq!(snapshot.mcp_bind.as_deref(), Some("127.0.0.1:17321"));
         assert_eq!(snapshot.active_plugin.as_deref(), Some("json-viewer"));

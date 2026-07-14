@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::fmt;
 
 use crate::utils::{generate_rev, now_iso};
 
@@ -79,7 +80,45 @@ impl TaskRunStatus {
             Self::Partial | Self::Succeeded | Self::Failed | Self::Cancelled
         )
     }
+
+    pub fn can_transition_to(self, next: Self) -> bool {
+        if self == next {
+            return true;
+        }
+        match self {
+            Self::Created => matches!(
+                next,
+                Self::AwaitingPermission | Self::Running | Self::Failed | Self::Cancelled
+            ),
+            Self::AwaitingPermission => matches!(next, Self::Running | Self::Cancelled),
+            Self::Running => matches!(
+                next,
+                Self::Partial | Self::Succeeded | Self::Failed | Self::Cancelled
+            ),
+            Self::Partial | Self::Failed => next == Self::Running,
+            Self::Succeeded | Self::Cancelled => false,
+        }
+    }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct InvalidTaskRunTransition {
+    pub from: TaskRunStatus,
+    pub to: TaskRunStatus,
+}
+
+impl fmt::Display for InvalidTaskRunTransition {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "invalid TaskRun transition from {} to {}",
+            self.from.as_str(),
+            self.to.as_str()
+        )
+    }
+}
+
+impl std::error::Error for InvalidTaskRunTransition {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -248,16 +287,30 @@ impl TaskRun {
         }
     }
 
-    pub fn transition(&mut self, status: TaskRunStatus) {
+    pub fn transition(&mut self, status: TaskRunStatus) -> Result<(), InvalidTaskRunTransition> {
+        if !self.status.can_transition_to(status) {
+            return Err(InvalidTaskRunTransition {
+                from: self.status,
+                to: status,
+            });
+        }
+        if self.status == status {
+            return Ok(());
+        }
         let now = now_iso();
         self.status = status;
         self.updated_at = now.clone();
         if status == TaskRunStatus::Running && self.started_at.is_none() {
             self.started_at = Some(now.clone());
         }
+        if status == TaskRunStatus::Running {
+            self.finished_at = None;
+            self.progress = Some(0);
+        }
         if status.is_terminal() {
             self.finished_at = Some(now);
             self.progress = Some(100);
         }
+        Ok(())
     }
 }

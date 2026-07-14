@@ -127,7 +127,8 @@ fn run_scale(scale: usize, iterations: usize) -> Result<ScaleReport, Box<dyn std
         run.id = format!("run-{index:010}");
         run.output = json!({ "items": [{ "index": index, "ok": true }] });
         run.summary = Some(format!("benchmark run {index}"));
-        run.transition(TaskRunStatus::Succeeded);
+        run.transition(TaskRunStatus::Running)?;
+        run.transition(TaskRunStatus::Succeeded)?;
         db.upsert_task_run(&run)?;
 
         let tool = if index % 997 == 0 {

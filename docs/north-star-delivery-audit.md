@@ -37,7 +37,7 @@
 
 | 要求 | 状态 | 权威证据 | 缺口 |
 | --- | --- | --- | --- |
-| TaskRun 模型与状态机 | 已证明 | `crates/atools-core/src/task_run.rs`、SQLite `task_runs`、`task_run_tests.rs` | 状态转换目前由调用方约定，尚未拒绝非法转换 |
+| TaskRun 模型与状态机 | 验证中 | `TaskRunStatus::can_transition_to` 与 `InvalidTaskRunTransition` 在核心层拒绝非法跳转；回归覆盖成功终态不可重开及 partial/failed 重试 | 等待完整远程 Rust tests 与桌面 smoke |
 | MCP 结构化摘要、runId、指标和 Artifact | 已证明 | `task_run_envelope` 与 `scripts/test-task-run-contract.mjs` | 无 |
 | 持久结果中心 | 已证明 | `src/components/AgentPanel.svelte` 支持历史、详情、验收、错误、指标、复制和来源 | 无 |
 | 通用 Artifact 协议 | 已证明 | `ArtifactKind` 覆盖文件、目录、图片、截图、Markdown、富文本、表格、CSV、JSON、Diff、URL、报告和日志 | 大文件继续只保存受控引用 |

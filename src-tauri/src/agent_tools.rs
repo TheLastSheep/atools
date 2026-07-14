@@ -438,7 +438,8 @@ async fn call_tool_with_task_run(
             .push(TaskIssue::error("permission_denied", "Permission denied"));
         run.summary = Some(format!("{tool_name} was denied by the permission policy"));
         run.metrics = json!({ "durationMs": started.elapsed().as_millis() as u64 });
-        run.transition(TaskRunStatus::Cancelled);
+        run.transition(TaskRunStatus::Cancelled)
+            .expect("created TaskRun can be cancelled by policy");
         persist_task_run(db, &run);
         return task_run_error(&run, json!({ "error": "Permission denied" }));
     }
@@ -451,7 +452,8 @@ async fn call_tool_with_task_run(
         run.audit_id = Some(entry.id.clone());
         run.summary = Some(format!("{tool_name} is awaiting permission"));
         run.metrics = json!({ "durationMs": started.elapsed().as_millis() as u64 });
-        run.transition(TaskRunStatus::AwaitingPermission);
+        run.transition(TaskRunStatus::AwaitingPermission)
+            .expect("created TaskRun can await permission");
         let pending = build_pending_agent_tool_request_with_run(
             db,
             client_id,
@@ -480,7 +482,8 @@ async fn call_tool_with_task_run(
         return task_run_error(&run, payload);
     }
 
-    run.transition(TaskRunStatus::Running);
+    run.transition(TaskRunStatus::Running)
+        .expect("authorized TaskRun can start");
     persist_task_run(db, &run);
     let result = execute_agent_tool(app, db, &tool, arguments.clone()).await;
     let duration_ms = started.elapsed().as_millis() as u64;
@@ -503,7 +506,8 @@ async fn call_tool_with_task_run(
             run.validation.status = TaskValidationStatus::Passed;
             run.validation.summary =
                 Some("Structured executor completed without an error".to_string());
-            run.transition(TaskRunStatus::Succeeded);
+            run.transition(TaskRunStatus::Succeeded)
+                .expect("running TaskRun can succeed");
             persist_task_run(db, &run);
             let _ = db.record_memory_success(&run.memory_ids);
             task_run_success(&run, output)
@@ -581,7 +585,8 @@ fn finish_failed_task_run(
     run.metrics = json!({ "durationMs": duration_ms });
     run.validation.status = TaskValidationStatus::Failed;
     run.validation.summary = Some("Executor returned an error".to_string());
-    run.transition(TaskRunStatus::Failed);
+    run.transition(TaskRunStatus::Failed)
+        .expect("created or running TaskRun can fail");
     persist_task_run(db, run);
 }
 

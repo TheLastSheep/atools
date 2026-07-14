@@ -20,6 +20,11 @@ for (const status of ["Created", "AwaitingPermission", "Running", "Partial", "Su
 for (const field of ["capability_id", "initiator", "artifacts", "warnings", "errors", "actions", "memory_ids", "validation"]) {
   assert.match(model, new RegExp(`pub ${field}:`), `TaskRun must persist ${field}`);
 }
+assert.match(model, /pub fn can_transition_to\(self, next: Self\) -> bool/);
+assert.match(model, /pub struct InvalidTaskRunTransition/);
+assert.match(model, /if !self\.status\.can_transition_to\(status\)/);
+assert.match(model, /Self::Partial \| Self::Failed => next == Self::Running/);
+assert.match(model, /Self::Succeeded \| Self::Cancelled => false/);
 
 assert.match(database, /CREATE TABLE IF NOT EXISTS task_runs/);
 assert.match(database, /pub fn upsert_task_run/);
