@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
 const scriptUrl = pathToFileURL(new URL("benchmark-search-index.mjs", import.meta.url).pathname).href;
 const benchmark = await import(scriptUrl);
+const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+assert.match(packageJson.scripts["benchmark:search:ci"], /--fail-on-threshold/);
 
 const output = [
   "warmup",
