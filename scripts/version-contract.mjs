@@ -64,6 +64,19 @@ export async function readVersionContract(root, options = {}) {
   };
 }
 
+export function normalizeStableReleaseTag(tag) {
+  const value = String(tag ?? "").trim();
+  const match = /^v(\d+\.\d+\.\d+)$/.exec(value);
+  if (!match) {
+    throw new Error(`Release tag must be stable vX.Y.Z SemVer: ${JSON.stringify(value)}`);
+  }
+  return match[1];
+}
+
+export async function assertRepositoryVersions(root, expectedVersion) {
+  return assertVersionContract(await readVersionContract(root, { expectedVersion }));
+}
+
 function compareVersion(errors, label, actual, expected) {
   if (actual !== expected) {
     errors.push(`${label} version ${JSON.stringify(actual ?? null)} must match ${JSON.stringify(expected)}`);

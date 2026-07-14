@@ -1,0 +1,220 @@
+name: Publish macOS
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-macos-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate-version:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: publish-validation
+      - run: pnpm install --frozen-lockfile
+      - run: node scripts/validate-release-tag.mjs "$GITHUB_REF_NAME"
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+      - run: pnpm test:fast
+      - run: pnpm test:browser
+      - run: pnpm check
+      - run: pnpm build
+      - run: pnpm release:check:macos:unsigned
+
+  prepare-draft:
+    needs: validate-version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      releaseId: ${{ steps.release.outputs.releaseId }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: release
+        name: Create or reuse matching draft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$GITHUB_REF_NAME" 2>/dev/null)"; then
+            test "$(jq -r .tag_name <<<"$release_json")" = "$GITHUB_REF_NAME"
+            test "$(jq -r .draft <<<"$release_json")" = "true" || {
+              echo "Refusing to reuse published release $GITHUB_REF_NAME" >&2
+              exit 1
+            }
+            test "$(jq -r .prerelease <<<"$release_json")" = "false"
+          else
+            release_json="$(gh api --method POST "repos/$GITHUB_REPOSITORY/releases" \
+              -f tag_name="$GITHUB_REF_NAME" \
+              -f target_commitish="$GITHUB_SHA" \
+              -f name="ATools ${GITHUB_REF_NAME#v}" \
+              -F draft=true \
+              -F prerelease=false \
+              -F generate_release_notes=true)"
+          fi
+          release_id="$(jq -r .id <<<"$release_json")"
+          test "$release_id" != "null"
+          echo "releaseId=$release_id" >> "$GITHUB_OUTPUT"
+
+  publish-macos:
+    needs: prepare-draft
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runner: macos-15
+          - target: x86_64-apple-darwin
+            runner: macos-15-intel
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: publish-${{ matrix.target }}
+      - run: pnpm install --frozen-lockfile
+      - name: Build, sign, notarize, and upload
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        with:
+          releaseId: ${{ needs.prepare-draft.outputs.releaseId }}
+          tagName: ${{ github.ref_name }}
+          releaseDraft: true
+          uploadUpdaterJson: true
+          retryAttempts: 2
+          args: --target ${{ matrix.target }} --bundles app,dmg
+
+  verify-release:
+    needs: [prepare-draft, publish-macos]
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Download and verify updater assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          gh release download "$GITHUB_REF_NAME" --dir release-assets
+          assets=()
+          while IFS= read -r -d '' file; do
+            assets+=(--asset "$(basename "$file")")
+          done < <(find release-assets -maxdepth 1 -type f -print0)
+          node scripts/verify-github-release-updater.mjs \
+            --manifest release-assets/latest.json \
+            --version "${GITHUB_REF_NAME#v}" \
+            --tag "$GITHUB_REF_NAME" \
+            "${assets[@]}"
+
+  verify-bundle:
+    needs: [prepare-draft, publish-macos]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runner: macos-15
+            dmgPattern: "*aarch64*.dmg"
+          - target: x86_64-apple-darwin
+            runner: macos-15-intel
+            dmgPattern: "*x64*.dmg"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Download draft assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p release-assets
+          gh release download "$GITHUB_REF_NAME" --dir release-assets
+      - name: Verify signed and notarized bundle
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          matches=(release-assets/${{ matrix.dmgPattern }})
+          test "${#matches[@]}" -eq 1
+          mount_point="$(mktemp -d)"
+          echo "ATOOLS_DMG_MOUNT=$mount_point" >> "$GITHUB_ENV"
+          hdiutil attach "${matches[0]}" -readonly -nobrowse -mountpoint "$mount_point"
+          app_path="$(find "$mount_point" -maxdepth 2 -name 'ATools 3.0.app' -print -quit)"
+          test -n "$app_path"
+          test "$(plutil -extract CFBundleIdentifier raw "$app_path/Contents/Info.plist")" = "dev.atools.desktop"
+          test "$(plutil -extract CFBundleShortVersionString raw "$app_path/Contents/Info.plist")" = "${GITHUB_REF_NAME#v}"
+          codesign --verify --deep --strict "$app_path"
+          spctl --assess --type execute "$app_path"
+          xcrun stapler validate "$app_path"
+          pnpm smoke:macos-release-app -- --app "$app_path" --strict --strict-gatekeeper
+      - name: Detach release DMG
+        if: always()
+        run: |
+          if [[ -n "${ATOOLS_DMG_MOUNT:-}" ]] && mount | grep -Fq "on $ATOOLS_DMG_MOUNT "; then
+            hdiutil detach "$ATOOLS_DMG_MOUNT"
+          fi
+
+  promote-release:
+    needs: [prepare-draft, verify-release, verify-bundle]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Publish verified stable release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "$GITHUB_REF_NAME" --draft=false --prerelease=false --latest

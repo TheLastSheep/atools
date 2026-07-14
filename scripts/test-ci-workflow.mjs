@@ -26,4 +26,7 @@ assert.match(workflow, /pnpm build/);
 assert.match(workflow, /pnpm test:browser/);
 assert.match(workflow, /pnpm test:desktop/);
 assert.match(workflow, /pnpm release:check:macos:unsigned/);
-assert.doesNotMatch(workflow, /node_modules|ATOOLS_PLUGIN_MARKET_TRUSTED_PUBLIC_KEYS|APPLE_PASSWORD/);
+assert.doesNotMatch(
+  workflow,
+  /node_modules|ATOOLS_PLUGIN_MARKET_TRUSTED_PUBLIC_KEYS|TAURI_SIGNING_PRIVATE_KEY|APPLE_CERTIFICATE|APPLE_PASSWORD|KEYCHAIN_PASSWORD/,
+);
