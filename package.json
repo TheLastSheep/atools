@@ -153,6 +153,7 @@
     "test:plugin-inventory-overview": "node scripts/test-plugin-inventory-overview.mjs",
     "test:search-benchmark": "node scripts/test-search-benchmark-script.mjs",
     "test:task-run-contract": "node scripts/test-task-run-contract.mjs",
+    "test:artifact-view": "node scripts/test-artifact-view.mjs",
     "test:release-bundle-budget": "node scripts/test-release-bundle-budget.mjs",
     "test:macos-release-readiness": "node scripts/test-macos-release-readiness.mjs",
     "test:macos-release-app-smoke": "node scripts/test-macos-release-app-smoke.mjs",

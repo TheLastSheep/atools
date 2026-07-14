@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { invoke } from "@tauri-apps/api/core";
+  import { convertFileSrc, invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
   import { writeText } from "@tauri-apps/plugin-clipboard-manager";
   import { save as saveDialog } from "@tauri-apps/plugin-dialog";
@@ -14,6 +14,7 @@
     MemoryItem,
     PendingAgentToolRequest,
     TaskRun,
+    TaskRunArtifact,
     ToolDefinition
   } from "../lib/types";
   import {
@@ -51,6 +52,17 @@
     type McpClientConfigInstallResult,
     type McpClientTemplate,
   } from "../lib/mcpClientConfig";
+  import {
+    artifactDiffLines,
+    artifactJson,
+    artifactLocation,
+    artifactMarkdownBlocks,
+    artifactPayload,
+    artifactPreviewSource,
+    artifactRenderKind,
+    artifactTable,
+  } from "../lib/artifactView";
+  import { hasTauriAssetRuntime } from "../lib/resultIcons";
 
   type Props = {
     onclose: () => void;
@@ -609,6 +621,50 @@
     }
   }
 
+  async function openArtifact(artifact: TaskRunArtifact) {
+    const target = artifactLocation(artifact);
+    if (!target) {
+      taskRunStatus = `${artifact.label} 没有可打开的受控位置`;
+      return;
+    }
+    busyKey = `artifact:open:${artifact.id}`;
+    try {
+      await invoke("shell_open", { url: target });
+      taskRunStatus = `已打开 ${artifact.label}`;
+    } catch (e) {
+      taskRunStatus = `打开产物失败：${String(e)}`;
+    } finally {
+      busyKey = "";
+    }
+  }
+
+  async function revealArtifact(artifact: TaskRunArtifact) {
+    const path = artifact.path?.trim();
+    if (!path) {
+      taskRunStatus = `${artifact.label} 不是可定位的本地文件`;
+      return;
+    }
+    busyKey = `artifact:reveal:${artifact.id}`;
+    try {
+      await invoke("shell_show_item_in_folder", { path });
+      taskRunStatus = `已定位 ${artifact.label}`;
+    } catch (e) {
+      taskRunStatus = `定位产物失败：${String(e)}`;
+    } finally {
+      busyKey = "";
+    }
+  }
+
+  async function copyArtifact(run: TaskRun, artifact: TaskRunArtifact) {
+    busyKey = `artifact:copy:${artifact.id}`;
+    try {
+      await copyText(artifactJson(artifactPayload(artifact, run.output)));
+      taskRunStatus = `已复制 ${artifact.label}`;
+    } finally {
+      busyKey = "";
+    }
+  }
+
   function taskRunStatusMeta(run: TaskRun) {
     if (run.status === "succeeded") return { label: "成功", tone: "success" };
     if (run.status === "failed") return { label: "失败", tone: "error" };
@@ -1044,13 +1100,84 @@
             {#if run.artifacts.length > 0}
               <section class="detail-block">
                 <h4>Artifacts</h4>
-                <div class="artifact-list">
+                <div class="artifact-render-list">
                   {#each run.artifacts as artifact}
-                    <div>
-                      <strong>{artifact.label}</strong>
-                      <span>{artifact.kind} · {artifact.mediaType ?? "unknown"}</span>
-                      <code>{artifact.path ?? artifact.uri ?? "受控引用"}</code>
-                    </div>
+                    {@const renderKind = artifactRenderKind(artifact)}
+                    {@const payload = artifactPayload(artifact, run.output)}
+                    {@const table = artifactTable(payload)}
+                    {@const previewSource = artifactPreviewSource(artifact, hasTauriAssetRuntime(), convertFileSrc)}
+                    {@const location = artifactLocation(artifact)}
+                    <article class="artifact-card">
+                      <header>
+                        <div>
+                          <strong>{artifact.label}</strong>
+                          <span>{artifact.kind} · {artifact.mediaType ?? "unknown"}</span>
+                          {#if location}<code>{location}</code>{/if}
+                        </div>
+                        <div class="row-actions">
+                          <button disabled={busyKey === `artifact:copy:${artifact.id}`} onclick={() => copyArtifact(run, artifact)}>复制</button>
+                          {#if location}<button disabled={busyKey === `artifact:open:${artifact.id}`} onclick={() => openArtifact(artifact)}>打开</button>{/if}
+                          {#if artifact.path}<button disabled={busyKey === `artifact:reveal:${artifact.id}`} onclick={() => revealArtifact(artifact)}>定位</button>{/if}
+                        </div>
+                      </header>
+
+                      {#if renderKind === "image"}
+                        {#if previewSource}
+                          <img class="artifact-image" src={previewSource} alt={artifact.label} />
+                        {:else}
+                          <p>远程图片不会自动加载；可使用“打开”查看，本地路径仅在桌面运行时预览。</p>
+                        {/if}
+                      {:else if renderKind === "table" && table}
+                        <div class="artifact-table-wrap">
+                          <table>
+                            <thead><tr>{#each table.columns as column}<th>{column}</th>{/each}</tr></thead>
+                            <tbody>
+                              {#each table.rows as row}
+                                <tr>{#each table.columns as column}<td>{row[column]}</td>{/each}</tr>
+                              {/each}
+                            </tbody>
+                          </table>
+                        </div>
+                        {#if table.truncated}<p>表格预览已截断；复制产物可获取完整结构化内容。</p>{/if}
+                      {:else if renderKind === "markdown"}
+                        <div class="artifact-markdown">
+                          {#each artifactMarkdownBlocks(payload) as block}
+                            {#if block.kind === "heading"}
+                              <h5 class:primary={block.level === 1}>{block.text}</h5>
+                            {:else if block.kind === "list_item"}
+                              <p class="markdown-list-item">{block.ordered ? "1." : "•"} {block.text}</p>
+                            {:else if block.kind === "code"}
+                              <pre>{block.text}</pre>
+                            {:else}
+                              <p>{block.text}</p>
+                            {/if}
+                          {/each}
+                        </div>
+                      {:else if renderKind === "diff"}
+                        <pre class="artifact-diff">{#each artifactDiffLines(payload) as line}<span class={line.tone}>{line.text || " "}</span>{/each}</pre>
+                      {:else if renderKind === "json"}
+                        {#if table}
+                          <div class="artifact-table-wrap compact">
+                            <table>
+                              <thead><tr>{#each table.columns as column}<th>{column}</th>{/each}</tr></thead>
+                              <tbody>
+                                {#each table.rows.slice(0, 20) as row}
+                                  <tr>{#each table.columns as column}<td>{row[column]}</td>{/each}</tr>
+                                {/each}
+                              </tbody>
+                            </table>
+                          </div>
+                        {/if}
+                        <pre>{artifactJson(payload)}</pre>
+                      {:else if renderKind === "url"}
+                        <p>{location ?? "缺少 URL"}</p>
+                      {:else if renderKind === "file"}
+                        <p>{location ?? "该产物仅保留受控元数据引用"}</p>
+                        {#if payload !== null}<pre>{artifactJson(payload)}</pre>{/if}
+                      {:else}
+                        <pre>{artifactJson(payload)}</pre>
+                      {/if}
+                    </article>
                   {/each}
                 </div>
               </section>
@@ -1665,6 +1792,143 @@
   .artifact-list {
     display: grid;
     gap: 6px;
+  }
+
+  .artifact-render-list {
+    display: grid;
+    gap: 9px;
+  }
+
+  .artifact-card {
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: var(--bg-primary);
+  }
+
+  .artifact-card > header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .artifact-card > header > div:first-child {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .artifact-card header span,
+  .artifact-card > p {
+    color: var(--text-tertiary);
+    font-size: 10.5px;
+  }
+
+  .artifact-card header code {
+    overflow-wrap: anywhere;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+  }
+
+  .artifact-image {
+    display: block;
+    width: auto;
+    max-width: 100%;
+    max-height: 320px;
+    margin: 0 auto;
+    border-radius: 6px;
+    object-fit: contain;
+    background: var(--bg-secondary);
+  }
+
+  .artifact-table-wrap {
+    overflow: auto;
+    max-height: 320px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+
+  .artifact-table-wrap.compact {
+    max-height: 180px;
+    margin-bottom: 8px;
+  }
+
+  .artifact-table-wrap table {
+    width: 100%;
+    border-collapse: collapse;
+    color: var(--text-secondary);
+    font-size: 11px;
+  }
+
+  .artifact-table-wrap th,
+  .artifact-table-wrap td {
+    max-width: 280px;
+    padding: 6px 8px;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+  }
+
+  .artifact-table-wrap th {
+    position: sticky;
+    top: 0;
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+  }
+
+  .artifact-markdown {
+    padding: 10px;
+    border-radius: 6px;
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+  }
+
+  .artifact-markdown h5 {
+    margin: 10px 0 5px;
+    color: var(--text-primary);
+    font-size: 13px;
+  }
+
+  .artifact-markdown h5.primary {
+    margin-top: 0;
+    font-size: 15px;
+  }
+
+  .artifact-markdown p {
+    margin: 4px 0;
+    font-size: 11.5px;
+    line-height: 1.55;
+  }
+
+  .artifact-markdown .markdown-list-item {
+    padding-left: 8px;
+  }
+
+  .artifact-diff span {
+    display: block;
+    min-height: 1.4em;
+    padding: 0 5px;
+  }
+
+  .artifact-diff span.add {
+    color: #0f7b4f;
+    background: rgba(15, 123, 79, 0.1);
+  }
+
+  .artifact-diff span.remove {
+    color: #bd2c2c;
+    background: rgba(189, 44, 44, 0.1);
+  }
+
+  .artifact-diff span.header {
+    color: #6d55b2;
+    background: rgba(109, 85, 178, 0.1);
   }
 
   .artifact-list > div {

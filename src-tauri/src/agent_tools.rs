@@ -498,7 +498,7 @@ async fn call_tool_with_task_run(
             run.audit_id = Some(entry.id);
             run.summary = Some(structured_result_summary(tool_name, &output));
             run.metrics = json!({ "durationMs": duration_ms });
-            run.artifacts = vec![structured_result_artifact(&run)];
+            run.artifacts = structured_result_artifacts(&run);
             run.validation.status = TaskValidationStatus::Passed;
             run.validation.summary =
                 Some("Structured executor completed without an error".to_string());
@@ -596,8 +596,8 @@ fn structured_result_summary(tool_name: &str, output: &Value) -> String {
     }
 }
 
-fn structured_result_artifact(run: &TaskRun) -> Artifact {
-    Artifact {
+fn structured_result_artifacts(run: &TaskRun) -> Vec<Artifact> {
+    let mut artifacts = vec![Artifact {
         id: format!("artifact-{}", atools_core::utils::generate_rev()),
         kind: ArtifactKind::Json,
         label: format!("{} structured result", run.capability_id),
@@ -606,6 +606,146 @@ fn structured_result_artifact(run: &TaskRun) -> Artifact {
         path: None,
         size_bytes: None,
         metadata: json!({ "runId": run.id }),
+    }];
+
+    match run.capability_id.as_str() {
+        "compress_images" => {
+            for item in output_items(&run.output).take(50) {
+                let Some(path) = item.get("output").and_then(Value::as_str) else {
+                    continue;
+                };
+                artifacts.push(path_artifact(
+                    item.get("input")
+                        .and_then(Value::as_str)
+                        .map(|input| {
+                            format!(
+                                "Compressed {}",
+                                Path::new(input)
+                                    .file_name()
+                                    .and_then(|name| name.to_str())
+                                    .unwrap_or(input)
+                            )
+                        })
+                        .unwrap_or_else(|| "Compressed image".to_string()),
+                    path,
+                    item.get("output_size").and_then(Value::as_u64),
+                    json!({
+                        "status": item.get("status"),
+                        "targetMet": item.get("target_met"),
+                        "compressionRatio": item.get("compression_ratio"),
+                    }),
+                ));
+            }
+        }
+        "find_local_files" => {
+            for item in output_items(&run.output).take(50) {
+                if let Some(path) = item.get("path").and_then(Value::as_str) {
+                    artifacts.push(path_artifact(
+                        Path::new(path)
+                            .file_name()
+                            .and_then(|name| name.to_str())
+                            .unwrap_or(path)
+                            .to_string(),
+                        path,
+                        item.get("size").and_then(Value::as_u64),
+                        json!({ "relativePath": item.get("relative_path") }),
+                    ));
+                }
+            }
+        }
+        "open_or_reveal_path" => {
+            if let Some(path) = run.output.get("path").and_then(Value::as_str) {
+                artifacts.push(path_artifact(
+                    "Opened path".to_string(),
+                    path,
+                    None,
+                    json!({ "reveal": run.output.get("reveal") }),
+                ));
+            }
+        }
+        "ocr_image" => artifacts.push(output_field_artifact(
+            run,
+            ArtifactKind::RichText,
+            "Recognized text",
+            "text/plain",
+            "text",
+        )),
+        "ask_ai_model" => artifacts.push(output_field_artifact(
+            run,
+            ArtifactKind::Markdown,
+            "Model response",
+            "text/markdown",
+            "text",
+        )),
+        _ => {}
+    }
+    artifacts
+}
+
+fn output_items(output: &Value) -> impl Iterator<Item = &serde_json::Map<String, Value>> {
+    output
+        .get("items")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_object)
+}
+
+fn output_field_artifact(
+    run: &TaskRun,
+    kind: ArtifactKind,
+    label: &str,
+    media_type: &str,
+    field: &str,
+) -> Artifact {
+    Artifact {
+        id: format!("artifact-{}", atools_core::utils::generate_rev()),
+        kind,
+        label: label.to_string(),
+        media_type: Some(media_type.to_string()),
+        uri: Some(format!("atools://task-runs/{}/output", run.id)),
+        path: None,
+        size_bytes: run
+            .output
+            .get(field)
+            .and_then(Value::as_str)
+            .map(|text| text.len() as u64),
+        metadata: json!({ "outputField": field }),
+    }
+}
+
+fn path_artifact(label: String, path: &str, size_bytes: Option<u64>, metadata: Value) -> Artifact {
+    let path_ref = Path::new(path);
+    let extension = path_ref
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    let (kind, media_type) = if path_ref.is_dir() {
+        (ArtifactKind::Directory, None)
+    } else {
+        match extension.as_str() {
+            "png" | "jpg" | "jpeg" | "gif" | "webp" | "bmp" | "tif" | "tiff" | "heic" | "svg" => (
+                ArtifactKind::Image,
+                Some(image_mime_for_path(path_ref).to_string()),
+            ),
+            "md" | "markdown" => (ArtifactKind::Markdown, Some("text/markdown".to_string())),
+            "csv" => (ArtifactKind::Csv, Some("text/csv".to_string())),
+            "json" => (ArtifactKind::Json, Some("application/json".to_string())),
+            "diff" | "patch" => (ArtifactKind::Diff, Some("text/x-diff".to_string())),
+            "log" => (ArtifactKind::Log, Some("text/plain".to_string())),
+            _ => (ArtifactKind::File, None),
+        }
+    };
+    Artifact {
+        id: format!("artifact-{}", atools_core::utils::generate_rev()),
+        kind,
+        label,
+        media_type,
+        uri: None,
+        path: Some(path.to_string()),
+        size_bytes,
+        metadata,
     }
 }
 
@@ -2293,4 +2433,51 @@ fn get_current_context_tool() -> ToolDefinition {
         json!({ "type": "object" }),
         vec![PermissionScope::BrowserContext],
     )
+}
+
+#[cfg(test)]
+mod artifact_tests {
+    use super::structured_result_artifacts;
+    use atools_core::task_run::{ArtifactKind, TaskRun, TaskRunInitiator};
+    use serde_json::json;
+
+    #[test]
+    fn compressed_images_produce_bounded_image_artifacts() {
+        let mut run = TaskRun::new(
+            "compress_images",
+            TaskRunInitiator::agent("test"),
+            json!({}),
+        );
+        run.output = json!({
+            "items": (0..55).map(|index| json!({
+                "input": format!("/tmp/source-{index}.png"),
+                "output": format!("/tmp/compressed-{index}.webp"),
+                "output_size": 128,
+                "status": "compressed",
+                "target_met": true,
+                "compression_ratio": 0.5
+            })).collect::<Vec<_>>()
+        });
+
+        let artifacts = structured_result_artifacts(&run);
+        assert_eq!(artifacts.len(), 51);
+        assert_eq!(artifacts[0].kind, ArtifactKind::Json);
+        assert!(artifacts[1..]
+            .iter()
+            .all(|artifact| artifact.kind == ArtifactKind::Image));
+        assert_eq!(artifacts[1].size_bytes, Some(128));
+    }
+
+    #[test]
+    fn text_outputs_use_field_references_instead_of_copying_content() {
+        let mut run = TaskRun::new("ocr_image", TaskRunInitiator::agent("test"), json!({}));
+        run.output = json!({ "text": "recognized" });
+
+        let artifacts = structured_result_artifacts(&run);
+        assert_eq!(artifacts.len(), 2);
+        assert_eq!(artifacts[1].kind, ArtifactKind::RichText);
+        assert_eq!(artifacts[1].metadata["outputField"], "text");
+        assert_eq!(artifacts[1].size_bytes, Some(10));
+        assert!(artifacts[1].metadata.get("content").is_none());
+    }
 }
