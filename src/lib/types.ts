@@ -170,11 +170,69 @@ export type AgentScopePolicy = {
 
 export type PendingAgentToolRequest = {
   id: string;
+  run_id?: string | null;
   client_id: string;
   tool_name: string;
   arguments: unknown;
   scopes: string[];
   created_at: string;
+};
+
+export type TaskRunStatus = "created" | "awaiting_permission" | "running" | "partial" |
+  "succeeded" | "failed" | "cancelled";
+
+export type TaskRunArtifact = {
+  id: string;
+  kind: string;
+  label: string;
+  mediaType?: string | null;
+  uri?: string | null;
+  path?: string | null;
+  sizeBytes?: number | null;
+  metadata: unknown;
+};
+
+export type TaskRunIssue = {
+  code: string;
+  message: string;
+  details: unknown;
+  retryable: boolean;
+};
+
+export type TaskRun = {
+  id: string;
+  capabilityId: string;
+  initiator: {
+    type: "human" | "agent" | "automation";
+    clientId?: string | null;
+  };
+  status: TaskRunStatus;
+  input: unknown;
+  output: unknown;
+  summary?: string | null;
+  progress?: number | null;
+  artifacts: TaskRunArtifact[];
+  warnings: TaskRunIssue[];
+  errors: TaskRunIssue[];
+  actions: Array<{
+    id: string;
+    label: string;
+    capabilityId: string;
+    input: unknown;
+    requiresConfirmation: boolean;
+  }>;
+  memoryIds: string[];
+  metrics: unknown;
+  validation: {
+    status: "not_run" | "passed" | "failed";
+    summary?: string | null;
+  };
+  auditId?: string | null;
+  retryOf?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  startedAt?: string | null;
+  finishedAt?: string | null;
 };
 
 export type InstalledPlugin = {

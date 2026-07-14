@@ -14,6 +14,7 @@ use atools_core::config::AppConfig;
 use atools_core::db::Database;
 use atools_core::matcher;
 use atools_core::models::*;
+use atools_core::task_run::{TaskRun, TaskRunStatus};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::Deserialize;
 use std::fs;
@@ -4244,11 +4245,20 @@ pub fn list_pending_agent_requests(state: tauri::State<AppState>) -> Vec<Pending
 
 #[tauri::command]
 pub fn dismiss_pending_agent_request(state: tauri::State<AppState>, request_id: String) -> bool {
-    state
-        .pending_agent_requests
-        .lock()
-        .remove(&request_id)
-        .is_some()
+    let pending = state.pending_agent_requests.lock().remove(&request_id);
+    if let Some(run_id) = pending
+        .as_ref()
+        .and_then(|request| request.run_id.as_deref())
+    {
+        if let Ok(Some(mut run)) = state.db.get_task_run(run_id) {
+            if !run.status.is_terminal() {
+                run.summary = Some("Permission request was dismissed".to_string());
+                run.transition(TaskRunStatus::Cancelled);
+                let _ = state.db.upsert_task_run(&run);
+            }
+        }
+    }
+    pending.is_some()
 }
 
 #[tauri::command]
@@ -4259,14 +4269,16 @@ pub async fn call_agent_tool(
     arguments: serde_json::Value,
     client_id: Option<String>,
     confirmed: Option<bool>,
+    run_id: Option<String>,
 ) -> Result<serde_json::Value, String> {
-    let result = crate::agent_tools::call_tool_with_audit(
+    let result = crate::agent_tools::resume_tool_with_audit(
         &app,
         &state.db,
         client_id.as_deref().unwrap_or("atools-ui"),
         &name,
         arguments,
         confirmed.unwrap_or(false),
+        run_id.as_deref(),
     )
     .await;
 
@@ -4275,6 +4287,25 @@ pub async fn call_agent_tool(
     } else {
         Ok(result.structured_content)
     }
+}
+
+#[tauri::command]
+pub fn list_task_runs(
+    state: tauri::State<AppState>,
+    limit: Option<usize>,
+) -> Result<Vec<TaskRun>, String> {
+    state
+        .db
+        .list_task_runs(limit.unwrap_or(100))
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn get_task_run(state: tauri::State<AppState>, id: String) -> Result<Option<TaskRun>, String> {
+    state
+        .db
+        .get_task_run(&id)
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]

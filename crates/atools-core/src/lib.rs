@@ -5,6 +5,7 @@ pub mod error;
 pub mod matcher;
 pub mod mcp;
 pub mod models;
+pub mod task_run;
 pub mod utils;
 
 pub use config::AppConfig;

@@ -1624,6 +1624,7 @@
         arguments: request.arguments,
         clientId: request.client_id,
         confirmed: true,
+        runId: request.run_id,
       });
       mcpPageStatus = `${request.tool_name} 已允许一次`;
     } catch (error) {

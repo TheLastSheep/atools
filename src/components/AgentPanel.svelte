@@ -363,6 +363,7 @@
         arguments: request.arguments,
         clientId: request.client_id,
         confirmed: true,
+        runId: request.run_id,
       });
     } catch (e) {
       error = String(e);

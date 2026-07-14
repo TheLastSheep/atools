@@ -13,6 +13,10 @@ use atools_core::agent::{
 use atools_core::db::Database;
 use atools_core::mcp::McpToolCallResult;
 use atools_core::models::Plugin;
+use atools_core::task_run::{
+    Artifact, ArtifactKind, TaskIssue, TaskRun, TaskRunInitiator, TaskRunStatus,
+    TaskValidationStatus,
+};
 use base64::Engine;
 use image::ImageEncoder;
 use serde::{Deserialize, Serialize};
@@ -350,14 +354,50 @@ pub async fn call_tool_with_audit(
     arguments: Value,
     confirmed: bool,
 ) -> McpToolCallResult {
+    call_tool_with_task_run(app, client_id, tool_name, arguments, confirmed, None, db).await
+}
+
+pub async fn resume_tool_with_audit(
+    app: &AppHandle,
+    db: &Database,
+    client_id: &str,
+    tool_name: &str,
+    arguments: Value,
+    confirmed: bool,
+    run_id: Option<&str>,
+) -> McpToolCallResult {
+    call_tool_with_task_run(app, client_id, tool_name, arguments, confirmed, run_id, db).await
+}
+
+async fn call_tool_with_task_run(
+    app: &AppHandle,
+    client_id: &str,
+    tool_name: &str,
+    arguments: Value,
+    confirmed: bool,
+    run_id: Option<&str>,
+    db: &Database,
+) -> McpToolCallResult {
     let started = Instant::now();
+    let mut run = resumable_task_run(db, run_id, client_id, tool_name, &arguments)
+        .unwrap_or_else(|| new_task_run(client_id, tool_name, arguments.clone()));
+    persist_task_run(db, &run);
+
     let Some(tool) = db
         .get_agent_tool(tool_name)
         .ok()
         .flatten()
         .or_else(|| builtin_tool_registry().get(tool_name).cloned())
     else {
-        return McpToolCallResult::error(format!("Unknown tool: {}", tool_name));
+        let message = format!("Unknown tool: {}", tool_name);
+        finish_failed_task_run(
+            db,
+            &mut run,
+            &message,
+            started.elapsed().as_millis() as u64,
+            None,
+        );
+        return task_run_error(&run, json!({ "error": message }));
     };
 
     let permission =
@@ -368,7 +408,14 @@ pub async fn call_tool_with_audit(
             .with_duration_ms(started.elapsed().as_millis() as u64)
             .with_error("Permission denied");
         let _ = db.insert_audit_entry(&entry);
-        return McpToolCallResult::error("Permission denied");
+        run.audit_id = Some(entry.id);
+        run.errors
+            .push(TaskIssue::error("permission_denied", "Permission denied"));
+        run.summary = Some(format!("{tool_name} was denied by the permission policy"));
+        run.metrics = json!({ "durationMs": started.elapsed().as_millis() as u64 });
+        run.transition(TaskRunStatus::Cancelled);
+        persist_task_run(db, &run);
+        return task_run_error(&run, json!({ "error": "Permission denied" }));
     }
 
     if matches!(permission, PermissionDecision::Confirm) && !confirmed {
@@ -376,28 +423,40 @@ pub async fn call_tool_with_audit(
             .with_duration_ms(started.elapsed().as_millis() as u64)
             .with_error("Permission confirmation required");
         let _ = db.insert_audit_entry(&entry);
-        let pending =
-            build_pending_agent_tool_request(db, client_id, tool_name, entry.input.clone())
-                .unwrap_or_else(|_| PendingAgentToolRequest {
-                    id: format!("agent-confirm-{}", atools_core::utils::generate_rev()),
-                    client_id: client_id.to_string(),
-                    tool_name: tool_name.to_string(),
-                    arguments: entry.input.clone(),
-                    scopes: tool.scopes.clone(),
-                    created_at: atools_core::utils::now_iso(),
-                });
+        run.audit_id = Some(entry.id.clone());
+        run.summary = Some(format!("{tool_name} is awaiting permission"));
+        run.metrics = json!({ "durationMs": started.elapsed().as_millis() as u64 });
+        run.transition(TaskRunStatus::AwaitingPermission);
+        let pending = build_pending_agent_tool_request_with_run(
+            db,
+            client_id,
+            tool_name,
+            entry.input.clone(),
+            Some(run.id.clone()),
+        )
+        .unwrap_or_else(|_| PendingAgentToolRequest {
+            id: format!("agent-confirm-{}", atools_core::utils::generate_rev()),
+            run_id: Some(run.id.clone()),
+            client_id: client_id.to_string(),
+            tool_name: tool_name.to_string(),
+            arguments: entry.input.clone(),
+            scopes: tool.scopes.clone(),
+            created_at: atools_core::utils::now_iso(),
+        });
         let state = app.state::<crate::state::AppState>();
         state
             .pending_agent_requests
             .lock()
             .insert(pending.id.clone(), pending.clone());
         let _ = app.emit("agent-permission-request", &pending);
-        return McpToolCallResult {
-            structured_content: permission_required_payload(&pending),
-            is_error: true,
-        };
+        let payload = permission_required_payload(&pending);
+        run.output = payload.clone();
+        persist_task_run(db, &run);
+        return task_run_error(&run, payload);
     }
 
+    run.transition(TaskRunStatus::Running);
+    persist_task_run(db, &run);
     let result = execute_agent_tool(app, db, &tool, arguments.clone()).await;
     let duration_ms = started.elapsed().as_millis() as u64;
     match result {
@@ -411,16 +470,148 @@ pub async fn call_tool_with_audit(
                 .with_output(output.clone())
                 .with_duration_ms(duration_ms);
             let _ = db.insert_audit_entry(&entry);
-            McpToolCallResult::success(output)
+            run.output = output.clone();
+            run.audit_id = Some(entry.id);
+            run.summary = Some(structured_result_summary(tool_name, &output));
+            run.metrics = json!({ "durationMs": duration_ms });
+            run.artifacts = vec![structured_result_artifact(&run)];
+            run.validation.status = TaskValidationStatus::Passed;
+            run.validation.summary =
+                Some("Structured executor completed without an error".to_string());
+            run.transition(TaskRunStatus::Succeeded);
+            persist_task_run(db, &run);
+            task_run_success(&run, output)
         }
         Err(error) => {
             let entry = AuditLogEntry::new(client_id, tool_name, arguments, AuditStatus::Error)
                 .with_duration_ms(duration_ms)
                 .with_error(error.clone());
             let _ = db.insert_audit_entry(&entry);
-            McpToolCallResult::error(error)
+            finish_failed_task_run(db, &mut run, &error, duration_ms, Some(entry.id));
+            task_run_error(&run, json!({ "error": error }))
         }
     }
+}
+
+fn new_task_run(client_id: &str, tool_name: &str, arguments: Value) -> TaskRun {
+    let initiator = if client_id == "atools-ui" {
+        TaskRunInitiator::human(Some(client_id.to_string()))
+    } else {
+        TaskRunInitiator::agent(client_id)
+    };
+    TaskRun::new(tool_name, initiator, arguments)
+}
+
+fn resumable_task_run(
+    db: &Database,
+    run_id: Option<&str>,
+    client_id: &str,
+    tool_name: &str,
+    arguments: &Value,
+) -> Option<TaskRun> {
+    let run = db.get_task_run(run_id?).ok().flatten()?;
+    (run.status == TaskRunStatus::AwaitingPermission
+        && run.capability_id == tool_name
+        && run.initiator.client_id.as_deref() == Some(client_id)
+        && run.input == *arguments)
+        .then_some(run)
+}
+
+fn persist_task_run(db: &Database, run: &TaskRun) {
+    if let Err(error) = db.upsert_task_run(run) {
+        tracing::error!(run_id = %run.id, "Failed to persist TaskRun: {error}");
+    }
+}
+
+fn finish_failed_task_run(
+    db: &Database,
+    run: &mut TaskRun,
+    error: &str,
+    duration_ms: u64,
+    audit_id: Option<String>,
+) {
+    run.audit_id = audit_id;
+    run.errors
+        .push(TaskIssue::error("execution_failed", error.to_string()));
+    run.summary = Some(format!("{} failed: {error}", run.capability_id));
+    run.metrics = json!({ "durationMs": duration_ms });
+    run.validation.status = TaskValidationStatus::Failed;
+    run.validation.summary = Some("Executor returned an error".to_string());
+    run.transition(TaskRunStatus::Failed);
+    persist_task_run(db, run);
+}
+
+fn structured_result_summary(tool_name: &str, output: &Value) -> String {
+    let count = output
+        .get("items")
+        .and_then(Value::as_array)
+        .or_else(|| output.get("operations").and_then(Value::as_array))
+        .map(Vec::len);
+    match count {
+        Some(count) => format!("{tool_name} completed with {count} result item(s)"),
+        None => format!("{tool_name} completed"),
+    }
+}
+
+fn structured_result_artifact(run: &TaskRun) -> Artifact {
+    Artifact {
+        id: format!("artifact-{}", atools_core::utils::generate_rev()),
+        kind: ArtifactKind::Json,
+        label: format!("{} structured result", run.capability_id),
+        media_type: Some("application/json".to_string()),
+        uri: Some(format!("atools://task-runs/{}/output", run.id)),
+        path: None,
+        size_bytes: None,
+        metadata: json!({ "runId": run.id }),
+    }
+}
+
+fn task_run_success(run: &TaskRun, output: Value) -> McpToolCallResult {
+    McpToolCallResult::success(task_run_envelope(run, output))
+}
+
+fn task_run_error(run: &TaskRun, output: Value) -> McpToolCallResult {
+    McpToolCallResult {
+        structured_content: task_run_envelope(run, output),
+        is_error: true,
+    }
+}
+
+fn task_run_envelope(run: &TaskRun, output: Value) -> Value {
+    let mut fields = match output {
+        Value::Object(fields) => fields,
+        other => {
+            let mut fields = serde_json::Map::new();
+            fields.insert("result".to_string(), other);
+            fields
+        }
+    };
+    fields.insert("runId".to_string(), Value::String(run.id.clone()));
+    fields.insert(
+        "status".to_string(),
+        Value::String(run.status.as_str().to_string()),
+    );
+    fields.insert(
+        "summary".to_string(),
+        run.summary
+            .clone()
+            .map(Value::String)
+            .unwrap_or(Value::Null),
+    );
+    fields.insert("metrics".to_string(), run.metrics.clone());
+    fields.insert(
+        "artifacts".to_string(),
+        serde_json::to_value(&run.artifacts).unwrap_or_else(|_| json!([])),
+    );
+    fields.insert(
+        "validation".to_string(),
+        serde_json::to_value(&run.validation).unwrap_or(Value::Null),
+    );
+    fields.insert(
+        "resultUrl".to_string(),
+        Value::String(format!("atools://task-runs/{}", run.id)),
+    );
+    Value::Object(fields)
 }
 
 pub fn build_pending_agent_tool_request(
@@ -429,12 +620,23 @@ pub fn build_pending_agent_tool_request(
     tool_name: &str,
     arguments: Value,
 ) -> Result<PendingAgentToolRequest, String> {
+    build_pending_agent_tool_request_with_run(db, client_id, tool_name, arguments, None)
+}
+
+fn build_pending_agent_tool_request_with_run(
+    db: &Database,
+    client_id: &str,
+    tool_name: &str,
+    arguments: Value,
+    run_id: Option<String>,
+) -> Result<PendingAgentToolRequest, String> {
     let Some(tool) = db.get_agent_tool(tool_name).map_err(|e| e.to_string())? else {
         return Err(format!("Unknown tool: {}", tool_name));
     };
 
     Ok(PendingAgentToolRequest {
         id: format!("agent-confirm-{}", atools_core::utils::generate_rev()),
+        run_id,
         client_id: client_id.to_string(),
         tool_name: tool_name.to_string(),
         arguments,

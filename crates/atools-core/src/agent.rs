@@ -220,6 +220,8 @@ pub struct AgentToolGrant {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PendingAgentToolRequest {
     pub id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub run_id: Option<String>,
     pub client_id: String,
     pub tool_name: String,
     pub arguments: Value,
