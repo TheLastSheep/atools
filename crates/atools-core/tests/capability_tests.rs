@@ -69,7 +69,7 @@ fn catalog_normalizes_tools_plugin_features_and_skills() {
 
 #[test]
 fn catalog_serializes_the_north_star_minimum_contract() {
-    let mut catalog = capability_catalog(
+    let catalog = capability_catalog(
         &[ToolDefinition {
             name: "open_url".to_string(),
             description: "Open an http URL".to_string(),
@@ -85,7 +85,10 @@ fn catalog_serializes_the_north_star_minimum_contract() {
         &[],
         "3.0.0",
     );
-    let capability = catalog.remove(0);
+    let capability = catalog
+        .into_iter()
+        .find(|capability| capability.id == "open_url")
+        .expect("open_url capability");
     let value = serde_json::to_value(capability).expect("serialize capability");
 
     assert_eq!(value["id"], "open_url");
