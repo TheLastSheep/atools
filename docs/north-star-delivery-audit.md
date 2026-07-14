@@ -64,12 +64,12 @@
 | 必测项 | 状态 | 当前证据/缺口 |
 | --- | --- | --- |
 | 10k/100k 搜索 P50/P95/P99 | 已证明 | `benchmark-search-index.mjs`、JSON artifact、80ms 100k P99 CI 硬门槛 |
-| 安装包体积 | 已证明 | CI run `29339874992` 的 unsigned release `.app` 目录为 32.63 MiB，结构化 JSON artifact 已上传；DMG 与同机竞品仍待测 |
+| 安装包体积 | 已证明 | CI run `29349078110` 的 unsigned release `.app` 目录为 32.74 MiB，schema v3 JSON artifact 已上传；DMG 与同机竞品仍待测 |
 | 冷启动到可交互 | 部分完成 | CI run `29339874992` 连续创建 20 个进程，首份前端 release-smoke 报告 P99 6278ms；这是可交互代理，不是重启机器后的冷启动首帧 |
 | 热键到首帧 | 未完成 | smoke 证明热键注册/替换，未测按键到 UI 首帧 |
-| 空闲 RSS/CPU | 已证明 | CI run `29343263011` 的第 21 个独立 release 进程在完整 smoke 后稳定存活 300 秒，空闲 RSS 为 98.016MiB，并在 schema v2 artifact 中记录 CPU 点样本；常规 20 轮 RSS P99 为 113.625MiB。该点样本不替代连续漂移或同机对比 |
+| 空闲 RSS/CPU | 已证明 | CI run `29349078110` 的第 21 个独立 release 进程在完整 smoke 后稳定存活 300 秒，空闲 RSS 为 111.766MiB，并在 schema v3 artifact 中记录 CPU 点样本；常规 20 轮 RSS P99 为 114.063MiB。该点样本不替代连续漂移或同机对比 |
 | 轻/重插件内存增量 | 未完成 | 无稳定采样报告 |
-| 插件冷启动 | 验证中 | runtime schema v3 已让每个全新 release 进程首次激活内置计算器，并从 `activate_feature` 计时到主 iframe 宿主原生 `load` 事件，生成 20 次 P50/P95/P99。完整远程 CI 与结构化 artifact 待完成；重型第三方插件和同机对比仍待测 |
+| 插件冷启动 | 已证明 | CI run `29349078110` 的 20 个全新 release 进程均首次激活内置计算器，从 `activate_feature` 计时到主 iframe 宿主原生 `load`，插件激活 P99 为 144ms；schema v3 artifact 保留 P50/P95/P99 与各轮原始值。该结论限于内置轻量插件，重型第三方插件和同机对比仍待测 |
 | 多次唤起与长时间稳定性 | 部分完成 | 已有 20 次独立启动，并增加单进程 smoke 后 5 分钟存活验证；尚无长时间连续唤起、RSS/CPU 漂移报告 |
 | TaskRun/Memory 数据库增长 | 已证明 | CI run `29338826896`：100k 下 TaskRun 列表 P99 2.476ms、单条读取 0.013ms、Memory 列表 1.563ms、作用域检索 31.459ms，均低于 80ms 门槛；JSON artifact 保留 30 天 | 共享 runner 只证明项目回退上限，不替代同机竞品对比 |
 | 与 uTools/ZTools 同机对比 | 未完成 | `docs/performance-benchmark.md` 已定义方法，但尚无同机受控数据；不得宣传竞品优势 |
