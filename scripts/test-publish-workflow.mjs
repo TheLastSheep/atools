@@ -7,6 +7,8 @@ import { normalizeStableReleaseTag } from "./version-contract.mjs";
 const root = new URL("../", import.meta.url);
 const packageJson = JSON.parse(await readFile(new URL("package.json", root), "utf8"));
 const workflow = await readFile(new URL(".github/workflows/publish-macos.yml", root), "utf8");
+assert.equal(workflow.match(/dtolnay\/rust-toolchain@1\.97\.0/g)?.length, 2);
+assert.doesNotMatch(workflow, /dtolnay\/rust-toolchain@stable/);
 const ciWorkflow = await readFile(new URL(".github/workflows/ci.yml", root), "utf8");
 
 assert.equal(

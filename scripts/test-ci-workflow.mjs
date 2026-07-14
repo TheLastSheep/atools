@@ -16,6 +16,8 @@ assert.match(workflow, /permissions:\s*\n\s+contents:\s*read/);
 assert.match(workflow, /pull_request:/);
 assert.match(workflow, /push:/);
 assert.match(workflow, /runs-on:\s*macos-latest/g);
+assert.equal(workflow.match(/dtolnay\/rust-toolchain@1\.97\.0/g)?.length, 2);
+assert.doesNotMatch(workflow, /dtolnay\/rust-toolchain@stable/);
 assert.match(workflow, /pnpm install --frozen-lockfile/);
 assert.match(workflow, /cargo fmt --all -- --check/);
 assert.match(workflow, /cargo clippy --workspace --all-targets -- -D warnings/);

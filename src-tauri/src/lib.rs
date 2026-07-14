@@ -313,10 +313,8 @@ pub fn run() {
                     api.prevent_close();
                 }
             }
-            tauri::WindowEvent::Focused(focused) => {
-                if window.label() == "main" && !focused {
-                    window.hide().ok();
-                }
+            tauri::WindowEvent::Focused(focused) if window.label() == "main" && !focused => {
+                window.hide().ok();
             }
             _ => {}
         })
