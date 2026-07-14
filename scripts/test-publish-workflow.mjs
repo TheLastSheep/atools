@@ -11,6 +11,7 @@ assert.equal(workflow.match(/dtolnay\/rust-toolchain@1\.97\.0/g)?.length, 2);
 assert.doesNotMatch(workflow, /dtolnay\/rust-toolchain@stable/);
 assert.match(workflow, /::error title=Clippy diagnostics::\$diagnostic/);
 assert.match(workflow, /::error title=Fast-tier diagnostics::\$diagnostic/);
+assert.match(workflow, /::error title=Browser-tier diagnostics::\$diagnostic/);
 const ciWorkflow = await readFile(new URL(".github/workflows/ci.yml", root), "utf8");
 assert.ok(
   workflow.indexOf("- run: pnpm build") < workflow.indexOf("cargo clippy --workspace --all-targets -- -D warnings"),

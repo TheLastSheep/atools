@@ -61,7 +61,18 @@ jobs:
             echo "::error title=Fast-tier diagnostics::$diagnostic"
             exit 1
           }
-      - run: pnpm test:browser
+      - name: Run pnpm test:browser
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm test:browser 2>&1 | tee test-browser.log || {
+            diagnostic="$(tail -n 60 test-browser.log)"
+            diagnostic="${diagnostic//'%'/'%25'}"
+            diagnostic="${diagnostic//$'\r'/'%0D'}"
+            diagnostic="${diagnostic//$'\n'/'%0A'}"
+            echo "::error title=Browser-tier diagnostics::$diagnostic"
+            exit 1
+          }
       - run: pnpm check
       - run: pnpm release:check:macos:unsigned
 

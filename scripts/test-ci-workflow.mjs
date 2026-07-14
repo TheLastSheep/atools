@@ -23,6 +23,8 @@ assert.match(workflow, /cargo fmt --all -- --check/);
 assert.match(workflow, /cargo clippy --workspace --all-targets -- -D warnings/);
 assert.match(workflow, /::error title=Clippy diagnostics::\$diagnostic/);
 assert.match(workflow, /::error title=Fast-tier diagnostics::\$diagnostic/);
+assert.match(workflow, /::error title=Browser-tier diagnostics::\$diagnostic/);
+assert.match(workflow, /::error title=Desktop-tier diagnostics::\$diagnostic/);
 assert.match(workflow, /cargo test --workspace/);
 assert.match(workflow, /pnpm test:fast/);
 assert.match(workflow, /pnpm check/);

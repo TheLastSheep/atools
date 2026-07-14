@@ -78,10 +78,32 @@ jobs:
         with:
           shared-key: desktop
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test:browser
-      - run: pnpm test:desktop
+      - name: Run pnpm test:browser
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm test:browser 2>&1 | tee test-browser.log || {
+            diagnostic="$(tail -n 60 test-browser.log)"
+            diagnostic="${diagnostic//'%'/'%25'}"
+            diagnostic="${diagnostic//$'\r'/'%0D'}"
+            diagnostic="${diagnostic//$'\n'/'%0A'}"
+            echo "::error title=Browser-tier diagnostics::$diagnostic"
+            exit 1
+          }
+      - name: Run pnpm test:desktop
+        shell: bash
         env:
           ATOOLS_DESKTOP_SMOKE_TIMEOUT_MS: 180000
+        run: |
+          set -o pipefail
+          pnpm test:desktop 2>&1 | tee test-desktop.log || {
+            diagnostic="$(tail -n 60 test-desktop.log)"
+            diagnostic="${diagnostic//'%'/'%25'}"
+            diagnostic="${diagnostic//$'\r'/'%0D'}"
+            diagnostic="${diagnostic//$'\n'/'%0A'}"
+            echo "::error title=Desktop-tier diagnostics::$diagnostic"
+            exit 1
+          }
 
   release-readiness:
     needs: quality
