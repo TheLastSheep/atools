@@ -10,6 +10,10 @@ const workflow = await readFile(new URL(".github/workflows/publish-macos.yml", r
 assert.equal(workflow.match(/dtolnay\/rust-toolchain@1\.97\.0/g)?.length, 2);
 assert.doesNotMatch(workflow, /dtolnay\/rust-toolchain@stable/);
 const ciWorkflow = await readFile(new URL(".github/workflows/ci.yml", root), "utf8");
+assert.ok(
+  workflow.indexOf("- run: pnpm build") < workflow.indexOf("- run: cargo clippy --workspace --all-targets -- -D warnings"),
+  "release validation should create frontendDist before Tauri macros run under Clippy",
+);
 
 assert.equal(
   packageJson.scripts["test:publish-workflow"],

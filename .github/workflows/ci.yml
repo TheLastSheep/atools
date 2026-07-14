@@ -31,12 +31,12 @@ jobs:
         with:
           shared-key: quality
       - run: pnpm install --frozen-lockfile
+      - run: pnpm build
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
       - run: pnpm test:fast
       - run: pnpm check
-      - run: pnpm build
 
   browser-and-desktop:
     needs: quality

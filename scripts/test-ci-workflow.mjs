@@ -28,6 +28,10 @@ assert.match(workflow, /pnpm build/);
 assert.match(workflow, /pnpm test:browser/);
 assert.match(workflow, /pnpm test:desktop/);
 assert.match(workflow, /pnpm release:check:macos:unsigned/);
+assert.ok(
+  workflow.indexOf("- run: pnpm build") < workflow.indexOf("- run: cargo clippy --workspace --all-targets -- -D warnings"),
+  "quality CI should create frontendDist before Tauri macros run under Clippy",
+);
 assert.doesNotMatch(
   workflow,
   /node_modules|ATOOLS_PLUGIN_MARKET_TRUSTED_PUBLIC_KEYS|TAURI_SIGNING_PRIVATE_KEY|APPLE_CERTIFICATE|APPLE_PASSWORD|KEYCHAIN_PASSWORD/,
