@@ -77,12 +77,18 @@ assert.equal(report.real_entry_plugin_panel_matrix.panel_count, 10);
 assert.equal(report.real_entry_plugin_panel_matrix.browser_url, "http://127.0.0.1:1434/plugin-panel-matrix.html");
 assert.match(report.real_entry_plugin_panel_matrix.sha256, /^[a-f0-9]{64}$/);
 
-const fixtureMatrixHtml = await readFile(report.real_entry_fixture_matrix.path, "utf8");
+const fixtureMatrixHtml = await readFile(
+  join(fixtureRootPath, report.real_entry_fixture_matrix.relative_path),
+  "utf8",
+);
 assert.match(fixtureMatrixHtml, /data-atools-real-entry-fixture-matrix/, "standalone matrix should expose a DOM marker");
 assert.match(fixtureMatrixHtml, /window\.__atoolsRealEntryFixtureMatrix/, "standalone matrix should expose browser aggregate state");
 assert.match(fixtureMatrixHtml, /bridgeApi=.+\/.+/, "standalone matrix should render bridge API probe counts");
 
-const pluginPanelMatrixHtml = await readFile(report.real_entry_plugin_panel_matrix.path, "utf8");
+const pluginPanelMatrixHtml = await readFile(
+  join(fixtureRootPath, report.real_entry_plugin_panel_matrix.relative_path),
+  "utf8",
+);
 assert.match(pluginPanelMatrixHtml, /data-atools-real-entry-plugin-panel-matrix/, "PluginPanel matrix should expose a DOM marker");
 assert.match(pluginPanelMatrixHtml, /__atools_plugin_panel_real_entry_probe__/, "PluginPanel matrix should consume app-level probe messages");
 assert.match(pluginPanelMatrixHtml, /messages=/, "PluginPanel matrix should surface fixture error diagnostics");
@@ -138,7 +144,10 @@ for (const plan of report.ui_host_smoke_plans) {
   assert.ok(plan.real_entry_fixture.runtime_support_files >= 0);
   assert.ok(plan.real_entry_fixture.runtime_support_bytes >= 0);
 
-  const fixtureHtml = await readFile(plan.real_entry_fixture.path, "utf8");
+  const fixtureHtml = await readFile(
+    join(fixtureRootPath, plan.real_entry_fixture.relative_path),
+    "utf8",
+  );
   assert.match(fixtureHtml, /data-atools-real-entry-fixture/, `${plan.plugin_id} fixture should expose fixture marker`);
   assert.match(fixtureHtml, /async function runBridgeApiProbes/, `${plan.plugin_id} fixture should replay bridge API probes`);
   assert.match(fixtureHtml, /data-atools-real-entry-bridge-api-passed/, `${plan.plugin_id} fixture should expose bridge API pass count`);
