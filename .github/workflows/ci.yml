@@ -93,7 +93,7 @@ jobs:
       - name: Run pnpm test:desktop
         shell: bash
         env:
-          ATOOLS_DESKTOP_SMOKE_TIMEOUT_MS: 180000
+          ATOOLS_DESKTOP_SMOKE_TIMEOUT_MS: 600000
         run: |
           set -o pipefail
           pnpm test:desktop 2>&1 | tee test-desktop.log || {

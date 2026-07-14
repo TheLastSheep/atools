@@ -227,20 +227,47 @@ export function desktopSmokeCommand(args) {
   };
 }
 
+export function terminateChildProcessTree(
+  child,
+  signal = "SIGTERM",
+  options = {},
+) {
+  const platform = options.platform ?? process.platform;
+  const killProcess = options.killProcess ?? process.kill;
+  if (platform !== "win32" && Number.isInteger(child.pid)) {
+    try {
+      killProcess(-child.pid, signal);
+      return "group";
+    } catch {
+      // Fall back to the direct child when the process group already exited.
+    }
+  }
+  child.kill(signal);
+  return "child";
+}
+
 export async function runDesktopSmoke(args = process.argv.slice(2), options = {}) {
   const timeoutMs = Number(options.timeoutMs ?? process.env.ATOOLS_DESKTOP_SMOKE_TIMEOUT_MS ?? 60000);
   const { command, args: commandArgs } = desktopSmokeCommand(args);
   const env = desktopSmokeEnv(options.env ?? process.env);
   let output = "";
+  let timedOut = false;
+  let forceKillTimer;
 
   const child = spawn(command, commandArgs, {
     cwd: options.cwd ?? process.cwd(),
     env,
     stdio: ["ignore", "pipe", "pipe"],
+    detached: process.platform !== "win32",
   });
 
   const timeout = setTimeout(() => {
-    child.kill("SIGTERM");
+    timedOut = true;
+    terminateChildProcessTree(child);
+    forceKillTimer = setTimeout(() => {
+      terminateChildProcessTree(child, "SIGKILL");
+    }, 5000);
+    forceKillTimer.unref?.();
   }, timeoutMs);
 
   child.stdout.on("data", (chunk) => {
@@ -259,6 +286,11 @@ export async function runDesktopSmoke(args = process.argv.slice(2), options = {}
     child.on("close", (code) => resolve(code ?? 1));
   });
   clearTimeout(timeout);
+  clearTimeout(forceKillTimer);
+
+  if (timedOut) {
+    throw new Error(`Desktop smoke timed out after ${timeoutMs}ms`);
+  }
 
   const snapshot = parseSmokeOutput(output);
   if (snapshot.status !== "ok" || exitCode !== 0) {

@@ -35,6 +35,7 @@ assert.match(workflow, /pnpm check/);
 assert.match(workflow, /pnpm build/);
 assert.match(workflow, /pnpm test:browser/);
 assert.match(workflow, /pnpm test:desktop/);
+assert.match(workflow, /ATOOLS_DESKTOP_SMOKE_TIMEOUT_MS: 600000/);
 assert.match(workflow, /pnpm release:check:macos:unsigned/);
 assert.ok(
   workflow.indexOf("- run: pnpm build") < workflow.indexOf("cargo clippy --workspace --all-targets -- -D warnings"),

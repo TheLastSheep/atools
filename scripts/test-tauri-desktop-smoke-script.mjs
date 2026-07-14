@@ -352,6 +352,44 @@ assert.deepEqual(command.args, ["tauri", "dev"]);
 const custom = script.desktopSmokeCommand(["--", "--features", "custom-protocol"]);
 assert.deepEqual(custom.args, ["tauri", "dev", "--features", "custom-protocol"]);
 
+const groupSignals = [];
+const groupChild = { pid: 42, kill: () => assert.fail("group kill should not fall back") };
+assert.equal(
+  script.terminateChildProcessTree(groupChild, "SIGTERM", {
+    platform: "darwin",
+    killProcess: (pid, signal) => groupSignals.push([pid, signal]),
+  }),
+  "group",
+);
+assert.deepEqual(groupSignals, [[-42, "SIGTERM"]]);
+
+const childSignals = [];
+const directChild = { pid: 42, kill: (signal) => childSignals.push(signal) };
+assert.equal(
+  script.terminateChildProcessTree(directChild, "SIGKILL", {
+    platform: "win32",
+    killProcess: () => assert.fail("Windows should not signal a Unix process group"),
+  }),
+  "child",
+);
+assert.deepEqual(childSignals, ["SIGKILL"]);
+
+const fallbackSignals = [];
+assert.equal(
+  script.terminateChildProcessTree(
+    { pid: 42, kill: (signal) => fallbackSignals.push(signal) },
+    "SIGTERM",
+    {
+      platform: "darwin",
+      killProcess: () => {
+        throw new Error("process group already exited");
+      },
+    },
+  ),
+  "child",
+);
+assert.deepEqual(fallbackSignals, ["SIGTERM"]);
+
 const tauriConfig = JSON.parse(await readFile(new URL("../src-tauri/tauri.conf.json", import.meta.url), "utf8"));
 for (const windowConfig of tauriConfig.app.windows) {
   if (windowConfig.visible === false) {
