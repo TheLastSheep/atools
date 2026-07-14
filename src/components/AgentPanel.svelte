@@ -149,6 +149,7 @@
     refresh();
     loadMcpInstallHomePath();
     let unlisten: (() => void) | undefined;
+    let taskRunUnlisten: (() => void) | undefined;
     let cancelled = false;
     listen("agent-permission-request", () => refresh())
       .then((stop) => {
@@ -159,10 +160,20 @@
         }
       })
       .catch(() => {});
+    listen("task-run-updated", () => refresh())
+      .then((stop) => {
+        if (cancelled) {
+          stop();
+        } else {
+          taskRunUnlisten = stop;
+        }
+      })
+      .catch(() => {});
 
     return () => {
       cancelled = true;
       unlisten?.();
+      taskRunUnlisten?.();
     };
   });
 
@@ -651,14 +662,14 @@
     busyKey = `run:retry:${run.id}`;
     taskRunStatus = `正在重试 ${run.capabilityId}`;
     try {
-      await invoke("call_agent_tool", {
+      const retry = await invoke<TaskRun>("start_agent_tool", {
         name: run.capabilityId,
         arguments: run.input,
         clientId: run.initiator.clientId ?? "atools-ui",
         confirmed: false,
-        runId: run.id,
+        retryOf: run.id,
       });
-      taskRunStatus = `${run.capabilityId} 重试已完成`;
+      taskRunStatus = `${run.capabilityId} 已进入后台执行（${retry.id}）`;
     } catch (e) {
       taskRunStatus = String(e);
     } finally {
@@ -790,7 +801,7 @@
   }
 
   function taskRunCanCancel(run: TaskRun) {
-    return run.status === "created" || run.status === "awaiting_permission";
+    return run.status === "created" || run.status === "awaiting_permission" || run.status === "running";
   }
 
   function compact(value: unknown) {

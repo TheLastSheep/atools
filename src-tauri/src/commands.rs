@@ -4454,6 +4454,83 @@ pub async fn call_agent_tool(
 }
 
 #[tauri::command]
+pub fn start_agent_tool(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    name: String,
+    arguments: serde_json::Value,
+    client_id: Option<String>,
+    confirmed: Option<bool>,
+    retry_of: Option<String>,
+) -> Result<TaskRun, String> {
+    let client_id = client_id.unwrap_or_else(|| "atools-ui".to_string());
+    let initiator = if client_id == "atools-ui" {
+        TaskRunInitiator::human(Some(client_id.clone()))
+    } else {
+        TaskRunInitiator::agent(client_id.clone())
+    };
+    let mut run = TaskRun::new(name.clone(), initiator, arguments.clone());
+    if let Some(previous_id) = retry_of {
+        let previous = state
+            .db
+            .get_task_run(&previous_id)
+            .map_err(|error| error.to_string())?
+            .ok_or_else(|| format!("TaskRun not found: {previous_id}"))?;
+        if !previous.status.is_terminal()
+            || previous.capability_id != name
+            || previous.initiator.client_id.as_deref() != Some(client_id.as_str())
+        {
+            return Err(format!(
+                "TaskRun {previous_id} is not a compatible retry source"
+            ));
+        }
+        run.retry_of = Some(previous_id);
+    }
+    state
+        .db
+        .upsert_task_run(&run)
+        .map_err(|error| error.to_string())?;
+
+    let run_id = run.id.clone();
+    let task_run_id = run_id.clone();
+    let app_for_task = app.clone();
+    let db = state.db.clone();
+    let (start_tx, start_rx) = tokio::sync::oneshot::channel();
+    let task = tokio::spawn(async move {
+        if start_rx.await.is_err() {
+            return;
+        }
+        let _ = crate::agent_tools::resume_tool_with_audit(
+            &app_for_task,
+            &db,
+            &client_id,
+            &name,
+            arguments,
+            confirmed.unwrap_or(false),
+            Some(&task_run_id),
+        )
+        .await;
+        app_for_task
+            .state::<AppState>()
+            .active_task_runs
+            .lock()
+            .remove(&task_run_id);
+        let _ = app_for_task.emit("task-run-updated", task_run_id);
+    });
+    state
+        .active_task_runs
+        .lock()
+        .insert(run_id.clone(), task.abort_handle());
+    if start_tx.send(()).is_err() {
+        state.active_task_runs.lock().remove(&run_id);
+        task.abort();
+        return Err("Failed to start background TaskRun".to_string());
+    }
+    let _ = app.emit("task-run-updated", run_id);
+    Ok(run)
+}
+
+#[tauri::command]
 pub fn list_task_runs(
     state: tauri::State<AppState>,
     limit: Option<usize>,
@@ -4473,15 +4550,26 @@ pub fn get_task_run(state: tauri::State<AppState>, id: String) -> Result<Option<
 }
 
 #[tauri::command]
-pub fn cancel_task_run(state: tauri::State<AppState>, id: String) -> Result<TaskRun, String> {
+pub fn cancel_task_run(
+    app: AppHandle,
+    state: tauri::State<AppState>,
+    id: String,
+) -> Result<TaskRun, String> {
     let mut run = state
         .db
         .get_task_run(&id)
         .map_err(|error| error.to_string())?
         .ok_or_else(|| format!("TaskRun not found: {id}"))?;
+    let abort_handle = state.active_task_runs.lock().remove(&id);
+    if run.status == TaskRunStatus::Running && abort_handle.is_none() {
+        return Err(format!(
+            "TaskRun {} is running outside the cancellable background executor",
+            run.id
+        ));
+    }
     if !matches!(
         run.status,
-        TaskRunStatus::Created | TaskRunStatus::AwaitingPermission
+        TaskRunStatus::Created | TaskRunStatus::AwaitingPermission | TaskRunStatus::Running
     ) {
         return Err(format!(
             "TaskRun {} cannot be cancelled from status {}",
@@ -4493,6 +4581,9 @@ pub fn cancel_task_run(state: tauri::State<AppState>, id: String) -> Result<Task
         .pending_agent_requests
         .lock()
         .retain(|_, request| request.run_id.as_deref() != Some(run.id.as_str()));
+    if let Some(handle) = abort_handle {
+        handle.abort();
+    }
     run.summary = Some("TaskRun was cancelled by the user".to_string());
     run.transition(TaskRunStatus::Cancelled)
         .map_err(|error| error.to_string())?;
@@ -4500,6 +4591,7 @@ pub fn cancel_task_run(state: tauri::State<AppState>, id: String) -> Result<Task
         .db
         .upsert_task_run(&run)
         .map_err(|error| error.to_string())?;
+    let _ = app.emit("task-run-updated", run.id.clone());
     Ok(run)
 }
 

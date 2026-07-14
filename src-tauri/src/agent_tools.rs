@@ -485,8 +485,14 @@ async fn call_tool_with_task_run(
     run.transition(TaskRunStatus::Running)
         .expect("authorized TaskRun can start");
     persist_task_run(db, &run);
+    let _ = app.emit("task-run-updated", run.id.clone());
     let result = execute_agent_tool(app, db, &tool, arguments.clone()).await;
     let duration_ms = started.elapsed().as_millis() as u64;
+    if let Ok(Some(cancelled)) = db.get_task_run(&run.id) {
+        if cancelled.status == TaskRunStatus::Cancelled {
+            return task_run_error(&cancelled, json!({ "error": "TaskRun was cancelled" }));
+        }
+    }
     match result {
         Ok(output) => {
             let status = if confirmed {
@@ -558,8 +564,10 @@ fn resumable_task_run(
     arguments: &Value,
 ) -> Option<TaskRun> {
     let run = db.get_task_run(run_id?).ok().flatten()?;
-    (run.status == TaskRunStatus::AwaitingPermission
-        && run.capability_id == tool_name
+    (matches!(
+        run.status,
+        TaskRunStatus::Created | TaskRunStatus::AwaitingPermission
+    ) && run.capability_id == tool_name
         && run.initiator.client_id.as_deref() == Some(client_id)
         && run.input == *arguments)
         .then_some(run)

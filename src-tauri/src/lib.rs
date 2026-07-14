@@ -126,6 +126,7 @@ pub fn run() {
             commands::list_pending_agent_requests,
             commands::dismiss_pending_agent_request,
             commands::call_agent_tool,
+            commands::start_agent_tool,
             commands::list_task_runs,
             commands::get_task_run,
             commands::cancel_task_run,

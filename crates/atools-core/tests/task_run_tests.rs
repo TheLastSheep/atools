@@ -92,6 +92,23 @@ fn partial_and_failed_runs_can_reenter_running_for_retry() {
 }
 
 #[test]
+fn running_task_can_be_cancelled_and_stays_terminal() {
+    let mut run = TaskRun::new(
+        "find_local_files",
+        TaskRunInitiator::human(Some("atools-ui".to_string())),
+        json!({ "query": "large workspace" }),
+    );
+    run.transition(TaskRunStatus::Running).expect("start");
+    run.transition(TaskRunStatus::Cancelled)
+        .expect("cancel running task");
+
+    assert_eq!(run.status, TaskRunStatus::Cancelled);
+    assert_eq!(run.progress, Some(100));
+    assert!(run.finished_at.is_some());
+    assert!(run.transition(TaskRunStatus::Succeeded).is_err());
+}
+
+#[test]
 fn task_run_json_uses_the_public_camel_case_contract() {
     let run = TaskRun::new(
         "search_clipboard",
