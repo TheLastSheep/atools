@@ -174,7 +174,7 @@
     "benchmark:search": "node scripts/benchmark-search-index.mjs",
     "benchmark:search:ci": "node scripts/benchmark-search-index.mjs --scales 10000,100000 --iterations 20 --warmup-iterations 3 --output artifacts/performance/search-index.json --fail-on-threshold",
     "benchmark:database:ci": "cargo run -p atools-core --release --example benchmark_database -- --scales 10000,100000 --iterations 30 --threshold-ms 80 --output artifacts/performance/database-growth.json --fail-on-threshold",
-    "benchmark:runtime:ci": "node scripts/benchmark-macos-runtime.mjs --iterations 20 --timeout-ms 15000 --stable-ms 1000 --first-report-threshold-ms 5000 --rss-threshold-mib 300 --bundle-threshold-mib 100 --output artifacts/performance/macos-runtime.json",
+    "benchmark:runtime:ci": "node scripts/benchmark-macos-runtime.mjs --iterations 20 --timeout-ms 15000 --stable-ms 1000 --idle-sample-ms 300000 --first-report-threshold-ms 5000 --rss-threshold-mib 300 --bundle-threshold-mib 100 --output artifacts/performance/macos-runtime.json",
     "report:ztools-compat": "node scripts/ztools-plugin-compatibility-report.mjs",
     "report:ztools-runtime-samples": "node scripts/ztools-plugin-runtime-sample-report.mjs",
     "report:ztools-activation-plan": "node scripts/ztools-plugin-activation-plan.mjs",

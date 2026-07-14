@@ -31,6 +31,7 @@ export async function runMacosRuntimeBenchmark(options = {}) {
   const iterations = Math.max(1, Number(options.iterations ?? 20));
   const timeoutMs = Math.max(1000, Number(options.timeoutMs ?? 15000));
   const stableMs = Math.max(1000, Number(options.stableMs ?? 1000));
+  const idleSampleMs = Math.max(0, Number(options.idleSampleMs ?? 0));
   const runs = [];
   for (let index = 0; index < iterations; index += 1) {
     const reportDir = mkdtempSync(join(tmpdir(), "atools-runtime-benchmark-"));
@@ -68,6 +69,43 @@ export async function runMacosRuntimeBenchmark(options = {}) {
     }
   }
 
+  let idleSample = null;
+  if (idleSampleMs > 0) {
+    const reportDir = mkdtempSync(join(tmpdir(), "atools-runtime-idle-"));
+    const reportPath = join(reportDir, "release-smoke.json");
+    try {
+      const launch = await launchAppBundle({
+        appPath,
+        executablePath: bundle.executable_path,
+        timeoutMs,
+        stableMs,
+        resourceSettleMs: idleSampleMs,
+        reportPath,
+      });
+      if (
+        launch.open_status !== 0 ||
+        launch.release_smoke_progress?.completed !== true ||
+        launch.alive_after_resource_settle !== true ||
+        launch.resource_settle_ms < idleSampleMs ||
+        !Number.isFinite(launch.rss_kib) ||
+        !Number.isFinite(launch.cpu_percent) ||
+        launch.terminated !== true
+      ) {
+        throw new Error(`Idle resource sample was incomplete: ${JSON.stringify(launch)}`);
+      }
+      idleSample = {
+        target_settle_ms: idleSampleMs,
+        actual_settle_ms: launch.resource_settle_ms,
+        alive: launch.alive_after_resource_settle,
+        release_smoke_completed: true,
+        rss_mib: round(launch.rss_kib / 1024),
+        cpu_percent: round(launch.cpu_percent),
+      };
+    } finally {
+      rmSync(reportDir, { recursive: true, force: true });
+    }
+  }
+
   const thresholds = {
     first_report_ms: Number(options.firstReportThresholdMs ?? 5000),
     rss_mib: Number(options.rssThresholdMib ?? 300),
@@ -87,9 +125,10 @@ export async function runMacosRuntimeBenchmark(options = {}) {
   const exceeded =
     metrics.launch_to_first_report_ms.p99 > thresholds.first_report_ms ||
     metrics.rss_mib.p99 > thresholds.rss_mib ||
+    (idleSample?.rss_mib ?? 0) > thresholds.rss_mib ||
     app.bundle_bytes / 1024 / 1024 > thresholds.bundle_mib;
   return {
-    schema_version: 1,
+    schema_version: 2,
     generated_at: new Date().toISOString(),
     commit: process.env.GITHUB_SHA ?? "local",
     machine: {
@@ -98,10 +137,11 @@ export async function runMacosRuntimeBenchmark(options = {}) {
       runner_image: process.env.ImageOS ?? null,
       runner_version: process.env.ImageVersion ?? null,
     },
-    config: { iterations, timeout_ms: timeoutMs, stable_ms: stableMs, thresholds },
+    config: { iterations, timeout_ms: timeoutMs, stable_ms: stableMs, idle_sample_ms: idleSampleMs, thresholds },
     status: exceeded ? "warn" : "pass",
     app,
     first_launch: runs[0],
+    idle_sample: idleSample,
     metrics,
     runs,
   };
@@ -148,6 +188,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     iterations: optionValue("--iterations"),
     timeoutMs: optionValue("--timeout-ms"),
     stableMs: optionValue("--stable-ms"),
+    idleSampleMs: optionValue("--idle-sample-ms"),
     firstReportThresholdMs: optionValue("--first-report-threshold-ms"),
     rssThresholdMib: optionValue("--rss-threshold-mib"),
     bundleThresholdMib: optionValue("--bundle-threshold-mib"),
@@ -163,6 +204,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       `::${result.status === "pass" ? "notice" : "warning"} title=ATools macOS runtime benchmark::` +
       `first-report P99 ${result.metrics.launch_to_first_report_ms.p99}ms; ` +
       `RSS P99 ${result.metrics.rss_mib.p99}MiB; ` +
+      `idle RSS ${result.idle_sample?.rss_mib ?? "not sampled"}MiB; ` +
       `bundle ${(result.app.bundle_bytes / 1024 / 1024).toFixed(2)}MiB`,
     );
   }

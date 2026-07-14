@@ -260,6 +260,7 @@ export async function runReleaseAppSmoke(options = {}) {
         executablePath: bundle.executable_path,
         timeoutMs: options.timeoutMs ?? 10000,
         stableMs: options.stableMs ?? 1500,
+        resourceSettleMs: options.resourceSettleMs ?? 0,
         reportPath,
       });
   const releaseSmokeProgress = launch.release_smoke_progress ?? readReleaseSmokeProgress(reportPath);
@@ -344,7 +345,11 @@ export async function launchAppBundle(options) {
   const launchToSmokeCompleteMs = releaseSmokeProgress?.completed === true
     ? Date.now() - launchStartedAt
     : null;
-  const resources = aliveAfterWait ? processResourceSample(pid) : null;
+  const resourceSettleTargetMs = Math.max(0, Number(options.resourceSettleMs ?? 0));
+  const resourceSettle = releaseSmokeProgress?.completed === true && aliveAfterWait
+    ? await waitForProcessSettle(pid, resourceSettleTargetMs)
+    : { alive: aliveAfterWait, elapsed_ms: 0 };
+  const resources = resourceSettle.alive ? processResourceSample(pid) : null;
   const terminated = await terminateProcess(pid);
   return {
     open_status: 0,
@@ -357,9 +362,31 @@ export async function launchAppBundle(options) {
     launch_to_smoke_complete_ms: launchToSmokeCompleteMs,
     rss_kib: resources?.rss_kib ?? null,
     cpu_percent: resources?.cpu_percent ?? null,
+    resource_settle_target_ms: resourceSettleTargetMs,
+    resource_settle_ms: resourceSettle.elapsed_ms,
+    alive_after_resource_settle: resourceSettle.alive,
     stable_ms: stableMs,
-    stability_error: aliveAfterWait ? null : `Release app process ${pid} exited during first-launch window`,
+    stability_error: !aliveAfterWait
+      ? `Release app process ${pid} exited during first-launch window`
+      : !resourceSettle.alive
+        ? `Release app process ${pid} exited during the resource settle window`
+        : null,
     terminated,
+  };
+}
+
+async function waitForProcessSettle(pid, targetMs) {
+  const startedAt = Date.now();
+  const deadline = startedAt + targetMs;
+  while (Date.now() < deadline) {
+    if (!isProcessAlive(pid)) {
+      return { alive: false, elapsed_ms: Date.now() - startedAt };
+    }
+    await sleep(Math.min(1000, deadline - Date.now()));
+  }
+  return {
+    alive: isProcessAlive(pid),
+    elapsed_ms: Date.now() - startedAt,
   };
 }
 

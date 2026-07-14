@@ -67,10 +67,10 @@
 | 安装包体积 | 已证明 | CI run `29339874992` 的 unsigned release `.app` 目录为 32.63 MiB，结构化 JSON artifact 已上传；DMG 与同机竞品仍待测 |
 | 冷启动到可交互 | 部分完成 | CI run `29339874992` 连续创建 20 个进程，首份前端 release-smoke 报告 P99 6278ms；这是可交互代理，不是重启机器后的冷启动首帧 |
 | 热键到首帧 | 未完成 | smoke 证明热键注册/替换，未测按键到 UI 首帧 |
-| 空闲 RSS/CPU | 部分完成 | CI run `29339874992` 的完整 release-smoke 时 RSS P99 为 112.453MiB，并记录 CPU 点样本；尚缺启动稳定 5 分钟后的空闲采样 |
+| 空闲 RSS/CPU | 验证中 | CI run `29339874992` 的完整 release-smoke 时 RSS P99 为 112.453MiB；当前 runtime 基准已增加第 21 个独立进程，在完整 smoke 后稳定 300 秒、确认存活并记录 RSS/CPU 点样本。完整远程 CI 与结构化 artifact 待完成；该点样本不替代连续漂移或同机对比 |
 | 轻/重插件内存增量 | 未完成 | 无稳定采样报告 |
 | 插件冷启动 | 未完成 | smoke 证明激活与渲染，未记录分位数 |
-| 多次唤起与长时间稳定性 | 未完成 | 无持续时间、RSS/CPU 漂移报告 |
+| 多次唤起与长时间稳定性 | 部分完成 | 已有 20 次独立启动，并增加单进程 smoke 后 5 分钟存活验证；尚无长时间连续唤起、RSS/CPU 漂移报告 |
 | TaskRun/Memory 数据库增长 | 已证明 | CI run `29338826896`：100k 下 TaskRun 列表 P99 2.476ms、单条读取 0.013ms、Memory 列表 1.563ms、作用域检索 31.459ms，均低于 80ms 门槛；JSON artifact 保留 30 天 | 共享 runner 只证明项目回退上限，不替代同机竞品对比 |
 | 与 uTools/ZTools 同机对比 | 未完成 | `docs/performance-benchmark.md` 已定义方法，但尚无同机受控数据；不得宣传竞品优势 |
 
