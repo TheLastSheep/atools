@@ -9,9 +9,10 @@ const packageJson = JSON.parse(await readFile(new URL("package.json", root), "ut
 const workflow = await readFile(new URL(".github/workflows/publish-macos.yml", root), "utf8");
 assert.equal(workflow.match(/dtolnay\/rust-toolchain@1\.97\.0/g)?.length, 2);
 assert.doesNotMatch(workflow, /dtolnay\/rust-toolchain@stable/);
+assert.match(workflow, /::error title=Clippy diagnostics::\$diagnostic/);
 const ciWorkflow = await readFile(new URL(".github/workflows/ci.yml", root), "utf8");
 assert.ok(
-  workflow.indexOf("- run: pnpm build") < workflow.indexOf("- run: cargo clippy --workspace --all-targets -- -D warnings"),
+  workflow.indexOf("- run: pnpm build") < workflow.indexOf("cargo clippy --workspace --all-targets -- -D warnings"),
   "release validation should create frontendDist before Tauri macros run under Clippy",
 );
 

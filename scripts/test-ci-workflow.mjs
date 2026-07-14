@@ -21,6 +21,7 @@ assert.doesNotMatch(workflow, /dtolnay\/rust-toolchain@stable/);
 assert.match(workflow, /pnpm install --frozen-lockfile/);
 assert.match(workflow, /cargo fmt --all -- --check/);
 assert.match(workflow, /cargo clippy --workspace --all-targets -- -D warnings/);
+assert.match(workflow, /::error title=Clippy diagnostics::\$diagnostic/);
 assert.match(workflow, /cargo test --workspace/);
 assert.match(workflow, /pnpm test:fast/);
 assert.match(workflow, /pnpm check/);
@@ -29,7 +30,7 @@ assert.match(workflow, /pnpm test:browser/);
 assert.match(workflow, /pnpm test:desktop/);
 assert.match(workflow, /pnpm release:check:macos:unsigned/);
 assert.ok(
-  workflow.indexOf("- run: pnpm build") < workflow.indexOf("- run: cargo clippy --workspace --all-targets -- -D warnings"),
+  workflow.indexOf("- run: pnpm build") < workflow.indexOf("cargo clippy --workspace --all-targets -- -D warnings"),
   "quality CI should create frontendDist before Tauri macros run under Clippy",
 );
 assert.doesNotMatch(
