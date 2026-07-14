@@ -43,7 +43,7 @@
 | 通用 Artifact 协议 | 已证明 | `ArtifactKind` 覆盖文件、目录、图片、截图、Markdown、富文本、表格、CSV、JSON、Diff、URL、报告和日志 | 大文件继续只保存受控引用 |
 | 专业 Artifact 渲染器 | 已证明 | `src/lib/artifactView.ts` 与结果中心实现图片、表格/CSV、Markdown、JSON、Diff、文件/目录、URL 和安全降级；`test-artifact-view.mjs`；CI run `29336438932` 完整通过 | 无 |
 | 打开、定位、复制产物 | 已证明 | 结果中心通过 `shell_open`、`shell_show_item_in_folder` 和剪贴板桥接执行；CI run `29336438932` 桌面 smoke 通过 | 无 |
-| 失败重试与取消 | 部分完成 | 终态失败/部分/取消可重试；created/awaiting permission 可取消 | 同步执行中的工具无法中断；长任务异步状态查询、运行中取消和失败项粒度重试尚未完成 |
+| 失败重试与取消 | 部分完成 | 终态失败/部分/取消的重试会立即创建带 `retryOf` 的后台 TaskRun；结果中心通过 `task-run-updated` 查看状态，并可中止受跟踪的 created/running/awaiting-permission 任务；取消终态优先于迟到执行结果；CI run `29350414557` 完整通过 | 直接同步调用和 MCP HTTP 调用尚未切换为可取消异步协议；同步副作用只能 best-effort 中止，失败项粒度重试尚未完成 |
 | 独立验收状态 | 已证明 | `TaskValidation` 与结果中心独立展示，不把调用成功等同目标验收 | 当前多数内置工具只有执行器级验收，仍需按 Skill/任务定义业务验收 |
 
 ## Phase 2：Skills 与执行记忆
