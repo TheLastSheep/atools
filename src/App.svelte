@@ -701,7 +701,7 @@
     activePlugin = null;
     if (menu === "shortcuts") {
       const cmdLabel = typeof detail?.cmdLabel === "string" ? detail.cmdLabel.trim() : "";
-      if (detail?.autocopy === true && cmdLabel && navigator.clipboard?.writeText) {
+      if (detail?.autocopy === true && cmdLabel) {
         try {
           await copyText(cmdLabel);
         } catch (err) {
