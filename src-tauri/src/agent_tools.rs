@@ -12,6 +12,7 @@ use atools_core::agent::{
 };
 use atools_core::db::Database;
 use atools_core::mcp::McpToolCallResult;
+use atools_core::memory::{apply_memory_defaults, MemoryScope};
 use atools_core::models::Plugin;
 use atools_core::task_run::{
     Artifact, ArtifactKind, TaskIssue, TaskRun, TaskRunInitiator, TaskRunStatus,
@@ -379,6 +380,7 @@ async fn call_tool_with_task_run(
     db: &Database,
 ) -> McpToolCallResult {
     let started = Instant::now();
+    let mut arguments = arguments;
     let mut run = resumable_task_run(db, run_id, client_id, tool_name, &arguments)
         .unwrap_or_else(|| new_task_run(client_id, tool_name, arguments.clone()));
     if let Some(retry_of) = run_id
@@ -391,6 +393,17 @@ async fn call_tool_with_task_run(
         })
     {
         run.retry_of = Some(retry_of.id);
+    }
+    if run.memory_ids.is_empty() {
+        let context = memory_scope_for_call(tool_name, &arguments);
+        if let Ok(memories) = db.find_memory_items(&context, 20) {
+            apply_memory_defaults(&mut arguments, &memories);
+            run.input = arguments.clone();
+            run.memory_ids = memories.into_iter().map(|memory| memory.id).collect();
+            let _ = db.record_memory_use(&run.memory_ids);
+        }
+    } else {
+        arguments = run.input.clone();
     }
     persist_task_run(db, &run);
 
@@ -491,6 +504,7 @@ async fn call_tool_with_task_run(
                 Some("Structured executor completed without an error".to_string());
             run.transition(TaskRunStatus::Succeeded);
             persist_task_run(db, &run);
+            let _ = db.record_memory_success(&run.memory_ids);
             task_run_success(&run, output)
         }
         Err(error) => {
@@ -501,6 +515,24 @@ async fn call_tool_with_task_run(
             finish_failed_task_run(db, &mut run, &error, duration_ms, Some(entry.id));
             task_run_error(&run, json!({ "error": error }))
         }
+    }
+}
+
+fn memory_scope_for_call(tool_name: &str, arguments: &Value) -> MemoryScope {
+    fn string_argument(arguments: &Value, names: &[&str]) -> Option<String> {
+        let object = arguments.as_object()?;
+        names
+            .iter()
+            .find_map(|name| object.get(*name).and_then(Value::as_str))
+            .map(str::to_string)
+    }
+
+    MemoryScope {
+        workspace: string_argument(arguments, &["workspace", "workspacePath", "cwd"]),
+        skill: string_argument(arguments, &["skill", "skillId"]),
+        tool: Some(tool_name.to_string()),
+        application: string_argument(arguments, &["application", "app", "appName"]),
+        domain: string_argument(arguments, &["domain", "host"]),
     }
 }
 

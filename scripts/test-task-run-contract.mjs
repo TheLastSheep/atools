@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const root = new URL("../", import.meta.url);
-const [model, database, tools, commands, appLib, types, agentPanel, settingsPanel] = await Promise.all([
+const [model, memory, database, tools, commands, appLib, types, agentPanel, settingsPanel] = await Promise.all([
   readFile(new URL("crates/atools-core/src/task_run.rs", root), "utf8"),
+  readFile(new URL("crates/atools-core/src/memory.rs", root), "utf8"),
   readFile(new URL("crates/atools-core/src/db.rs", root), "utf8"),
   readFile(new URL("src-tauri/src/agent_tools.rs", root), "utf8"),
   readFile(new URL("src-tauri/src/commands.rs", root), "utf8"),
@@ -24,6 +25,13 @@ assert.match(database, /CREATE TABLE IF NOT EXISTS task_runs/);
 assert.match(database, /pub fn upsert_task_run/);
 assert.match(database, /pub fn get_task_run/);
 assert.match(database, /pub fn list_task_runs/);
+assert.match(memory, /pub struct MemoryItem/);
+assert.match(memory, /pub enum MemoryApproval/);
+assert.match(memory, /pub fn validate_memory_content/);
+assert.match(memory, /pub fn apply_memory_defaults/);
+assert.match(database, /CREATE TABLE IF NOT EXISTS memory_items/);
+assert.match(database, /pub fn find_memory_items/);
+assert.match(database, /pub fn record_memory_use/);
 
 for (const field of ["runId", "status", "summary", "metrics", "artifacts", "validation", "resultUrl"]) {
   assert.ok(tools.includes(`"${field}"`), `MCP TaskRun envelope must include ${field}`);
@@ -35,10 +43,19 @@ assert.match(tools, /TaskRunStatus::Cancelled/);
 assert.match(commands, /pub fn list_task_runs/);
 assert.match(commands, /pub fn get_task_run/);
 assert.match(commands, /pub fn cancel_task_run/);
+assert.match(commands, /pub fn create_memory_item/);
+assert.match(commands, /pub fn update_memory_item/);
+assert.match(commands, /pub fn set_memory_item_enabled/);
+assert.match(commands, /pub fn delete_memory_item/);
+assert.match(commands, /pub fn export_memory_items_json/);
+assert.match(commands, /pub fn clear_memory_items/);
 assert.match(appLib, /commands::list_task_runs/);
 assert.match(appLib, /commands::get_task_run/);
 assert.match(appLib, /commands::cancel_task_run/);
+assert.match(appLib, /commands::list_memory_items/);
+assert.match(appLib, /commands::create_memory_item/);
 assert.match(types, /export type TaskRun =/);
+assert.match(types, /export type MemoryItem =/);
 assert.match(types, /run_id\?: string \| null/);
 assert.match(agentPanel, /runId: request\.run_id/);
 assert.match(settingsPanel, /runId: request\.run_id/);
@@ -48,3 +65,9 @@ assert.match(agentPanel, /invoke\("cancel_task_run"/);
 assert.match(agentPanel, /function retryTaskRun\(run: TaskRun\)/);
 assert.match(agentPanel, /run\.validation\.summary/);
 assert.match(agentPanel, /run\.artifacts as artifact/);
+assert.match(agentPanel, /<h3>执行记忆<\/h3>/);
+assert.match(agentPanel, /invoke<MemoryItem\[]>\("list_memory_items"/);
+assert.match(agentPanel, /invoke<MemoryItem>\("create_memory_item"/);
+assert.match(agentPanel, /invoke\("set_memory_item_enabled"/);
+assert.match(agentPanel, /invoke\("delete_memory_item"/);
+assert.match(agentPanel, /invoke<string>\("export_memory_items_json"/);

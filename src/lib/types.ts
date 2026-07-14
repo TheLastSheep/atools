@@ -235,6 +235,29 @@ export type TaskRun = {
   finishedAt?: string | null;
 };
 
+export type MemoryItem = {
+  id: string;
+  type: "preference" | "workspace_fact" | "task_recipe" | "correction" | "failure_recovery";
+  scope: {
+    workspace?: string | null;
+    skill?: string | null;
+    tool?: string | null;
+    application?: string | null;
+    domain?: string | null;
+  };
+  content: unknown;
+  sourceRunId?: string | null;
+  confidence: number;
+  approval: "explicit" | "confirmed_candidate" | "temporary";
+  enabled: boolean;
+  useCount: number;
+  successCount: number;
+  lastUsedAt?: string | null;
+  expiresAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type InstalledPlugin = {
   id: string;
   name: string;

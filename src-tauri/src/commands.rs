@@ -13,6 +13,7 @@ use atools_core::agent::{
 use atools_core::config::AppConfig;
 use atools_core::db::Database;
 use atools_core::matcher;
+use atools_core::memory::{MemoryApproval, MemoryItem, MemoryScope, MemoryType};
 use atools_core::models::*;
 use atools_core::task_run::{TaskRun, TaskRunStatus};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
@@ -4336,6 +4337,131 @@ pub fn cancel_task_run(state: tauri::State<AppState>, id: String) -> Result<Task
         .upsert_task_run(&run)
         .map_err(|error| error.to_string())?;
     Ok(run)
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MemoryItemInput {
+    #[serde(rename = "type")]
+    pub kind: MemoryType,
+    #[serde(default)]
+    pub scope: MemoryScope,
+    pub content: serde_json::Value,
+    #[serde(default)]
+    pub source_run_id: Option<String>,
+    #[serde(default = "default_memory_confidence")]
+    pub confidence: f64,
+    pub approval: MemoryApproval,
+    #[serde(default)]
+    pub expires_at: Option<String>,
+}
+
+fn default_memory_confidence() -> f64 {
+    1.0
+}
+
+#[tauri::command]
+pub fn list_memory_items(
+    state: tauri::State<AppState>,
+    include_disabled: Option<bool>,
+    limit: Option<usize>,
+) -> Result<Vec<MemoryItem>, String> {
+    state
+        .db
+        .list_memory_items(include_disabled.unwrap_or(true), limit.unwrap_or(500))
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn create_memory_item(
+    state: tauri::State<AppState>,
+    input: MemoryItemInput,
+) -> Result<MemoryItem, String> {
+    let item = MemoryItem::new(
+        input.kind,
+        input.scope,
+        input.content,
+        input.source_run_id,
+        input.confidence,
+        input.approval,
+        input.expires_at,
+    )
+    .map_err(|error| error.to_string())?;
+    state
+        .db
+        .upsert_memory_item(&item)
+        .map_err(|error| error.to_string())?;
+    Ok(item)
+}
+
+#[tauri::command]
+pub fn update_memory_item(
+    state: tauri::State<AppState>,
+    id: String,
+    input: MemoryItemInput,
+) -> Result<MemoryItem, String> {
+    let previous = state
+        .db
+        .get_memory_item(&id)
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| format!("Memory item not found: {id}"))?;
+    let mut item = MemoryItem::new(
+        input.kind,
+        input.scope,
+        input.content,
+        input.source_run_id,
+        input.confidence,
+        input.approval,
+        input.expires_at,
+    )
+    .map_err(|error| error.to_string())?;
+    item.id = previous.id;
+    item.enabled = previous.enabled;
+    item.use_count = previous.use_count;
+    item.success_count = previous.success_count;
+    item.last_used_at = previous.last_used_at;
+    item.created_at = previous.created_at;
+    state
+        .db
+        .upsert_memory_item(&item)
+        .map_err(|error| error.to_string())?;
+    Ok(item)
+}
+
+#[tauri::command]
+pub fn set_memory_item_enabled(
+    state: tauri::State<AppState>,
+    id: String,
+    enabled: bool,
+) -> Result<bool, String> {
+    state
+        .db
+        .set_memory_item_enabled(&id, enabled)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn delete_memory_item(state: tauri::State<AppState>, id: String) -> Result<bool, String> {
+    state
+        .db
+        .delete_memory_item(&id)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn clear_memory_items(state: tauri::State<AppState>) -> Result<usize, String> {
+    state
+        .db
+        .clear_memory_items()
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn export_memory_items_json(state: tauri::State<AppState>) -> Result<String, String> {
+    state
+        .db
+        .export_memory_items_json()
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]

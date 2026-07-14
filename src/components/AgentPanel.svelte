@@ -11,6 +11,7 @@
     AuditLogPage,
     AuditLogQuery,
     McpServerStatus,
+    MemoryItem,
     PendingAgentToolRequest,
     TaskRun,
     ToolDefinition
@@ -62,6 +63,7 @@
   let scopePolicies: AgentScopePolicy[] = $state([]);
   let pendingRequests: PendingAgentToolRequest[] = $state([]);
   let taskRuns: TaskRun[] = $state([]);
+  let memories: MemoryItem[] = $state([]);
   let status: McpServerStatus | null = $state(null);
   let permissionMode = $state("conservative");
   let error = $state("");
@@ -69,6 +71,15 @@
   let selectedAuditId = $state("");
   let selectedTaskRunId = $state("");
   let taskRunStatus = $state("");
+  let memoryStatus = $state("");
+  let editingMemoryId = $state("");
+  let memoryType = $state<MemoryItem["type"]>("preference");
+  let memoryApproval = $state<MemoryItem["approval"]>("explicit");
+  let memoryTool = $state("");
+  let memoryWorkspace = $state("");
+  let memoryContent = $state('{"arguments":{}}');
+  let memoryConfidence = $state("1");
+  let memoryExpiresAt = $state("");
   let auditQuery = $state("");
   let auditStatusFilter = $state("all");
   let auditToolFilter = $state("all");
@@ -139,7 +150,7 @@
 
   async function refresh() {
     try {
-      const [toolList, auditPage, mcpStatus, mode, grantList, scopePolicyList, pendingList, runList] = await Promise.all([
+      const [toolList, auditPage, mcpStatus, mode, grantList, scopePolicyList, pendingList, runList, memoryList] = await Promise.all([
         invoke<ToolDefinition[]>("list_agent_tools"),
         invoke<AuditLogPage>("query_audit_entries_page", { query: auditBackendQuery(auditPageLimit, 0) }),
         invoke<McpServerStatus | null>("get_mcp_status"),
@@ -148,6 +159,7 @@
         invoke<AgentScopePolicy[]>("list_agent_scope_policies"),
         invoke<PendingAgentToolRequest[]>("list_pending_agent_requests"),
         invoke<TaskRun[]>("list_task_runs", { limit: 100 }),
+        invoke<MemoryItem[]>("list_memory_items", { includeDisabled: true, limit: 500 }),
       ]);
       tools = toolList;
       applyAuditPage(auditPage);
@@ -157,12 +169,120 @@
       scopePolicies = scopePolicyList;
       pendingRequests = pendingList;
       taskRuns = runList;
+      memories = memoryList;
       if (selectedTaskRunId && !runList.some((run) => run.id === selectedTaskRunId)) {
         selectedTaskRunId = "";
       }
       error = "";
     } catch (e) {
       error = String(e);
+    }
+  }
+
+  function resetMemoryForm() {
+    editingMemoryId = "";
+    memoryType = "preference";
+    memoryApproval = "explicit";
+    memoryTool = "";
+    memoryWorkspace = "";
+    memoryContent = '{"arguments":{}}';
+    memoryConfidence = "1";
+    memoryExpiresAt = "";
+  }
+
+  function editMemory(item: MemoryItem) {
+    editingMemoryId = item.id;
+    memoryType = item.type;
+    memoryApproval = item.approval;
+    memoryTool = item.scope.tool ?? "";
+    memoryWorkspace = item.scope.workspace ?? "";
+    memoryContent = JSON.stringify(item.content, null, 2);
+    memoryConfidence = String(item.confidence);
+    memoryExpiresAt = item.expiresAt ? item.expiresAt.slice(0, 16) : "";
+  }
+
+  function memoryInput() {
+    const confidence = Number(memoryConfidence);
+    if (!Number.isFinite(confidence) || confidence < 0 || confidence > 1) {
+      throw new Error("置信度必须在 0 到 1 之间");
+    }
+    if (memoryApproval === "temporary" && !memoryExpiresAt) {
+      throw new Error("临时记忆必须设置过期时间");
+    }
+    return {
+      type: memoryType,
+      scope: {
+        ...(memoryWorkspace.trim() ? { workspace: memoryWorkspace.trim() } : {}),
+        ...(memoryTool.trim() ? { tool: memoryTool.trim() } : {}),
+      },
+      content: JSON.parse(memoryContent),
+      confidence,
+      approval: memoryApproval,
+      expiresAt: memoryExpiresAt ? new Date(memoryExpiresAt).toISOString() : null,
+    };
+  }
+
+  async function saveMemory() {
+    busyKey = "memory:save";
+    try {
+      const input = memoryInput();
+      if (editingMemoryId) {
+        await invoke<MemoryItem>("update_memory_item", { id: editingMemoryId, input });
+        memoryStatus = "记忆已更新";
+      } else {
+        await invoke<MemoryItem>("create_memory_item", { input });
+        memoryStatus = "记忆已保存；执行时仅作为缺省参数，不覆盖显式输入";
+      }
+      resetMemoryForm();
+      await refresh();
+    } catch (e) {
+      memoryStatus = String(e);
+    } finally {
+      busyKey = "";
+    }
+  }
+
+  async function toggleMemory(item: MemoryItem) {
+    busyKey = `memory:toggle:${item.id}`;
+    try {
+      await invoke("set_memory_item_enabled", { id: item.id, enabled: !item.enabled });
+      await refresh();
+    } finally {
+      busyKey = "";
+    }
+  }
+
+  async function deleteMemory(item: MemoryItem) {
+    busyKey = `memory:delete:${item.id}`;
+    try {
+      await invoke("delete_memory_item", { id: item.id });
+      if (editingMemoryId === item.id) resetMemoryForm();
+      memoryStatus = "记忆已删除";
+      await refresh();
+    } finally {
+      busyKey = "";
+    }
+  }
+
+  async function exportMemories() {
+    busyKey = "memory:export";
+    try {
+      await copyText(await invoke<string>("export_memory_items_json"));
+      memoryStatus = `已复制 ${memories.length} 条记忆 JSON`;
+    } finally {
+      busyKey = "";
+    }
+  }
+
+  async function clearMemories() {
+    busyKey = "memory:clear";
+    try {
+      const count = await invoke<number>("clear_memory_items");
+      resetMemoryForm();
+      memoryStatus = `已清空 ${count} 条记忆`;
+      await refresh();
+    } finally {
+      busyKey = "";
     }
   }
 
@@ -735,6 +855,65 @@
     {/if}
   </section>
 
+  <section class="agent-section memory-section">
+    <div class="section-title">
+      <div>
+        <h3>执行记忆</h3>
+        <p>仅保存显式或已确认内容；匹配作用域后只补充缺省参数</p>
+      </div>
+      <div class="row-actions">
+        <button disabled={busyKey === "memory:export"} onclick={exportMemories}>导出</button>
+        <button disabled={busyKey === "memory:clear" || memories.length === 0} onclick={clearMemories}>清空</button>
+      </div>
+    </div>
+    <div class="memory-editor">
+      <label><span>类型</span><select bind:value={memoryType}>
+        <option value="preference">用户偏好</option>
+        <option value="workspace_fact">工作区事实</option>
+        <option value="task_recipe">任务配方</option>
+        <option value="correction">纠正</option>
+        <option value="failure_recovery">失败恢复</option>
+      </select></label>
+      <label><span>审批</span><select bind:value={memoryApproval}>
+        <option value="explicit">用户显式</option>
+        <option value="confirmed_candidate">已确认候选</option>
+        <option value="temporary">临时</option>
+      </select></label>
+      <label><span>工具作用域</span><input bind:value={memoryTool} placeholder="留空表示全局" /></label>
+      <label><span>工作区作用域</span><input bind:value={memoryWorkspace} placeholder="可选绝对路径" /></label>
+      <label><span>置信度</span><input bind:value={memoryConfidence} type="number" min="0" max="1" step="0.05" /></label>
+      <label><span>过期时间</span><input bind:value={memoryExpiresAt} type="datetime-local" disabled={memoryApproval !== "temporary"} /></label>
+      <label class="memory-content"><span>结构化内容</span><textarea bind:value={memoryContent} rows="5" spellcheck="false"></textarea></label>
+      <div class="memory-editor-actions row-actions">
+        <button disabled={busyKey === "memory:save"} onclick={saveMemory}>{editingMemoryId ? "更新记忆" : "保存记忆"}</button>
+        {#if editingMemoryId}<button onclick={resetMemoryForm}>取消编辑</button>{/if}
+      </div>
+    </div>
+    {#if memoryStatus}<div class="empty">{memoryStatus}</div>{/if}
+    {#if memories.length === 0}
+      <div class="empty">暂无执行记忆。ATools 不会自动把模型推断写入永久记忆。</div>
+    {:else}
+      <div class="memory-list">
+        {#each memories as item}
+          <article class="memory-row" class:disabled={!item.enabled}>
+            <div class="memory-row-head">
+              <strong>{item.type}</strong>
+              <span>{item.approval} · 置信度 {item.confidence}</span>
+              <code>{item.scope.tool ?? "global"}{item.scope.workspace ? ` · ${item.scope.workspace}` : ""}</code>
+            </div>
+            <pre>{auditDetailValue(item.content, "无内容")}</pre>
+            <small>使用 {item.useCount} 次 · 成功 {item.successCount} 次 · {item.expiresAt ? `过期 ${item.expiresAt}` : "长期"}</small>
+            <div class="row-actions">
+              <button onclick={() => editMemory(item)}>编辑</button>
+              <button disabled={busyKey === `memory:toggle:${item.id}`} onclick={() => toggleMemory(item)}>{item.enabled ? "停用" : "启用"}</button>
+              <button disabled={busyKey === `memory:delete:${item.id}`} onclick={() => deleteMemory(item)}>删除</button>
+            </div>
+          </article>
+        {/each}
+      </div>
+    {/if}
+  </section>
+
   <section class="agent-section result-center-section">
     <div class="section-title">
       <div>
@@ -806,6 +985,22 @@
             </div>
             {#if run.retryOf}
               <p class="task-run-retry-link">重试来源：<code>{run.retryOf}</code></p>
+            {/if}
+            {#if run.memoryIds.length > 0}
+              <section class="detail-block">
+                <h4>本次使用的执行记忆</h4>
+                <div class="artifact-list">
+                  {#each run.memoryIds as memoryId}
+                    {@const memory = memories.find((item) => item.id === memoryId)}
+                    <div>
+                      <strong>{memory?.type ?? "已删除记忆"}</strong>
+                      <span>{memory?.scope.tool ?? "global"} · {memory?.approval ?? "unknown"}</span>
+                      <code>{memory ? auditDetailValue(memory.content, "无影响说明") : memoryId}</code>
+                    </div>
+                  {/each}
+                </div>
+                <p>记忆只补充调用方未提供的参数；显式输入始终优先。</p>
+              </section>
             {/if}
             <section class="detail-block">
               <h4>验收说明</h4>
@@ -1208,6 +1403,117 @@
     grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.4fr);
     gap: 12px;
     margin-top: 10px;
+  }
+
+  .memory-editor {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: var(--bg-secondary);
+  }
+
+  .memory-editor label {
+    display: grid;
+    gap: 5px;
+    color: var(--text-tertiary);
+    font-size: 11px;
+  }
+
+  .memory-editor input,
+  .memory-editor select,
+  .memory-editor textarea {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 7px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    font: inherit;
+  }
+
+  .memory-editor textarea,
+  .memory-row pre {
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+
+  .memory-content {
+    grid-column: 1 / -1;
+  }
+
+  .memory-editor-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+
+  .memory-list {
+    display: grid;
+    gap: 7px;
+    margin-top: 10px;
+  }
+
+  .memory-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 7px 12px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: var(--bg-secondary);
+  }
+
+  .memory-row.disabled {
+    opacity: 0.58;
+  }
+
+  .memory-row-head,
+  .memory-row pre,
+  .memory-row small {
+    grid-column: 1;
+    min-width: 0;
+  }
+
+  .memory-row-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    align-items: center;
+  }
+
+  .memory-row-head span,
+  .memory-row small {
+    color: var(--text-tertiary);
+    font-size: 10.5px;
+  }
+
+  .memory-row-head code {
+    overflow-wrap: anywhere;
+    color: var(--text-tertiary);
+    font-size: 10.5px;
+  }
+
+  .memory-row pre {
+    overflow: auto;
+    max-height: 110px;
+    margin: 0;
+    padding: 7px;
+    border-radius: 5px;
+    color: var(--text-secondary);
+    background: var(--bg-primary);
+    white-space: pre-wrap;
+  }
+
+  .memory-row > .row-actions {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    align-self: center;
   }
 
   .task-run-list {
@@ -2007,8 +2313,19 @@
 
   @media (max-width: 760px) {
     .task-run-layout,
-    .task-run-data-grid {
+    .task-run-data-grid,
+    .memory-editor {
       grid-template-columns: 1fr;
+    }
+
+    .memory-row {
+      grid-template-columns: 1fr;
+    }
+
+    .memory-row > .row-actions {
+      grid-column: 1;
+      grid-row: auto;
+      justify-content: flex-start;
     }
 
     .task-run-summary-grid {

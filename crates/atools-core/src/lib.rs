@@ -4,6 +4,7 @@ pub mod db;
 pub mod error;
 pub mod matcher;
 pub mod mcp;
+pub mod memory;
 pub mod models;
 pub mod task_run;
 pub mod utils;
