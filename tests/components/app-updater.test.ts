@@ -1,11 +1,16 @@
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/svelte";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   createAppUpdaterController,
   type AppUpdateMetadata,
   type AppUpdateProgress,
   type AppUpdaterDependencies,
+  type AppUpdaterState,
 } from "../../src/lib/appUpdater";
+import AppUpdaterHarness from "./AppUpdaterHarness.svelte";
+
+afterEach(cleanup);
 
 const update: AppUpdateMetadata = {
   currentVersion: "3.0.0",
@@ -179,5 +184,80 @@ describe("app updater controller", () => {
       code: "desktop_only",
     });
     expect(fake.invoke).not.toHaveBeenCalled();
+  });
+});
+
+function promptState(patch: Partial<AppUpdaterState> = {}): AppUpdaterState {
+  return {
+    phase: "available",
+    update,
+    checkedAt: "2026-07-14T12:00:00.000Z",
+    downloaded: 0,
+    total: null,
+    errorCode: "",
+    errorMessage: "",
+    promptVisible: true,
+    ...patch,
+  };
+}
+
+describe("app update prompt", () => {
+  it("shows release details and keeps install explicitly user-triggered", async () => {
+    const ondismiss = vi.fn();
+    const oninstall = vi.fn();
+    render(AppUpdaterHarness, {
+      state: promptState(),
+      ondismiss,
+      oninstall,
+    });
+
+    expect(screen.getByText("发现新版本 3.0.1")).toBeTruthy();
+    expect(screen.getByText("Security and reliability fixes")).toBeTruthy();
+    await fireEvent.click(screen.getByRole("button", { name: "稍后" }));
+    expect(ondismiss).toHaveBeenCalledTimes(1);
+    expect(oninstall).not.toHaveBeenCalled();
+    await fireEvent.click(screen.getByRole("button", { name: "更新并重启" }));
+    expect(oninstall).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders release notes as text rather than executable HTML", () => {
+    const view = render(AppUpdaterHarness, {
+      state: promptState({
+        update: { ...update, body: "<script>alert(1)</script>" },
+      }),
+      ondismiss: vi.fn(),
+      oninstall: vi.fn(),
+    });
+
+    expect(screen.getByText("<script>alert(1)</script>")).toBeTruthy();
+    expect(view.container.querySelector("script")).toBeNull();
+  });
+
+  it("shows determinate and indeterminate download progress", () => {
+    const first = render(AppUpdaterHarness, {
+      state: promptState({ phase: "downloading", downloaded: 50, total: 100 }),
+      ondismiss: vi.fn(),
+      oninstall: vi.fn(),
+    });
+    expect(screen.getByText("正在下载 50%")).toBeTruthy();
+    first.unmount();
+
+    render(AppUpdaterHarness, {
+      state: promptState({ phase: "downloading", downloaded: 50, total: null }),
+      ondismiss: vi.fn(),
+      oninstall: vi.fn(),
+    });
+    expect(screen.getByRole("progressbar", { name: "正在下载" })).toBeTruthy();
+  });
+
+  it("disables duplicate actions while installing", () => {
+    render(AppUpdaterHarness, {
+      state: promptState({ phase: "installing" }),
+      ondismiss: vi.fn(),
+      oninstall: vi.fn(),
+    });
+
+    expect((screen.getByRole("button", { name: "稍后" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "正在安装" }) as HTMLButtonElement).disabled).toBe(true);
   });
 });

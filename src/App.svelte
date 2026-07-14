@@ -6,6 +6,7 @@
   import { readText, writeText } from "@tauri-apps/plugin-clipboard-manager";
   import { open as openExternal } from "@tauri-apps/plugin-shell";
   import HomePanel from "./components/HomePanel.svelte";
+  import AppUpdatePrompt from "./components/AppUpdatePrompt.svelte";
   import PermissionConfirmDialog from "./components/PermissionConfirmDialog.svelte";
   import ResultsList from "./components/ResultsList.svelte";
   import SearchBar from "./components/SearchBar.svelte";
@@ -104,6 +105,7 @@
     loadPinnedCommandCodes,
   } from "./lib/pinnedCommands";
   import { isEditableKeyboardTarget, isMainSearchKeyboardTarget } from "./lib/keyboardTarget";
+  import { appUpdater, appUpdaterState } from "./lib/appUpdater";
 
   type ReleaseSmokeInfo = {
     token: string;
@@ -366,7 +368,9 @@
 
     let pluginUnlisten: (() => void) | undefined;
     let permissionUnlisten: (() => void) | undefined;
+    let updateUnlisten: (() => void) | undefined;
     let cancelled = false;
+    const stopStartupUpdateCheck = appUpdater.scheduleStartupCheck();
     try {
       listen<string>("plugin-event", (event) => {
         console.log("Plugin event:", event.payload);
@@ -393,6 +397,12 @@
         console.warn("Permission request listener unavailable:", e);
       });
       startClipboardPolling();
+      void appUpdater.startProgressListener().then((stop) => {
+        if (cancelled) stop();
+        else updateUnlisten = stop;
+      }).catch((error) => {
+        console.warn("App update progress listener unavailable:", error);
+      });
     } catch (e) {
       console.warn("Tauri 未启动，搜索功能不可用", e);
     }
@@ -414,6 +424,8 @@
       cancelled = true;
       pluginUnlisten?.();
       permissionUnlisten?.();
+      updateUnlisten?.();
+      stopStartupUpdateCheck();
       window.removeEventListener("atools-plugin-detach", onPluginDetach);
     };
   });
@@ -2064,6 +2076,14 @@
       onallowonce={allowPermissionOnce}
       onallowremember={allowPermissionAndRemember}
       ondeny={denyPermission}
+    />
+  {/if}
+
+  {#if !isPluginDetachWindow && $appUpdaterState.promptVisible}
+    <AppUpdatePrompt
+      state={$appUpdaterState}
+      ondismiss={() => appUpdater.dismiss()}
+      oninstall={() => appUpdater.installAndRestart()}
     />
   {/if}
 {/if}
