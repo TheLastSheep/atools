@@ -309,7 +309,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   console.log(`${BENCHMARK_PREFIX}${JSON.stringify(result)}`);
   if (process.env.GITHUB_ACTIONS === "true") {
     const message = result.runs
-      .map((run) => `${run.scale}: P50 ${run.summary.worst_p50_ms} ms / P95 ${run.summary.worst_p95_ms} ms / P99 ${run.summary.worst_p99_ms} ms`)
+      .map((run) => {
+        const caseP99 = run.cases.map((item) => `${item.name}=${item.p99_ms}`).join(", ");
+        return `${run.scale}: P50 ${run.summary.worst_p50_ms} ms / P95 ${run.summary.worst_p95_ms} ms / P99 ${run.summary.worst_p99_ms} ms (${caseP99})`;
+      })
       .join("; ");
     const annotation = result.status === "ok" ? "notice" : "warning";
     console.log(`::${annotation} title=ATools search benchmark::${message}`);

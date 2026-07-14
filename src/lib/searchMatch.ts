@@ -17,6 +17,8 @@ export type PreparedSearchMatchCandidate = {
   haystack: string;
   aliases: string[];
   pinyinValues: string[];
+  letterMask: number;
+  digitMask: number;
 };
 
 export type SearchPinyinTokens = {
@@ -56,12 +58,16 @@ export function searchMatchForQuery(query: string, candidate: SearchMatchCandida
 
 export function prepareSearchMatchCandidate(candidate: SearchMatchCandidate): PreparedSearchMatchCandidate {
   const aliases = (candidate.aliases ?? []).map(normalizeSearchText).filter(Boolean);
+  const haystack = normalizeSearchText(`${candidate.text} ${candidate.extraText ?? ""}`);
+  const masks = asciiCharacterMasks(haystack);
   return {
     text: normalizeSearchText(candidate.text),
     extraText: normalizeSearchText(candidate.extraText ?? ""),
-    haystack: normalizeSearchText(`${candidate.text} ${candidate.extraText ?? ""}`),
+    haystack,
     aliases,
     pinyinValues: [candidate.text, candidate.extraText ?? "", ...(candidate.aliases ?? [])],
+    letterMask: masks.letterMask,
+    digitMask: masks.digitMask,
   };
 }
 
@@ -96,6 +102,7 @@ export function searchMatchForPreparedQuery(
   if (
     normalizedQuery.length <= 8
     && !normalizedQuery.includes(" ")
+    && candidateContainsQueryCharacters(normalizedQuery, candidate)
     && isSubsequence(normalizedQuery, candidate.haystack)
   ) {
     return match("fuzzy", normalizedQuery.length);
@@ -188,17 +195,6 @@ export function normalizeSearchText(value: string): string {
     .replace(/\s+/g, " ");
 }
 
-function matchAlias(query: string, aliases: string[]): SearchMatch | null {
-  for (const alias of aliases) {
-    const normalizedAlias = normalizeSearchText(alias);
-    if (!normalizedAlias) continue;
-    if (normalizedAlias === query || normalizedAlias.startsWith(query) || normalizedAlias.includes(query)) {
-      return match("alias", query.length);
-    }
-  }
-  return null;
-}
-
 function matchNormalizedAlias(query: string, aliases: string[]): SearchMatch | null {
   for (const alias of aliases) {
     if (alias === query || alias.startsWith(query) || alias.includes(query)) {
@@ -239,6 +235,26 @@ function canUseLexicalTrigrams(normalizedQuery: string): boolean {
   if (normalizedQuery.length <= 8 && !normalizedQuery.includes(" ")) return false;
   if (searchPinyinResolver && /^[a-z0-9]+$/.test(normalizedQuery)) return false;
   return true;
+}
+
+function candidateContainsQueryCharacters(
+  query: string,
+  candidate: PreparedSearchMatchCandidate,
+): boolean {
+  const masks = asciiCharacterMasks(query);
+  return (candidate.letterMask & masks.letterMask) === masks.letterMask
+    && (candidate.digitMask & masks.digitMask) === masks.digitMask;
+}
+
+function asciiCharacterMasks(value: string) {
+  let letterMask = 0;
+  let digitMask = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code >= 97 && code <= 122) letterMask |= 1 << (code - 97);
+    else if (code >= 48 && code <= 57) digitMask |= 1 << (code - 48);
+  }
+  return { letterMask, digitMask };
 }
 
 function trigramsFor(value: string): string[] {
