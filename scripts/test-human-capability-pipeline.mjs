@@ -45,3 +45,5 @@ assert.match(copyCommand, /"characterCount": character_count/);
 assert.match(copyCommand, /"byteCount": byte_count/);
 assert.doesNotMatch(copyCommand, /"text": text/);
 assert.match(copyCommand, /Clipboard write completed; text content was not persisted/);
+assert.match(app, /const priorCopyRunIds = new Set\(/);
+assert.match(app, /run\.capabilityId === "copy_text" && !priorCopyRunIds\.has\(run\.id\)/);

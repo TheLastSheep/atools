@@ -1166,9 +1166,16 @@
 
     let clipboardCopyTracked = false;
     try {
+      const priorCopyRunIds = new Set(
+        (await invoke<TaskRun[]>("list_task_runs", { limit: 100 }))
+          .filter((run) => run.capabilityId === "copy_text")
+          .map((run) => run.id),
+      );
       await invoke("copy_text", { text: "ATools release smoke" });
-      const runs = await invoke<TaskRun[]>("list_task_runs", { limit: 10 });
-      const copyRun = runs.find((run) => run.capabilityId === "copy_text");
+      const runs = await invoke<TaskRun[]>("list_task_runs", { limit: 100 });
+      const copyRun = runs.find(
+        (run) => run.capabilityId === "copy_text" && !priorCopyRunIds.has(run.id),
+      );
       const redactedInput = copyRun?.input && typeof copyRun.input === "object" && !Array.isArray(copyRun.input)
         ? copyRun.input as Record<string, unknown>
         : null;
