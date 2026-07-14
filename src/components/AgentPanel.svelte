@@ -570,6 +570,35 @@
     }
   }
 
+  async function saveTaskRunAsRecipe(run: TaskRun) {
+    busyKey = `run:recipe:${run.id}`;
+    try {
+      await invoke<MemoryItem>("create_memory_item", {
+        input: {
+          type: "task_recipe",
+          scope: { tool: run.capabilityId },
+          content: {
+            arguments: run.input,
+            recipe: {
+              sourceRunId: run.id,
+              validation: run.validation,
+            },
+          },
+          sourceRunId: run.id,
+          confidence: run.validation.status === "passed" ? 1 : 0.8,
+          approval: "explicit",
+          expiresAt: null,
+        },
+      });
+      taskRunStatus = "已将成功任务保存为显式任务配方";
+      await refresh();
+    } catch (e) {
+      taskRunStatus = `保存任务配方失败：${String(e)}`;
+    } finally {
+      busyKey = "";
+    }
+  }
+
   async function copyTaskRun(run: TaskRun) {
     busyKey = `run:copy:${run.id}`;
     try {
@@ -967,6 +996,12 @@
                     disabled={busyKey === `run:retry:${run.id}`}
                     onclick={() => retryTaskRun(run)}
                   >重试</button>
+                {/if}
+                {#if run.status === "succeeded"}
+                  <button
+                    disabled={busyKey === `run:recipe:${run.id}`}
+                    onclick={() => saveTaskRunAsRecipe(run)}
+                  >保存为配方</button>
                 {/if}
                 {#if taskRunCanCancel(run)}
                   <button

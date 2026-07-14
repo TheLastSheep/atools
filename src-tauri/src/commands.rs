@@ -15,7 +15,10 @@ use atools_core::db::Database;
 use atools_core::matcher;
 use atools_core::memory::{MemoryApproval, MemoryItem, MemoryScope, MemoryType};
 use atools_core::models::*;
-use atools_core::task_run::{TaskRun, TaskRunStatus};
+use atools_core::task_run::{
+    Artifact, ArtifactKind, TaskIssue, TaskRun, TaskRunInitiator, TaskRunStatus,
+    TaskValidationStatus,
+};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::Deserialize;
 use std::fs;
@@ -86,9 +89,64 @@ pub fn activate_feature(
     code: String,
     payload: Option<serde_json::Value>,
 ) -> Result<FeatureAction, String> {
-    let action = activate_feature_inner(&state.db, &code, payload)?;
-    *state.active_plugin.lock() = Some(action.plugin_id.clone());
-    Ok(action)
+    let started = std::time::Instant::now();
+    let input = serde_json::json!({ "code": code.clone(), "payload": payload.clone() });
+    let mut run = TaskRun::new(
+        format!("plugin.feature.{code}"),
+        TaskRunInitiator::human(Some("atools-ui".to_string())),
+        input,
+    );
+    run.transition(TaskRunStatus::Running);
+    state
+        .db
+        .upsert_task_run(&run)
+        .map_err(|error| error.to_string())?;
+
+    match activate_feature_inner(&state.db, &code, payload) {
+        Ok(action) => {
+            run.output = serde_json::to_value(&action).unwrap_or(serde_json::Value::Null);
+            run.summary = Some(format!(
+                "Opened {} / {}",
+                action.plugin_name, action.feature_code
+            ));
+            run.artifacts = vec![Artifact {
+                id: format!("artifact-{}", atools_core::utils::generate_rev()),
+                kind: ArtifactKind::Json,
+                label: format!("{} activation result", action.plugin_name),
+                media_type: Some("application/json".to_string()),
+                uri: Some(format!("atools://task-runs/{}/output", run.id)),
+                path: None,
+                size_bytes: None,
+                metadata: serde_json::json!({
+                    "pluginId": action.plugin_id.clone(),
+                    "featureCode": action.feature_code.clone(),
+                }),
+            }];
+            run.validation.status = TaskValidationStatus::Passed;
+            run.validation.summary = Some(
+                "Plugin feature resolved through the shared local capability store".to_string(),
+            );
+            run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
+            run.transition(TaskRunStatus::Succeeded);
+            state
+                .db
+                .upsert_task_run(&run)
+                .map_err(|error| error.to_string())?;
+            *state.active_plugin.lock() = Some(action.plugin_id.clone());
+            Ok(action)
+        }
+        Err(error) => {
+            run.summary = Some(format!("Failed to open plugin feature {code}"));
+            run.errors
+                .push(TaskIssue::error("activation_failed", error.clone()));
+            run.validation.status = TaskValidationStatus::Failed;
+            run.validation.summary = Some("Plugin feature activation failed".to_string());
+            run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
+            run.transition(TaskRunStatus::Failed);
+            let _ = state.db.upsert_task_run(&run);
+            Err(error)
+        }
+    }
 }
 
 pub(crate) fn activate_feature_inner(
