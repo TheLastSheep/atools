@@ -1,6 +1,9 @@
 import type { SearchResult } from "./types";
 import {
+  buildPreparedSearchTrigramSet,
+  canSkipPreparedSearch,
   insertBoundedSearchResult,
+  MAX_SEARCH_MATCH_SCORE,
   normalizeSearchText,
   prepareSearchMatchCandidate,
   searchMatchForPreparedQuery,
@@ -40,6 +43,10 @@ const normalizedAliasCache = new WeakMap<CommandAliasEntry[], {
 const preparedAliasCandidateCache = new WeakMap<CommandAliasEntry, {
   target: CommandAliasTarget;
   candidate: PreparedSearchMatchCandidate;
+}>();
+const aliasTrigramCache = new WeakMap<CommandAliasEntry[], {
+  resolveTarget: (code: string) => CommandAliasTarget | null;
+  trigrams: Set<string>;
 }>();
 
 export function loadCommandAliases(): CommandAliasEntry[] {
@@ -106,9 +113,15 @@ export function commandAliasResultsForQuery(
     const target = resolveTarget(exactAlias.targetCode);
     if (target) return [aliasResult(exactAlias, target, "exact", 114)];
   }
+  const trigrams = aliasTrigramsForSearch(aliases, normalized.entries, resolveTarget);
+  if (canSkipPreparedSearch(query, trigrams)) return results;
   for (let index = 0; index < normalized.entries.length; index += 1) {
     const entry = normalized.entries[index];
     if (!entry.enabled) continue;
+    if (
+      results.length === ALIAS_SEARCH_RESULT_LIMIT
+      && MAX_SEARCH_MATCH_SCORE + 2 - index <= results[results.length - 1].score
+    ) break;
     const target = resolveTarget(entry.targetCode);
     if (!target) continue;
     const candidate = preparedAliasCandidate(entry, target);
@@ -121,6 +134,24 @@ export function commandAliasResultsForQuery(
     );
   }
   return results;
+}
+
+function aliasTrigramsForSearch(
+  aliases: CommandAliasEntry[],
+  normalizedAliases: CommandAliasEntry[],
+  resolveTarget: (code: string) => CommandAliasTarget | null,
+) {
+  const cached = aliasTrigramCache.get(aliases);
+  if (cached?.resolveTarget === resolveTarget) return cached.trigrams;
+  const candidates = normalizedAliases
+    .filter((entry) => entry.enabled)
+    .flatMap((entry) => {
+      const target = resolveTarget(entry.targetCode);
+      return target ? [preparedAliasCandidate(entry, target)] : [];
+    });
+  const trigrams = buildPreparedSearchTrigramSet(candidates);
+  aliasTrigramCache.set(aliases, { resolveTarget, trigrams });
+  return trigrams;
 }
 
 function normalizedAliasesForSearch(aliases: CommandAliasEntry[]) {

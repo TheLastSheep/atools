@@ -35,6 +35,7 @@ const MATCH_SCORE: Record<SearchMatchType, number> = {
   contains: 72,
   fuzzy: 58,
 };
+export const MAX_SEARCH_MATCH_SCORE = 112;
 
 let searchPinyinResolver: SearchPinyinResolver | null = null;
 
@@ -122,6 +123,27 @@ export function insertBoundedSearchResult<T extends { score: number }>(
   if (results.length > limit) results.pop();
 }
 
+export function buildPreparedSearchTrigramSet(
+  candidates: PreparedSearchMatchCandidate[],
+): Set<string> {
+  const trigrams = new Set<string>();
+  for (const candidate of candidates) {
+    addTrigrams(trigrams, candidate.haystack);
+    for (const alias of candidate.aliases) addTrigrams(trigrams, alias);
+  }
+  return trigrams;
+}
+
+export function canSkipPreparedSearch(
+  normalizedQuery: string,
+  availableTrigrams: Set<string>,
+): boolean {
+  if (normalizedQuery.length < 3) return false;
+  if (normalizedQuery.length <= 8 && !normalizedQuery.includes(" ")) return false;
+  if (searchPinyinResolver && /^[a-z0-9]+$/.test(normalizedQuery)) return false;
+  return trigramsFor(normalizedQuery).some((trigram) => !availableTrigrams.has(trigram));
+}
+
 export function sortSearchMatches<T extends { match: SearchMatch | null }>(items: T[]): Array<T & { match: SearchMatch }> {
   return items
     .filter((item): item is T & { match: SearchMatch } => item.match !== null)
@@ -176,6 +198,18 @@ function matchPinyin(query: string, values: string[]): SearchMatch | null {
 
 function normalizePinyinToken(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function addTrigrams(target: Set<string>, value: string) {
+  for (const trigram of trigramsFor(value)) target.add(trigram);
+}
+
+function trigramsFor(value: string): string[] {
+  const trigrams = [];
+  for (let index = 0; index <= value.length - 3; index += 1) {
+    trigrams.push(value.slice(index, index + 3));
+  }
+  return trigrams;
 }
 
 function isSubsequence(query: string, haystack: string): boolean {

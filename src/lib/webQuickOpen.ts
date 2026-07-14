@@ -1,6 +1,9 @@
 import type { SearchResult } from "./types";
 import {
+  buildPreparedSearchTrigramSet,
+  canSkipPreparedSearch,
   insertBoundedSearchResult,
+  MAX_SEARCH_MATCH_SCORE,
   normalizeSearchText,
   prepareSearchMatchCandidate,
   searchMatchForPreparedQuery,
@@ -40,6 +43,7 @@ type PreparedWebQuickOpenEntry = {
 const webSearchCache = new WeakMap<WebQuickOpenEntry[], {
   entries: PreparedWebQuickOpenEntry[];
   byKeyword: Map<string, PreparedWebQuickOpenEntry>;
+  trigrams: Set<string>;
 }>();
 
 export const DEFAULT_WEB_QUICK_OPEN_ENTRIES: WebQuickOpenEntry[] = [
@@ -177,7 +181,12 @@ export function webQuickOpenResultsForQuery(value: string, entries: WebQuickOpen
   }
 
   const results: SearchResult[] = [];
+  if (canSkipPreparedSearch(normalized, prepared.trigrams)) return results;
   for (const { entry, index, candidate } of prepared.entries) {
+    if (
+      results.length === WEB_SEARCH_RESULT_LIMIT
+      && MAX_SEARCH_MATCH_SCORE - index <= results[results.length - 1].score
+    ) break;
     const match = searchMatchForPreparedQuery(normalized, candidate);
     if (!match) continue;
     insertBoundedSearchResult(
@@ -206,6 +215,7 @@ function preparedWebQuickOpenEntries(entries: WebQuickOpenEntry[]) {
   const prepared = {
     entries: preparedEntries,
     byKeyword: new Map(preparedEntries.map((entry) => [entry.entry.keyword.toLowerCase(), entry])),
+    trigrams: buildPreparedSearchTrigramSet(preparedEntries.map((entry) => entry.candidate)),
   };
   webSearchCache.set(entries, prepared);
   return prepared;

@@ -1,6 +1,9 @@
 import type { SearchResult } from "./types";
 import {
+  buildPreparedSearchTrigramSet,
+  canSkipPreparedSearch,
   insertBoundedSearchResult,
+  MAX_SEARCH_MATCH_SCORE,
   normalizeSearchText,
   prepareSearchMatchCandidate,
   searchMatchForPreparedQuery,
@@ -34,11 +37,15 @@ export type LocalLaunchOverviewInput = {
 export const LOCAL_LAUNCH_STORAGE_KEY = "atools:local-launch";
 export const LOCAL_LAUNCH_UPDATED_EVENT = "atools-local-launch-updated";
 const LOCAL_SEARCH_RESULT_LIMIT = 100;
-const localSearchCache = new WeakMap<LocalLaunchEntry[], Array<{
-  entry: LocalLaunchEntry;
-  index: number;
-  candidate: PreparedSearchMatchCandidate;
-}>>();
+type PreparedLocalSearch = {
+  entries: Array<{
+    entry: LocalLaunchEntry;
+    index: number;
+    candidate: PreparedSearchMatchCandidate;
+  }>;
+  trigrams: Set<string>;
+};
+const localSearchCache = new WeakMap<LocalLaunchEntry[], PreparedLocalSearch>();
 
 export const DEFAULT_LOCAL_LAUNCH_ENTRIES: LocalLaunchEntry[] = [
   {
@@ -151,7 +158,13 @@ export function localLaunchResultsForQuery(value: string, entries: LocalLaunchEn
   const normalized = normalizeSearchText(value);
   if (!normalized) return [];
   const results: SearchResult[] = [];
-  for (const { entry, index, candidate } of preparedLocalSearchEntries(entries)) {
+  const prepared = preparedLocalSearchEntries(entries);
+  if (canSkipPreparedSearch(normalized, prepared.trigrams)) return results;
+  for (const { entry, index, candidate } of prepared.entries) {
+    if (
+      results.length === LOCAL_SEARCH_RESULT_LIMIT
+      && MAX_SEARCH_MATCH_SCORE - index <= results[results.length - 1].score
+    ) break;
     const match = searchMatchForPreparedQuery(normalized, candidate);
     if (!match) continue;
     insertBoundedSearchResult(
@@ -166,7 +179,7 @@ export function localLaunchResultsForQuery(value: string, entries: LocalLaunchEn
 function preparedLocalSearchEntries(entries: LocalLaunchEntry[]) {
   const cached = localSearchCache.get(entries);
   if (cached) return cached;
-  const prepared = normalizeLocalLaunchEntries(entries)
+  const preparedEntries = normalizeLocalLaunchEntries(entries)
     .filter((entry) => entry.enabled)
     .map((entry, index) => ({
       entry,
@@ -177,6 +190,10 @@ function preparedLocalSearchEntries(entries: LocalLaunchEntry[]) {
         aliases: [entry.keyword],
       }),
     }));
+  const prepared = {
+    entries: preparedEntries,
+    trigrams: buildPreparedSearchTrigramSet(preparedEntries.map((entry) => entry.candidate)),
+  };
   localSearchCache.set(entries, prepared);
   return prepared;
 }
