@@ -79,7 +79,7 @@ assert.match(cargo, /tauri-plugin-updater\s*=\s*"2\.10(?:\.\d+)?"/);
 assert.match(lib, /tauri_plugin_updater::Builder::new\(\)\.build\(\)/);
 assert.equal(config.bundle.createUpdaterArtifacts, true);
 assert.deepEqual(config.plugins.updater.endpoints, [
-  "https://github.com/harris/atools/releases/latest/download/latest.json",
+  "https://github.com/TheLastSheep/atools/releases/latest/download/latest.json",
 ]);
 assert.equal(typeof config.plugins.updater.pubkey, "string");
 assert.ok(config.plugins.updater.pubkey.trim().length >= 40);
@@ -128,7 +128,7 @@ Add to `src-tauri/Cargo.toml`:
 tauri-plugin-updater = "2.10.1"
 ```
 
-Read `$HOME/.atools-release/atools-updater.key.pub`, remove its trailing newline, and use `apply_patch` to set that exact generated value as `plugins.updater.pubkey` in `src-tauri/tauri.conf.json`. In the same patch, set `bundle.createUpdaterArtifacts` to `true` and set `plugins.updater.endpoints` to the one-element array `https://github.com/harris/atools/releases/latest/download/latest.json`. Do not put a descriptive stand-in value into the JSON; the contract test must pass against the real generated public key.
+Read `$HOME/.atools-release/atools-updater.key.pub`, remove its trailing newline, and use `apply_patch` to set that exact generated value as `plugins.updater.pubkey` in `src-tauri/tauri.conf.json`. In the same patch, set `bundle.createUpdaterArtifacts` to `true` and set `plugins.updater.endpoints` to the one-element array `https://github.com/TheLastSheep/atools/releases/latest/download/latest.json`. Do not put a descriptive stand-in value into the JSON; the contract test must pass against the real generated public key.
 
 Run `cargo check --workspace` to update `Cargo.lock`.
 
@@ -698,10 +698,10 @@ Extend tests with these invalid configurations:
 
 ```js
 for (const updater of [
-  { pubkey: "", endpoints: ["https://github.com/harris/atools/releases/latest/download/latest.json"] },
-  { pubkey: "valid-public-key-content", endpoints: ["http://github.com/harris/atools/latest.json"] },
+  { pubkey: "", endpoints: ["https://github.com/TheLastSheep/atools/releases/latest/download/latest.json"] },
+  { pubkey: "valid-public-key-content", endpoints: ["http://github.com/TheLastSheep/atools/latest.json"] },
   { pubkey: "valid-public-key-content", endpoints: ["https://example.com/latest.json"] },
-  { pubkey: "valid-public-key-content", endpoints: ["https://github.com/harris/atools/releases/latest/download/latest.json"], dangerousInsecureTransportProtocol: true },
+  { pubkey: "valid-public-key-content", endpoints: ["https://github.com/TheLastSheep/atools/releases/latest/download/latest.json"], dangerousInsecureTransportProtocol: true },
 ]) {
   const result = readiness.evaluateMacosReleaseReadiness({ config: productionConfig(updater), env: {}, files: new Set() });
   assert.equal(result.checks.find((check) => check.id === "updater-config")?.status, "error");
@@ -731,7 +731,7 @@ Expected: FAIL because updater warnings are not exact errors and tag normalizati
 
 ```js
 const EXPECTED_UPDATER_ENDPOINT =
-  "https://github.com/harris/atools/releases/latest/download/latest.json";
+  "https://github.com/TheLastSheep/atools/releases/latest/download/latest.json";
 const updaterReady = config.bundle?.createUpdaterArtifacts === true
   && typeof updater?.pubkey === "string"
   && updater.pubkey.trim().length >= 40
@@ -918,11 +918,11 @@ const manifest = {
   platforms: {
     "darwin-aarch64": {
       signature: "RWQAA-valid-aarch64-signature",
-      url: "https://github.com/harris/atools/releases/download/v3.0.0/ATools.aarch64.app.tar.gz",
+      url: "https://github.com/TheLastSheep/atools/releases/download/v3.0.0/ATools.aarch64.app.tar.gz",
     },
     "darwin-x86_64": {
       signature: "RWQAA-valid-x64-signature",
-      url: "https://github.com/harris/atools/releases/download/v3.0.0/ATools.x64.app.tar.gz",
+      url: "https://github.com/TheLastSheep/atools/releases/download/v3.0.0/ATools.x64.app.tar.gz",
     },
   },
 };
@@ -944,7 +944,7 @@ Export:
 
 ```js
 export const REQUIRED_MACOS_PLATFORMS = ["darwin-aarch64", "darwin-x86_64"];
-export function validateUpdaterManifest({ manifest, version, tag, assets, repository = "harris/atools" }) {
+export function validateUpdaterManifest({ manifest, version, tag, assets, repository = "TheLastSheep/atools" }) {
   // Return { version, platforms } or throw a precise Error.
 }
 ```
@@ -1126,12 +1126,12 @@ fi
 
 These steps require repository administration and real secrets; they are not simulated as complete:
 
-1. Ensure the public repository is `https://github.com/harris/atools` and contains the intended Git history.
+1. Ensure the public repository is `https://github.com/TheLastSheep/atools` and contains the intended Git history.
 2. Add `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, the seven Apple/keychain secrets listed in the design, and no extra client token.
 3. Store and independently verify the encrypted offline updater-key backup.
 4. Push the implementation and run normal CI.
 5. Push tag `v3.0.0` only after CI is green and repository versions equal `3.0.0`.
 6. Confirm the workflow keeps the Release in Draft until both architecture and verification jobs pass.
-7. Confirm the published Release is non-prerelease/latest and `https://github.com/harris/atools/releases/latest/download/latest.json` is public.
+7. Confirm the published Release is non-prerelease/latest and `https://github.com/TheLastSheep/atools/releases/latest/download/latest.json` is public.
 8. Download both DMGs on clean Apple Silicon and Intel Macs; verify install, Gatekeeper launch, About manual check, and no same-version update prompt.
 9. Preserve the workflow run URL, Release URL, asset list, signing identities, notarization/stapling output, and clean-machine results in the delivery documentation.

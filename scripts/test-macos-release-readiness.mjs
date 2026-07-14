@@ -40,33 +40,36 @@ assert.equal(incomplete.checks.find((check) => check.id === "updater-config")?.s
 assert.equal(incomplete.checks.find((check) => check.id === "crash-recovery")?.status, "warn");
 assert.equal(incomplete.checks.find((check) => check.id === "crash-log-ui")?.status, "warn");
 
+const readyConfig = {
+  identifier: "dev.atools.desktop",
+  bundle: {
+    active: true,
+    targets: ["app", "dmg", "updater"],
+    createUpdaterArtifacts: true,
+    macOS: {
+      minimumSystemVersion: "10.15",
+      signingIdentity: "Developer ID Application: Example",
+      providerShortName: "TEAM",
+      entitlements: "src-tauri/Entitlements.plist",
+    },
+  },
+  plugins: {
+    updater: {
+      pubkey: "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDZERjIxQTQ5NTQyRkY0M0QKUldROTlDOVVTUnJ5YlF0cm9tdmdQMnkwTFpETVVrNGRJOVZoRHI3b2J0OExVVHpFa1p2OG1hWXYK",
+      endpoints: ["https://github.com/TheLastSheep/atools/releases/latest/download/latest.json"],
+    },
+  },
+};
+const readyEnv = {
+  APPLE_ID: "dev@example.com",
+  APPLE_PASSWORD: "app-password",
+  APPLE_TEAM_ID: "TEAMID",
+};
+const readyFiles = new Set(["src-tauri/Entitlements.plist", "docs/macos-smoke-checklist.md"]);
 const ready = readiness.evaluateMacosReleaseReadiness({
-  config: {
-    identifier: "dev.atools.desktop",
-    bundle: {
-      active: true,
-      targets: ["app", "dmg", "updater"],
-      createUpdaterArtifacts: true,
-      macOS: {
-        minimumSystemVersion: "10.15",
-        signingIdentity: "Developer ID Application: Example",
-        providerShortName: "TEAM",
-        entitlements: "src-tauri/Entitlements.plist",
-      },
-    },
-    plugins: {
-      updater: {
-        pubkey: "public-key",
-        endpoints: ["https://example.com/latest.json"],
-      },
-    },
-  },
-  env: {
-    APPLE_ID: "dev@example.com",
-    APPLE_PASSWORD: "app-password",
-    APPLE_TEAM_ID: "TEAMID",
-  },
-  files: new Set(["src-tauri/Entitlements.plist", "docs/macos-smoke-checklist.md"]),
+  config: readyConfig,
+  env: readyEnv,
+  files: readyFiles,
   hasPanicHook: true,
   hasCrashLogUi: true,
 });
@@ -75,6 +78,48 @@ assert.equal(ready.summary.warn, 0);
 assert.equal(ready.summary.error, 0);
 assert.equal(ready.checks.find((check) => check.id === "bundle-identifier")?.status, "ok");
 assert.equal(ready.checks.find((check) => check.id === "notarization-credentials")?.status, "ok");
+
+const wrongUpdaterRepository = readiness.evaluateMacosReleaseReadiness({
+  config: {
+    ...readyConfig,
+    plugins: {
+      updater: {
+        pubkey: "configured-public-key-with-more-than-forty-characters",
+        endpoints: ["https://github.com/harris/atools/releases/latest/download/latest.json"],
+      },
+    },
+  },
+  env: readyEnv,
+  files: readyFiles,
+  hasPanicHook: true,
+  hasCrashLogUi: true,
+});
+assert.equal(
+  wrongUpdaterRepository.checks.find((check) => check.id === "updater-config")?.status,
+  "warn",
+  "release readiness must reject an updater pointed at the wrong GitHub repository",
+);
+
+const insecureUpdater = readiness.evaluateMacosReleaseReadiness({
+  config: {
+    ...readyConfig,
+    plugins: {
+      updater: {
+        ...readyConfig.plugins.updater,
+        dangerousInsecureTransportProtocol: true,
+      },
+    },
+  },
+  env: readyEnv,
+  files: readyFiles,
+  hasPanicHook: true,
+  hasCrashLogUi: true,
+});
+assert.equal(
+  insecureUpdater.checks.find((check) => check.id === "updater-config")?.status,
+  "warn",
+  "release readiness must reject insecure updater transport",
+);
 
 const currentProject = readiness.runMacosReleaseReadiness({
   root: new URL("../", import.meta.url).pathname,

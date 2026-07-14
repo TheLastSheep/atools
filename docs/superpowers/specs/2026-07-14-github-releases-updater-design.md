@@ -2,7 +2,7 @@
 
 Date: 2026-07-14  
 Status: Approved design, awaiting written-spec review  
-Repository: `https://github.com/harris/atools` (public)  
+Repository: `https://github.com/TheLastSheep/atools` (public)
 Initial stable version: `3.0.0`
 
 ## 1. Objective
@@ -13,7 +13,7 @@ The release system must support Apple Silicon and Intel macOS, keep incomplete r
 
 ## 2. Decisions
 
-- Hosting: public GitHub Releases in `harris/atools`.
+- Hosting: public GitHub Releases in `TheLastSheep/atools`.
 - Version: `3.0.0` for the first stable release.
 - Trigger: pushes of stable `vX.Y.Z` tags.
 - Architectures: `aarch64-apple-darwin` and `x86_64-apple-darwin`.
@@ -46,7 +46,7 @@ The production Tauri configuration contains:
 - `bundle.createUpdaterArtifacts: true`;
 - the public updater verification key generated during the key bootstrap ceremony;
 - exactly one production endpoint:
-  `https://github.com/harris/atools/releases/latest/download/latest.json`.
+  `https://github.com/TheLastSheep/atools/releases/latest/download/latest.json`.
 
 The production configuration does not enable insecure updater transport and does not accept runtime endpoint overrides. The updater private key is never stored in the repository, `.env`, app data, WebDAV backups, build artifacts, or application logs.
 
@@ -249,7 +249,7 @@ The real `v3.0.0` run is accepted only when:
 
 ## 8. Operational Boundaries
 
-The current workspace has no `.git` metadata or configured GitHub remote. Implementation can create code, configuration, tests, and workflows locally, but a real workflow run requires the project to exist in the public `harris/atools` repository with the specified secrets configured.
+The workspace is connected to the public `TheLastSheep/atools` GitHub repository. A real signed workflow run still requires the specified repository secrets to be configured.
 
 The initial `v3.0.0` client cannot demonstrate an update from an earlier public release because none exists. The disposable packaged-upgrade smoke proves the mechanism before publication. The next stable release must additionally verify a real upgrade from the published `v3.0.0` artifact before promotion.
 

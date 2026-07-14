@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, normalize } from "node:path";
 import { pathToFileURL } from "node:url";
+import { RELEASE_MANIFEST_ENDPOINT } from "./version-contract.mjs";
 
 const READINESS_PREFIX = "ATOOLS_MACOS_RELEASE_READINESS ";
 
@@ -45,7 +46,6 @@ export function evaluateMacosReleaseReadiness(input) {
 const SIGNING_FREE_WARNING_IDS = [
   "notarization-credentials",
   "signing-identity",
-  "updater-config",
 ];
 
 export function assertSigningFreeReadiness(result) {
@@ -54,13 +54,13 @@ export function assertSigningFreeReadiness(result) {
     .map((check) => check.id)
     .sort();
   const expectedSummary = result.status === "warn"
-    && result.summary?.ok === 8
-    && result.summary?.warn === 3
+    && result.summary?.ok === 9
+    && result.summary?.warn === 2
     && result.summary?.error === 0;
   const expectedWarnings = JSON.stringify(warningIds) === JSON.stringify(SIGNING_FREE_WARNING_IDS);
   if (!expectedSummary || !expectedWarnings) {
     throw new Error(
-      `Expected signing-free readiness 8 ok / 3 warn / 0 error with warnings ${SIGNING_FREE_WARNING_IDS.join(", ")}; received ${JSON.stringify({ status: result.status, summary: result.summary, warningIds })}`,
+      `Expected signing-free readiness 9 ok / 2 warn / 0 error with warnings ${SIGNING_FREE_WARNING_IDS.join(", ")}; received ${JSON.stringify({ status: result.status, summary: result.summary, warningIds })}`,
     );
   }
 }
@@ -148,10 +148,18 @@ function updaterConfigCheck(config) {
   const updater = config.plugins?.updater;
   const hasArtifacts = config.bundle?.createUpdaterArtifacts === true;
   const hasPubkey = stringValue(updater?.pubkey);
-  const hasEndpoints = Array.isArray(updater?.endpoints) && updater.endpoints.length > 0;
-  return hasArtifacts && hasPubkey && hasEndpoints
-    ? ok("updater-config", "Tauri updater artifacts, public key, and endpoints are configured")
-    : warn("updater-config", "Configure bundle.createUpdaterArtifacts and plugins.updater pubkey/endpoints before enabling automatic updates");
+  const hasProductionPubkey = hasPubkey.length >= 40
+    && !/placeholder|public[._ -]?key|unconfigured/i.test(hasPubkey);
+  const hasProductionEndpoint = Array.isArray(updater?.endpoints)
+    && updater.endpoints.length === 1
+    && updater.endpoints[0] === RELEASE_MANIFEST_ENDPOINT;
+  const secureTransportOnly = updater?.dangerousInsecureTransportProtocol !== true;
+  return hasArtifacts && hasProductionPubkey && hasProductionEndpoint && secureTransportOnly
+    ? ok("updater-config", `signed updater artifacts use ${RELEASE_MANIFEST_ENDPOINT}`)
+    : warn(
+        "updater-config",
+        `Configure signed updater artifacts, a production public key, and exactly ${RELEASE_MANIFEST_ENDPOINT} over HTTPS`,
+      );
 }
 
 function smokeChecklistCheck(files) {

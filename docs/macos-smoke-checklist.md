@@ -23,10 +23,10 @@ pnpm release:check:macos:unsigned
 
 当前已知警告：
 
-- `pnpm release:check:macos` 当前预期为 `warn`，因为签名、公证、自动更新配置仍未接入；这不是本地 dev smoke 阻塞项。
+- `pnpm release:check:macos` 在未注入发布凭据时预期为 `warn`，仅缺正式签名与公证凭据；自动更新配置必须保持为 `ok`。
 - 真实 Tauri smoke 不应再出现 `json-viewer` feature code 冲突 warning；若复现，说明 feature 索引幂等替换或内置资源路径回归。
 
-2026-07-14 自动化基线：`pnpm test` 134/134、Vitest 组件行为 2/2、`pnpm test:browser` 8/8、Rust 308/308、严格 Clippy 零告警、Svelte check 0 errors / 0 warnings。应用发布版本已在 `package.json`、Tauri bundle、Rust workspace/crates 与 `Cargo.lock` 统一为 `3.0.0`，并由 fast tier 一致性测试约束；发布包预算测试会在隔离临时目录执行 production build，不再受 `tauri build --debug` 覆盖共享 `dist` 的影响。真实 `pnpm test:desktop` 于 `2026-07-14T04:36:06Z` 通过，PluginPanel render 2/2、bridge 10/10、native method 8/8、BrowserWindow isolation 9/9；重建 `.app` 的 Info.plist 版本为 `3.0.0 / 3.0.0`，`pnpm smoke:macos-release-app` 于 `2026-07-14T04:59:44Z` 为 10 ok / 1 个预期 Gatekeeper warning / 0 error；`pnpm release:check:macos:unsigned` 精确为 8 ok / 3 warn / 0 error。清单仍保留 7 个必须人工或依赖正式签名凭据的未完成项。
+2026-07-14 自动化基线：`pnpm test` 134/134、Vitest 组件行为 2/2、`pnpm test:browser` 8/8、Rust 308/308、严格 Clippy 零告警、Svelte check 0 errors / 0 warnings。应用发布版本已在 `package.json`、Tauri bundle、Rust workspace/crates 与 `Cargo.lock` 统一为 `3.0.0`，并由 fast tier 一致性测试约束；发布包预算测试会在隔离临时目录执行 production build，不再受 `tauri build --debug` 覆盖共享 `dist` 的影响。真实 `pnpm test:desktop` 于 `2026-07-14T04:36:06Z` 通过，PluginPanel render 2/2、bridge 10/10、native method 8/8、BrowserWindow isolation 9/9；重建 `.app` 的 Info.plist 版本为 `3.0.0 / 3.0.0`，`pnpm smoke:macos-release-app` 于 `2026-07-14T04:59:44Z` 为 10 ok / 1 个预期 Gatekeeper warning / 0 error；自动更新产物、公钥与 `TheLastSheep/atools` 稳定版清单地址已配置，`pnpm release:check:macos:unsigned` 精确为 9 ok / 2 warn / 0 error。剩余 warning 仅为正式 Developer ID 签名和 Apple 公证凭据。
 
 ## 2. Web Preview Smoke
 
@@ -701,7 +701,7 @@ pnpm test:release-bundle-budget
 期望：
 
 - 本地开发环境可接受 `status="warn"`。
-- 发布前必须消除 `signing-identity`、`notarization-credentials`、`updater-config` 的 warning，除非明确选择不做对应能力。
+- 发布前必须消除 `signing-identity` 和 `notarization-credentials` 的 warning；`updater-config` 必须保持为 `ok`，并指向 `TheLastSheep/atools` 的 HTTPS 稳定版清单。
 - `bundle-identifier` 应为 `ok`，不能以 `.app` 结尾。
 - `entitlements` 应为 `ok`，配置文件位于 `src-tauri/Entitlements.plist`。
 - `crash-recovery` 应为 `ok`，panic 会追加写入 `~/.atools/crashes.log`。
