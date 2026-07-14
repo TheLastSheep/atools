@@ -60,6 +60,7 @@ pub fn run() {
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(app_state)
+        .manage(updater::UpdateCoordinator::default())
         .invoke_handler(tauri::generate_handler![
             commands::search_features,
             commands::search_local_apps,
@@ -149,6 +150,9 @@ pub fn run() {
             commands::test_ai_connection,
             commands::release_smoke_info,
             commands::report_release_smoke_progress,
+            updater::check_app_update,
+            updater::install_app_update,
+            updater::get_app_update_status,
         ])
         .setup(|app| {
             let handle = app.handle().clone();

@@ -1,3 +1,5 @@
+use tauri::Manager;
+
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateMetadata {
@@ -57,6 +59,14 @@ struct CoordinatorInner {
 pub struct UpdateCoordinator {
     inner: tokio::sync::Mutex<CoordinatorInner>,
     cache_ttl: std::time::Duration,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateStatus {
+    pub operation: String,
+    pub update: Option<UpdateMetadata>,
+    pub checked: bool,
 }
 
 impl Default for UpdateCoordinator {
@@ -136,6 +146,20 @@ impl UpdateCoordinator {
         inner.cached = None;
         backend.restart()
     }
+
+    pub async fn status(&self) -> UpdateStatus {
+        let inner = self.inner.lock().await;
+        UpdateStatus {
+            operation: match inner.operation {
+                UpdateOperation::Idle => "idle",
+                UpdateOperation::Checking => "checking",
+                UpdateOperation::Installing => "installing",
+            }
+            .into(),
+            update: inner.cached.clone().flatten(),
+            checked: inner.checked_at.is_some(),
+        }
+    }
 }
 
 fn normalize_update(
@@ -149,6 +173,193 @@ fn normalize_update(
     let available = semver::Version::parse(&update.version)
         .map_err(|_| UpdateCommandError::new("invalid_manifest", "更新版本格式无效"))?;
     Ok((available > current).then_some(update))
+}
+
+struct TauriUpdateBackend {
+    app: tauri::AppHandle,
+}
+
+#[async_trait::async_trait]
+impl UpdateBackend for TauriUpdateBackend {
+    async fn check(&self) -> Result<Option<UpdateMetadata>, UpdateCommandError> {
+        use tauri_plugin_updater::UpdaterExt;
+
+        let update = self
+            .app
+            .updater()
+            .map_err(classify_check_error)?
+            .check()
+            .await
+            .map_err(classify_check_error)?;
+        Ok(update.map(|item| UpdateMetadata {
+            current_version: item.current_version,
+            version: item.version,
+            date: item.date.map(|value| value.to_string()),
+            body: item.body,
+        }))
+    }
+
+    async fn install(
+        &self,
+        expected_version: &str,
+        progress: Box<dyn Fn(UpdateProgress) + Send + Sync>,
+    ) -> Result<(), UpdateCommandError> {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        use std::sync::{Arc, Mutex};
+        use tauri_plugin_updater::UpdaterExt;
+
+        let update = self
+            .app
+            .updater()
+            .map_err(classify_check_error)?
+            .check()
+            .await
+            .map_err(classify_check_error)?
+            .ok_or_else(|| UpdateCommandError::new("no_update", "没有可安装的更新"))?;
+        if update.version != expected_version {
+            return Err(UpdateCommandError::new(
+                "version_mismatch",
+                "可用版本已变化，请重新检查",
+            ));
+        }
+
+        let progress: Arc<dyn Fn(UpdateProgress) + Send + Sync> = Arc::from(progress);
+        let downloaded = Arc::new(AtomicU64::new(0));
+        let total = Arc::new(Mutex::new(None));
+        let download_progress = Arc::clone(&progress);
+        let download_bytes = Arc::clone(&downloaded);
+        let download_total = Arc::clone(&total);
+        let install_progress = Arc::clone(&progress);
+        let install_bytes = Arc::clone(&downloaded);
+        let install_total = Arc::clone(&total);
+
+        update
+            .download_and_install(
+                move |chunk, expected_total| {
+                    let current =
+                        download_bytes.fetch_add(chunk as u64, Ordering::SeqCst) + chunk as u64;
+                    if let Ok(mut value) = download_total.lock() {
+                        *value = expected_total;
+                    }
+                    download_progress(UpdateProgress {
+                        event: "downloading".into(),
+                        downloaded: current,
+                        total: expected_total,
+                    });
+                },
+                move || {
+                    install_progress(UpdateProgress {
+                        event: "installing".into(),
+                        downloaded: install_bytes.load(Ordering::SeqCst),
+                        total: install_total.lock().ok().and_then(|value| *value),
+                    });
+                },
+            )
+            .await
+            .map_err(classify_install_error)
+    }
+
+    fn restart(&self) -> Result<(), UpdateCommandError> {
+        self.app.restart()
+    }
+}
+
+fn classify_check_error(error: tauri_plugin_updater::Error) -> UpdateCommandError {
+    use tauri_plugin_updater::Error;
+
+    let code = match error {
+        Error::Reqwest(_) | Error::Network(_) => "network",
+        Error::ReleaseNotFound
+        | Error::Serialization(_)
+        | Error::Semver(_)
+        | Error::UrlParse(_)
+        | Error::EmptyEndpoints
+        | Error::InsecureTransportProtocol => "invalid_manifest",
+        Error::TargetNotFound(_)
+        | Error::TargetsNotFound(_)
+        | Error::UnsupportedArch
+        | Error::UnsupportedOs => "missing_architecture",
+        Error::Minisign(_) | Error::Base64(_) | Error::SignatureUtf8(_) => "invalid_signature",
+        _ => "internal",
+    };
+    let message = match code {
+        "network" => "无法连接更新服务，请检查网络后重试",
+        "invalid_manifest" => "更新信息无效，请稍后重试",
+        "missing_architecture" => "当前 Mac 架构没有可用更新",
+        "invalid_signature" => "更新签名无效，已停止安装",
+        _ => "检查更新失败",
+    };
+    UpdateCommandError::new(code, message)
+}
+
+fn classify_install_error(error: tauri_plugin_updater::Error) -> UpdateCommandError {
+    use tauri_plugin_updater::Error;
+
+    match error {
+        Error::Minisign(_) | Error::Base64(_) | Error::SignatureUtf8(_) => {
+            UpdateCommandError::new("invalid_signature", "更新签名无效，已停止安装")
+        }
+        Error::Reqwest(_) | Error::Network(_) => {
+            UpdateCommandError::new("download_failed", "更新下载失败，请检查网络后重试")
+        }
+        Error::PackageInstallFailed
+        | Error::FailedToDetermineExtractPath
+        | Error::InvalidUpdaterFormat
+        | Error::Io(_) => UpdateCommandError::new("install_failed", "更新安装失败，当前版本未改变"),
+        other => classify_check_error(other),
+    }
+}
+
+fn ensure_updater_window(label: &str) -> Result<(), UpdateCommandError> {
+    if matches!(label, "main" | "settings") {
+        Ok(())
+    } else {
+        Err(UpdateCommandError::new(
+            "forbidden_window",
+            "当前窗口无权管理应用更新",
+        ))
+    }
+}
+
+#[tauri::command]
+pub async fn check_app_update(
+    window: tauri::WebviewWindow,
+    state: tauri::State<'_, UpdateCoordinator>,
+) -> Result<Option<UpdateMetadata>, UpdateCommandError> {
+    ensure_updater_window(window.label())?;
+    let backend = TauriUpdateBackend {
+        app: window.app_handle().clone(),
+    };
+    state.check(&backend).await
+}
+
+#[tauri::command]
+pub async fn install_app_update(
+    window: tauri::WebviewWindow,
+    state: tauri::State<'_, UpdateCoordinator>,
+    expected_version: String,
+) -> Result<(), UpdateCommandError> {
+    use tauri::Emitter;
+
+    ensure_updater_window(window.label())?;
+    let app = window.app_handle().clone();
+    let backend = TauriUpdateBackend { app: app.clone() };
+    state
+        .install(&backend, &expected_version, move |progress| {
+            if let Err(error) = app.emit("app-update-progress", progress) {
+                tracing::warn!("Failed to emit app update progress: {error}");
+            }
+        })
+        .await
+}
+
+#[tauri::command]
+pub async fn get_app_update_status(
+    window: tauri::WebviewWindow,
+    state: tauri::State<'_, UpdateCoordinator>,
+) -> Result<UpdateStatus, UpdateCommandError> {
+    ensure_updater_window(window.label())?;
+    Ok(state.status().await)
 }
 
 #[cfg(test)]
@@ -356,5 +567,17 @@ mod tests {
         ];
         assert_eq!(results.iter().filter(|result| result.is_ok()).count(), 1);
         assert_eq!(backend.install_calls(), 1);
+    }
+
+    #[test]
+    fn updater_commands_allow_only_main_and_settings_windows() {
+        assert!(ensure_updater_window("main").is_ok());
+        assert!(ensure_updater_window("settings").is_ok());
+        assert_eq!(
+            ensure_updater_window("plugin-detach-1")
+                .expect_err("detached plugin window must be rejected")
+                .code,
+            "forbidden_window"
+        );
     }
 }

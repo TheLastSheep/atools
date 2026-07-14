@@ -13,6 +13,11 @@ const capability = JSON.parse(
 
 assert.match(cargo, /tauri-plugin-updater\s*=\s*"2\.10(?:\.\d+)?"/);
 assert.match(lib, /tauri_plugin_updater::Builder::new\(\)\.build\(\)/);
+assert.match(lib, /\.manage\(updater::UpdateCoordinator::default\(\)\)/);
+assert.match(lib, /updater::check_app_update/);
+assert.match(lib, /updater::install_app_update/);
+assert.match(lib, /updater::get_app_update_status/);
+assert.doesNotMatch(lib, /updater:default|updater:allow-/);
 assert.equal(config.bundle.createUpdaterArtifacts, true);
 assert.deepEqual(config.plugins.updater.endpoints, [
   "https://github.com/TheLastSheep/atools/releases/latest/download/latest.json",
