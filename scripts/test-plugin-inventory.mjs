@@ -173,7 +173,7 @@ try {
   const panel = await readFile(new URL("../src/components/SettingsPanel.svelte", import.meta.url), "utf8");
   const macosChecklist = await readFile(new URL("../docs/macos-smoke-checklist.md", import.meta.url), "utf8");
   assert.ok(panel.includes("openInstalledPluginDirectory"), "Installed plugin page should expose a plugin directory handler");
-  assert.ok(panel.includes('invoke("shell_show_item_in_folder", { path: plugin.path })'), "Installed plugin page should reveal plugin directories through the native bridge");
+  assert.ok(panel.includes('callHumanCapability("open_or_reveal_path", { path: plugin.path, reveal: true })'), "Installed plugin page should reveal plugin directories through the human TaskRun capability pipeline");
   assert.ok(panel.includes("installPluginFromDirectory"), "Installed plugin page should expose a local plugin install handler");
   assert.ok(panel.includes("directory: true"), "Installed plugin install should open a directory picker");
   assert.ok(panel.includes('invoke("install_plugin", { path: selectedPath })'), "Installed plugin install should call the native install command with the selected directory");
