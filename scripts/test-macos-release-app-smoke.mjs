@@ -9,6 +9,7 @@ const smoke = await import(scriptUrl);
 
 let progressReads = 0;
 let progressWaits = 0;
+let progressReports = 0;
 const completedProgress = await smoke.waitForReleaseSmokeCompletion({
   pid: 123,
   reportPath: "/tmp/release-smoke.json",
@@ -24,11 +25,15 @@ const completedProgress = await smoke.waitForReleaseSmokeCompletion({
   wait: async () => {
     progressWaits += 1;
   },
+  onProgress: () => {
+    progressReports += 1;
+  },
 });
 assert.equal(completedProgress.completed, true);
 assert.equal(completedProgress.agent_page_opened, true);
 assert.equal(progressReads, 3);
 assert.equal(progressWaits, 2);
+assert.equal(progressReports, 3);
 
 let incompleteReads = 0;
 const incompleteProgress = await smoke.waitForReleaseSmokeCompletion({

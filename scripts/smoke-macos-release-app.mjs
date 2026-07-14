@@ -282,6 +282,8 @@ export async function launchAppBundle(options) {
     };
   }
 
+  const launchStartedAt = Date.now();
+
   const token = `--atools-release-smoke-token=${Date.now()}-${process.pid}`;
   const reportArg = options.reportPath ? `--atools-release-smoke-report=${options.reportPath}` : null;
   const beforePids = processIdsForExecutable(options.executablePath);
@@ -318,17 +320,26 @@ export async function launchAppBundle(options) {
     };
   }
 
+  const launchToPidMs = Date.now() - launchStartedAt;
+
+  let launchToFirstReportMs = null;
+  const releaseSmokePromise = waitForReleaseSmokeCompletion({
+    pid,
+    reportPath: options.reportPath,
+    timeoutMs: options.timeoutMs,
+    onProgress: () => {
+      launchToFirstReportMs ??= Date.now() - launchStartedAt;
+    },
+  });
   const stableStart = Date.now();
   await sleep(options.stableMs);
   const aliveAfterWait = isProcessAlive(pid);
   const stableMs = aliveAfterWait ? Date.now() - stableStart : 0;
-  const releaseSmokeProgress = aliveAfterWait
-    ? await waitForReleaseSmokeCompletion({
-        pid,
-        reportPath: options.reportPath,
-        timeoutMs: options.timeoutMs,
-      })
-    : readReleaseSmokeProgress(options.reportPath);
+  const releaseSmokeProgress = await releaseSmokePromise;
+  const launchToSmokeCompleteMs = releaseSmokeProgress?.completed === true
+    ? Date.now() - launchStartedAt
+    : null;
+  const resources = aliveAfterWait ? processResourceSample(pid) : null;
   const terminated = await terminateProcess(pid);
   return {
     open_status: 0,
@@ -336,6 +347,11 @@ export async function launchAppBundle(options) {
     token,
     report_path: options.reportPath ?? null,
     release_smoke_progress: releaseSmokeProgress,
+    launch_to_pid_ms: launchToPidMs,
+    launch_to_first_report_ms: launchToFirstReportMs,
+    launch_to_smoke_complete_ms: launchToSmokeCompleteMs,
+    rss_kib: resources?.rss_kib ?? null,
+    cpu_percent: resources?.cpu_percent ?? null,
     stable_ms: stableMs,
     stability_error: aliveAfterWait ? null : `Release app process ${pid} exited during first-launch window`,
     terminated,
@@ -353,11 +369,26 @@ export async function waitForReleaseSmokeCompletion(options) {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     if (!isAlive(options.pid)) break;
     latest = readProgress(options.reportPath);
+    if (latest) options.onProgress?.(latest);
     if (latest?.completed === true) return latest;
     if (attempt + 1 < attempts) await wait(pollMs);
   }
 
   return latest;
+}
+
+export function processResourceSample(pid) {
+  const result = spawnSync("ps", ["-o", "rss=,%cpu=", "-p", String(pid)], {
+    encoding: "utf8",
+    timeout: 5000,
+  });
+  if (result.status !== 0) return null;
+  const match = result.stdout.trim().match(/^(\d+)\s+([0-9.]+)$/);
+  if (!match) return null;
+  return {
+    rss_kib: Number(match[1]),
+    cpu_percent: Number(match[2]),
+  };
 }
 
 function defaultReleaseSmokeReportPath(root) {
