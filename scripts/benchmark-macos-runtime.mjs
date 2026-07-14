@@ -52,7 +52,8 @@ export async function runMacosRuntimeBenchmark(options = {}) {
         !Number.isFinite(launch.rss_kib) ||
         !Number.isFinite(launch.cpu_percent) ||
         !Number.isFinite(launch.release_smoke_progress?.plugin_activation_ms) ||
-        launch.release_smoke_progress?.plugin_activation_feature !== "calc" ||
+        typeof launch.release_smoke_progress?.plugin_activation_feature !== "string" ||
+        launch.release_smoke_progress.plugin_activation_feature.trim().length === 0 ||
         !Array.isArray(launch.release_smoke_progress?.errors) ||
         launch.release_smoke_progress.errors.length > 0 ||
         launch.release_smoke_progress?.completed !== true ||
@@ -67,6 +68,7 @@ export async function runMacosRuntimeBenchmark(options = {}) {
         launch_to_smoke_complete_ms: launch.launch_to_smoke_complete_ms,
         rss_kib: launch.rss_kib,
         cpu_percent: launch.cpu_percent,
+        plugin_activation_feature: launch.release_smoke_progress.plugin_activation_feature,
         plugin_activation_ms: launch.release_smoke_progress.plugin_activation_ms,
       });
     } finally {
@@ -93,7 +95,8 @@ export async function runMacosRuntimeBenchmark(options = {}) {
         !Array.isArray(launch.release_smoke_progress?.errors) ||
         launch.release_smoke_progress.errors.length > 0 ||
         !Number.isFinite(launch.release_smoke_progress?.plugin_activation_ms) ||
-        launch.release_smoke_progress?.plugin_activation_feature !== "calc" ||
+        typeof launch.release_smoke_progress?.plugin_activation_feature !== "string" ||
+        launch.release_smoke_progress.plugin_activation_feature.trim().length === 0 ||
         launch.alive_after_resource_settle !== true ||
         launch.resource_settle_ms < idleSampleMs ||
         !Number.isFinite(launch.rss_kib) ||

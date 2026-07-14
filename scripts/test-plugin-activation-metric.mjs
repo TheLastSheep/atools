@@ -17,7 +17,8 @@ assert.match(panel, /data\.featureCode === action\.feature_code/);
 assert.match(panel, /Promise\.resolve\(onready\?\.\(\)\)/);
 
 assert.match(app, /waitForPluginActivation\(action\.feature_code, activationStartedAt/);
-assert.match(app, /activateFeature\(pluginActivationFeature, null/);
+assert.match(app, /invoke<SearchResult\[]>\("search_features"/);
+assert.match(app, /activateFeature\(pluginCandidate\.code, null/);
 assert.match(app, /plugin_activation_feature: pluginActivationFeature/);
 assert.match(app, /plugin_activation_ms: pluginActivationMs/);
 

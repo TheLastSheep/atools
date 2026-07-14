@@ -205,7 +205,8 @@ export function evaluateReleaseAppSmoke(input) {
     );
     const pluginActivationMs = Number(releaseSmoke.plugin_activation_ms);
     checks.push(
-      releaseSmoke.plugin_activation_feature === "calc"
+      typeof releaseSmoke.plugin_activation_feature === "string"
+        && releaseSmoke.plugin_activation_feature.trim().length > 0
         && Number.isFinite(pluginActivationMs)
         && pluginActivationMs > 0
         ? ok("release-smoke-plugin-activation", `Calculator plugin reported ready in ${pluginActivationMs.toFixed(3)}ms`)

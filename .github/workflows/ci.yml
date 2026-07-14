@@ -209,7 +209,17 @@ jobs:
       - name: Build unsigned release app for measurement
         run: pnpm tauri build --bundles app --config '{"bundle":{"createUpdaterArtifacts":false}}'
       - name: Record package, launch, and resource evidence
-        run: pnpm benchmark:runtime:ci
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm benchmark:runtime:ci 2>&1 | tee runtime-performance.log || {
+            diagnostic="$(tail -n 80 runtime-performance.log)"
+            diagnostic="${diagnostic//'%'/'%25'}"
+            diagnostic="${diagnostic//$'\r'/'%0D'}"
+            diagnostic="${diagnostic//$'\n'/'%0A'}"
+            echo "::error title=Runtime performance diagnostics::$diagnostic"
+            exit 1
+          }
       - name: Upload reproducible runtime report
         uses: actions/upload-artifact@v7
         with:

@@ -1184,11 +1184,18 @@
     }
     await emitReport({ clipboard_copy_tracked: clipboardCopyTracked });
 
-    const pluginActivationFeature = "calc";
+    const pluginActivationQuery = "calc";
+    let pluginActivationFeature: string | undefined;
     let pluginActivationMs: number | undefined;
     try {
       await invoke("show_main_window");
-      const measured = await activateFeature(pluginActivationFeature, null, {
+      const pluginCandidates = await invoke<SearchResult[]>("search_features", { query: pluginActivationQuery });
+      const pluginCandidate = pluginCandidates.find((candidate) => candidate.plugin_id && candidate.code);
+      if (!pluginCandidate) {
+        throw new Error(`No plugin feature matched ${pluginActivationQuery}`);
+      }
+      pluginActivationFeature = pluginCandidate.code;
+      const measured = await activateFeature(pluginCandidate.code, null, {
         waitForPluginReady: true,
         readyTimeoutMs: 10000,
         throwOnError: true,
