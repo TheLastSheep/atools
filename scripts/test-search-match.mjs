@@ -42,6 +42,11 @@ try {
   assert.equal(mod.searchMatchForQuery("git", { text: "GitHub" })?.type, "prefix");
   assert.equal(mod.searchMatchForQuery("hub", { text: "GitHub" })?.type, "contains");
   assert.equal(mod.searchMatchForQuery("zzzz", { text: "设置" }), null);
+  assert.equal(mod.searchMatchForQuery("git hb extra", { text: "GitHub Extension" }), null);
+
+  const bounded = [];
+  for (const score of [10, 30, 20, 40]) mod.insertBoundedSearchResult(bounded, { score }, 3);
+  assert.deepEqual(bounded.map((item) => item.score), [40, 30, 20]);
 
   const sorted = mod.sortSearchMatches([
     { id: "contains", match: mod.searchMatchForQuery("hub", { text: "GitHub" }) },

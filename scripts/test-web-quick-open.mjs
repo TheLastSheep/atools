@@ -51,6 +51,18 @@ try {
   assert.equal(mod.webQuickOpenResultsForQuery("google", entries)[0]?.code, "web:g");
   assert.equal(mod.webQuickOpenResultsForQuery("hub", entries)[0]?.code, "web:gh");
   assert.equal(mod.webQuickOpenResultsForQuery("gub", entries)[0]?.match_type, "fuzzy");
+  const dashedKeywordEntries = mod.normalizeWebQuickOpenEntries([
+    { id: "gh-code", name: "GitHub Code", keyword: "gh-code", template: "https://github.com/search?q={query}", enabled: true },
+  ]);
+  assert.equal(mod.webQuickOpenResultsForQuery("gh-code rust", dashedKeywordEntries)[0]?.label, "GitHub Code 搜索 rust");
+  const manyEntries = Array.from({ length: 150 }, (_, index) => ({
+    id: `site-${index}`,
+    name: `Shared Search Site ${index}`,
+    keyword: `site${index}`,
+    template: `https://example.com/${index}?q={query}`,
+    enabled: true,
+  }));
+  assert.equal(mod.webQuickOpenResultsForQuery("shared", manyEntries).length, 100);
   assert.equal(mod.validateWebQuickOpenEntry(entries[0]), "");
   assert.equal(mod.validateWebQuickOpenEntry({ name: "", keyword: "x", template: "https://example.com" }), "名称不能为空");
   assert.equal(mod.validateWebQuickOpenEntry({ name: "Bad", keyword: "bad key", template: "https://example.com" }), "关键字不能包含空格");

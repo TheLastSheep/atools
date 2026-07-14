@@ -1,5 +1,11 @@
 import type { SearchResult } from "./types";
-import { searchMatchForQuery, sortSearchMatches } from "./searchMatch";
+import {
+  insertBoundedSearchResult,
+  normalizeSearchText,
+  prepareSearchMatchCandidate,
+  searchMatchForPreparedQuery,
+  type PreparedSearchMatchCandidate,
+} from "./searchMatch";
 
 export type CommandAliasEntry = {
   id: string;
@@ -26,6 +32,15 @@ export const COMMAND_ALIASES_UPDATED_EVENT = "atools-command-aliases-updated";
 
 const ALIAS_CODE_PREFIX = "alias:";
 const SUPPORTED_TARGET_PREFIXES = ["system:", "local:", "web:", "url:"];
+const ALIAS_SEARCH_RESULT_LIMIT = 100;
+const normalizedAliasCache = new WeakMap<CommandAliasEntry[], {
+  entries: CommandAliasEntry[];
+  byAlias: Map<string, CommandAliasEntry>;
+}>();
+const preparedAliasCandidateCache = new WeakMap<CommandAliasEntry, {
+  target: CommandAliasTarget;
+  candidate: PreparedSearchMatchCandidate;
+}>();
 
 export function loadCommandAliases(): CommandAliasEntry[] {
   try {
@@ -82,24 +97,54 @@ export function commandAliasResultsForQuery(
   aliases: CommandAliasEntry[],
   resolveTarget: (code: string) => CommandAliasTarget | null,
 ): SearchResult[] {
-  const query = value.trim();
+  const query = normalizeSearchText(value);
   if (!query) return [];
-  return sortSearchMatches(normalizeCommandAliases(aliases)
-    .filter((entry) => entry.enabled)
-    .map((entry, index) => {
-      const target = resolveTarget(entry.targetCode);
-      return {
-        entry,
-        target,
-        index,
-        match: target ? searchMatchForQuery(query, {
-          text: target.label,
-          extraText: target.explain,
-          aliases: [entry.alias],
-        }) : null,
-      };
-    }))
-    .map(({ entry, target, index, match }) => aliasResult(entry, target!, match.type, match.score - index));
+  const results: SearchResult[] = [];
+  const normalized = normalizedAliasesForSearch(aliases);
+  const exactAlias = normalized.byAlias.get(query);
+  if (exactAlias) {
+    const target = resolveTarget(exactAlias.targetCode);
+    if (target) return [aliasResult(exactAlias, target, "exact", 114)];
+  }
+  for (let index = 0; index < normalized.entries.length; index += 1) {
+    const entry = normalized.entries[index];
+    if (!entry.enabled) continue;
+    const target = resolveTarget(entry.targetCode);
+    if (!target) continue;
+    const candidate = preparedAliasCandidate(entry, target);
+    const match = searchMatchForPreparedQuery(query, candidate);
+    if (!match) continue;
+    insertBoundedSearchResult(
+      results,
+      aliasResult(entry, target, match.type, match.score - index),
+      ALIAS_SEARCH_RESULT_LIMIT,
+    );
+  }
+  return results;
+}
+
+function normalizedAliasesForSearch(aliases: CommandAliasEntry[]) {
+  const cached = normalizedAliasCache.get(aliases);
+  if (cached) return cached;
+  const entries = normalizeCommandAliases(aliases);
+  const normalized = {
+    entries,
+    byAlias: new Map(entries.filter((entry) => entry.enabled).map((entry) => [entry.alias, entry])),
+  };
+  normalizedAliasCache.set(aliases, normalized);
+  return normalized;
+}
+
+function preparedAliasCandidate(entry: CommandAliasEntry, target: CommandAliasTarget) {
+  const cached = preparedAliasCandidateCache.get(entry);
+  if (cached?.target === target) return cached.candidate;
+  const candidate = prepareSearchMatchCandidate({
+    text: target.label,
+    extraText: target.explain,
+    aliases: [entry.alias],
+  });
+  preparedAliasCandidateCache.set(entry, { target, candidate });
+  return candidate;
 }
 
 export function commandAliasPayloadFromCode(code: string): CommandAliasPayload | null {

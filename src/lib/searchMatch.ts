@@ -11,6 +11,14 @@ export type SearchMatchCandidate = {
   aliases?: string[];
 };
 
+export type PreparedSearchMatchCandidate = {
+  text: string;
+  extraText: string;
+  haystack: string;
+  aliases: string[];
+  pinyinValues: string[];
+};
+
 export type SearchPinyinTokens = {
   full: string;
   spaced: string;
@@ -42,38 +50,76 @@ export function searchMatchForQuery(query: string, candidate: SearchMatchCandida
   const normalizedQuery = normalizeSearchText(query);
   if (!normalizedQuery) return null;
 
-  const text = normalizeSearchText(candidate.text);
-  const extraText = normalizeSearchText(candidate.extraText ?? "");
-  const haystack = normalizeSearchText(`${candidate.text} ${candidate.extraText ?? ""}`);
-  const aliasText = normalizeSearchText((candidate.aliases ?? []).join(" "));
+  return searchMatchForPreparedQuery(normalizedQuery, prepareSearchMatchCandidate(candidate));
+}
 
-  if (text === normalizedQuery || aliasText.split(" ").some((alias) => alias === normalizedQuery)) {
+export function prepareSearchMatchCandidate(candidate: SearchMatchCandidate): PreparedSearchMatchCandidate {
+  const aliases = (candidate.aliases ?? []).map(normalizeSearchText).filter(Boolean);
+  return {
+    text: normalizeSearchText(candidate.text),
+    extraText: normalizeSearchText(candidate.extraText ?? ""),
+    haystack: normalizeSearchText(`${candidate.text} ${candidate.extraText ?? ""}`),
+    aliases,
+    pinyinValues: [candidate.text, candidate.extraText ?? "", ...(candidate.aliases ?? [])],
+  };
+}
+
+export function searchMatchForPreparedQuery(
+  normalizedQuery: string,
+  candidate: PreparedSearchMatchCandidate,
+): SearchMatch | null {
+  if (!normalizedQuery) return null;
+
+  if (candidate.text === normalizedQuery || candidate.aliases.some((alias) => alias === normalizedQuery)) {
     return match("exact", normalizedQuery.length);
   }
 
-  if (text.startsWith(normalizedQuery)) {
+  if (candidate.text.startsWith(normalizedQuery)) {
     return match("prefix", normalizedQuery.length);
   }
 
-  const aliasMatch = matchAlias(normalizedQuery, candidate.aliases ?? []);
+  const aliasMatch = matchNormalizedAlias(normalizedQuery, candidate.aliases);
   if (aliasMatch) return aliasMatch;
 
-  if (haystack.includes(normalizedQuery)) {
+  if (candidate.haystack.includes(normalizedQuery)) {
     return match("contains", normalizedQuery.length);
   }
 
-  if (extraText.includes(normalizedQuery)) {
+  if (candidate.extraText.includes(normalizedQuery)) {
     return match("contains", normalizedQuery.length - 1);
   }
 
-  const pinyinMatch = matchPinyin(normalizedQuery, [candidate.text, candidate.extraText ?? "", ...(candidate.aliases ?? [])]);
+  const pinyinMatch = matchPinyin(normalizedQuery, candidate.pinyinValues);
   if (pinyinMatch) return pinyinMatch;
 
-  if (isSubsequence(normalizedQuery, haystack)) {
+  if (
+    normalizedQuery.length <= 8
+    && !normalizedQuery.includes(" ")
+    && isSubsequence(normalizedQuery, candidate.haystack)
+  ) {
     return match("fuzzy", normalizedQuery.length);
   }
 
   return null;
+}
+
+export function insertBoundedSearchResult<T extends { score: number }>(
+  results: T[],
+  item: T,
+  limit: number,
+) {
+  if (limit <= 0) return;
+  if (results.length === limit && item.score <= results[results.length - 1].score) return;
+
+  let low = 0;
+  let high = results.length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    if (results[middle].score >= item.score) low = middle + 1;
+    else high = middle;
+  }
+  results.splice(low, 0, item);
+  if (results.length > limit) results.pop();
 }
 
 export function sortSearchMatches<T extends { match: SearchMatch | null }>(items: T[]): Array<T & { match: SearchMatch }> {
@@ -95,6 +141,15 @@ function matchAlias(query: string, aliases: string[]): SearchMatch | null {
     const normalizedAlias = normalizeSearchText(alias);
     if (!normalizedAlias) continue;
     if (normalizedAlias === query || normalizedAlias.startsWith(query) || normalizedAlias.includes(query)) {
+      return match("alias", query.length);
+    }
+  }
+  return null;
+}
+
+function matchNormalizedAlias(query: string, aliases: string[]): SearchMatch | null {
+  for (const alias of aliases) {
+    if (alias === query || alias.startsWith(query) || alias.includes(query)) {
       return match("alias", query.length);
     }
   }

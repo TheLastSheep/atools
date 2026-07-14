@@ -76,6 +76,13 @@ try {
 
   assert.equal(mod.commandAliasResultsForQuery("plg", aliases, resolveTarget).length, 0);
   assert.equal(mod.commandAliasResultsForQuery("zzzz", aliases, resolveTarget).length, 0);
+  const manyAliases = Array.from({ length: 150 }, (_, index) => ({
+    id: `alias-${index}`,
+    alias: `common${index}`,
+    targetCode: "system:settings",
+    enabled: true,
+  }));
+  assert.equal(mod.commandAliasResultsForQuery("common", manyAliases, resolveTarget).length, 100);
   assert.equal(mod.commandAliasPayloadFromCode("alias:not-json"), null);
 
   const storage = new Map();

@@ -1,5 +1,11 @@
 import type { SearchResult } from "./types";
-import { searchMatchForQuery } from "./searchMatch";
+import {
+  insertBoundedSearchResult,
+  normalizeSearchText,
+  prepareSearchMatchCandidate,
+  searchMatchForPreparedQuery,
+  type PreparedSearchMatchCandidate,
+} from "./searchMatch";
 
 export type WebQuickOpenEntry = {
   id: string;
@@ -25,6 +31,16 @@ export type WebQuickOpenOverviewInput = {
 
 export const WEB_QUICK_OPEN_STORAGE_KEY = "atools:web-quick-open";
 export const WEB_QUICK_OPEN_UPDATED_EVENT = "atools-web-quick-open-updated";
+const WEB_SEARCH_RESULT_LIMIT = 100;
+type PreparedWebQuickOpenEntry = {
+  entry: WebQuickOpenEntry;
+  index: number;
+  candidate: PreparedSearchMatchCandidate;
+};
+const webSearchCache = new WeakMap<WebQuickOpenEntry[], {
+  entries: PreparedWebQuickOpenEntry[];
+  byKeyword: Map<string, PreparedWebQuickOpenEntry>;
+}>();
 
 export const DEFAULT_WEB_QUICK_OPEN_ENTRIES: WebQuickOpenEntry[] = [
   {
@@ -148,12 +164,51 @@ export function buildWebQuickOpenUrl(entry: WebQuickOpenEntry, queryText: string
 }
 
 export function webQuickOpenResultsForQuery(value: string, entries: WebQuickOpenEntry[]): SearchResult[] {
-  const normalized = value.trim();
+  const rawQuery = value.trim();
+  const normalized = normalizeSearchText(value);
   if (!normalized) return [];
-  return normalizeWebQuickOpenEntries(entries)
+  const prepared = preparedWebQuickOpenEntries(entries);
+  const separatorIndex = rawQuery.indexOf(" ");
+  const prefix = separatorIndex > 0 ? rawQuery.slice(0, separatorIndex).toLowerCase() : "";
+  const exactPrefix = prefix ? prepared.byKeyword.get(prefix) : null;
+  if (exactPrefix) {
+    const queryText = rawQuery.slice(exactPrefix.entry.keyword.length).trim();
+    return [toSearchResult(exactPrefix.entry, queryText, exactPrefix.index, "prefix", 92 - exactPrefix.index)];
+  }
+
+  const results: SearchResult[] = [];
+  for (const { entry, index, candidate } of prepared.entries) {
+    const match = searchMatchForPreparedQuery(normalized, candidate);
+    if (!match) continue;
+    insertBoundedSearchResult(
+      results,
+      toSearchResult(entry, "", index, match.type, match.score - index),
+      WEB_SEARCH_RESULT_LIMIT,
+    );
+  }
+  return results;
+}
+
+function preparedWebQuickOpenEntries(entries: WebQuickOpenEntry[]) {
+  const cached = webSearchCache.get(entries);
+  if (cached) return cached;
+  const preparedEntries = normalizeWebQuickOpenEntries(entries)
     .filter((entry) => entry.enabled)
-    .flatMap((entry, index) => resultForEntry(entry, normalized, index))
-    .sort((a, b) => b.score - a.score);
+    .map((entry, index) => ({
+      entry,
+      index,
+      candidate: prepareSearchMatchCandidate({
+        text: entry.name,
+        extraText: `${entry.keyword} ${entry.template}`,
+        aliases: [entry.keyword],
+      }),
+    }));
+  const prepared = {
+    entries: preparedEntries,
+    byKeyword: new Map(preparedEntries.map((entry) => [entry.entry.keyword.toLowerCase(), entry])),
+  };
+  webSearchCache.set(entries, prepared);
+  return prepared;
 }
 
 export function webQuickOpenEntryByCode(code: string, entries: WebQuickOpenEntry[]): WebQuickOpenEntry | null {
@@ -189,23 +244,6 @@ function normalizeWebQuickOpenEntry(value: unknown): WebQuickOpenEntry | null {
     template,
     enabled: raw.enabled !== false,
   };
-}
-
-function resultForEntry(entry: WebQuickOpenEntry, normalizedQuery: string, index: number): SearchResult[] {
-  const lower = normalizedQuery.toLowerCase();
-  const keyword = entry.keyword.toLowerCase();
-
-  if (lower.startsWith(`${keyword} `)) {
-    const queryText = normalizedQuery.slice(entry.keyword.length).trim();
-    return [toSearchResult(entry, queryText, index, "prefix", 92 - index)];
-  }
-
-  const match = searchMatchForQuery(normalizedQuery, {
-    text: entry.name,
-    extraText: `${entry.keyword} ${entry.template}`,
-    aliases: [entry.keyword],
-  });
-  return match ? [toSearchResult(entry, "", index, match.type, match.score - index)] : [];
 }
 
 function toSearchResult(entry: WebQuickOpenEntry, queryText: string, index: number, matchType?: string, score?: number): SearchResult {

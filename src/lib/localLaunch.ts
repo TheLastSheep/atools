@@ -1,5 +1,11 @@
 import type { SearchResult } from "./types";
-import { searchMatchForQuery, sortSearchMatches } from "./searchMatch";
+import {
+  insertBoundedSearchResult,
+  normalizeSearchText,
+  prepareSearchMatchCandidate,
+  searchMatchForPreparedQuery,
+  type PreparedSearchMatchCandidate,
+} from "./searchMatch";
 
 export type LocalLaunchKind = "file" | "folder" | "app";
 
@@ -27,6 +33,12 @@ export type LocalLaunchOverviewInput = {
 
 export const LOCAL_LAUNCH_STORAGE_KEY = "atools:local-launch";
 export const LOCAL_LAUNCH_UPDATED_EVENT = "atools-local-launch-updated";
+const LOCAL_SEARCH_RESULT_LIMIT = 100;
+const localSearchCache = new WeakMap<LocalLaunchEntry[], Array<{
+  entry: LocalLaunchEntry;
+  index: number;
+  candidate: PreparedSearchMatchCandidate;
+}>>();
 
 export const DEFAULT_LOCAL_LAUNCH_ENTRIES: LocalLaunchEntry[] = [
   {
@@ -136,21 +148,37 @@ export function localLaunchOverviewCards(input: LocalLaunchOverviewInput): Local
 }
 
 export function localLaunchResultsForQuery(value: string, entries: LocalLaunchEntry[]): SearchResult[] {
-  const normalized = value.trim().toLowerCase();
+  const normalized = normalizeSearchText(value);
   if (!normalized) return [];
-  return sortSearchMatches(normalizeLocalLaunchEntries(entries)
+  const results: SearchResult[] = [];
+  for (const { entry, index, candidate } of preparedLocalSearchEntries(entries)) {
+    const match = searchMatchForPreparedQuery(normalized, candidate);
+    if (!match) continue;
+    insertBoundedSearchResult(
+      results,
+      toSearchResult(entry, match.type, match.score - index),
+      LOCAL_SEARCH_RESULT_LIMIT,
+    );
+  }
+  return results;
+}
+
+function preparedLocalSearchEntries(entries: LocalLaunchEntry[]) {
+  const cached = localSearchCache.get(entries);
+  if (cached) return cached;
+  const prepared = normalizeLocalLaunchEntries(entries)
     .filter((entry) => entry.enabled)
     .map((entry, index) => ({
       entry,
       index,
-      match: searchMatchForQuery(normalized, {
+      candidate: prepareSearchMatchCandidate({
         text: entry.name,
         extraText: `${entry.keyword} ${entry.path}`,
         aliases: [entry.keyword],
       }),
-    })))
-    .map(({ entry, index, match }) => toSearchResult(entry, match.type, match.score - index))
-    .sort((a, b) => b.score - a.score);
+    }));
+  localSearchCache.set(entries, prepared);
+  return prepared;
 }
 
 export function localLaunchEntryByCode(code: string, entries: LocalLaunchEntry[]): LocalLaunchEntry | null {

@@ -66,6 +66,15 @@ try {
   assert.equal(pinyinResult.match_type, "pinyin");
 
   assert.equal(mod.localLaunchResultsForQuery("off", entries).length, 0);
+  const manyEntries = Array.from({ length: 150 }, (_, index) => ({
+    id: `project-${index}`,
+    name: `Shared Project ${index}`,
+    keyword: `project${index}`,
+    path: `/tmp/project-${index}`,
+    kind: "folder",
+    enabled: true,
+  }));
+  assert.equal(mod.localLaunchResultsForQuery("shared", manyEntries).length, 100);
   assert.equal(mod.localLaunchEntryByCode("local:code", entries)?.path, "/Applications/Visual Studio Code.app");
 
   const created = mod.createLocalLaunchEntry();
