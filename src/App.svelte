@@ -679,7 +679,7 @@
       const timeoutId = setTimeout(() => {
         if (pluginActivationWaiter?.featureCode !== featureCode) return;
         pluginActivationWaiter = null;
-        reject(new Error(`Plugin ${featureCode} did not report ready within ${timeoutMs}ms`));
+        reject(new Error(`Plugin ${featureCode} did not reach the host iframe load boundary within ${timeoutMs}ms`));
       }, timeoutMs);
       pluginActivationWaiter = { featureCode, startedAt, timeoutId, resolve, reject };
     });

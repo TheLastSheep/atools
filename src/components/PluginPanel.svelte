@@ -3792,26 +3792,15 @@
   _installRuntimePreinsertResourcePatch();
   _installRuntimeResourceObserver();
 
-  function _dispatchPluginReady() {
-    window.dispatchEvent(new Event('atools-plugin-ready'));
-    try {
-      window.parent.postMessage({
-        __atools_plugin_ready__: true,
-        pluginId: __PLUGIN_ID__,
-        featureCode: __FEATURE_CODE__
-      }, '*');
-    } catch (err) {}
-  }
-
   // Fire lifecycle events after DOM is ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() {
       window.dispatchEvent(new Event('atools-plugin-enter'));
-      setTimeout(_dispatchPluginReady, 50);
+      setTimeout(function() { window.dispatchEvent(new Event('atools-plugin-ready')); }, 50);
     });
   } else {
     window.dispatchEvent(new Event('atools-plugin-enter'));
-    setTimeout(_dispatchPluginReady, 50);
+    setTimeout(function() { window.dispatchEvent(new Event('atools-plugin-ready')); }, 50);
   }
 })();
 <\/script>`;
@@ -6334,11 +6323,18 @@
 
   function pluginMainFrame(node: HTMLIFrameElement) {
     const registerSource = () => pluginMessageSources.setMain(node.contentWindow);
+    const reportReady = () => {
+      registerSource();
+      if (pluginReadyReported || (!iframeSrc && !iframeSrcDoc)) return;
+      pluginReadyReported = true;
+      void Promise.resolve(onready?.())
+        .catch((error) => console.warn("[PluginPanel] plugin load callback failed:", error));
+    };
     registerSource();
-    node.addEventListener("load", registerSource);
+    node.addEventListener("load", reportReady);
     return {
       destroy() {
-        node.removeEventListener("load", registerSource);
+        node.removeEventListener("load", reportReady);
         pluginMessageSources.unregisterMain(node.contentWindow);
       },
     };
@@ -6809,19 +6805,6 @@ end tell
     }
 
     if (sourceIdentity.kind !== "main") return;
-
-    if (data.__atools_plugin_ready__ === true) {
-      if (
-        !pluginReadyReported
-        && data.pluginId === action.plugin_id
-        && data.featureCode === action.feature_code
-      ) {
-        pluginReadyReported = true;
-        void Promise.resolve(onready?.())
-          .catch((error) => console.warn("[PluginPanel] plugin ready callback failed:", error));
-      }
-      return;
-    }
 
     if (data.__atools_desktop_smoke_bridge_probe__) {
       handleDesktopSmokeBridgeProbe(data as Record<string, unknown>);

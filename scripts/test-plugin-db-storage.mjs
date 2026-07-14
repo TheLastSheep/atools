@@ -115,15 +115,6 @@ assert.deepEqual(storedKeys, [
   "atools:dbStorage:storage-test-plugin:token",
 ]);
 assert.equal(invokeCalls.length, 0, "dbStorage should remain synchronous and not call async invoke");
-assert.deepEqual(
-  postedMessages.filter((message) => message.__atools_plugin_ready__ !== true),
-  [],
-  "dbStorage should not post host messages for sync key/value operations",
-);
-assert.deepEqual(JSON.parse(JSON.stringify(postedMessages.find((message) => message.__atools_plugin_ready__ === true))), {
-  __atools_plugin_ready__: true,
-  pluginId: "storage-test-plugin",
-  featureCode: "storage-test-feature",
-});
+assert.deepEqual(postedMessages, [], "dbStorage should not post host messages for sync key/value operations");
 assert.match(componentSource, /function _createDbStorage/);
 assert.match(componentSource, /dbStorage: _createDbStorage\(\)/);

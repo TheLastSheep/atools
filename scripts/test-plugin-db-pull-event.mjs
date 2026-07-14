@@ -123,15 +123,6 @@ messageHandlers.forEach((handler) => {
 });
 assert.equal(pulledDocs.length, 3, "failing listeners should not prevent other listeners");
 assert.ok(consoleErrors.length >= 1, "failing onDbPull listeners should be reported");
-assert.deepEqual(
-  postedMessages.filter((message) => message.__atools_plugin_ready__ !== true),
-  [],
-  "onDbPull should not post host messages during registration",
-);
-assert.deepEqual(JSON.parse(JSON.stringify(postedMessages.find((message) => message.__atools_plugin_ready__ === true))), {
-  __atools_plugin_ready__: true,
-  pluginId: "db-pull-test-plugin",
-  featureCode: "db-pull-test-feature",
-});
+assert.deepEqual(postedMessages, [], "onDbPull should not post host messages during registration");
 assert.ok(dispatchedEvents.includes("atools-plugin-enter"));
 assert.ok(dispatchedEvents.includes("atools-plugin-ready"));

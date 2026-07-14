@@ -8,12 +8,9 @@ const state = await readFile(new URL("src-tauri/src/state.rs", root), "utf8");
 const commands = await readFile(new URL("src-tauri/src/commands.rs", root), "utf8");
 const benchmark = await readFile(new URL("scripts/benchmark-macos-runtime.mjs", root), "utf8");
 
-assert.match(panel, /__atools_plugin_ready__: true/);
-assert.match(panel, /pluginId: __PLUGIN_ID__/);
-assert.match(panel, /featureCode: __FEATURE_CODE__/);
-assert.match(panel, /sourceIdentity\.kind !== "main"/);
-assert.match(panel, /data\.pluginId === action\.plugin_id/);
-assert.match(panel, /data\.featureCode === action\.feature_code/);
+assert.match(panel, /node\.addEventListener\("load", reportReady\)/);
+assert.match(panel, /pluginReadyReported \|\| \(!iframeSrc && !iframeSrcDoc\)/);
+assert.match(panel, /pluginMessageSources\.setMain\(node\.contentWindow\)/);
 assert.match(panel, /Promise\.resolve\(onready\?\.\(\)\)/);
 
 assert.match(app, /waitForPluginActivation\(action\.feature_code, activationStartedAt/);
