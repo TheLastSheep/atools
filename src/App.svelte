@@ -183,6 +183,7 @@
   const isFloatingBallWindow = typeof window !== "undefined" && window.location.hash === "#/floating-ball";
   const isSuperPanelWindow = typeof window !== "undefined" && window.location.hash === "#/super-panel";
   const isPluginDetachWindow = typeof window !== "undefined" && window.location.hash.startsWith("#/plugin-detach");
+  const isMainWindow = typeof window !== "undefined" && window.location.hash === "";
   let superPanelClipboardText = $state("");
   let superPanelStatus = $state("");
   let pluginPanelHost: HTMLDivElement | null = $state(null);
@@ -421,7 +422,9 @@
     if (desktopPluginPanelSmokeEnabled()) {
       void activateDesktopSmokePluginPanel();
     }
-    void runReleaseSmokeSequence();
+    if (isMainWindow) {
+      void runReleaseSmokeSequence();
+    }
     return () => {
       settingsCancelled = true;
       pinyinCancelled = true;

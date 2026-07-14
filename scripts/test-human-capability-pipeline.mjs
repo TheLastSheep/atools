@@ -47,3 +47,5 @@ assert.doesNotMatch(copyCommand, /"text": text/);
 assert.match(copyCommand, /Clipboard write completed; text content was not persisted/);
 assert.match(app, /const priorCopyRunIds = new Set\(/);
 assert.match(app, /run\.capabilityId === "copy_text" && !priorCopyRunIds\.has\(run\.id\)/);
+assert.match(app, /const isMainWindow = [^;]+window\.location\.hash === ""/);
+assert.match(app, /if \(isMainWindow\) \{\s*void runReleaseSmokeSequence\(\);\s*\}/);
