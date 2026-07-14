@@ -19,6 +19,7 @@ use crate::memory::{validate_memory_content, MemoryApproval, MemoryItem, MemoryS
 use crate::models::{
     ClipboardHistoryEntry, Document, Feature, FeatureEntry, Plugin, PluginManifest,
 };
+use crate::skill::SkillDefinition;
 use crate::task_run::{
     Artifact, ResultAction, TaskIssue, TaskRun, TaskRunInitiator, TaskRunInitiatorType,
     TaskRunStatus, TaskValidation,
@@ -181,6 +182,16 @@ impl Database {
                 updated_at TEXT NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS skills (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL,
+                definition TEXT NOT NULL,
+                enabled BOOLEAN NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+
             CREATE TABLE IF NOT EXISTS agent_tools (
                 name TEXT PRIMARY KEY,
                 description TEXT NOT NULL,
@@ -222,6 +233,7 @@ impl Database {
             CREATE INDEX IF NOT EXISTS idx_task_runs_capability_created_at ON task_runs(capability_id, created_at DESC);
             CREATE INDEX IF NOT EXISTS idx_memory_items_active_updated_at ON memory_items(enabled, updated_at DESC);
             CREATE INDEX IF NOT EXISTS idx_memory_items_source_run ON memory_items(source_run_id);
+            CREATE INDEX IF NOT EXISTS idx_skills_enabled_updated_at ON skills(enabled, updated_at DESC);
             CREATE INDEX IF NOT EXISTS idx_agent_tool_grants_tool ON agent_tool_grants(tool_name);
             CREATE INDEX IF NOT EXISTS idx_clipboard_history_last_copied_at ON clipboard_history(last_copied_at DESC);
             "#,
@@ -1020,6 +1032,86 @@ impl Database {
         Ok(runs)
     }
 
+    // ---- Skills ----
+
+    pub fn upsert_skill(&self, skill: &SkillDefinition) -> Result<()> {
+        skill.validate()?;
+        let conn = self.conn.lock();
+        conn.execute(
+            r#"
+            INSERT INTO skills (id, name, description, definition, enabled, created_at, updated_at)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+            ON CONFLICT(id) DO UPDATE SET
+                name = excluded.name,
+                description = excluded.description,
+                definition = excluded.definition,
+                enabled = excluded.enabled,
+                updated_at = excluded.updated_at
+            "#,
+            params![
+                skill.id,
+                skill.name,
+                skill.description,
+                serde_json::to_string(skill)?,
+                skill.enabled,
+                skill.created_at,
+                skill.updated_at,
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_skill(&self, id: &str) -> Result<Option<SkillDefinition>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT definition, enabled, created_at, updated_at FROM skills WHERE id = ?1",
+        )?;
+        let mut rows = stmt.query(params![id])?;
+        rows.next()?
+            .map(skill_from_row)
+            .transpose()
+            .map_err(Into::into)
+    }
+
+    pub fn list_skills(
+        &self,
+        include_disabled: bool,
+        limit: usize,
+    ) -> Result<Vec<SkillDefinition>> {
+        let conn = self.conn.lock();
+        let sql = if include_disabled {
+            "SELECT definition, enabled, created_at, updated_at FROM skills ORDER BY updated_at DESC, id ASC LIMIT ?1"
+        } else {
+            "SELECT definition, enabled, created_at, updated_at FROM skills WHERE enabled = 1 ORDER BY updated_at DESC, id ASC LIMIT ?1"
+        };
+        let mut stmt = conn.prepare(sql)?;
+        let skills = stmt
+            .query_map(params![limit.clamp(1, 5000) as i64], skill_from_row)?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        Ok(skills)
+    }
+
+    pub fn set_skill_enabled(&self, id: &str, enabled: bool) -> Result<bool> {
+        let Some(mut skill) = self.get_skill(id)? else {
+            return Ok(false);
+        };
+        skill.enabled = enabled;
+        skill.updated_at = crate::utils::now_iso();
+        self.upsert_skill(&skill)?;
+        Ok(true)
+    }
+
+    pub fn delete_skill(&self, id: &str) -> Result<bool> {
+        let conn = self.conn.lock();
+        Ok(conn.execute("DELETE FROM skills WHERE id = ?1", params![id])? > 0)
+    }
+
+    pub fn export_skills_json(&self) -> Result<String> {
+        Ok(serde_json::to_string_pretty(
+            &self.list_skills(true, 5000)?,
+        )?)
+    }
+
     // ---- Execution memory ----
 
     pub fn upsert_memory_item(&self, item: &MemoryItem) -> Result<()> {
@@ -1372,6 +1464,17 @@ fn task_run_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TaskRun> {
         started_at: row.get(20)?,
         finished_at: row.get(21)?,
     })
+}
+
+fn skill_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SkillDefinition> {
+    let definition: String = row.get(0)?;
+    let mut skill = serde_json::from_str::<SkillDefinition>(&definition).map_err(|error| {
+        rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(error))
+    })?;
+    skill.enabled = row.get(1)?;
+    skill.created_at = row.get(2)?;
+    skill.updated_at = row.get(3)?;
+    Ok(skill)
 }
 
 fn memory_item_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<MemoryItem> {

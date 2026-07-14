@@ -2,7 +2,11 @@ use atools_core::agent::{
     AuditLogEntry, AuditLogPage, AuditLogQuery, AuditStatus, PermissionDecision, PermissionMode,
     PermissionPolicy, PermissionRequest, PermissionScope, ToolDefinition, ToolRegistry,
 };
-use atools_core::mcp::{handle_static_mcp_message, handle_static_mcp_request, McpToolCallResult};
+use atools_core::mcp::{
+    handle_mcp_message_with_skills, handle_static_mcp_message, handle_static_mcp_request,
+    McpToolCallResult,
+};
+use atools_core::skill::{SkillDefinition, SkillResultSuggestion, SkillStep, SkillValidationRule};
 use atools_core::Database;
 use serde_json::json;
 
@@ -204,6 +208,128 @@ fn mcp_static_handler_exposes_empty_resource_templates_list() {
     assert_eq!(templates["id"], 12);
     assert_eq!(templates["result"]["resourceTemplates"], json!([]));
     assert!(templates["result"].get("nextCursor").is_none());
+}
+
+#[test]
+fn mcp_dynamic_handler_exposes_enabled_skills_as_resources_and_prompts() {
+    let registry = ToolRegistry::default();
+    let skill = sample_skill();
+
+    let resources = handle_mcp_message_with_skills(
+        &registry,
+        std::slice::from_ref(&skill),
+        json!({ "jsonrpc": "2.0", "id": 41, "method": "resources/list" }),
+        |_| panic!("resources/list must not call tools"),
+    )
+    .expect("resource response");
+    assert_eq!(
+        resources["result"]["resources"][1]["uri"],
+        "atools://skills"
+    );
+
+    let templates = handle_mcp_message_with_skills(
+        &registry,
+        std::slice::from_ref(&skill),
+        json!({
+            "jsonrpc": "2.0",
+            "id": 411,
+            "method": "resources/templates/list"
+        }),
+        |_| panic!("resources/templates/list must not call tools"),
+    )
+    .expect("template response");
+    assert_eq!(
+        templates["result"]["resourceTemplates"][0]["uriTemplate"],
+        "atools://skills/{skillId}"
+    );
+
+    let resource = handle_mcp_message_with_skills(
+        &registry,
+        std::slice::from_ref(&skill),
+        json!({
+            "jsonrpc": "2.0",
+            "id": 42,
+            "method": "resources/read",
+            "params": { "uri": "atools://skills/compress-for-web" }
+        }),
+        |_| panic!("resources/read must not call tools"),
+    )
+    .expect("resource response");
+    let resource_text = resource["result"]["contents"][0]["text"]
+        .as_str()
+        .expect("resource text");
+    assert!(resource_text.contains("compress_images"));
+    assert!(resource_text.contains("validation"));
+    assert!(resource_text.contains("resultSuggestions"));
+
+    let prompts = handle_mcp_message_with_skills(
+        &registry,
+        std::slice::from_ref(&skill),
+        json!({ "jsonrpc": "2.0", "id": 43, "method": "prompts/list" }),
+        |_| panic!("prompts/list must not call tools"),
+    )
+    .expect("prompt response");
+    assert_eq!(
+        prompts["result"]["prompts"][1]["name"],
+        "atools_skill_compress-for-web"
+    );
+
+    let prompt = handle_mcp_message_with_skills(
+        &registry,
+        std::slice::from_ref(&skill),
+        json!({
+            "jsonrpc": "2.0",
+            "id": 44,
+            "method": "prompts/get",
+            "params": {
+                "name": "atools_skill_compress-for-web",
+                "arguments": { "task": "compress screenshots" }
+            }
+        }),
+        |_| panic!("prompts/get must not call tools"),
+    )
+    .expect("prompt response");
+    let prompt_text = prompt["result"]["messages"][0]["content"]["text"]
+        .as_str()
+        .expect("prompt text");
+    assert!(prompt_text.contains("Do not treat the skill as permission"));
+    assert!(prompt_text.contains("compress screenshots"));
+}
+
+fn sample_skill() -> SkillDefinition {
+    SkillDefinition::new(
+        "compress-for-web".to_string(),
+        "Compress for web".to_string(),
+        "Compress and validate web images".to_string(),
+        "1.0.0".to_string(),
+        vec!["compress images".to_string()],
+        vec!["compress_images".to_string()],
+        vec![SkillStep {
+            id: "compress".to_string(),
+            capability_id: "compress_images".to_string(),
+            description: "Compress images".to_string(),
+            input: json!({ "format": "webp" }),
+            optional: false,
+        }],
+        vec!["file.read".to_string(), "file.write".to_string()],
+        vec![],
+        vec![SkillValidationRule {
+            id: "target".to_string(),
+            label: "Target".to_string(),
+            description: "Outputs meet target".to_string(),
+            kind: "json_path".to_string(),
+            config: json!({ "path": "$.items[*].target_met" }),
+            required: true,
+        }],
+        vec![SkillResultSuggestion {
+            id: "images".to_string(),
+            label: "Image grid".to_string(),
+            kind: "artifact_renderer".to_string(),
+            config: json!({ "renderer": "image_grid" }),
+        }],
+        "local".to_string(),
+    )
+    .expect("sample skill")
 }
 
 #[test]

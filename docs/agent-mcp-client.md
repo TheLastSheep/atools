@@ -77,10 +77,11 @@ For clients or modes that do not support HTTP MCP, copy the stdio proxy template
 
 - `ping` returns a JSON-RPC success response with an empty result object.
 - JSON-RPC messages without an `id` are treated as notifications: HTTP returns `204 No Content`; stdio proxy writes no response line. This includes id-less `tools/call`, which is not executed because no response/audit result can be returned to the client.
-- `initialize` declares `resources: {}` and `prompts: {}` capabilities.
+- `initialize` declares resources and prompts capabilities; the running desktop server adds enabled local Skills dynamically.
 - `resources/list` exposes `atools://agent/tools`, a JSON resource containing the current enabled Agent tool catalog. `resources/read` returns its `application/json` text content.
 - `resources/templates/list` currently returns an empty array without `nextCursor`.
 - `prompts/list` exposes the built-in `atools_agent_tool_guide` prompt with an optional `task` argument. `prompts/get` returns one user message with local Agent tool-selection guidance and includes the provided task text when present.
+- When the desktop app is running, `resources/list` also exposes `atools://skills`, `resources/templates/list` exposes `atools://skills/{skillId}`, and `prompts/list` exposes one `atools_skill_<skillId>` prompt per enabled local Skill. Every Skill prompt states that tool permissions are still checked on each call.
 - JSON-RPC batch requests are supported over HTTP MCP and stdio fallback. Mixed batches omit notification responses and return an array for requests with IDs; notification-only batches produce no response body/line. Empty batches return `-32600 Invalid Request`.
 
 ## Built-in Context Tool

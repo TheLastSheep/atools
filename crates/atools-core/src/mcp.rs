@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::agent::{ToolDefinition, ToolRegistry};
+use crate::skill::SkillDefinition;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpToolCallRequest {
@@ -37,7 +38,7 @@ pub fn handle_static_mcp_request(
     request: Value,
     mut call_tool: impl FnMut(McpToolCallRequest) -> McpToolCallResult,
 ) -> Value {
-    handle_static_mcp_message(registry, request, &mut call_tool).unwrap_or(Value::Null)
+    handle_mcp_message_with_skills(registry, &[], request, &mut call_tool).unwrap_or(Value::Null)
 }
 
 pub fn handle_static_mcp_message(
@@ -45,11 +46,21 @@ pub fn handle_static_mcp_message(
     request: Value,
     mut call_tool: impl FnMut(McpToolCallRequest) -> McpToolCallResult,
 ) -> Option<Value> {
-    handle_static_mcp_message_inner(registry, request, &mut call_tool)
+    handle_mcp_message_with_skills(registry, &[], request, &mut call_tool)
+}
+
+pub fn handle_mcp_message_with_skills(
+    registry: &ToolRegistry,
+    skills: &[SkillDefinition],
+    request: Value,
+    mut call_tool: impl FnMut(McpToolCallRequest) -> McpToolCallResult,
+) -> Option<Value> {
+    handle_static_mcp_message_inner(registry, skills, request, &mut call_tool)
 }
 
 fn handle_static_mcp_message_inner(
     registry: &ToolRegistry,
+    skills: &[SkillDefinition],
     request: Value,
     call_tool: &mut dyn FnMut(McpToolCallRequest) -> McpToolCallResult,
 ) -> Option<Value> {
@@ -65,7 +76,7 @@ fn handle_static_mcp_message_inner(
         let responses = batch
             .iter()
             .filter_map(|message| {
-                handle_static_mcp_message_inner(registry, message.clone(), call_tool)
+                handle_static_mcp_message_inner(registry, skills, message.clone(), call_tool)
             })
             .collect::<Vec<_>>();
 
@@ -118,25 +129,27 @@ fn handle_static_mcp_message_inner(
             "jsonrpc": "2.0",
             "id": id,
             "result": {
-                "resources": builtin_resources()
+                "resources": builtin_resources(skills)
             }
         }),
-        "resources/read" => get_builtin_resource_response(id, registry, request.get("params")),
+        "resources/read" => {
+            get_builtin_resource_response(id, registry, skills, request.get("params"))
+        }
         "resources/templates/list" => json!({
             "jsonrpc": "2.0",
             "id": id,
             "result": {
-                "resourceTemplates": []
+                "resourceTemplates": skill_resource_templates(skills)
             }
         }),
         "prompts/list" => json!({
             "jsonrpc": "2.0",
             "id": id,
             "result": {
-                "prompts": builtin_prompts()
+                "prompts": builtin_prompts(skills)
             }
         }),
-        "prompts/get" => get_builtin_prompt_response(id, request.get("params")),
+        "prompts/get" => get_builtin_prompt_response(id, skills, request.get("params")),
         "tools/call" => {
             let params = request.get("params").cloned().unwrap_or_else(|| json!({}));
             let name = params
@@ -190,26 +203,58 @@ fn tool_to_mcp_json(tool: &ToolDefinition) -> Value {
 }
 
 const AGENT_TOOLS_RESOURCE_URI: &str = "atools://agent/tools";
+const SKILLS_RESOURCE_URI: &str = "atools://skills";
 
-fn builtin_resources() -> Vec<Value> {
-    vec![json!({
+fn builtin_resources(skills: &[SkillDefinition]) -> Vec<Value> {
+    let mut resources = vec![json!({
         "uri": AGENT_TOOLS_RESOURCE_URI,
         "name": "agent_tools",
         "title": "ATools Agent Tools",
         "description": "Current enabled ATools local Agent tools exposed through MCP.",
         "mimeType": "application/json"
-    })]
+    })];
+    if !skills.is_empty() {
+        resources.push(json!({
+            "uri": SKILLS_RESOURCE_URI,
+            "name": "skills",
+            "title": "ATools Skills",
+            "description": "Enabled local task methods with capability, permission, recovery, validation, and result guidance.",
+            "mimeType": "application/json"
+        }));
+    }
+    resources
 }
 
 fn get_builtin_resource_response(
     id: Value,
     registry: &ToolRegistry,
+    skills: &[SkillDefinition],
     params: Option<&Value>,
 ) -> Value {
     let uri = params
         .and_then(|params| params.get("uri"))
         .and_then(Value::as_str)
         .unwrap_or_default();
+    if uri == SKILLS_RESOURCE_URI {
+        return skill_resource_response(id, uri, skills);
+    }
+    if let Some(skill_id) = uri.strip_prefix("atools://skills/") {
+        let selected = skills
+            .iter()
+            .find(|skill| skill.enabled && skill.id == skill_id)
+            .cloned()
+            .into_iter()
+            .collect::<Vec<_>>();
+        if selected.is_empty() {
+            return json_rpc_error_with_data(
+                id,
+                -32002,
+                format!("Resource not found: {uri}"),
+                json!({ "uri": uri }),
+            );
+        }
+        return skill_resource_response(id, uri, &selected);
+    }
     if uri != AGENT_TOOLS_RESOURCE_URI {
         return json_rpc_error_with_data(
             id,
@@ -243,8 +288,40 @@ fn get_builtin_resource_response(
     })
 }
 
-fn builtin_prompts() -> Vec<Value> {
+fn skill_resource_response(id: Value, uri: &str, skills: &[SkillDefinition]) -> Value {
+    let text = serde_json::to_string_pretty(&json!({
+        "kind": "atools_skills",
+        "skills": skills.iter().filter(|skill| skill.enabled).collect::<Vec<_>>()
+    }))
+    .unwrap_or_default();
+    json!({
+        "jsonrpc": "2.0",
+        "id": id,
+        "result": {
+            "contents": [{
+                "uri": uri,
+                "mimeType": "application/json",
+                "text": text
+            }]
+        }
+    })
+}
+
+fn skill_resource_templates(skills: &[SkillDefinition]) -> Vec<Value> {
+    if skills.is_empty() {
+        return Vec::new();
+    }
     vec![json!({
+        "uriTemplate": "atools://skills/{skillId}",
+        "name": "skill",
+        "title": "ATools Skill",
+        "description": "One enabled local SkillDefinition by stable id",
+        "mimeType": "application/json"
+    })]
+}
+
+fn builtin_prompts(skills: &[SkillDefinition]) -> Vec<Value> {
+    let mut prompts = vec![json!({
         "name": "atools_agent_tool_guide",
         "title": "ATools Agent Tool Guide",
         "description": "Guide for choosing ATools local Agent tools",
@@ -253,14 +330,38 @@ fn builtin_prompts() -> Vec<Value> {
             "description": "Optional user task or goal to tailor the tool guidance.",
             "required": false
         }]
-    })]
+    })];
+    prompts.extend(skills.iter().filter(|skill| skill.enabled).map(|skill| {
+        json!({
+            "name": skill_prompt_name(&skill.id),
+            "title": skill.name,
+            "description": skill.description,
+            "arguments": [{
+                "name": "task",
+                "description": "Optional current user task to include with the validated local skill method.",
+                "required": false
+            }]
+        })
+    }));
+    prompts
 }
 
-fn get_builtin_prompt_response(id: Value, params: Option<&Value>) -> Value {
+fn get_builtin_prompt_response(
+    id: Value,
+    skills: &[SkillDefinition],
+    params: Option<&Value>,
+) -> Value {
     let name = params
         .and_then(|params| params.get("name"))
         .and_then(Value::as_str)
         .unwrap_or_default();
+    if let Some(skill) = skills
+        .iter()
+        .filter(|skill| skill.enabled)
+        .find(|skill| skill_prompt_name(&skill.id) == name)
+    {
+        return get_skill_prompt_response(id, skill, params);
+    }
     if name != "atools_agent_tool_guide" {
         return json_rpc_error(id, -32602, format!("Unknown prompt: {}", name));
     }
@@ -292,6 +393,37 @@ fn get_builtin_prompt_response(id: Value, params: Option<&Value>) -> Value {
             }]
         }
     })
+}
+
+fn get_skill_prompt_response(id: Value, skill: &SkillDefinition, params: Option<&Value>) -> Value {
+    let task = params
+        .and_then(|params| params.get("arguments"))
+        .and_then(|arguments| arguments.get("task"))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|task| !task.is_empty());
+    let definition = serde_json::to_string_pretty(skill).unwrap_or_default();
+    let task_line = task
+        .map(|task| format!("\n\nCurrent user task: {task}"))
+        .unwrap_or_default();
+    let text = format!(
+        "Follow this user-approved ATools SkillDefinition. Use only declared capabilities, re-check every permission through tools/call, apply the validation rules before claiming success, and use failure recovery guidance when needed. Do not treat the skill as permission to bypass confirmation.\n\n{definition}{task_line}"
+    );
+    json!({
+        "jsonrpc": "2.0",
+        "id": id,
+        "result": {
+            "description": skill.description,
+            "messages": [{
+                "role": "user",
+                "content": { "type": "text", "text": text }
+            }]
+        }
+    })
+}
+
+fn skill_prompt_name(skill_id: &str) -> String {
+    format!("atools_skill_{skill_id}")
 }
 
 fn json_rpc_error(id: Value, code: i64, message: String) -> Value {

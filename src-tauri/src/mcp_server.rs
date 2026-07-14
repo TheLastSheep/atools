@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use atools_core::db::Database;
-use atools_core::mcp::{handle_static_mcp_message, McpToolCallRequest};
+use atools_core::mcp::{handle_mcp_message_with_skills, McpToolCallRequest};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tauri::AppHandle;
@@ -139,7 +139,8 @@ async fn handle_single_mcp_payload(
         .unwrap_or_else(|_| crate::agent_tools::builtin_tool_registry());
 
     if method != "tools/call" {
-        return handle_static_mcp_message(&registry, payload, |_| {
+        let skills = db.list_skills(false, 500).unwrap_or_default();
+        return handle_mcp_message_with_skills(&registry, &skills, payload, |_| {
             atools_core::mcp::McpToolCallResult::success(json!({}))
         });
     }

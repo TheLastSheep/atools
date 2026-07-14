@@ -6,6 +6,7 @@ pub mod matcher;
 pub mod mcp;
 pub mod memory;
 pub mod models;
+pub mod skill;
 pub mod task_run;
 pub mod utils;
 

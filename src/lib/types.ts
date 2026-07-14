@@ -258,6 +258,47 @@ export type MemoryItem = {
   updatedAt: string;
 };
 
+export type SkillDefinition = {
+  id: string;
+  name: string;
+  description: string;
+  version: string;
+  triggers: string[];
+  capabilityIds: string[];
+  steps: Array<{
+    id: string;
+    capabilityId: string;
+    description: string;
+    input: unknown;
+    optional: boolean;
+  }>;
+  permissionScopes: string[];
+  failureModes: Array<{
+    code: string;
+    description: string;
+    recovery: string[];
+    recoveryCapabilityId?: string | null;
+  }>;
+  validation: Array<{
+    id: string;
+    label: string;
+    description: string;
+    kind: string;
+    config: unknown;
+    required: boolean;
+  }>;
+  resultSuggestions: Array<{
+    id: string;
+    label: string;
+    kind: string;
+    config: unknown;
+  }>;
+  enabled: boolean;
+  source: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type InstalledPlugin = {
   id: string;
   name: string;

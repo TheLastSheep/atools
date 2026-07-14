@@ -13,6 +13,7 @@
     McpServerStatus,
     MemoryItem,
     PendingAgentToolRequest,
+    SkillDefinition,
     TaskRun,
     TaskRunArtifact,
     ToolDefinition
@@ -76,6 +77,7 @@
   let pendingRequests: PendingAgentToolRequest[] = $state([]);
   let taskRuns: TaskRun[] = $state([]);
   let memories: MemoryItem[] = $state([]);
+  let skills: SkillDefinition[] = $state([]);
   let status: McpServerStatus | null = $state(null);
   let permissionMode = $state("conservative");
   let error = $state("");
@@ -92,6 +94,9 @@
   let memoryContent = $state('{"arguments":{}}');
   let memoryConfidence = $state("1");
   let memoryExpiresAt = $state("");
+  let skillStatus = $state("");
+  let editingSkillId = $state("");
+  let skillManifest = $state(JSON.stringify(defaultSkillManifest(), null, 2));
   let auditQuery = $state("");
   let auditStatusFilter = $state("all");
   let auditToolFilter = $state("all");
@@ -162,7 +167,7 @@
 
   async function refresh() {
     try {
-      const [toolList, auditPage, mcpStatus, mode, grantList, scopePolicyList, pendingList, runList, memoryList] = await Promise.all([
+      const [toolList, auditPage, mcpStatus, mode, grantList, scopePolicyList, pendingList, runList, memoryList, skillList] = await Promise.all([
         invoke<ToolDefinition[]>("list_agent_tools"),
         invoke<AuditLogPage>("query_audit_entries_page", { query: auditBackendQuery(auditPageLimit, 0) }),
         invoke<McpServerStatus | null>("get_mcp_status"),
@@ -172,6 +177,7 @@
         invoke<PendingAgentToolRequest[]>("list_pending_agent_requests"),
         invoke<TaskRun[]>("list_task_runs", { limit: 100 }),
         invoke<MemoryItem[]>("list_memory_items", { includeDisabled: true, limit: 500 }),
+        invoke<SkillDefinition[]>("list_skills", { includeDisabled: true, limit: 500 }),
       ]);
       tools = toolList;
       applyAuditPage(auditPage);
@@ -182,12 +188,101 @@
       pendingRequests = pendingList;
       taskRuns = runList;
       memories = memoryList;
+      skills = skillList;
       if (selectedTaskRunId && !runList.some((run) => run.id === selectedTaskRunId)) {
         selectedTaskRunId = "";
       }
       error = "";
     } catch (e) {
       error = String(e);
+    }
+  }
+
+  function defaultSkillManifest() {
+    return {
+      id: "",
+      name: "",
+      description: "",
+      version: "1.0.0",
+      triggers: [""],
+      capabilityIds: [""],
+      steps: [{ id: "step-1", capabilityId: "", description: "", input: {}, optional: false }],
+      permissionScopes: [],
+      failureModes: [],
+      validation: [{ id: "result", label: "结果验收", description: "说明如何判断用户目标已完成", kind: "manual", config: {}, required: true }],
+      resultSuggestions: [{ id: "result", label: "结构化结果", kind: "artifact_renderer", config: { renderer: "json" } }],
+      source: "local",
+    };
+  }
+
+  function resetSkillForm() {
+    editingSkillId = "";
+    skillManifest = JSON.stringify(defaultSkillManifest(), null, 2);
+  }
+
+  function editSkill(skill: SkillDefinition) {
+    editingSkillId = skill.id;
+    const { enabled: _enabled, createdAt: _createdAt, updatedAt: _updatedAt, ...input } = skill;
+    skillManifest = JSON.stringify(input, null, 2);
+  }
+
+  function parsedSkillInput() {
+    const input = JSON.parse(skillManifest) as Record<string, unknown>;
+    if (!input || typeof input !== "object" || Array.isArray(input)) {
+      throw new Error("Skill manifest 必须是 JSON object");
+    }
+    return input;
+  }
+
+  async function saveSkill() {
+    busyKey = "skill:save";
+    try {
+      const input = parsedSkillInput();
+      if (editingSkillId) {
+        await invoke<SkillDefinition>("update_skill", { id: editingSkillId, input });
+        skillStatus = "Skill 已更新；MCP resource 与 prompt 会立即使用新版本";
+      } else {
+        await invoke<SkillDefinition>("create_skill", { input });
+        skillStatus = "Skill 已保存并进入本地能力方法目录";
+      }
+      resetSkillForm();
+      await refresh();
+    } catch (e) {
+      skillStatus = String(e);
+    } finally {
+      busyKey = "";
+    }
+  }
+
+  async function toggleSkill(skill: SkillDefinition) {
+    busyKey = `skill:toggle:${skill.id}`;
+    try {
+      await invoke("set_skill_enabled", { id: skill.id, enabled: !skill.enabled });
+      await refresh();
+    } finally {
+      busyKey = "";
+    }
+  }
+
+  async function deleteSkill(skill: SkillDefinition) {
+    busyKey = `skill:delete:${skill.id}`;
+    try {
+      await invoke("delete_skill", { id: skill.id });
+      if (editingSkillId === skill.id) resetSkillForm();
+      skillStatus = "Skill 已删除";
+      await refresh();
+    } finally {
+      busyKey = "";
+    }
+  }
+
+  async function exportSkills() {
+    busyKey = "skill:export";
+    try {
+      await copyText(await invoke<string>("export_skills_json"));
+      skillStatus = `已复制 ${skills.length} 个 SkillDefinition`;
+    } finally {
+      busyKey = "";
     }
   }
 
@@ -940,6 +1035,59 @@
     {/if}
   </section>
 
+  <section class="agent-section skill-section">
+    <div class="section-title">
+      <div>
+        <h3>Skills</h3>
+        <p>声明能力依赖、执行顺序、权限、失败恢复、验收和结果建议；Skill 本身不绕过工具权限</p>
+      </div>
+      <div class="row-actions">
+        <button disabled={busyKey === "skill:export" || skills.length === 0} onclick={exportSkills}>导出</button>
+        <button onclick={refresh}>刷新</button>
+      </div>
+    </div>
+    <div class="skill-editor">
+      <label>
+        <span>SkillDefinition JSON</span>
+        <textarea bind:value={skillManifest} rows="16" spellcheck="false"></textarea>
+      </label>
+      <div class="row-actions">
+        <button disabled={busyKey === "skill:save"} onclick={saveSkill}>{editingSkillId ? "更新 Skill" : "保存 Skill"}</button>
+        {#if editingSkillId}<button onclick={resetSkillForm}>取消编辑</button>{/if}
+      </div>
+      <p>稳定 id 只允许字母、数字、点、下划线和连字符；每个步骤必须引用已声明 capability，且至少包含一条验收规则和结果建议。</p>
+    </div>
+    {#if skillStatus}<div class="empty">{skillStatus}</div>{/if}
+    {#if skills.length === 0}
+      <div class="empty">暂无本地 Skill。保存后会通过 MCP `atools://skills` resource 和独立 prompt 暴露给外部 Agent。</div>
+    {:else}
+      <div class="skill-list">
+        {#each skills as skill}
+          <article class="skill-row" class:disabled={!skill.enabled}>
+            <div class="skill-row-head">
+              <div>
+                <strong>{skill.name}</strong>
+                <code>{skill.id} · v{skill.version}</code>
+              </div>
+              <div class="row-actions">
+                <button onclick={() => editSkill(skill)}>编辑</button>
+                <button disabled={busyKey === `skill:toggle:${skill.id}`} onclick={() => toggleSkill(skill)}>{skill.enabled ? "停用" : "启用"}</button>
+                <button disabled={busyKey === `skill:delete:${skill.id}`} onclick={() => deleteSkill(skill)}>删除</button>
+              </div>
+            </div>
+            <p>{skill.description}</p>
+            <div class="skill-meta-grid">
+              <span>触发 · {skill.triggers.join("、")}</span>
+              <span>能力 · {skill.capabilityIds.join("、")}</span>
+              <span>权限 · {skill.permissionScopes.join("、") || "无"}</span>
+              <span>步骤 {skill.steps.length} · 失败模式 {skill.failureModes.length} · 验收 {skill.validation.length} · 结果建议 {skill.resultSuggestions.length}</span>
+            </div>
+          </article>
+        {/each}
+      </div>
+    {/if}
+  </section>
+
   <section class="agent-section memory-section">
     <div class="section-title">
       <div>
@@ -1576,6 +1724,90 @@
     border: 1px solid var(--border);
     border-radius: 7px;
     background: var(--bg-secondary);
+  }
+
+  .skill-editor {
+    display: grid;
+    gap: 8px;
+    margin-top: 10px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: var(--bg-secondary);
+  }
+
+  .skill-editor label {
+    display: grid;
+    gap: 5px;
+    color: var(--text-tertiary);
+    font-size: 11px;
+  }
+
+  .skill-editor textarea {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    resize: vertical;
+    padding: 9px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.5;
+  }
+
+  .skill-editor > p,
+  .skill-row > p {
+    margin: 0;
+    color: var(--text-tertiary);
+    font-size: 11px;
+  }
+
+  .skill-list {
+    display: grid;
+    gap: 7px;
+    margin-top: 10px;
+  }
+
+  .skill-row {
+    display: grid;
+    gap: 7px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: var(--bg-secondary);
+  }
+
+  .skill-row.disabled {
+    opacity: 0.58;
+  }
+
+  .skill-row-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .skill-row-head > div:first-child {
+    display: grid;
+    gap: 3px;
+  }
+
+  .skill-row-head code,
+  .skill-meta-grid span {
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    overflow-wrap: anywhere;
+  }
+
+  .skill-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px 12px;
   }
 
   .memory-editor label {
@@ -2625,6 +2857,14 @@
       grid-column: 1;
       grid-row: auto;
       justify-content: flex-start;
+    }
+
+    .skill-meta-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .skill-row-head {
+      flex-direction: column;
     }
 
     .task-run-summary-grid {

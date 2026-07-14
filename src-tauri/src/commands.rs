@@ -15,6 +15,9 @@ use atools_core::db::Database;
 use atools_core::matcher;
 use atools_core::memory::{MemoryApproval, MemoryItem, MemoryScope, MemoryType};
 use atools_core::models::*;
+use atools_core::skill::{
+    SkillDefinition, SkillFailureMode, SkillResultSuggestion, SkillStep, SkillValidationRule,
+};
 use atools_core::task_run::{
     Artifact, ArtifactKind, TaskIssue, TaskRun, TaskRunInitiator, TaskRunStatus,
     TaskValidationStatus,
@@ -4395,6 +4398,132 @@ pub fn cancel_task_run(state: tauri::State<AppState>, id: String) -> Result<Task
         .upsert_task_run(&run)
         .map_err(|error| error.to_string())?;
     Ok(run)
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkillDefinitionInput {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub version: String,
+    #[serde(default)]
+    pub triggers: Vec<String>,
+    pub capability_ids: Vec<String>,
+    pub steps: Vec<SkillStep>,
+    pub permission_scopes: Vec<String>,
+    pub failure_modes: Vec<SkillFailureMode>,
+    pub validation: Vec<SkillValidationRule>,
+    pub result_suggestions: Vec<SkillResultSuggestion>,
+    #[serde(default = "default_skill_source")]
+    pub source: String,
+}
+
+fn default_skill_source() -> String {
+    "local".to_string()
+}
+
+fn skill_from_input(input: SkillDefinitionInput) -> Result<SkillDefinition, String> {
+    SkillDefinition::new(
+        input.id,
+        input.name,
+        input.description,
+        input.version,
+        input.triggers,
+        input.capability_ids,
+        input.steps,
+        input.permission_scopes,
+        input.failure_modes,
+        input.validation,
+        input.result_suggestions,
+        input.source,
+    )
+    .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn list_skills(
+    state: tauri::State<AppState>,
+    include_disabled: Option<bool>,
+    limit: Option<usize>,
+) -> Result<Vec<SkillDefinition>, String> {
+    state
+        .db
+        .list_skills(include_disabled.unwrap_or(true), limit.unwrap_or(500))
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn create_skill(
+    state: tauri::State<AppState>,
+    input: SkillDefinitionInput,
+) -> Result<SkillDefinition, String> {
+    if state
+        .db
+        .get_skill(&input.id)
+        .map_err(|error| error.to_string())?
+        .is_some()
+    {
+        return Err(format!("Skill already exists: {}", input.id));
+    }
+    let skill = skill_from_input(input)?;
+    state
+        .db
+        .upsert_skill(&skill)
+        .map_err(|error| error.to_string())?;
+    Ok(skill)
+}
+
+#[tauri::command]
+pub fn update_skill(
+    state: tauri::State<AppState>,
+    id: String,
+    input: SkillDefinitionInput,
+) -> Result<SkillDefinition, String> {
+    let previous = state
+        .db
+        .get_skill(&id)
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| format!("Skill not found: {id}"))?;
+    if input.id != id {
+        return Err("Skill id cannot be changed during update".to_string());
+    }
+    let mut skill = skill_from_input(input)?;
+    skill.enabled = previous.enabled;
+    skill.created_at = previous.created_at;
+    state
+        .db
+        .upsert_skill(&skill)
+        .map_err(|error| error.to_string())?;
+    Ok(skill)
+}
+
+#[tauri::command]
+pub fn set_skill_enabled(
+    state: tauri::State<AppState>,
+    id: String,
+    enabled: bool,
+) -> Result<bool, String> {
+    state
+        .db
+        .set_skill_enabled(&id, enabled)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn delete_skill(state: tauri::State<AppState>, id: String) -> Result<bool, String> {
+    state
+        .db
+        .delete_skill(&id)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn export_skills_json(state: tauri::State<AppState>) -> Result<String, String> {
+    state
+        .db
+        .export_skills_json()
+        .map_err(|error| error.to_string())
 }
 
 #[derive(Debug, Clone, Deserialize)]
