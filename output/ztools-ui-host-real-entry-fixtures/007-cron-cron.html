@@ -1,0 +1,1579 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+<script data-atools-real-entry-fixture-bridge="true">
+(function(){
+  var pluginId = "cron";
+  var featureCode = "cron";
+  var fixtureErrors = [];
+  var bridgeApiProbeIds = ["fixture-bridge-get-path","fixture-bridge-context","fixture-bridge-db-storage","fixture-bridge-db-all-docs","fixture-bridge-app-identity","fixture-bridge-system-flags","fixture-bridge-preload-ky","fixture-bridge-services","fixture-bridge-web-storage"];
+  function mark(name, value) {
+    if (document.body) document.body.setAttribute(name, String(value));
+  }
+  function errorText(value) {
+    if (value && value.message) return String(value.message);
+    if (typeof value === 'object') {
+      try { return JSON.stringify(value); } catch (error) { return String(value); }
+    }
+    return String(value || 'error');
+  }
+  function recordError(value) {
+    fixtureErrors.push(errorText(value));
+    mark('data-atools-real-entry-errors', fixtureErrors.length);
+    mark('data-atools-real-entry-error-messages', fixtureErrors.slice(-5).join(' | ').slice(0, 800));
+  }
+  function safeStorage() {
+    var values = Object.create(null);
+    return {
+      get length() { return Object.keys(values).length; },
+      key: function(index) { return Object.keys(values)[Number(index) || 0] || null; },
+      getItem: function(key) {
+        key = String(key);
+        return Object.prototype.hasOwnProperty.call(values, key) ? values[key] : null;
+      },
+      setItem: function(key, value) {
+        values[String(key)] = String(value);
+      },
+      removeItem: function(key) {
+        delete values[String(key)];
+      },
+      clear: function() {
+        values = Object.create(null);
+      }
+    };
+  }
+  function installStorageStub(name) {
+    try {
+      void window[name];
+      return;
+    } catch (error) {
+      // Sandboxed iframes without allow-same-origin throw on storage access.
+    }
+    try {
+      Object.defineProperty(window, name, {
+        value: safeStorage(),
+        configurable: true
+      });
+    } catch (error) {
+      // Leave the original browser error visible if the property is not replaceable.
+    }
+  }
+  installStorageStub('localStorage');
+  installStorageStub('sessionStorage');
+  function bridgeFunction(name) {
+    return function(){ return Promise.resolve(null); };
+  }
+  function probeResult(id, passed, detail) {
+    return { id: id, passed: passed === true, detail: detail ? String(detail).slice(0, 240) : '' };
+  }
+  async function probeBridgeApi(id, callback) {
+    try {
+      return probeResult(id, await callback() === true);
+    } catch (error) {
+      return probeResult(id, false, errorText(error));
+    }
+  }
+  function markBridgeApiProbes(results) {
+    var passed = results.filter(function(result) { return result.passed; }).length;
+    var failedIds = results.filter(function(result) { return !result.passed; }).map(function(result) { return result.id; });
+    mark('data-atools-real-entry-bridge-api-passed', passed);
+    mark('data-atools-real-entry-bridge-api-total', results.length);
+    mark('data-atools-real-entry-bridge-api-failed', failedIds.length);
+    mark('data-atools-real-entry-bridge-api-failed-ids', failedIds.join(','));
+    window.__atoolsRealEntryFixture.bridgeApiProbes = results;
+    return { passed: passed, total: results.length, failedIds: failedIds };
+  }
+  function fixturePath(name) {
+    return '/tmp/atools-real-entry-fixture/' + String(name || '');
+  }
+  function allDocsResult() {
+    var rows = [];
+    rows.rows = rows;
+    rows.total_rows = 0;
+    rows.offset = 0;
+    return rows;
+  }
+  var fixtureContext = {
+    pluginId: pluginId,
+    pluginName: "cron在线表达式",
+    featureCode: featureCode,
+    code: featureCode,
+    type: "text",
+    query: "cron",
+    text: "cron",
+    payload: "cron",
+    option: {},
+    args: [],
+    files: [],
+    paths: [],
+    pluginEnterParams: {
+      code: featureCode,
+      type: "text",
+      payload: "cron",
+      text: "cron",
+      option: {},
+      args: [],
+      files: [],
+      paths: []
+    },
+    umami: {
+      init: function(){ return undefined; },
+      track: function(){ return undefined; },
+      identify: function(){ return undefined; }
+    }
+  };
+  var dbBridge = {
+    get: function(){ return Promise.resolve(null); },
+    put: function(){ return Promise.resolve({ ok: true, id: '', rev: 'fixture' }); },
+    remove: function(){ return Promise.resolve({ ok: true, id: '', rev: 'fixture' }); },
+    allDocs: function(){ return Promise.resolve(allDocsResult()); },
+    postAttachment: function(){ return Promise.resolve({ ok: true, id: '', rev: 'fixture' }); },
+    getAttachment: function(){ return Promise.resolve(null); },
+    getAttachmentType: function(){ return Promise.resolve(''); },
+    replicateStateFromCloud: function(){ return Promise.resolve({ ok: true, state: 'fixture' }); }
+  };
+  dbBridge.promises = dbBridge;
+  var dbStorageBridge = safeStorage();
+  var internalBridge = {
+    getDevProjects: function(){ return Promise.resolve([]); },
+    getRunningPlugins: function(){ return Promise.resolve([]); },
+    updateDevProjectsOrder: function(){ return Promise.resolve({ success: true }); },
+    importDevPlugin: function(){ return Promise.resolve({ success: false, error: 'fixture only' }); },
+    scaffoldDevProject: function(){ return Promise.resolve({ success: false, error: 'fixture only' }); },
+    upsertDevProjectByConfigPath: function(){ return Promise.resolve({ success: false, error: 'fixture only' }); }
+  };
+  var bridge = new Proxy({
+    dbStorage: dbStorageBridge,
+    db: dbBridge,
+    internal: internalBridge,
+    showNotification: function(){ return undefined; },
+    copyText: function(){ return Promise.resolve(undefined); },
+    getWindowType: function(){ return 'main'; },
+    getPath: function(name){ return fixturePath(name); },
+    getContext: function(){ return fixtureContext; },
+    getFeatures: function(){ return []; },
+    getFeature: function(){ return null; },
+    getUser: function(){ return null; },
+    getAppName: function(){ return 'ATools'; },
+    getAppVersion: function(){ return '3.0.0'; },
+    getNativeId: function(){ return 0; },
+    isMacOS: function(){ return true; },
+    isMacOs: function(){ return true; },
+    isWindows: function(){ return false; },
+    isLinux: function(){ return false; },
+    isDev: function(){ return true; },
+    readCurrentBrowserUrl: function(){ return ''; },
+    getCurrentBrowserUrl: function(){ return ''; },
+    readCurrentFolderPath: function(){ return ''; },
+    onPluginEnter: function(callback){ if (typeof callback === 'function') window.addEventListener('atools-plugin-enter', function(){ callback(fixtureContext); }); },
+    onPluginReady: function(callback){ if (typeof callback === 'function') window.addEventListener('atools-plugin-ready', function(){ callback(fixtureContext); }); },
+    outPlugin: function(payload){ window.__atoolsRealEntryFixtureOutput = payload; return undefined; },
+    setSubInput: function(){ return undefined; },
+    setExpendHeight: function(){ return undefined; },
+    setExpandHeight: function(){ return undefined; }
+  }, {
+    get: function(target, prop) {
+      if (prop in target) return target[prop];
+      if (prop === 'promises') return target;
+      var fn = bridgeFunction(String(prop));
+      target[prop] = fn;
+      return fn;
+    }
+  });
+  window.utools = window.utools || bridge;
+  window.ztools = window.ztools || window.utools;
+  function kyResponse() {
+    return {
+      text: function(){ return Promise.resolve(''); },
+      json: function(){ return Promise.resolve({}); },
+      blob: function(){ return Promise.resolve(new Blob([])); },
+      arrayBuffer: function(){ return Promise.resolve(new ArrayBuffer(0)); }
+    };
+  }
+  function kyStub() {
+    return kyResponse();
+  }
+  var kyMethods = {
+    get: function(){ return kyResponse(); },
+    post: function(){ return kyResponse(); },
+    put: function(){ return kyResponse(); },
+    delete: function(){ return kyResponse(); },
+    create: function(){ return kyStub; }
+  };
+  kyStub.get = kyMethods.get;
+  kyStub.post = kyMethods.post;
+  kyStub.put = kyMethods.put;
+  kyStub.delete = kyMethods.delete;
+  kyStub.create = kyMethods.create;
+  window.services = window.services || {
+    umami: fixtureContext.umami,
+    qrDecode: function(){ return Promise.resolve([]); },
+    formatMybatisLog: function(value){ return String(value || ''); }
+  };
+  window.Preload = window.Preload || {
+    umami: fixtureContext.umami,
+    ky: kyStub,
+    loadPage: function(){ return Promise.resolve(null); },
+    downloader: function(){},
+    wallpaper: function(){ return Promise.resolve(undefined); }
+  };
+  window.__atoolsRealEntryFixture = {
+    pluginId: pluginId,
+    pluginName: "cron在线表达式",
+    featureCode: featureCode,
+    triggerType: "text",
+    query: "cron",
+    errors: fixtureErrors,
+    bridgeApiProbeIds: bridgeApiProbeIds,
+    bridgeApiProbes: []
+  };
+  async function runBridgeApiProbes() {
+    var key = 'atools-fixture-probe';
+    return Promise.all([
+      probeBridgeApi('fixture-bridge-get-path', async function(){
+        return typeof window.utools.getPath('home') === 'string' && window.utools.getPath('home').indexOf('/tmp/atools-real-entry-fixture/') === 0;
+      }),
+      probeBridgeApi('fixture-bridge-context', async function(){
+        var context = window.utools.getContext();
+        return context && context.pluginId === pluginId && context.featureCode === featureCode && context.pluginEnterParams && context.pluginEnterParams.code === featureCode;
+      }),
+      probeBridgeApi('fixture-bridge-db-storage', async function(){
+        window.utools.dbStorage.setItem(key, 'ok');
+        var stored = window.utools.dbStorage.getItem(key);
+        window.utools.dbStorage.removeItem(key);
+        return stored === 'ok' && window.utools.dbStorage.getItem(key) === null;
+      }),
+      probeBridgeApi('fixture-bridge-db-all-docs', async function(){
+        var docs = await window.utools.db.allDocs();
+        return Array.isArray(docs) && docs.rows === docs && docs.total_rows === 0;
+      }),
+      probeBridgeApi('fixture-bridge-app-identity', async function(){
+        return window.utools.getAppName() === 'ATools' && typeof window.utools.getAppVersion() === 'string' && window.utools.getNativeId() === 0;
+      }),
+      probeBridgeApi('fixture-bridge-system-flags', async function(){
+        return window.utools.isMacOS() === true && window.utools.isWindows() === false && window.utools.isLinux() === false && window.utools.isDev() === true;
+      }),
+      probeBridgeApi('fixture-bridge-preload-ky', async function(){
+        var ky = window.Preload && window.Preload.ky;
+        var created = ky && ky.create && ky.create();
+        var response = created && created.get && created.get('/fixture');
+        var json = response && response.json && await response.json();
+        return !!ky && typeof created === 'function' && json && typeof json === 'object';
+      }),
+      probeBridgeApi('fixture-bridge-services', async function(){
+        return !!window.services && window.services.umami.track() === undefined && window.services.formatMybatisLog('select 1') === 'select 1';
+      }),
+      probeBridgeApi('fixture-bridge-web-storage', async function(){
+        window.localStorage.setItem(key, 'ok');
+        window.sessionStorage.setItem(key, 'session');
+        var passed = window.localStorage.getItem(key) === 'ok' && window.sessionStorage.getItem(key) === 'session';
+        window.localStorage.removeItem(key);
+        window.sessionStorage.removeItem(key);
+        return passed && window.localStorage.getItem(key) === null;
+      })
+    ]);
+  }
+  window.addEventListener('error', function(event){
+    recordError(event && (event.message || event.error) || 'error');
+  });
+  window.addEventListener('unhandledrejection', function(event){
+    recordError(event && event.reason || 'unhandledrejection');
+  });
+  function ready() {
+    mark('data-atools-real-entry-fixture', true);
+    mark('data-atools-real-entry-plugin-id', pluginId);
+    mark('data-atools-real-entry-feature-code', featureCode);
+    mark('data-atools-real-entry-bridge-present', !!window.utools);
+    mark('data-atools-real-entry-ztools-alias', window.ztools === window.utools);
+    mark('data-atools-real-entry-errors', fixtureErrors.length);
+    mark('data-atools-real-entry-error-messages', fixtureErrors.slice(-5).join(' | ').slice(0, 800));
+    window.dispatchEvent(new CustomEvent('atools-plugin-enter', { detail: fixtureContext }));
+    setTimeout(async function(){
+      window.dispatchEvent(new CustomEvent('atools-plugin-ready', { detail: fixtureContext }));
+      mark('data-atools-real-entry-ready', true);
+      var bridgeApiProbes = await runBridgeApiProbes();
+      markBridgeApiProbes(bridgeApiProbes);
+      var probeResults = [
+        { id: 'real-entry-fixture-ready', passed: document.body && document.body.getAttribute('data-atools-real-entry-ready') === 'true' },
+        { id: 'real-entry-fixture-bridge', passed: !!window.utools },
+        { id: 'real-entry-fixture-ztools-alias', passed: window.ztools === window.utools },
+        { id: 'real-entry-fixture-identity', passed: document.body && document.body.getAttribute('data-atools-real-entry-plugin-id') === pluginId && document.body.getAttribute('data-atools-real-entry-feature-code') === featureCode },
+        { id: 'real-entry-fixture-errors', passed: fixtureErrors.length === 0 }
+      ].concat(bridgeApiProbes);
+      window.parent && window.parent.postMessage({
+        __atools_real_entry_fixture_probe__: true,
+        pluginId: pluginId,
+        featureCode: featureCode,
+        probes: probeResults,
+        errors: fixtureErrors,
+        bridgeApiProbes: bridgeApiProbes
+      }, '*');
+    }, 80);
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', ready);
+  } else {
+    ready();
+  }
+})();
+</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cron 表达式生成器</title>
+  <style data-atools-inlined-stylesheet-href="style.css">
+:root {
+    --bg-color: #f5f5f7;
+    --text-color: #1d1d1f;
+    --card-bg: #ffffff;
+    --border-color: #d2d2d7;
+    --primary-color: #007aff;
+    --secondary-color: #5856d6;
+    --hover-color: #f2f2f7;
+    --active-tab-bg: #ffffff;
+    --inactive-tab-bg: #e5e5ea;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg-color: #1c1c1e;
+        --text-color: #f5f5f7;
+        --card-bg: #2c2c2e;
+        --border-color: #3a3a3c;
+        --primary-color: #0a84ff;
+        --secondary-color: #5e5ce6;
+        --hover-color: #3a3a3c;
+        --active-tab-bg: #2c2c2e;
+        --inactive-tab-bg: #1c1c1e;
+    }
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    margin: 0;
+    padding: 12px;
+    font-size: 14px;
+    line-height: 1.5;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.container {
+    width: min(1100px, calc(100vw - 24px));
+    margin: 0 auto;
+    background-color: var(--card-bg);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 40px);
+}
+
+/* Version Selector */
+.version-selector {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--card-bg);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.version-selector label {
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.version-selector select {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-size: 14px;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.version-selector select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2);
+}
+
+.version-info {
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.info-text {
+    font-size: 13px;
+    color: #999;
+    font-family: "SF Mono", "Monaco", "Inconsolata", "Fira Mono", monospace;
+}
+
+/* Result Section */
+.result-section {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--card-bg);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.cron-display {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.cron-input {
+    flex: 1;
+    font-family: "SF Mono", "Monaco", "Inconsolata", "Fira Mono", "Droid Sans Mono", "Source Code Pro", monospace;
+    font-size: 16px;
+    padding: 10px 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    outline: none;
+}
+
+.cron-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2);
+}
+
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn:hover {
+    opacity: 0.9;
+}
+
+.btn-secondary {
+    background-color: var(--secondary-color);
+}
+
+.human-readable {
+    font-size: 14px;
+    color: var(--secondary-color);
+    font-weight: 500;
+}
+
+/* Field Layout */
+.field-layout {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    background-color: var(--card-bg);
+}
+
+.field-menu {
+    width: 40px;
+    background-color: var(--inactive-tab-bg);
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border-color);
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+}
+
+.field-menu-btn {
+    display: block;
+    width: 100%;
+    padding: 9px 3px;
+    text-align: left;
+    background: none;
+    border: none;
+    color: var(--text-color);
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: background-color 0.2s;
+    font-size: 12px;
+}
+
+.field-menu-btn:hover {
+    background-color: var(--hover-color);
+}
+
+.field-menu-btn.active {
+    background-color: var(--active-tab-bg);
+    border-left-color: var(--primary-color);
+    font-weight: 600;
+}
+
+.field-content-area {
+    flex: 1;
+    padding: 16px 20px;
+    overflow-y: auto;
+    background-color: var(--card-bg);
+    min-height: 0;
+}
+
+.field-pane {
+    display: none;
+    grid-template-columns: minmax(220px, 360px) 1fr;
+    column-gap: 24px;
+    align-items: start;
+}
+
+.field-pane.active {
+    display: grid;
+}
+
+/* Form Elements */
+.form-group {
+    margin-bottom: 15px;
+}
+
+.radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.radio-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.radio-item label {
+    cursor: pointer;
+}
+
+.field-pane .checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    gap: 10px;
+    margin-top: 0;
+    padding-left: 16px;
+    border-left: 1px solid var(--border-color);
+}
+
+input[type="number"] {
+    width: 60px;
+    padding: 5px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+input[type="radio"],
+input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    min-height: 16px;
+    accent-color: var(--primary-color);
+    cursor: pointer;
+}
+
+.checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: var(--border-color);
+    border-radius: 4px;
+}
+</style>
+</head>
+
+<body>
+  <div class="container">
+    <!-- Version Selector -->
+    <div class="version-selector">
+      <label for="cronVersion">Cron 版本：</label>
+      <select id="cronVersion">
+        <option value="linux">Linux (5 字段)</option>
+        <option value="spring">Java Spring (6 字段)</option>
+        <option value="quartz" selected>Java Quartz (6-7 字段)</option>
+      </select>
+      <div class="version-info" id="versionInfo">
+        <span class="info-text">格式：秒 分 时 日 月 周 年</span>
+      </div>
+    </div>
+
+    <!-- Result Section -->
+    <div class="result-section">
+      <div class="cron-display">
+        <input type="text" id="cronResult" class="cron-input" value="* * * * * ?">
+        <button id="copyBtn" class="btn">复制</button>
+        <button id="resetBtn" class="btn btn-secondary">重置</button>
+      </div>
+      <div id="humanReadable" class="human-readable">每秒执行一次</div>
+
+    </div>
+
+    <!-- Field Layout -->
+    <div class="field-layout">
+      <div class="field-menu">
+        <button class="field-menu-btn active" data-field="seconds" data-target="pane_seconds">秒</button>
+        <button class="field-menu-btn" data-field="minutes" data-target="pane_minutes">分</button>
+        <button class="field-menu-btn" data-field="hours" data-target="pane_hours">时</button>
+        <button class="field-menu-btn" data-field="dayOfMonth" data-target="pane_dayOfMonth">日</button>
+        <button class="field-menu-btn" data-field="month" data-target="pane_month">月</button>
+        <button class="field-menu-btn" data-field="dayOfWeek" data-target="pane_dayOfWeek">周</button>
+        <button class="field-menu-btn" data-field="year" data-target="pane_year">年</button>
+      </div>
+
+      <div class="field-content-area">
+        <div id="pane_seconds" class="field-pane active">
+          <div class="radio-group">
+            <div class="radio-item">
+              <input type="radio" name="seconds" id="sec_every" value="every" checked>
+              <label for="sec_every">每秒 允许的通配符[, - * /]</label>
+            </div>
+            <div class="radio-item">
+              <input type="radio" name="seconds" id="sec_cycle" value="cycle">
+              <label for="sec_cycle">周期从 <input type="number" id="sec_cycle_start" min="0" max="59" value="1"> - <input
+                  type="number" id="sec_cycle_end" min="0" max="59" value="2"> 秒</label>
+            </div>
+            <div class="radio-item">
+              <input type="radio" name="seconds" id="sec_start" value="start">
+              <label for="sec_start">从 <input type="number" id="sec_start_val" min="0" max="59" value="0"> 秒开始，每 <input
+                  type="number" id="sec_start_step" min="1" max="59" value="1"> 秒执行一次</label>
+            </div>
+            <div class="radio-item">
+              <input type="radio" name="seconds" id="sec_specific" value="specific">
+              <label for="sec_specific">指定</label>
+            </div>
+          </div>
+          <div class="checkbox-grid" id="sec_checkboxes">
+            <!-- Generated by JS -->
+          </div>
+        </div>
+
+        <div id="pane_minutes" class="field-pane">
+          <div class="radio-group">
+            <div class="radio-item">
+              <input type="radio" name="minutes" id="min_every" value="every" checked>
+              <label for="min_every">每分 允许的通配符[, - * /]</label>
+            </div>
+            <div class="radio-item">
+              <input type="radio" name="minutes" id="min_cycle" value="cycle">
+              <label for="min_cycle">周期从 <input type="number" id="min_cycle_start" min="0" max="59" value="1"> - <input
+                  type="number" id="min_cycle_end" min="0" max="59" value="2"> 分</label>
+            </div>
+            <div class="radio-item">
+              <input type="radio" name="minutes" id="min_start" value="start">
+              <label for="min_start">从 <input type="number" id="min_start_val" min="0" max="59" value="0"> 分开始，每 <input
+                  type="number" id="min_start_step" min="1" max="59" value="1"> 分执行一次</label>
+            </div>
+            <div class="radio-item">
+              <input type="radio" name="minutes" id="min_specific" value="specific">
+              <label for="min_specific">指定</label>
+            </div>
+          </div>
+          <div class="checkbox-grid" id="min_checkboxes"></div>
+        </div>
+
+        <div id="pane_hours" class="field-pane">
+          <div class="radio-group">
+            <div class="radio-item">
+              <input type="radio" name="hours" id="hour_every" value="every" checked>
+              <label for="hour_every">每小时 允许的通配符[, - * /]</label>
+            </div>
+            <div class="radio-item">
+              <input type="radio" name="hours" id="hour_cycle" value="cycle">
+              <label for="hour_cycle">周期从 <input type="number" id="hour_cycle_start" min="0" max="23" value="0"> -
+                <input type="number" id="hour_cycle_end" min="0" max="23" value="2"> 时</label>
+            </div>
+            <div class="radio-item">
+              <input type="radio" name="hours" id="hour_start" value="start">
+              <label for="hour_start">从 <input type="number" id="hour_start_val" min="0" max="23" value="0"> 时开始，每
+                <input type="number" id="hour_start_step" min="1" max="23" value="1"> 时执行一次</label>
+            </div>
+            <div class="radio-item">
+              <input type="radio" name="hours" id="hour_specific" value="specific">
+              <label for="hour_specific">指定</label>
+            </div>
+          </div>
+          <div class="checkbox-grid" id="hour_checkboxes"></div>
+        </div>
+
+        <div id="pane_dayOfMonth" class="field-pane">
+          <div class="radio-group">
+            <div class="radio-item">
+              <input type="radio" name="dayOfMonth" id="day_every" value="every" checked>
+              <label for="day_every">每日 允许的通配符[, - * / L W]</label>
+            </div>
+            <div class="radio-item">
+              <input type="radio" name="dayOfMonth" id="day_unspecified" value="?">
+              <label for="day_unspecified">不指定</label>
+            </div>
+            <div class="radio-item">
+              <input type="radio" name="dayOfMonth" id="day_cycle" value="cycle">
+              <label for="day_cycle">周期从 <input type="number" id="day_cycle_start" min="1" max="31" value="1"> - <input
+                  type="number" id="day_cycle_end" min="1" max="31" value="2"> 日</label>
+            </div>
+            <div class="radio-item">
+              <input type="radio" name="dayOfMonth" id="day_start" value="start">
+              <label for="day_start">从 <input type="number" id="day_start_val" min="1" max="31" value="1"> 日开始，每 <input
+                  type="number" id="day_start_step" min="1" max="31" value="1"> 日执行一次</label>
+            </div>
+            <div class="radio-item">
+              <input type="radio" name="dayOfMonth" id="day_work" value="work">
+              <label for="day_work">每月 <input type="number" id="day_work_val" min="1" max="31" value="1">
+                号最近的那个工作日</label>
+            </div>
+            <div class="radio-item">
+              <input type="radio" name="dayOfMonth" id="day_last" value="last">
+              <label for="day_last">本月最后一天</label>
+            </div>
+            <div class="radio-item">
+              <input type="radio" name="dayOfMonth" id="day_specific" value="specific">
+              <label for="day_specific">指定</label>
+            </div>
+          </div>
+          <div class="checkbox-grid" id="day_checkboxes"></div>
+        </div>
+
+        <div id="pane_month" class="field-pane">
+          <div class="radio-group">
+            <div class="radio-item">
+              <input type="radio" name="month" id="month_every" value="every" checked>
+              <label for="month_every">每月 允许的通配符[, - * /]</label>
+            </div>
+            <div class="radio-item">
+              <input type="radio" name="month" id="month_cycle" value="cycle">
+              <label for="month_cycle">周期从 <input type="number" id="month_cycle_start" min="1" max="12" value="1"> -
+                <input type="number" id="month_cycle_end" min="1" max="12" value="2"> 月</label>
+            </div>
+            <div class="radio-item">
+              <input type="radio" name="month" id="month_start" value="start">
+              <label for="month_start">从 <input type="number" id="month_start_val" min="1" max="12" value="1"> 月开始，每
+                <input type="number" id="month_start_step" min="1" max="12" value="1"> 月执行一次</label>
+            </div>
+            <div class="radio-item">
+              <input type="radio" name="month" id="month_specific" value="specific">
+              <label for="month_specific">指定</label>
+            </div>
+          </div>
+          <div class="checkbox-grid" id="month_checkboxes"></div>
+        </div>
+
+        <div id="pane_dayOfWeek" class="field-pane">
+          <div class="radio-group">
+            <div class="radio-item">
+              <input type="radio" name="dayOfWeek" id="week_every" value="every" checked>
+              <label for="week_every">每周 允许的通配符[, - * / L #]</label>
+            </div>
+            <div class="radio-item">
+              <input type="radio" name="dayOfWeek" id="week_unspecified" value="?">
+              <label for="week_unspecified">不指定</label>
+            </div>
+            <div class="radio-item">
+              <input type="radio" name="dayOfWeek" id="week_cycle" value="cycle">
+              <label for="week_cycle">周期从星期 <input type="number" id="week_cycle_start" min="1" max="7" value="1"> -
+                <input type="number" id="week_cycle_end" min="1" max="7" value="2"></label>
+            </div>
+            <div class="radio-item">
+              <input type="radio" name="dayOfWeek" id="week_nth" value="nth">
+              <label for="week_nth">第 <input type="number" id="week_nth_val" min="1" max="4" value="1"> 周的星期 <input
+                  type="number" id="week_nth_day" min="1" max="7" value="1"></label>
+            </div>
+            <div class="radio-item">
+              <input type="radio" name="dayOfWeek" id="week_last" value="last">
+              <label for="week_last">本月最后一个星期 <input type="number" id="week_last_val" min="1" max="7" value="1"></label>
+            </div>
+            <div class="radio-item">
+              <input type="radio" name="dayOfWeek" id="week_specific" value="specific">
+              <label for="week_specific">指定</label>
+            </div>
+          </div>
+          <div class="checkbox-grid" id="week_checkboxes"></div>
+        </div>
+
+        <div id="pane_year" class="field-pane">
+          <div class="radio-group">
+            <div class="radio-item">
+              <input type="radio" name="year" id="year_every" value="every" checked>
+              <label for="year_every">每年 允许的通配符[, - * /] 非必填</label>
+            </div>
+            <div class="radio-item">
+              <input type="radio" name="year" id="year_unspecified" value="">
+              <label for="year_unspecified">不指定</label>
+            </div>
+            <div class="radio-item">
+              <input type="radio" name="year" id="year_cycle" value="cycle">
+              <label for="year_cycle">周期从 <input type="number" id="year_cycle_start" min="2023" max="2099" value="2023">
+                - <input type="number" id="year_cycle_end" min="2023" max="2099" value="2024"> 年</label>
+            </div>
+            <div class="radio-item">
+              <input type="radio" name="year" id="year_specific" value="specific">
+              <label for="year_specific">指定</label>
+            </div>
+          </div>
+          <div class="checkbox-grid" id="year_checkboxes"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script  data-atools-inlined-script-src="script.js">
+// Custom Cron Parser for calculating next execution times
+class SimpleCronParser {
+    constructor(cronExpression, version = 'quartz') {
+        this.expression = cronExpression.trim();
+        this.parts = this.expression.split(/\s+/);
+        this.version = version;
+
+        // Validate field count based on version
+        if (version === 'linux' && this.parts.length !== 5) {
+            throw new Error('Linux cron requires 5 fields');
+        } else if (version === 'spring' && this.parts.length !== 6) {
+            throw new Error('Spring cron requires 6 fields');
+        } else if (version === 'quartz' && (this.parts.length < 6 || this.parts.length > 7)) {
+            throw new Error('Quartz cron requires 6-7 fields');
+        }
+
+        // Map fields based on version
+        if (version === 'linux') {
+            // Linux: minute hour day month day-of-week
+            this.seconds = '0'; // Always 0 for Linux
+            this.minutes = this.parts[0];
+            this.hours = this.parts[1];
+            this.dayOfMonth = this.parts[2];
+            this.month = this.parts[3];
+            this.dayOfWeek = this.parts[4];
+            this.year = '*';
+        } else if (version === 'spring') {
+            // Spring: second minute hour day month day-of-week
+            this.seconds = this.parts[0];
+            this.minutes = this.parts[1];
+            this.hours = this.parts[2];
+            this.dayOfMonth = this.parts[3];
+            this.month = this.parts[4];
+            this.dayOfWeek = this.parts[5];
+            this.year = '*';
+        } else {
+            // Quartz: second minute hour day month day-of-week [year]
+            this.seconds = this.parts[0];
+            this.minutes = this.parts[1];
+            this.hours = this.parts[2];
+            this.dayOfMonth = this.parts[3];
+            this.month = this.parts[4];
+            this.dayOfWeek = this.parts[5];
+            this.year = this.parts.length === 7 ? this.parts[6] : '*';
+        }
+    }
+
+    getNextExecutions(count = 3, startDate = new Date()) {
+        const results = [];
+        let current = new Date(startDate);
+        current.setMilliseconds(0);
+
+        // Move to next second to start searching
+        current.setSeconds(current.getSeconds() + 1);
+
+        let attempts = 0;
+        const maxAttempts = 100000; // Increased to handle complex expressions
+
+        while (results.length < count && attempts < maxAttempts) {
+            if (this.matches(current)) {
+                results.push(new Date(current));
+                current.setSeconds(current.getSeconds() + 1);
+            } else {
+                // Increment by the smallest unit that doesn't match
+                this.incrementToNextMatch(current);
+            }
+            attempts++;
+        }
+
+        return results;
+    }
+
+    matches(date) {
+        return this.matchesPart(this.seconds, date.getSeconds(), 0, 59) &&
+            this.matchesPart(this.minutes, date.getMinutes(), 0, 59) &&
+            this.matchesPart(this.hours, date.getHours(), 0, 23) &&
+            this.matchesDayOfMonth(date) &&
+            this.matchesPart(this.month, date.getMonth() + 1, 1, 12) &&
+            this.matchesDayOfWeek(date) &&
+            this.matchesYear(date);
+    }
+
+    matchesPart(part, value, min, max) {
+        if (part === '*' || part === '?') return true;
+
+        // Handle comma-separated values
+        if (part.includes(',')) {
+            return part.split(',').some(p => this.matchesPart(p.trim(), value, min, max));
+        }
+
+        // Handle ranges (e.g., 1-5)
+        if (part.includes('-') && !part.includes('/')) {
+            const [start, end] = part.split('-').map(Number);
+            return value >= start && value <= end;
+        }
+
+        // Handle step values (e.g., */5 or 0/5)
+        if (part.includes('/')) {
+            const [base, step] = part.split('/');
+            const stepNum = Number(step);
+            if (base === '*') {
+                return value % stepNum === 0;
+            } else {
+                const baseNum = Number(base);
+                return value >= baseNum && (value - baseNum) % stepNum === 0;
+            }
+        }
+
+        // Handle single value
+        return Number(part) === value;
+    }
+
+    matchesDayOfMonth(date) {
+        const part = this.dayOfMonth;
+        if (part === '?' || part === '*') return true;
+
+        const day = date.getDate();
+
+        // Handle 'L' (last day of month)
+        if (part === 'L') {
+            const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+            return day === lastDay;
+        }
+
+        // Handle 'W' (nearest weekday)
+        if (part.includes('W')) {
+            // Simplified: just check the day number
+            const targetDay = Number(part.replace('W', ''));
+            return day === targetDay;
+        }
+
+        return this.matchesPart(part, day, 1, 31);
+    }
+
+    matchesDayOfWeek(date) {
+        const part = this.dayOfWeek;
+        if (part === '?' || part === '*') return true;
+
+        let dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
+
+        // Convert to cron format (1 = Sunday, 7 = Saturday)
+        dayOfWeek = dayOfWeek === 0 ? 7 : dayOfWeek;
+
+        // Handle 'L' (last occurrence of day in month)
+        if (part.includes('L')) {
+            const targetDay = Number(part.replace('L', ''));
+            return dayOfWeek === targetDay;
+        }
+
+        // Handle '#' (nth occurrence of day in month)
+        if (part.includes('#')) {
+            const [day, week] = part.split('#').map(Number);
+            return dayOfWeek === day;
+        }
+
+        return this.matchesPart(part, dayOfWeek, 1, 7);
+    }
+
+    matchesYear(date) {
+        if (this.year === '*' || this.year === '') return true;
+        return this.matchesPart(this.year, date.getFullYear(), 2020, 2099);
+    }
+
+    incrementToNextMatch(date) {
+        // Intelligent increment strategy to skip to next possible match
+        // This dramatically improves performance for expressions with specific days/months/years
+
+        // Try incrementing by different units in order of efficiency
+        if (!this.matchesYear(date)) {
+            // Skip to next year
+            date.setFullYear(date.getFullYear() + 1);
+            date.setMonth(0);
+            date.setDate(1);
+            date.setHours(0);
+            date.setMinutes(0);
+            date.setSeconds(0);
+            return;
+        }
+
+        if (!this.matchesPart(this.month, date.getMonth() + 1, 1, 12)) {
+            // Skip to next month
+            date.setMonth(date.getMonth() + 1);
+            date.setDate(1);
+            date.setHours(0);
+            date.setMinutes(0);
+            date.setSeconds(0);
+            return;
+        }
+
+        if (!this.matchesDayOfMonth(date) || !this.matchesDayOfWeek(date)) {
+            // Skip to next day
+            date.setDate(date.getDate() + 1);
+            date.setHours(0);
+            date.setMinutes(0);
+            date.setSeconds(0);
+            return;
+        }
+
+        if (!this.matchesPart(this.hours, date.getHours(), 0, 23)) {
+            // Skip to next hour
+            date.setHours(date.getHours() + 1);
+            date.setMinutes(0);
+            date.setSeconds(0);
+            return;
+        }
+
+        if (!this.matchesPart(this.minutes, date.getMinutes(), 0, 59)) {
+            // Skip to next minute
+            date.setMinutes(date.getMinutes() + 1);
+            date.setSeconds(0);
+            return;
+        }
+
+        // If we get here, just increment by 1 second
+        date.setSeconds(date.getSeconds() + 1);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Flag to prevent circular updates
+    let isUpdatingFromCron = false;
+    let isGeneratingCron = false;
+
+    // Current cron version
+    let currentVersion = 'quartz';
+
+    // --- Initialization ---
+    initCheckboxes();
+    setupEventListeners();
+    setupFieldMenu();
+    updateVersionInfo();
+    updateFieldVisibility();
+    generateCron(); // Initial generation
+
+    // --- Checkbox Generation ---
+    function initCheckboxes() {
+        createCheckboxes('sec_checkboxes', 0, 59);
+        createCheckboxes('min_checkboxes', 0, 59);
+        createCheckboxes('hour_checkboxes', 0, 23);
+        createCheckboxes('day_checkboxes', 1, 31);
+        createCheckboxes('month_checkboxes', 1, 12);
+        createCheckboxes('week_checkboxes', 1, 7); // 1=SUN, 7=SAT (Standard Cron)
+        // Year is usually a range, specific years are less common but we can add a few
+        createCheckboxes('year_checkboxes', 2023, 2033);
+    }
+
+    function createCheckboxes(containerId, start, end) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        for (let i = start; i <= end; i++) {
+            const div = document.createElement('div');
+            div.className = 'checkbox-item';
+
+            const input = document.createElement('input');
+            input.type = 'checkbox';
+            input.value = i;
+            input.id = `${containerId}_${i}`;
+
+            const label = document.createElement('label');
+            label.htmlFor = `${containerId}_${i}`;
+            label.textContent = i < 10 ? '0' + i : i;
+
+            div.appendChild(input);
+            div.appendChild(label);
+            container.appendChild(div);
+        }
+    }
+
+    // --- Event Listeners ---
+    function setupEventListeners() {
+        // Version selector
+        const versionSelector = document.getElementById('cronVersion');
+        versionSelector.addEventListener('change', (e) => {
+            currentVersion = e.target.value;
+            updateVersionInfo();
+            updateFieldVisibility();
+            generateCron();
+        });
+
+        // Listen to cronResult input for manual editing
+        const cronResultInput = document.getElementById('cronResult');
+        cronResultInput.addEventListener('input', () => {
+            if (!isGeneratingCron) {
+                parseCronExpression(cronResultInput.value);
+                // Also update validation and next runs
+                updateHumanReadable(cronResultInput.value);
+            }
+        });
+
+        // Listen to all other input changes (excluding cronResult)
+        const inputs = document.querySelectorAll('input:not(#cronResult)');
+        inputs.forEach(input => {
+            input.addEventListener('change', generateCron);
+            input.addEventListener('input', generateCron); // For text/number inputs
+        });
+
+        // Copy Button
+        document.getElementById('copyBtn').addEventListener('click', copyToClipboard);
+        document.getElementById('resetBtn').addEventListener('click', resetForm);
+    }
+
+    // --- Field Menu Handling ---
+    function setupFieldMenu() {
+        const buttons = document.querySelectorAll('.field-menu-btn');
+        buttons.forEach(button => {
+            button.addEventListener('click', () => {
+                if (button.style.display === 'none') return;
+                const targetId = button.getAttribute('data-target');
+                setActiveField(targetId);
+            });
+        });
+    }
+
+    function setActiveField(targetId) {
+        const pane = document.getElementById(targetId);
+        const button = document.querySelector(`.field-menu-btn[data-target="${targetId}"]`);
+        if (!pane || !button || button.style.display === 'none') return;
+
+        document.querySelectorAll('.field-menu-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.field-pane').forEach(p => p.classList.remove('active'));
+
+        button.classList.add('active');
+        pane.classList.add('active');
+    }
+
+    function activateFirstAvailableField() {
+        const firstVisibleButton = Array.from(document.querySelectorAll('.field-menu-btn'))
+            .find(btn => btn.style.display !== 'none');
+        if (!firstVisibleButton) return;
+        setActiveField(firstVisibleButton.getAttribute('data-target'));
+    }
+
+    function setFieldVisibility(fieldName, shouldShow) {
+        const button = document.querySelector(`.field-menu-btn[data-field="${fieldName}"]`);
+        const pane = document.getElementById(`pane_${fieldName}`);
+        if (!button || !pane) return;
+
+        button.style.display = shouldShow ? 'block' : 'none';
+        pane.dataset.available = shouldShow ? 'true' : 'false';
+
+        if (!shouldShow) {
+            button.classList.remove('active');
+            pane.classList.remove('active');
+        }
+    }
+
+    // --- Version Management ---
+    function updateVersionInfo() {
+        const infoText = document.querySelector('.info-text');
+        const versionFormats = {
+            'linux': '格式：分 时 日 月 周',
+            'spring': '格式：秒 分 时 日 月 周',
+            'quartz': '格式：秒 分 时 日 月 周 年'
+        };
+        infoText.textContent = versionFormats[currentVersion];
+    }
+
+    function updateFieldVisibility() {
+        const showSeconds = currentVersion !== 'linux';
+        const showYear = currentVersion === 'quartz';
+
+        setFieldVisibility('seconds', showSeconds);
+        setFieldVisibility('year', showYear);
+
+        activateFirstAvailableField();
+    }
+
+    // --- Cron Generation Logic ---
+    function parseCronExpression(expression) {
+        isUpdatingFromCron = true;
+
+        const parts = expression.trim().split(/\s+/);
+
+        // Validate field count based on version
+        const expectedFieldCount = {
+            'linux': 5,
+            'spring': 6,
+            'quartz': [6, 7]
+        };
+
+        const expected = expectedFieldCount[currentVersion];
+        const isValid = Array.isArray(expected)
+            ? parts.length >= expected[0] && parts.length <= expected[1]
+            : parts.length === expected;
+
+        if (!isValid) {
+            isUpdatingFromCron = false;
+            return;
+        }
+
+        try {
+            if (currentVersion === 'linux') {
+                // Linux: minute hour day month day-of-week
+                setCronPart('minutes', parts[0]);
+                setCronPart('hours', parts[1]);
+                setCronPart('dayOfMonth', parts[2]);
+                setCronPart('month', parts[3]);
+                setCronPart('dayOfWeek', parts[4]);
+                // Set seconds to 0
+                const secEvery = document.getElementById('sec_every');
+                if (secEvery) secEvery.checked = true;
+                // Set year to unspecified
+                const yearUnspecified = document.getElementById('year_unspecified');
+                if (yearUnspecified) yearUnspecified.checked = true;
+            } else if (currentVersion === 'spring') {
+                // Spring: second minute hour day month day-of-week
+                setCronPart('seconds', parts[0]);
+                setCronPart('minutes', parts[1]);
+                setCronPart('hours', parts[2]);
+                setCronPart('dayOfMonth', parts[3]);
+                setCronPart('month', parts[4]);
+                setCronPart('dayOfWeek', parts[5]);
+                // Set year to unspecified
+                const yearUnspecified = document.getElementById('year_unspecified');
+                if (yearUnspecified) yearUnspecified.checked = true;
+            } else {
+                // Quartz: second minute hour day month day-of-week [year]
+                setCronPart('seconds', parts[0]);
+                setCronPart('minutes', parts[1]);
+                setCronPart('hours', parts[2]);
+                setCronPart('dayOfMonth', parts[3]);
+                setCronPart('month', parts[4]);
+                setCronPart('dayOfWeek', parts[5]);
+
+                if (parts.length >= 7) {
+                    setCronPart('year', parts[6]);
+                } else {
+                    // If year is missing, set to unspecified (empty)
+                    const yearUnspecified = document.getElementById('year_unspecified');
+                    if (yearUnspecified) yearUnspecified.checked = true;
+                }
+            }
+        } catch (e) {
+            console.error("Error parsing cron:", e);
+        } finally {
+            isUpdatingFromCron = false;
+        }
+    }
+
+    function setCronPart(name, value) {
+        const prefix = getPrefix(name);
+
+        // Reset checkboxes
+        const checkboxContainer = document.getElementById(`${prefix}_checkboxes`);
+        if (checkboxContainer) {
+            checkboxContainer.querySelectorAll('input').forEach(cb => cb.checked = false);
+        }
+
+        if (value === '*') {
+            document.getElementById(`${prefix}_every`).checked = true;
+        } else if (value === '?') {
+            const el = document.getElementById(`${prefix}_unspecified`);
+            if (el) el.checked = true;
+        } else if (value === 'L' && name === 'dayOfMonth') {
+            document.getElementById('day_last').checked = true;
+        } else if (value.includes('-')) {
+            document.getElementById(`${prefix}_cycle`).checked = true;
+            const [start, end] = value.split('-');
+            document.getElementById(`${prefix}_cycle_start`).value = start;
+            document.getElementById(`${prefix}_cycle_end`).value = end;
+        } else if (value.includes('/')) {
+            document.getElementById(`${prefix}_start`).checked = true;
+            const [start, step] = value.split('/');
+            document.getElementById(`${prefix}_start_val`).value = start;
+            document.getElementById(`${prefix}_start_step`).value = step;
+        } else if (value.includes('W')) {
+            document.getElementById('day_work').checked = true;
+            document.getElementById('day_work_val').value = parseInt(value);
+        } else if (value.includes('L') && name === 'dayOfWeek') {
+            document.getElementById('week_last').checked = true;
+            document.getElementById('week_last_val').value = parseInt(value);
+        } else if (value.includes('#')) {
+            document.getElementById('week_nth').checked = true;
+            const [day, week] = value.split('#');
+            document.getElementById('week_nth_day').value = day;
+            document.getElementById('week_nth_val').value = week;
+        } else if (value.includes(',')) {
+            document.getElementById(`${prefix}_specific`).checked = true;
+            value.split(',').forEach(val => {
+                const cb = document.getElementById(`${prefix}_checkboxes_${val}`);
+                if (cb) cb.checked = true;
+            });
+        } else if (!isNaN(value)) {
+            // Single value is treated as specific
+            document.getElementById(`${prefix}_specific`).checked = true;
+            const cb = document.getElementById(`${prefix}_checkboxes_${value}`);
+            if (cb) cb.checked = true;
+        }
+    }
+
+    // --- Cron Generation Logic ---
+    function generateCron() {
+        if (isUpdatingFromCron) return; // Prevent circular updates
+
+        isGeneratingCron = true;
+
+        const seconds = getCronPart('seconds', 0, 59);
+        const minutes = getCronPart('minutes', 0, 59);
+        const hours = getCronPart('hours', 0, 23);
+        const dayOfMonth = getCronPart('dayOfMonth', 1, 31);
+        const month = getCronPart('month', 1, 12);
+        const dayOfWeek = getCronPart('dayOfWeek', 1, 7);
+        const year = getCronPart('year', 2023, 2099);
+
+        let finalDayOfMonth = dayOfMonth;
+        let finalDayOfWeek = dayOfWeek;
+
+        // Handle Day of Month vs Day of Week conflict for Spring/Quartz
+        // Linux uses * for both which is valid
+        if (currentVersion !== 'linux') {
+            // In Quartz/Spring cron, if one is specified, the other must be '?'
+            if (finalDayOfMonth !== '?' && finalDayOfWeek !== '?') {
+                const dayMode = document.querySelector('input[name="dayOfMonth"]:checked').value;
+                const weekMode = document.querySelector('input[name="dayOfWeek"]:checked').value;
+
+                if (weekMode === '?') {
+                    finalDayOfWeek = '?';
+                } else if (dayMode === '?') {
+                    finalDayOfMonth = '?';
+                } else {
+                    // Both have values. This is tricky. 
+                    // If both are '*', make Day of Week '?'
+                    if (finalDayOfMonth === '*' && finalDayOfWeek === '*') {
+                        finalDayOfWeek = '?';
+                    } else {
+                        // If one is specific and other is *, make the * one ?
+                        if (finalDayOfMonth !== '*' && finalDayOfWeek === '*') {
+                            finalDayOfWeek = '?';
+                        } else if (finalDayOfMonth === '*' && finalDayOfWeek !== '*') {
+                            finalDayOfMonth = '?';
+                        }
+                    }
+                }
+            }
+        }
+
+        // Generate cron expression based on version
+        let cron;
+        if (currentVersion === 'linux') {
+            // Linux: minute hour day month day-of-week
+            cron = `${minutes} ${hours} ${finalDayOfMonth} ${month} ${finalDayOfWeek}`;
+        } else if (currentVersion === 'spring') {
+            // Spring: second minute hour day month day-of-week
+            cron = `${seconds} ${minutes} ${hours} ${finalDayOfMonth} ${month} ${finalDayOfWeek}`;
+        } else {
+            // Quartz: second minute hour day month day-of-week [year]
+            cron = `${seconds} ${minutes} ${hours} ${finalDayOfMonth} ${month} ${finalDayOfWeek}`;
+            if (year && year !== '') {
+                cron += ` ${year}`;
+            }
+        }
+
+        document.getElementById('cronResult').value = cron;
+        updateHumanReadable(cron);
+
+        isGeneratingCron = false;
+    }
+
+    function getCronPart(name, min, max) {
+        const prefix = getPrefix(name);
+        const type = document.querySelector(`input[name="${name}"]:checked`).value;
+
+        switch (type) {
+            case 'every':
+                return '*';
+            case '?':
+                return '?';
+            case 'unspecified': // For year
+                return '';
+            case 'cycle':
+                const start = document.getElementById(`${prefix}_cycle_start`).value;
+                const end = document.getElementById(`${prefix}_cycle_end`).value;
+                return `${start}-${end}`;
+            case 'start':
+                const startVal = document.getElementById(`${prefix}_start_val`).value;
+                const step = document.getElementById(`${prefix}_start_step`).value;
+                return `${startVal}/${step}`;
+            case 'work':
+                const workDay = document.getElementById('day_work_val').value;
+                return `${workDay}W`;
+            case 'last':
+                if (name === 'dayOfMonth') return 'L';
+                if (name === 'dayOfWeek') {
+                    const lastDay = document.getElementById('week_last_val').value;
+                    return `${lastDay}L`;
+                }
+                return '*';
+            case 'nth':
+                const nthWeek = document.getElementById('week_nth_val').value;
+                const nthDay = document.getElementById('week_nth_day').value;
+                return `${nthDay}#${nthWeek}`;
+            case 'specific':
+                const checkboxes = document.querySelectorAll(`#${prefix}_checkboxes input:checked`);
+                if (checkboxes.length === 0) return '*'; // Fallback
+                const values = Array.from(checkboxes).map(cb => cb.value).sort((a, b) => a - b);
+                return values.join(',');
+            default:
+                return '*';
+        }
+    }
+
+    function getPrefix(name) {
+        const map = {
+            'seconds': 'sec',
+            'minutes': 'min',
+            'hours': 'hour',
+            'dayOfMonth': 'day',
+            'month': 'month',
+            'dayOfWeek': 'week',
+            'year': 'year'
+        };
+        return map[name] || name;
+    }
+
+    // --- Utilities ---
+    function copyToClipboard() {
+        const copyText = document.getElementById("cronResult");
+        copyText.select();
+        copyText.setSelectionRange(0, 99999); // For mobile devices
+
+        // Use ztools API if available, otherwise fallback
+        if (window.ztools) {
+            window.ztools.copyText(copyText.value);
+            window.ztools.showNotification('Cron 表达式已复制');
+        } else {
+            navigator.clipboard.writeText(copyText.value).then(() => {
+                // alert('Copied: ' + copyText.value);
+            });
+        }
+    }
+
+    function updateHumanReadable(cron) {
+        const humanReadableEl = document.getElementById('humanReadable');
+
+        if (!cron || cron.trim() === '') {
+            humanReadableEl.innerHTML = '<span style="color: #999;">请输入 Cron 表达式</span>';
+            return;
+        }
+
+        try {
+            // Parse the cron expression using our custom parser with version
+            const parser = new SimpleCronParser(cron, currentVersion);
+
+            // Get next 3 execution times
+            const nextRuns = parser.getNextExecutions(3);
+
+            if (nextRuns.length === 0) {
+                humanReadableEl.innerHTML = '<span style="color: #f44336; font-weight: 500;">无效表达式</span>';
+                return;
+            }
+
+            // Display next execution times
+            humanReadableEl.innerHTML = `
+                <div style="color: #4CAF50; font-weight: 500; margin-bottom: 8px;">下次执行时间：</div>
+                ${nextRuns.map((time, index) => `
+                    <div style="padding: 4px 0; color: #666;">
+                        ${index + 1}. ${time.toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            })}
+                    </div>
+                `).join('')}
+            `;
+        } catch (error) {
+            // Invalid cron expression
+            humanReadableEl.innerHTML = '<span style="color: #f44336; font-weight: 500;">无效表达式</span>';
+        }
+    }
+
+    function resetForm() {
+        const versionSelector = document.getElementById('cronVersion');
+        versionSelector.value = 'quartz';
+        currentVersion = 'quartz';
+
+        document.querySelectorAll('input').forEach(input => {
+            if (input.type === 'radio' || input.type === 'checkbox') {
+                input.checked = input.defaultChecked;
+            } else if (input.type === 'number' || input.type === 'text') {
+                input.value = input.defaultValue;
+            }
+        });
+
+        updateVersionInfo();
+        updateFieldVisibility();
+        generateCron();
+    }
+
+    // --- Validation & Next Runs ---
+    function updateValidationAndNextRuns(cron) {
+        const validationEl = document.getElementById('cronValidation');
+        const nextEl = document.getElementById('cronNextRuns');
+        validationEl.textContent = '';
+        validationEl.style.color = '';
+        nextEl.innerHTML = '';
+
+        if (!cron || cron.trim() === '') return;
+
+        // Try to find cron parser library exposed by CDN
+        const lib = window.cronParser || window.parser || window.cronParser;
+        if (!lib) {
+            validationEl.textContent = '无法加载 cron 解析库';
+            validationEl.style.color = 'orange';
+            return;
+        }
+
+        try {
+            // parseExpression supports expressions with seconds as well
+            const interval = lib.parseExpression(cron);
+            const runs = [];
+            for (let i = 0; i < 3; i++) {
+                const next = interval.next();
+                // some versions return an object with toDate(), some a Date
+                const dateObj = (next && typeof next.toDate === 'function') ? next.toDate() : next;
+                runs.push(new Date(dateObj).toLocaleString('zh-CN'));
+            }
+
+            // Show next runs
+            runs.forEach(r => {
+                const div = document.createElement('div');
+                div.textContent = r;
+                nextEl.appendChild(div);
+            });
+        } catch (e) {
+            validationEl.textContent = '无效表达式';
+            validationEl.style.color = 'red';
+            nextEl.innerHTML = '';
+        }
+    }
+});
+</script>
+</body>
+
+</html>

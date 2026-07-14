@@ -1,0 +1,19 @@
+{
+  "name": "qr-code",
+  "version": "1.0.0",
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "description": "二维码生成与识别",
+  "author": "ATools Team",
+  "pluginSetting": {
+    "height": 400
+  },
+  "features": [
+    {
+      "code": "qrcode",
+      "explain": "生成二维码",
+      "cmds": ["二维码", "qr", "qrcode", "生成二维码"]
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "name": "color-picker",
+  "version": "1.0.0",
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "description": "颜色转换工具 - HEX/RGB/HSL 互转",
+  "author": "ATools Team",
+  "features": [
+    {
+      "code": "color",
+      "explain": "颜色转换",
+      "cmds": [
+        "颜色",
+        "color",
+        "颜色转换",
+        {
+          "type": "regex",
+          "label": "颜色值",
+          "match": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$"
+        }
+      ]
+    }
+  ]
+}

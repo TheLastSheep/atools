@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+<script data-atools-real-entry-fixture-bridge="true">
+(function(){
+  var pluginId = "content-workbench";
+  var featureCode = "content-workbench";
+  var fixtureErrors = [];
+  var bridgeApiProbeIds = ["fixture-bridge-get-path","fixture-bridge-context","fixture-bridge-db-storage","fixture-bridge-db-all-docs","fixture-bridge-app-identity","fixture-bridge-system-flags","fixture-bridge-preload-ky","fixture-bridge-services","fixture-bridge-web-storage"];
+  function mark(name, value) {
+    if (document.body) document.body.setAttribute(name, String(value));
+  }
+  function errorText(value) {
+    if (value && value.message) return String(value.message);
+    if (typeof value === 'object') {
+      try { return JSON.stringify(value); } catch (error) { return String(value); }
+    }
+    return String(value || 'error');
+  }
+  function recordError(value) {
+    fixtureErrors.push(errorText(value));
+    mark('data-atools-real-entry-errors', fixtureErrors.length);
+    mark('data-atools-real-entry-error-messages', fixtureErrors.slice(-5).join(' | ').slice(0, 800));
+  }
+  function safeStorage() {
+    var values = Object.create(null);
+    return {
+      get length() { return Object.keys(values).length; },
+      key: function(index) { return Object.keys(values)[Number(index) || 0] || null; },
+      getItem: function(key) {
+        key = String(key);
+        return Object.prototype.hasOwnProperty.call(values, key) ? values[key] : null;
+      },
+      setItem: function(key, value) {
+        values[String(key)] = String(value);
+      },
+      removeItem: function(key) {
+        delete values[String(key)];
+      },
+      clear: function() {
+        values = Object.create(null);
+      }
+    };
+  }
+  function installStorageStub(name) {
+    try {
+      void window[name];
+      return;
+    } catch (error) {
+      // Sandboxed iframes without allow-same-origin throw on storage access.
+    }
+    try {
+      Object.defineProperty(window, name, {
+        value: safeStorage(),
+        configurable: true
+      });
+    } catch (error) {
+      // Leave the original browser error visible if the property is not replaceable.
+    }
+  }
+  installStorageStub('localStorage');
+  installStorageStub('sessionStorage');
+  function bridgeFunction(name) {
+    return function(){ return Promise.resolve(null); };
+  }
+  function probeResult(id, passed, detail) {
+    return { id: id, passed: passed === true, detail: detail ? String(detail).slice(0, 240) : '' };
+  }
+  async function probeBridgeApi(id, callback) {
+    try {
+      return probeResult(id, await callback() === true);
+    } catch (error) {
+      return probeResult(id, false, errorText(error));
+    }
+  }
+  function markBridgeApiProbes(results) {
+    var passed = results.filter(function(result) { return result.passed; }).length;
+    var failedIds = results.filter(function(result) { return !result.passed; }).map(function(result) { return result.id; });
+    mark('data-atools-real-entry-bridge-api-passed', passed);
+    mark('data-atools-real-entry-bridge-api-total', results.length);
+    mark('data-atools-real-entry-bridge-api-failed', failedIds.length);
+    mark('data-atools-real-entry-bridge-api-failed-ids', failedIds.join(','));
+    window.__atoolsRealEntryFixture.bridgeApiProbes = results;
+    return { passed: passed, total: results.length, failedIds: failedIds };
+  }
+  function fixturePath(name) {
+    return '/tmp/atools-real-entry-fixture/' + String(name || '');
+  }
+  function allDocsResult() {
+    var rows = [];
+    rows.rows = rows;
+    rows.total_rows = 0;
+    rows.offset = 0;
+    return rows;
+  }
+  var fixtureContext = {
+    pluginId: pluginId,
+    pluginName: "内容整理工坊",
+    featureCode: featureCode,
+    code: featureCode,
+    type: "text",
+    query: "内容整理工坊",
+    text: "内容整理工坊",
+    payload: "内容整理工坊",
+    option: {},
+    args: [],
+    files: [],
+    paths: [],
+    pluginEnterParams: {
+      code: featureCode,
+      type: "text",
+      payload: "内容整理工坊",
+      text: "内容整理工坊",
+      option: {},
+      args: [],
+      files: [],
+      paths: []
+    },
+    umami: {
+      init: function(){ return undefined; },
+      track: function(){ return undefined; },
+      identify: function(){ return undefined; }
+    }
+  };
+  var dbBridge = {
+    get: function(){ return Promise.resolve(null); },
+    put: function(){ return Promise.resolve({ ok: true, id: '', rev: 'fixture' }); },
+    remove: function(){ return Promise.resolve({ ok: true, id: '', rev: 'fixture' }); },
+    allDocs: function(){ return Promise.resolve(allDocsResult()); },
+    postAttachment: function(){ return Promise.resolve({ ok: true, id: '', rev: 'fixture' }); },
+    getAttachment: function(){ return Promise.resolve(null); },
+    getAttachmentType: function(){ return Promise.resolve(''); },
+    replicateStateFromCloud: function(){ return Promise.resolve({ ok: true, state: 'fixture' }); }
+  };
+  dbBridge.promises = dbBridge;
+  var dbStorageBridge = safeStorage();
+  var internalBridge = {
+    getDevProjects: function(){ return Promise.resolve([]); },
+    getRunningPlugins: function(){ return Promise.resolve([]); },
+    updateDevProjectsOrder: function(){ return Promise.resolve({ success: true }); },
+    importDevPlugin: function(){ return Promise.resolve({ success: false, error: 'fixture only' }); },
+    scaffoldDevProject: function(){ return Promise.resolve({ success: false, error: 'fixture only' }); },
+    upsertDevProjectByConfigPath: function(){ return Promise.resolve({ success: false, error: 'fixture only' }); }
+  };
+  var bridge = new Proxy({
+    dbStorage: dbStorageBridge,
+    db: dbBridge,
+    internal: internalBridge,
+    showNotification: function(){ return undefined; },
+    copyText: function(){ return Promise.resolve(undefined); },
+    getWindowType: function(){ return 'main'; },
+    getPath: function(name){ return fixturePath(name); },
+    getContext: function(){ return fixtureContext; },
+    getFeatures: function(){ return []; },
+    getFeature: function(){ return null; },
+    getUser: function(){ return null; },
+    getAppName: function(){ return 'ATools'; },
+    getAppVersion: function(){ return '3.0.0'; },
+    getNativeId: function(){ return 0; },
+    isMacOS: function(){ return true; },
+    isMacOs: function(){ return true; },
+    isWindows: function(){ return false; },
+    isLinux: function(){ return false; },
+    isDev: function(){ return true; },
+    readCurrentBrowserUrl: function(){ return ''; },
+    getCurrentBrowserUrl: function(){ return ''; },
+    readCurrentFolderPath: function(){ return ''; },
+    onPluginEnter: function(callback){ if (typeof callback === 'function') window.addEventListener('atools-plugin-enter', function(){ callback(fixtureContext); }); },
+    onPluginReady: function(callback){ if (typeof callback === 'function') window.addEventListener('atools-plugin-ready', function(){ callback(fixtureContext); }); },
+    outPlugin: function(payload){ window.__atoolsRealEntryFixtureOutput = payload; return undefined; },
+    setSubInput: function(){ return undefined; },
+    setExpendHeight: function(){ return undefined; },
+    setExpandHeight: function(){ return undefined; }
+  }, {
+    get: function(target, prop) {
+      if (prop in target) return target[prop];
+      if (prop === 'promises') return target;
+      var fn = bridgeFunction(String(prop));
+      target[prop] = fn;
+      return fn;
+    }
+  });
+  window.utools = window.utools || bridge;
+  window.ztools = window.ztools || window.utools;
+  function kyResponse() {
+    return {
+      text: function(){ return Promise.resolve(''); },
+      json: function(){ return Promise.resolve({}); },
+      blob: function(){ return Promise.resolve(new Blob([])); },
+      arrayBuffer: function(){ return Promise.resolve(new ArrayBuffer(0)); }
+    };
+  }
+  function kyStub() {
+    return kyResponse();
+  }
+  var kyMethods = {
+    get: function(){ return kyResponse(); },
+    post: function(){ return kyResponse(); },
+    put: function(){ return kyResponse(); },
+    delete: function(){ return kyResponse(); },
+    create: function(){ return kyStub; }
+  };
+  kyStub.get = kyMethods.get;
+  kyStub.post = kyMethods.post;
+  kyStub.put = kyMethods.put;
+  kyStub.delete = kyMethods.delete;
+  kyStub.create = kyMethods.create;
+  window.services = window.services || {
+    umami: fixtureContext.umami,
+    qrDecode: function(){ return Promise.resolve([]); },
+    formatMybatisLog: function(value){ return String(value || ''); }
+  };
+  window.Preload = window.Preload || {
+    umami: fixtureContext.umami,
+    ky: kyStub,
+    loadPage: function(){ return Promise.resolve(null); },
+    downloader: function(){},
+    wallpaper: function(){ return Promise.resolve(undefined); }
+  };
+  window.__atoolsRealEntryFixture = {
+    pluginId: pluginId,
+    pluginName: "内容整理工坊",
+    featureCode: featureCode,
+    triggerType: "text",
+    query: "内容整理工坊",
+    errors: fixtureErrors,
+    bridgeApiProbeIds: bridgeApiProbeIds,
+    bridgeApiProbes: []
+  };
+  async function runBridgeApiProbes() {
+    var key = 'atools-fixture-probe';
+    return Promise.all([
+      probeBridgeApi('fixture-bridge-get-path', async function(){
+        return typeof window.utools.getPath('home') === 'string' && window.utools.getPath('home').indexOf('/tmp/atools-real-entry-fixture/') === 0;
+      }),
+      probeBridgeApi('fixture-bridge-context', async function(){
+        var context = window.utools.getContext();
+        return context && context.pluginId === pluginId && context.featureCode === featureCode && context.pluginEnterParams && context.pluginEnterParams.code === featureCode;
+      }),
+      probeBridgeApi('fixture-bridge-db-storage', async function(){
+        window.utools.dbStorage.setItem(key, 'ok');
+        var stored = window.utools.dbStorage.getItem(key);
+        window.utools.dbStorage.removeItem(key);
+        return stored === 'ok' && window.utools.dbStorage.getItem(key) === null;
+      }),
+      probeBridgeApi('fixture-bridge-db-all-docs', async function(){
+        var docs = await window.utools.db.allDocs();
+        return Array.isArray(docs) && docs.rows === docs && docs.total_rows === 0;
+      }),
+      probeBridgeApi('fixture-bridge-app-identity', async function(){
+        return window.utools.getAppName() === 'ATools' && typeof window.utools.getAppVersion() === 'string' && window.utools.getNativeId() === 0;
+      }),
+      probeBridgeApi('fixture-bridge-system-flags', async function(){
+        return window.utools.isMacOS() === true && window.utools.isWindows() === false && window.utools.isLinux() === false && window.utools.isDev() === true;
+      }),
+      probeBridgeApi('fixture-bridge-preload-ky', async function(){
+        var ky = window.Preload && window.Preload.ky;
+        var created = ky && ky.create && ky.create();
+        var response = created && created.get && created.get('/fixture');
+        var json = response && response.json && await response.json();
+        return !!ky && typeof created === 'function' && json && typeof json === 'object';
+      }),
+      probeBridgeApi('fixture-bridge-services', async function(){
+        return !!window.services && window.services.umami.track() === undefined && window.services.formatMybatisLog('select 1') === 'select 1';
+      }),
+      probeBridgeApi('fixture-bridge-web-storage', async function(){
+        window.localStorage.setItem(key, 'ok');
+        window.sessionStorage.setItem(key, 'session');
+        var passed = window.localStorage.getItem(key) === 'ok' && window.sessionStorage.getItem(key) === 'session';
+        window.localStorage.removeItem(key);
+        window.sessionStorage.removeItem(key);
+        return passed && window.localStorage.getItem(key) === null;
+      })
+    ]);
+  }
+  window.addEventListener('error', function(event){
+    recordError(event && (event.message || event.error) || 'error');
+  });
+  window.addEventListener('unhandledrejection', function(event){
+    recordError(event && event.reason || 'unhandledrejection');
+  });
+  function ready() {
+    mark('data-atools-real-entry-fixture', true);
+    mark('data-atools-real-entry-plugin-id', pluginId);
+    mark('data-atools-real-entry-feature-code', featureCode);
+    mark('data-atools-real-entry-bridge-present', !!window.utools);
+    mark('data-atools-real-entry-ztools-alias', window.ztools === window.utools);
+    mark('data-atools-real-entry-errors', fixtureErrors.length);
+    mark('data-atools-real-entry-error-messages', fixtureErrors.slice(-5).join(' | ').slice(0, 800));
+    window.dispatchEvent(new CustomEvent('atools-plugin-enter', { detail: fixtureContext }));
+    setTimeout(async function(){
+      window.dispatchEvent(new CustomEvent('atools-plugin-ready', { detail: fixtureContext }));
+      mark('data-atools-real-entry-ready', true);
+      var bridgeApiProbes = await runBridgeApiProbes();
+      markBridgeApiProbes(bridgeApiProbes);
+      var probeResults = [
+        { id: 'real-entry-fixture-ready', passed: document.body && document.body.getAttribute('data-atools-real-entry-ready') === 'true' },
+        { id: 'real-entry-fixture-bridge', passed: !!window.utools },
+        { id: 'real-entry-fixture-ztools-alias', passed: window.ztools === window.utools },
+        { id: 'real-entry-fixture-identity', passed: document.body && document.body.getAttribute('data-atools-real-entry-plugin-id') === pluginId && document.body.getAttribute('data-atools-real-entry-feature-code') === featureCode },
+        { id: 'real-entry-fixture-errors', passed: fixtureErrors.length === 0 }
+      ].concat(bridgeApiProbes);
+      window.parent && window.parent.postMessage({
+        __atools_real_entry_fixture_probe__: true,
+        pluginId: pluginId,
+        featureCode: featureCode,
+        probes: probeResults,
+        errors: fixtureErrors,
+        bridgeApiProbes: bridgeApiProbes
+      }, '*');
+    }, 80);
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', ready);
+  } else {
+    ready();
+  }
+})();
+</script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="./logo.svg" />
+    <title>内容整理工坊</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: #1f2933;
+        background: #f7f8f4;
+      }
+      main {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 28px;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 28px;
+      }
+      p {
+        margin: 0 0 20px;
+        color: #52605d;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+      }
+      section {
+        border: 1px solid #d9dfd2;
+        border-radius: 8px;
+        background: white;
+        padding: 16px;
+      }
+      h2 {
+        margin: 0 0 8px;
+        font-size: 16px;
+      }
+      .tool { margin-top: 16px; border: 1px solid #d9dfd2; border-radius: 8px; background: white; padding: 16px; }
+      textarea, pre { box-sizing: border-box; width: 100%; min-height: 140px; border: 1px solid #d9dfd2; border-radius: 6px; padding: 12px; font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; }
+      button { margin: 8px 8px 8px 0; border: 0; border-radius: 6px; background: #31572c; color: white; padding: 8px 12px; cursor: pointer; }
+      pre { white-space: pre-wrap; background: #f7f8f4; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>内容整理工坊</h1>
+      <p>文本净化、Markdown 转纯文本、链接提取和发布排版的组合工作台。</p>
+      <div class="grid">
+        <section><h2>文本净化</h2><p>收束空格、空行和段落。</p></section>
+        <section><h2>Markdown 转纯文本</h2><p>保留可读正文。</p></section>
+        <section><h2>链接提取</h2><p>整理裸链接和 Markdown 链接。</p></section>
+        <section><h2>发布排版</h2><p>清理正文，把话题标签收拢到末尾。</p></section>
+      </div>
+      <section class="tool">
+        <h2>试运行</h2>
+        <textarea id="input"># Title
+
+Read **ZTools** at [site](https://z.tools). #效率</textarea>
+        <div>
+          <button id="normalize">文本净化</button>
+          <button id="plain">转纯文本</button>
+          <button id="links">提取链接</button>
+          <button id="social">发布排版</button>
+        </div>
+        <pre id="output"></pre>
+      </section>
+    </main>
+    <script type="module">
+      import { extractLinks, formatSocialPost, markdownToPlainText, normalizeText } from './src/core/index.mjs';
+      const input = document.querySelector('#input');
+      const output = document.querySelector('#output');
+      const show = value => { output.textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2); };
+      document.querySelector('#normalize').addEventListener('click', () => show(normalizeText(input.value)));
+      document.querySelector('#plain').addEventListener('click', () => show(markdownToPlainText(input.value)));
+      document.querySelector('#links').addEventListener('click', () => show(extractLinks(input.value)));
+      document.querySelector('#social').addEventListener('click', () => show(formatSocialPost(input.value)));
+    </script>
+  </body>
+</html>

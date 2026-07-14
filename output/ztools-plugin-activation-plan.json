@@ -1,0 +1,480 @@
+{
+  "generated_at": "2026-06-30T09:30:07.348Z",
+  "source": "/Users/harris/Desktop/ZTools-plugins/plugins",
+  "install_root": "/tmp/atools-ztools-plugin-smoke",
+  "summary": {
+    "scanned_plugins": 125,
+    "launchable_plugins": 61,
+    "planned_samples": 10,
+    "ready_plans": 10,
+    "risk_plans": 0,
+    "blocked_skipped": 64,
+    "text_trigger_plans": 10,
+    "regex_trigger_plans": 0,
+    "typed_payload_plans": 0,
+    "manual_trigger_plans": 0,
+    "cleanup_required": true
+  },
+  "activation_plans": [
+    {
+      "order": 1,
+      "name": "calculation-paper",
+      "title": "计算稿纸",
+      "runtime_status": "ready",
+      "score": 100,
+      "source_path": "/Users/harris/Desktop/ZTools-plugins/plugins/calculation-paper",
+      "expected_install_id": "calculation-paper",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/Users/harris/Desktop/ZTools-plugins/plugins/calculation-paper",
+        "install_root": "/tmp/atools-ztools-plugin-smoke",
+        "overwrite": true,
+        "expected_plugin_id": "calculation-paper"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "calc",
+        "feature_label": "像打草稿一样计算",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "计算稿纸",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "ready"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [],
+      "cleanup": {
+        "uninstall_plugin_id": "calculation-paper",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 2,
+      "name": "ztools-developer-plugin",
+      "title": "ZTools 开发者工具",
+      "runtime_status": "ready",
+      "score": 100,
+      "source_path": "/Users/harris/Desktop/ZTools-plugins/plugins/ztools-developer-plugin",
+      "expected_install_id": "ztools-developer-plugin",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/Users/harris/Desktop/ZTools-plugins/plugins/ztools-developer-plugin",
+        "install_root": "/tmp/atools-ztools-plugin-smoke",
+        "overwrite": true,
+        "expected_plugin_id": "ztools-developer-plugin"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "ui.router",
+        "feature_label": "ZTools 开发者工具",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "开发者工具",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "ready"
+      },
+      "render_smoke": {
+        "safe": false,
+        "reason": "ztools-developer-plugin/ui.router blocks iframe smoke probe in srcdoc mode"
+      },
+      "risks": [],
+      "cleanup": {
+        "uninstall_plugin_id": "ztools-developer-plugin",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 3,
+      "name": "latex-ocr",
+      "title": "LaTeX公式编辑&识别",
+      "runtime_status": "ready",
+      "score": 100,
+      "source_path": "/Users/harris/Desktop/ZTools-plugins/plugins/latex-ocr",
+      "expected_install_id": "latex-ocr",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/Users/harris/Desktop/ZTools-plugins/plugins/latex-ocr",
+        "install_root": "/tmp/atools-ztools-plugin-smoke",
+        "overwrite": true,
+        "expected_plugin_id": "latex-ocr"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "latex-editor",
+        "feature_label": "LaTeX 公式编辑器",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "latex",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "ready"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [],
+      "cleanup": {
+        "uninstall_plugin_id": "latex-ocr",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 4,
+      "name": "2048",
+      "title": "2048",
+      "runtime_status": "ready",
+      "score": 100,
+      "source_path": "/Users/harris/Desktop/ZTools-plugins/plugins/2048",
+      "expected_install_id": "2048",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/Users/harris/Desktop/ZTools-plugins/plugins/2048",
+        "install_root": "/tmp/atools-ztools-plugin-smoke",
+        "overwrite": true,
+        "expected_plugin_id": "2048"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "2048",
+        "feature_label": "2048小游戏",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "2048",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "ready"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [],
+      "cleanup": {
+        "uninstall_plugin_id": "2048",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 5,
+      "name": "ai-automation-workbench",
+      "title": "AI 自动化工坊",
+      "runtime_status": "ready",
+      "score": 100,
+      "source_path": "/Users/harris/Desktop/ZTools-plugins/plugins/ai-automation-workbench",
+      "expected_install_id": "ai-automation-workbench",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/Users/harris/Desktop/ZTools-plugins/plugins/ai-automation-workbench",
+        "install_root": "/tmp/atools-ztools-plugin-smoke",
+        "overwrite": true,
+        "expected_plugin_id": "ai-automation-workbench"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "ai-automation-workbench",
+        "feature_label": "AI 自动化工坊",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "AI 自动化工坊",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "ready"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [],
+      "cleanup": {
+        "uninstall_plugin_id": "ai-automation-workbench",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 6,
+      "name": "content-workbench",
+      "title": "内容整理工坊",
+      "runtime_status": "ready",
+      "score": 100,
+      "source_path": "/Users/harris/Desktop/ZTools-plugins/plugins/content-workbench",
+      "expected_install_id": "content-workbench",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/Users/harris/Desktop/ZTools-plugins/plugins/content-workbench",
+        "install_root": "/tmp/atools-ztools-plugin-smoke",
+        "overwrite": true,
+        "expected_plugin_id": "content-workbench"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "content-workbench",
+        "feature_label": "内容整理工坊",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "内容整理工坊",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "ready"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [],
+      "cleanup": {
+        "uninstall_plugin_id": "content-workbench",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 7,
+      "name": "cron",
+      "title": "cron在线表达式",
+      "runtime_status": "ready",
+      "score": 100,
+      "source_path": "/Users/harris/Desktop/ZTools-plugins/plugins/cron",
+      "expected_install_id": "cron",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/Users/harris/Desktop/ZTools-plugins/plugins/cron",
+        "install_root": "/tmp/atools-ztools-plugin-smoke",
+        "overwrite": true,
+        "expected_plugin_id": "cron"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "cron",
+        "feature_label": "Cron 表达式生成器",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "cron",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "ready"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [],
+      "cleanup": {
+        "uninstall_plugin_id": "cron",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 8,
+      "name": "dev-data-workbench",
+      "title": "开发者数据工坊",
+      "runtime_status": "ready",
+      "score": 100,
+      "source_path": "/Users/harris/Desktop/ZTools-plugins/plugins/dev-data-workbench",
+      "expected_install_id": "dev-data-workbench",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/Users/harris/Desktop/ZTools-plugins/plugins/dev-data-workbench",
+        "install_root": "/tmp/atools-ztools-plugin-smoke",
+        "overwrite": true,
+        "expected_plugin_id": "dev-data-workbench"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "dev-data-workbench",
+        "feature_label": "开发者数据工坊",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "开发者数据工坊",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "ready"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [],
+      "cleanup": {
+        "uninstall_plugin_id": "dev-data-workbench",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 9,
+      "name": "developer-codec-tools",
+      "title": "开发加解密编码工具",
+      "runtime_status": "ready",
+      "score": 100,
+      "source_path": "/Users/harris/Desktop/ZTools-plugins/plugins/developer-codec-tools",
+      "expected_install_id": "developer-codec-tools",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/Users/harris/Desktop/ZTools-plugins/plugins/developer-codec-tools",
+        "install_root": "/tmp/atools-ztools-plugin-smoke",
+        "overwrite": true,
+        "expected_plugin_id": "developer-codec-tools"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "codec-tools",
+        "feature_label": "加密解密与编码转换",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "加密解密",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "ready"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [],
+      "cleanup": {
+        "uninstall_plugin_id": "developer-codec-tools",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 10,
+      "name": "file-workbench",
+      "title": "文件收纳工坊",
+      "runtime_status": "ready",
+      "score": 100,
+      "source_path": "/Users/harris/Desktop/ZTools-plugins/plugins/file-workbench",
+      "expected_install_id": "file-workbench",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/Users/harris/Desktop/ZTools-plugins/plugins/file-workbench",
+        "install_root": "/tmp/atools-ztools-plugin-smoke",
+        "overwrite": true,
+        "expected_plugin_id": "file-workbench"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "file-workbench",
+        "feature_label": "文件收纳工坊",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "文件收纳工坊",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "ready"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [],
+      "cleanup": {
+        "uninstall_plugin_id": "file-workbench",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    }
+  ]
+}

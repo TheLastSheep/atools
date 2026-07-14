@@ -1,0 +1,19 @@
+{
+  "name": "clipboard",
+  "version": "1.0.0",
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "description": "剪贴板历史管理",
+  "author": "ATools Team",
+  "pluginSetting": {
+    "height": 500
+  },
+  "features": [
+    {
+      "code": "clipboard",
+      "explain": "查看剪贴板历史",
+      "cmds": ["剪贴板", "clipboard", "粘贴历史", "剪贴板历史"]
+    }
+  ]
+}

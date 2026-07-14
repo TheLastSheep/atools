@@ -1,0 +1,16 @@
+{
+  "name": "计算器",
+  "description": "快速数学表达式计算",
+  "author": "ATools",
+  "version": "1.0.0",
+  "main": "index.html",
+  "features": [
+    {
+      "code": "计算器",
+      "label": "计算器",
+      "icon": "logo.png",
+      "explain": "输入数学表达式快速计算",
+      "cmds": ["计算器", "计算", "算", "calc", "jisu"]
+    }
+  ]
+}

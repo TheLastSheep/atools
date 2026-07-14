@@ -1,0 +1,16 @@
+{
+  "name": "编码转换",
+  "description": "Base64 / URL / Unicode 编解码工具",
+  "author": "ATools",
+  "version": "1.0.0",
+  "main": "index.html",
+  "features": [
+    {
+      "code": "编码转换",
+      "label": "编码转换",
+      "icon": "logo.png",
+      "explain": "Base64 / URL / Unicode 编解码",
+      "cmds": ["编码转换", "编码", "encode", "decode", "bianma", "base64", "url", "unicode"]
+    }
+  ]
+}

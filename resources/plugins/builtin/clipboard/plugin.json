@@ -1,0 +1,44 @@
+{
+  "name": "剪贴板",
+  "description": "管理和搜索剪贴板历史记录，支持文本剪贴与快速粘贴",
+  "author": "ATools",
+  "version": "1.0.0",
+  "logo": "logo.png",
+  "main": "index.html",
+  "preload": "preload.js",
+  "pluginSetting": {
+    "single": false,
+    "height": 544
+  },
+  "features": [
+    {
+      "code": "剪切",
+      "label": "剪贴板历史",
+      "explain": "搜索剪贴板历史记录",
+      "icon": "logo.png",
+      "mainPush": true,
+      "mainHide": false,
+      "cmds": [
+        "剪切",
+        {
+          "type": "regex",
+          "label": "剪贴板",
+          "match": "^.*剪贴.*$"
+        }
+      ]
+    },
+    {
+      "code": "全部剪切",
+      "label": "查看全部剪贴板记录",
+      "explain": "查看所有剪贴板记录",
+      "icon": "logo.png",
+      "cmds": ["全部剪切"]
+    },
+    {
+      "code": "清空剪贴板",
+      "label": "清空剪贴板历史",
+      "explain": "清空剪贴板历史",
+      "cmds": ["清空剪贴板"]
+    }
+  ]
+}

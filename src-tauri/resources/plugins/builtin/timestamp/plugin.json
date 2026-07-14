@@ -1,0 +1,25 @@
+{
+  "name": "timestamp",
+  "version": "1.0.0",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "description": "时间戳转换工具",
+  "author": "ATools Team",
+  "features": [
+    {
+      "code": "timestamp",
+      "explain": "时间戳与日期时间互转",
+      "cmds": [
+        "时间戳",
+        "timestamp",
+        "ts",
+        "时间转换",
+        {
+          "type": "regex",
+          "label": "时间戳转换",
+          "match": "^\\d{10,13}$"
+        }
+      ]
+    }
+  ]
+}

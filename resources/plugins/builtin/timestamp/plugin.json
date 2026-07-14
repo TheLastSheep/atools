@@ -1,0 +1,17 @@
+{
+  "name": "时间戳",
+  "version": "1.0.0",
+  "description": "Unix 时间戳与日期互相转换",
+  "main": "index.html",
+  "author": "ATools",
+  "pluginSetting": { "single": true, "height": 500 },
+  "features": [
+    {
+      "code": "时间戳",
+      "label": "时间戳",
+      "explain": "Unix 时间戳与日期互转",
+      "cmds": ["时间戳", "timestamp", "shijiancuo", "time"]
+    }
+  ],
+  "logo": "logo.png"
+}

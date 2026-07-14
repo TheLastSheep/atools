@@ -1,0 +1,2002 @@
+{
+  "generated_at": "2026-06-30T10:58:11.147Z",
+  "activation_plan_path": "/Users/harris/Desktop/atools/output/ztools-plugin-activation-plan.json",
+  "activation_plan_generated_at": "2026-06-30T09:30:07.348Z",
+  "source": "/Users/harris/Desktop/ZTools-plugins/plugins",
+  "summary": {
+    "planned_samples": 10,
+    "ui_host_samples": 10,
+    "desktop_action_fixtures": 10,
+    "web_preview_actions": 10,
+    "iframe_ready_checks": 10,
+    "screenshot_viewport_checks": 20,
+    "bridge_probe_checks": 50,
+    "real_entry_html_checks": 10,
+    "real_entry_html_ready": 10,
+    "real_entry_html_missing": 0,
+    "real_entry_html_bytes": 42501,
+    "real_entry_resource_checks": 27,
+    "real_entry_resource_ready": 27,
+    "real_entry_resource_missing": 0,
+    "real_entry_resource_bytes": 1970144,
+    "real_entry_fixture_count": 10,
+    "real_entry_fixture_bytes": 2152915,
+    "real_entry_fixture_matrix_count": 10,
+    "real_entry_fixture_matrix_bytes": 13082,
+    "real_entry_plugin_panel_checks": 10,
+    "real_entry_plugin_panel_ready": 10,
+    "real_entry_plugin_panel_matrix_count": 10,
+    "real_entry_plugin_panel_matrix_bytes": 28331,
+    "real_entry_fixture_bridge_api_probe_checks": 90,
+    "real_entry_fixture_runtime_support_files": 77,
+    "real_entry_fixture_runtime_support_bytes": 4735659,
+    "preload_expected_samples": 2,
+    "permission_scoped_samples": 0,
+    "skipped_samples": 0
+  },
+  "real_entry_fixture_matrix": {
+    "expected": true,
+    "status": "ready",
+    "fixture_count": 10,
+    "path": "/Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/index.html",
+    "relative_path": "index.html",
+    "url": "file:///Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/index.html",
+    "bytes": 13082,
+    "sha256": "3050c3b5c3985758d5ad28605c646f529391a341b678b3ee5d5e8ba8ec4cfdb5",
+    "probe_ids": [
+      "real-entry-matrix-ready-count",
+      "real-entry-matrix-error-count",
+      "real-entry-matrix-all-ready"
+    ]
+  },
+  "real_entry_plugin_panel_matrix": {
+    "expected": true,
+    "status": "ready",
+    "panel_count": 10,
+    "path": "/Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/plugin-panel-matrix.html",
+    "relative_path": "plugin-panel-matrix.html",
+    "url": "file:///Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/plugin-panel-matrix.html",
+    "browser_url": "http://127.0.0.1:1434/plugin-panel-matrix.html",
+    "bytes": 28331,
+    "sha256": "5d9d8c9acfabe25a2066c475e6d6f4ac8b915e803d96ce34857ab72b7d95e755",
+    "probe_ids": [
+      "plugin-panel-matrix-ready-count",
+      "plugin-panel-matrix-error-count",
+      "plugin-panel-matrix-all-ready"
+    ]
+  },
+  "ui_host_smoke_plans": [
+    {
+      "order": 1,
+      "name": "calculation-paper",
+      "title": "计算稿纸",
+      "plugin_id": "calculation-paper",
+      "source_path": "/Users/harris/Desktop/ZTools-plugins/plugins/calculation-paper",
+      "runtime_status": "ready",
+      "activation": {
+        "feature_code": "calc",
+        "feature_label": "像打草稿一样计算",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "计算稿纸",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "desktop_action": {
+        "plugin_id": "calculation-paper",
+        "plugin_name": "计算稿纸",
+        "feature_code": "calc",
+        "main_url": "index.html",
+        "plugin_path": "/tmp/atools-ztools-plugin-smoke/calculation-paper",
+        "preload_path": null,
+        "expand_height": 541,
+        "plugin_permissions": [],
+        "payload": {
+          "trigger_type": "text",
+          "query": "计算稿纸"
+        }
+      },
+      "web_preview": {
+        "mode": "externalPlan",
+        "url": "http://localhost:1420/?parity=1&pluginHostSmoke=externalPlan&pluginHostSmokeAction=eyJwbHVnaW5faWQiOiJjYWxjdWxhdGlvbi1wYXBlciIsInBsdWdpbl9uYW1lIjoi6K6h566X56i_57q4IiwiZmVhdHVyZV9jb2RlIjoiY2FsYyIsIm1haW5fdXJsIjoiaW5kZXguaHRtbCIsInBsdWdpbl9wYXRoIjoiX19hdG9vbHNfcGx1Z2luX2hvc3RfcHJldmlld19fIiwiZXhwYW5kX2hlaWdodCI6NTQxLCJwbHVnaW5fcGVybWlzc2lvbnMiOltdLCJwYXlsb2FkIjp7InNyY2RvYyI6IjwhZG9jdHlwZSBodG1sPlxuPGh0bWw-XG48Ym9keSBkYXRhLWV4dGVybmFsLXBsdWdpbi1pZD1cImNhbGN1bGF0aW9uLXBhcGVyXCIgZGF0YS1leHRlcm5hbC1mZWF0dXJlLWNvZGU9XCJjYWxjXCIgZGF0YS1leHRlcm5hbC10cmlnZ2VyLXR5cGU9XCJ0ZXh0XCI-XG48bWFpbiBkYXRhLXp0b29scy11aS1ob3N0LXNtb2tlPVwidHJ1ZVwiPlxuICA8aDE-6K6h566X56i_57q4PC9oMT5cbiAgPHAgZGF0YS1leHRlcm5hbC1tYWluLXVybD1cImluZGV4Lmh0bWxcIj5jYWxjPC9wPlxuICA8cCBkYXRhLWV4dGVybmFsLXRyaWdnZXItcXVlcnk9XCLorqHnrpfnqL_nurhcIj7orqHnrpfnqL_nurg8L3A-XG48L21haW4-XG48c2NyaXB0PlxuKGZ1bmN0aW9uKCl7XG4gIGZ1bmN0aW9uIG1hcmsobmFtZSwgdmFsdWUpIHtcbiAgICBkb2N1bWVudC5ib2R5LnNldEF0dHJpYnV0ZShuYW1lLCBTdHJpbmcodmFsdWUpKTtcbiAgfVxuICB3aW5kb3cuYWRkRXZlbnRMaXN0ZW5lcignYXRvb2xzLXBsdWdpbi1lbnRlcicsIGZ1bmN0aW9uKCl7IG1hcmsoJ2RhdGEtYXRvb2xzLXBsdWdpbi1lbnRlcicsIHRydWUpOyB9KTtcbiAgd2luZG93LmFkZEV2ZW50TGlzdGVuZXIoJ2F0b29scy1wbHVnaW4tcmVhZHknLCBmdW5jdGlvbigpe1xuICAgIG1hcmsoJ2RhdGEtYXRvb2xzLXBsdWdpbi1yZWFkeScsIHRydWUpO1xuICAgIHNldFRpbWVvdXQocmVwb3J0UHJvYmVSZXN1bHRzLCAwKTtcbiAgfSk7XG4gIHZhciBwcm9iZVJlcG9ydGVkID0gZmFsc2U7XG4gIGZ1bmN0aW9uIGNvbGxlY3RQcm9iZVJlc3VsdHMoKSB7XG4gICAgcmV0dXJuIFtcbiAgICAgIHsgaWQ6ICdwbHVnaW4tZW50ZXItZXZlbnQnLCBwYXNzZWQ6IGRvY3VtZW50LmJvZHkuZ2V0QXR0cmlidXRlKCdkYXRhLWF0b29scy1wbHVnaW4tZW50ZXInKSA9PT0gJ3RydWUnIH0sXG4gICAgICB7IGlkOiAncGx1Z2luLXJlYWR5LWV2ZW50JywgcGFzc2VkOiBkb2N1bWVudC5ib2R5LmdldEF0dHJpYnV0ZSgnZGF0YS1hdG9vbHMtcGx1Z2luLXJlYWR5JykgPT09ICd0cnVlJyB9LFxuICAgICAgeyBpZDogJ3V0b29scy1icmlkZ2UtcHJlc2VudCcsIHBhc3NlZDogISF3aW5kb3cudXRvb2xzIH0sXG4gICAgICB7IGlkOiAnenRvb2xzLWFsaWFzLXByZXNlbnQnLCBwYXNzZWQ6IHdpbmRvdy56dG9vbHMgPT09IHdpbmRvdy51dG9vbHMgfSxcbiAgICAgIHtcbiAgICAgICAgaWQ6ICdpZnJhbWUtZG9tLWlkZW50aXR5JyxcbiAgICAgICAgcGFzc2VkOiBkb2N1bWVudC5ib2R5LmdldEF0dHJpYnV0ZSgnZGF0YS1leHRlcm5hbC1wbHVnaW4taWQnKSA9PT0gXCJjYWxjdWxhdGlvbi1wYXBlclwiXG4gICAgICAgICAgJiYgZG9jdW1lbnQuYm9keS5nZXRBdHRyaWJ1dGUoJ2RhdGEtZXh0ZXJuYWwtZmVhdHVyZS1jb2RlJykgPT09IFwiY2FsY1wiXG4gICAgICB9XG4gICAgXTtcbiAgfVxuICBmdW5jdGlvbiByZXBvcnRQcm9iZVJlc3VsdHMoKSB7XG4gICAgaWYgKHByb2JlUmVwb3J0ZWQpIHJldHVybjtcbiAgICBwcm9iZVJlcG9ydGVkID0gdHJ1ZTtcbiAgICBtYXJrKCdkYXRhLXV0b29scy1icmlkZ2UtcHJlc2VudCcsICEhd2luZG93LnV0b29scyk7XG4gICAgbWFyaygnZGF0YS16dG9vbHMtYWxpYXMtcHJlc2VudCcsIHdpbmRvdy56dG9vbHMgPT09IHdpbmRvdy51dG9vbHMpO1xuICAgIHZhciBwcm9iZVJlc3VsdHMgPSBjb2xsZWN0UHJvYmVSZXN1bHRzKCk7XG4gICAgd2luZG93Ll9fYXRvb2xzRXh0ZXJuYWxVaUhvc3RTbW9rZSA9IHtcbiAgICAgIHBsdWdpbklkOiBcImNhbGN1bGF0aW9uLXBhcGVyXCIsXG4gICAgICBmZWF0dXJlQ29kZTogXCJjYWxjXCIsXG4gICAgICB0cmlnZ2VyVHlwZTogXCJ0ZXh0XCIsXG4gICAgICBxdWVyeTogXCLorqHnrpfnqL_nurhcIixcbiAgICAgIHByb2JlUmVzdWx0czogcHJvYmVSZXN1bHRzXG4gICAgfTtcbiAgICB3aW5kb3cucGFyZW50LnBvc3RNZXNzYWdlKHtcbiAgICAgIF9fYXRvb2xzX3VpX2hvc3RfcHJvYmVfcmVzdWx0X186IHRydWUsXG4gICAgICBwbHVnaW5JZDogXCJjYWxjdWxhdGlvbi1wYXBlclwiLFxuICAgICAgZmVhdHVyZUNvZGU6IFwiY2FsY1wiLFxuICAgICAgcHJvYmVzOiBwcm9iZVJlc3VsdHNcbiAgICB9LCAnKicpO1xuICB9XG4gIHNldFRpbWVvdXQocmVwb3J0UHJvYmVSZXN1bHRzLCAxNjApO1xufSkoKTtcbjwvc2NyaXB0PlxuPC9ib2R5PlxuPC9odG1sPiIsInN1YklucHV0Ijp7InBsYWNlaG9sZGVyIjoi5YOP5omT6I2J56i_5LiA5qC36K6h566XIiwiZm9jdXMiOmZhbHNlfSwic3ViSW5wdXRWYWx1ZSI6Iuiuoeeul-eov-e6uCIsIm91dHB1dEl0ZW1zIjpbXX19",
+        "expected_dom": {
+          "plugin_id_attribute": "calculation-paper",
+          "feature_code_attribute": "calc",
+          "runtime_chips": [
+            "运行状态",
+            "桥接能力"
+          ]
+        }
+      },
+      "iframe_ready": {
+        "expected": true,
+        "ready_event": "atools-plugin-ready",
+        "host_body_mode": "iframe"
+      },
+      "real_entry_html": {
+        "expected": true,
+        "status": "ready",
+        "main_url": "index.html",
+        "html_path": "/Users/harris/Desktop/ZTools-plugins/plugins/calculation-paper/index.html",
+        "entry_directory": "/Users/harris/Desktop/ZTools-plugins/plugins/calculation-paper",
+        "relative_entry_directory": ".",
+        "bytes": 163,
+        "sha256": "d776b6d7eb19b9cecf2319ce529a2d17dbf8c0a03de954bb1f18b6197ef7add0",
+        "resource_signals": {
+          "script_src_count": 1,
+          "module_script_count": 0,
+          "inline_script_count": 0,
+          "stylesheet_link_count": 0,
+          "image_reference_count": 0,
+          "bridge_reference": false
+        }
+      },
+      "real_entry_resources": {
+        "expected": true,
+        "status": "ready",
+        "total_resources": 1,
+        "ready_resources": 1,
+        "missing_resources": 0,
+        "bytes": 1025290,
+        "scripts": [
+          {
+            "kind": "script",
+            "url": "index.js",
+            "module": false,
+            "path": "/Users/harris/Desktop/ZTools-plugins/plugins/calculation-paper/index.js",
+            "bytes": 1025290,
+            "sha256": "f501c6389c211754cf459253c9e6f9d204b44d59cc65b08b29e30665a535a54a"
+          }
+        ],
+        "stylesheets": [],
+        "missing": []
+      },
+      "real_entry_fixture": {
+        "expected": true,
+        "status": "ready",
+        "path": "/Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/001-calculation-paper-calc.html",
+        "relative_path": "001-calculation-paper-calc.html",
+        "url": "file:///Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/001-calculation-paper-calc.html",
+        "bytes": 1039413,
+        "sha256": "286e311cb0025e560e1566d9cf2b5fd4cc47d608d801c1c7ebc0ff13a753a0bb",
+        "inlined_scripts": 1,
+        "inlined_stylesheets": 0,
+        "runtime_support_files": 3,
+        "runtime_support_bytes": 1032099,
+        "bridge_api_probe_ids": [
+          "fixture-bridge-get-path",
+          "fixture-bridge-context",
+          "fixture-bridge-db-storage",
+          "fixture-bridge-db-all-docs",
+          "fixture-bridge-app-identity",
+          "fixture-bridge-system-flags",
+          "fixture-bridge-preload-ky",
+          "fixture-bridge-services",
+          "fixture-bridge-web-storage"
+        ],
+        "probe_ids": [
+          "real-entry-fixture-bridge",
+          "real-entry-fixture-ready",
+          "real-entry-plugin-identity"
+        ]
+      },
+      "real_entry_plugin_panel": {
+        "expected": true,
+        "status": "ready",
+        "mode": "externalPlanRealFixture",
+        "url": "http://localhost:1420/?parity=1&pluginHostSmoke=externalPlan&pluginHostSmokeAction=eyJwbHVnaW5faWQiOiJjYWxjdWxhdGlvbi1wYXBlciIsInBsdWdpbl9uYW1lIjoi6K6h566X56i_57q4IiwiZmVhdHVyZV9jb2RlIjoiY2FsYyIsIm1haW5fdXJsIjoiaW5kZXguaHRtbCIsInBsdWdpbl9wYXRoIjoiX19hdG9vbHNfcGx1Z2luX2hvc3RfcHJldmlld19fIiwiZXhwYW5kX2hlaWdodCI6NTQxLCJwbHVnaW5fcGVybWlzc2lvbnMiOltdLCJwYXlsb2FkIjp7ImlmcmFtZVNyYyI6Imh0dHA6Ly8xMjcuMC4wLjE6MTQzNC8wMDEtY2FsY3VsYXRpb24tcGFwZXItY2FsYy5odG1sIiwicmVhbEVudHJ5Rml4dHVyZSI6dHJ1ZSwiZml4dHVyZVBhdGgiOiIvVXNlcnMvaGFycmlzL0Rlc2t0b3AvYXRvb2xzL291dHB1dC96dG9vbHMtdWktaG9zdC1yZWFsLWVudHJ5LWZpeHR1cmVzLzAwMS1jYWxjdWxhdGlvbi1wYXBlci1jYWxjLmh0bWwiLCJmaXh0dXJlUmVsYXRpdmVQYXRoIjoiMDAxLWNhbGN1bGF0aW9uLXBhcGVyLWNhbGMuaHRtbCIsInN1YklucHV0Ijp7InBsYWNlaG9sZGVyIjoi5YOP5omT6I2J56i_5LiA5qC36K6h566XIiwiZm9jdXMiOmZhbHNlfSwic3ViSW5wdXRWYWx1ZSI6Iuiuoeeul-eov-e6uCIsIm91dHB1dEl0ZW1zIjpbXX19",
+        "fixture_path": "/Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/001-calculation-paper-calc.html",
+        "fixture_url": "http://127.0.0.1:1434/001-calculation-paper-calc.html",
+        "probe_ids": [
+          "plugin-panel-iframe-src",
+          "real-entry-fixture-ready",
+          "real-entry-fixture-errors"
+        ],
+        "expected_dom": {
+          "runtime_chips": [
+            "运行状态",
+            "桥接能力",
+            "宿主探针"
+          ],
+          "body_mode": "iframe"
+        }
+      },
+      "screenshot_viewports": [
+        {
+          "name": "desktop",
+          "width": 1280,
+          "height": 820
+        },
+        {
+          "name": "compact",
+          "width": 390,
+          "height": 800
+        }
+      ],
+      "bridge_probes": [
+        {
+          "id": "plugin-enter-event",
+          "attribute": "data-atools-plugin-enter",
+          "expected": "true"
+        },
+        {
+          "id": "plugin-ready-event",
+          "attribute": "data-atools-plugin-ready",
+          "expected": "true"
+        },
+        {
+          "id": "utools-bridge-present",
+          "attribute": "data-utools-bridge-present",
+          "expected": "true"
+        },
+        {
+          "id": "ztools-alias-present",
+          "attribute": "data-ztools-alias-present",
+          "expected": "true"
+        },
+        {
+          "id": "iframe-dom-identity",
+          "attribute": "data-external-plugin-id",
+          "expected": "calculation-paper"
+        }
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "calculation-paper",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 2,
+      "name": "ztools-developer-plugin",
+      "title": "ZTools 开发者工具",
+      "plugin_id": "ztools-developer-plugin",
+      "source_path": "/Users/harris/Desktop/ZTools-plugins/plugins/ztools-developer-plugin",
+      "runtime_status": "ready",
+      "activation": {
+        "feature_code": "ui.router",
+        "feature_label": "ZTools 开发者工具",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "开发者工具",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "desktop_action": {
+        "plugin_id": "ztools-developer-plugin",
+        "plugin_name": "ZTools 开发者工具",
+        "feature_code": "ui.router",
+        "main_url": "dist/index.html",
+        "plugin_path": "/tmp/atools-ztools-plugin-smoke/ztools-developer-plugin",
+        "preload_path": null,
+        "expand_height": 541,
+        "plugin_permissions": [],
+        "payload": {
+          "trigger_type": "text",
+          "query": "开发者工具"
+        }
+      },
+      "web_preview": {
+        "mode": "externalPlan",
+        "url": "http://localhost:1420/?parity=1&pluginHostSmoke=externalPlan&pluginHostSmokeAction=eyJwbHVnaW5faWQiOiJ6dG9vbHMtZGV2ZWxvcGVyLXBsdWdpbiIsInBsdWdpbl9uYW1lIjoiWlRvb2xzIOW8gOWPkeiAheW3peWFtyIsImZlYXR1cmVfY29kZSI6InVpLnJvdXRlciIsIm1haW5fdXJsIjoiaW5kZXguaHRtbCIsInBsdWdpbl9wYXRoIjoiX19hdG9vbHNfcGx1Z2luX2hvc3RfcHJldmlld19fIiwiZXhwYW5kX2hlaWdodCI6NTQxLCJwbHVnaW5fcGVybWlzc2lvbnMiOltdLCJwYXlsb2FkIjp7InNyY2RvYyI6IjwhZG9jdHlwZSBodG1sPlxuPGh0bWw-XG48Ym9keSBkYXRhLWV4dGVybmFsLXBsdWdpbi1pZD1cInp0b29scy1kZXZlbG9wZXItcGx1Z2luXCIgZGF0YS1leHRlcm5hbC1mZWF0dXJlLWNvZGU9XCJ1aS5yb3V0ZXJcIiBkYXRhLWV4dGVybmFsLXRyaWdnZXItdHlwZT1cInRleHRcIj5cbjxtYWluIGRhdGEtenRvb2xzLXVpLWhvc3Qtc21va2U9XCJ0cnVlXCI-XG4gIDxoMT5aVG9vbHMg5byA5Y-R6ICF5bel5YW3PC9oMT5cbiAgPHAgZGF0YS1leHRlcm5hbC1tYWluLXVybD1cImRpc3QvaW5kZXguaHRtbFwiPnVpLnJvdXRlcjwvcD5cbiAgPHAgZGF0YS1leHRlcm5hbC10cmlnZ2VyLXF1ZXJ5PVwi5byA5Y-R6ICF5bel5YW3XCI-5byA5Y-R6ICF5bel5YW3PC9wPlxuPC9tYWluPlxuPHNjcmlwdD5cbihmdW5jdGlvbigpe1xuICBmdW5jdGlvbiBtYXJrKG5hbWUsIHZhbHVlKSB7XG4gICAgZG9jdW1lbnQuYm9keS5zZXRBdHRyaWJ1dGUobmFtZSwgU3RyaW5nKHZhbHVlKSk7XG4gIH1cbiAgd2luZG93LmFkZEV2ZW50TGlzdGVuZXIoJ2F0b29scy1wbHVnaW4tZW50ZXInLCBmdW5jdGlvbigpeyBtYXJrKCdkYXRhLWF0b29scy1wbHVnaW4tZW50ZXInLCB0cnVlKTsgfSk7XG4gIHdpbmRvdy5hZGRFdmVudExpc3RlbmVyKCdhdG9vbHMtcGx1Z2luLXJlYWR5JywgZnVuY3Rpb24oKXtcbiAgICBtYXJrKCdkYXRhLWF0b29scy1wbHVnaW4tcmVhZHknLCB0cnVlKTtcbiAgICBzZXRUaW1lb3V0KHJlcG9ydFByb2JlUmVzdWx0cywgMCk7XG4gIH0pO1xuICB2YXIgcHJvYmVSZXBvcnRlZCA9IGZhbHNlO1xuICBmdW5jdGlvbiBjb2xsZWN0UHJvYmVSZXN1bHRzKCkge1xuICAgIHJldHVybiBbXG4gICAgICB7IGlkOiAncGx1Z2luLWVudGVyLWV2ZW50JywgcGFzc2VkOiBkb2N1bWVudC5ib2R5LmdldEF0dHJpYnV0ZSgnZGF0YS1hdG9vbHMtcGx1Z2luLWVudGVyJykgPT09ICd0cnVlJyB9LFxuICAgICAgeyBpZDogJ3BsdWdpbi1yZWFkeS1ldmVudCcsIHBhc3NlZDogZG9jdW1lbnQuYm9keS5nZXRBdHRyaWJ1dGUoJ2RhdGEtYXRvb2xzLXBsdWdpbi1yZWFkeScpID09PSAndHJ1ZScgfSxcbiAgICAgIHsgaWQ6ICd1dG9vbHMtYnJpZGdlLXByZXNlbnQnLCBwYXNzZWQ6ICEhd2luZG93LnV0b29scyB9LFxuICAgICAgeyBpZDogJ3p0b29scy1hbGlhcy1wcmVzZW50JywgcGFzc2VkOiB3aW5kb3cuenRvb2xzID09PSB3aW5kb3cudXRvb2xzIH0sXG4gICAgICB7XG4gICAgICAgIGlkOiAnaWZyYW1lLWRvbS1pZGVudGl0eScsXG4gICAgICAgIHBhc3NlZDogZG9jdW1lbnQuYm9keS5nZXRBdHRyaWJ1dGUoJ2RhdGEtZXh0ZXJuYWwtcGx1Z2luLWlkJykgPT09IFwienRvb2xzLWRldmVsb3Blci1wbHVnaW5cIlxuICAgICAgICAgICYmIGRvY3VtZW50LmJvZHkuZ2V0QXR0cmlidXRlKCdkYXRhLWV4dGVybmFsLWZlYXR1cmUtY29kZScpID09PSBcInVpLnJvdXRlclwiXG4gICAgICB9XG4gICAgXTtcbiAgfVxuICBmdW5jdGlvbiByZXBvcnRQcm9iZVJlc3VsdHMoKSB7XG4gICAgaWYgKHByb2JlUmVwb3J0ZWQpIHJldHVybjtcbiAgICBwcm9iZVJlcG9ydGVkID0gdHJ1ZTtcbiAgICBtYXJrKCdkYXRhLXV0b29scy1icmlkZ2UtcHJlc2VudCcsICEhd2luZG93LnV0b29scyk7XG4gICAgbWFyaygnZGF0YS16dG9vbHMtYWxpYXMtcHJlc2VudCcsIHdpbmRvdy56dG9vbHMgPT09IHdpbmRvdy51dG9vbHMpO1xuICAgIHZhciBwcm9iZVJlc3VsdHMgPSBjb2xsZWN0UHJvYmVSZXN1bHRzKCk7XG4gICAgd2luZG93Ll9fYXRvb2xzRXh0ZXJuYWxVaUhvc3RTbW9rZSA9IHtcbiAgICAgIHBsdWdpbklkOiBcInp0b29scy1kZXZlbG9wZXItcGx1Z2luXCIsXG4gICAgICBmZWF0dXJlQ29kZTogXCJ1aS5yb3V0ZXJcIixcbiAgICAgIHRyaWdnZXJUeXBlOiBcInRleHRcIixcbiAgICAgIHF1ZXJ5OiBcIuW8gOWPkeiAheW3peWFt1wiLFxuICAgICAgcHJvYmVSZXN1bHRzOiBwcm9iZVJlc3VsdHNcbiAgICB9O1xuICAgIHdpbmRvdy5wYXJlbnQucG9zdE1lc3NhZ2Uoe1xuICAgICAgX19hdG9vbHNfdWlfaG9zdF9wcm9iZV9yZXN1bHRfXzogdHJ1ZSxcbiAgICAgIHBsdWdpbklkOiBcInp0b29scy1kZXZlbG9wZXItcGx1Z2luXCIsXG4gICAgICBmZWF0dXJlQ29kZTogXCJ1aS5yb3V0ZXJcIixcbiAgICAgIHByb2JlczogcHJvYmVSZXN1bHRzXG4gICAgfSwgJyonKTtcbiAgfVxuICBzZXRUaW1lb3V0KHJlcG9ydFByb2JlUmVzdWx0cywgMTYwKTtcbn0pKCk7XG48L3NjcmlwdD5cbjwvYm9keT5cbjwvaHRtbD4iLCJzdWJJbnB1dCI6eyJwbGFjZWhvbGRlciI6IlpUb29scyDlvIDlj5HogIXlt6XlhbciLCJmb2N1cyI6ZmFsc2V9LCJzdWJJbnB1dFZhbHVlIjoi5byA5Y-R6ICF5bel5YW3Iiwib3V0cHV0SXRlbXMiOltdfX0",
+        "expected_dom": {
+          "plugin_id_attribute": "ztools-developer-plugin",
+          "feature_code_attribute": "ui.router",
+          "runtime_chips": [
+            "运行状态",
+            "桥接能力"
+          ]
+        }
+      },
+      "iframe_ready": {
+        "expected": true,
+        "ready_event": "atools-plugin-ready",
+        "host_body_mode": "iframe"
+      },
+      "real_entry_html": {
+        "expected": true,
+        "status": "ready",
+        "main_url": "dist/index.html",
+        "html_path": "/Users/harris/Desktop/ZTools-plugins/plugins/ztools-developer-plugin/dist/index.html",
+        "entry_directory": "/Users/harris/Desktop/ZTools-plugins/plugins/ztools-developer-plugin/dist",
+        "relative_entry_directory": "dist",
+        "bytes": 431,
+        "sha256": "59ec6c515dd1ead086bae10eb64642330aa80e0bd734c15f57fd7adf3123dcde",
+        "resource_signals": {
+          "script_src_count": 1,
+          "module_script_count": 1,
+          "inline_script_count": 0,
+          "stylesheet_link_count": 1,
+          "image_reference_count": 0,
+          "bridge_reference": false
+        }
+      },
+      "real_entry_resources": {
+        "expected": true,
+        "status": "ready",
+        "total_resources": 2,
+        "ready_resources": 2,
+        "missing_resources": 0,
+        "bytes": 335749,
+        "scripts": [
+          {
+            "kind": "script",
+            "url": "./assets/index-D5fSJ76W.js",
+            "module": true,
+            "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ztools-developer-plugin/dist/assets/index-D5fSJ76W.js",
+            "bytes": 194195,
+            "sha256": "1a04d8d8027fbff3e398efacedb125b0a24d2b713278356d03ce3635768c088d"
+          }
+        ],
+        "stylesheets": [
+          {
+            "kind": "stylesheet",
+            "url": "./assets/index-P8ixMW7d.css",
+            "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ztools-developer-plugin/dist/assets/index-P8ixMW7d.css",
+            "bytes": 141554,
+            "sha256": "ce9f64b1df366bab643500a641feb7f48c5cfb5fff4ef3265a53ca29ae187f02"
+          }
+        ],
+        "missing": []
+      },
+      "real_entry_fixture": {
+        "expected": true,
+        "status": "ready",
+        "path": "/Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/002-ztools-developer-plugin-ui-router.html",
+        "relative_path": "002-ztools-developer-plugin-ui-router.html",
+        "url": "file:///Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/002-ztools-developer-plugin-ui-router.html",
+        "bytes": 350202,
+        "sha256": "4fab3732c1eed3636c05adbb88f50e39b256adb2e4d19122a24170130147deb3",
+        "inlined_scripts": 1,
+        "inlined_stylesheets": 1,
+        "runtime_support_files": 13,
+        "runtime_support_bytes": 613915,
+        "bridge_api_probe_ids": [
+          "fixture-bridge-get-path",
+          "fixture-bridge-context",
+          "fixture-bridge-db-storage",
+          "fixture-bridge-db-all-docs",
+          "fixture-bridge-app-identity",
+          "fixture-bridge-system-flags",
+          "fixture-bridge-preload-ky",
+          "fixture-bridge-services",
+          "fixture-bridge-web-storage"
+        ],
+        "probe_ids": [
+          "real-entry-fixture-bridge",
+          "real-entry-fixture-ready",
+          "real-entry-plugin-identity"
+        ]
+      },
+      "real_entry_plugin_panel": {
+        "expected": true,
+        "status": "ready",
+        "mode": "externalPlanRealFixture",
+        "url": "http://localhost:1420/?parity=1&pluginHostSmoke=externalPlan&pluginHostSmokeAction=eyJwbHVnaW5faWQiOiJ6dG9vbHMtZGV2ZWxvcGVyLXBsdWdpbiIsInBsdWdpbl9uYW1lIjoiWlRvb2xzIOW8gOWPkeiAheW3peWFtyIsImZlYXR1cmVfY29kZSI6InVpLnJvdXRlciIsIm1haW5fdXJsIjoiaW5kZXguaHRtbCIsInBsdWdpbl9wYXRoIjoiX19hdG9vbHNfcGx1Z2luX2hvc3RfcHJldmlld19fIiwiZXhwYW5kX2hlaWdodCI6NTQxLCJwbHVnaW5fcGVybWlzc2lvbnMiOltdLCJwYXlsb2FkIjp7ImlmcmFtZVNyYyI6Imh0dHA6Ly8xMjcuMC4wLjE6MTQzNC8wMDItenRvb2xzLWRldmVsb3Blci1wbHVnaW4tdWktcm91dGVyLmh0bWwiLCJyZWFsRW50cnlGaXh0dXJlIjp0cnVlLCJmaXh0dXJlUGF0aCI6Ii9Vc2Vycy9oYXJyaXMvRGVza3RvcC9hdG9vbHMvb3V0cHV0L3p0b29scy11aS1ob3N0LXJlYWwtZW50cnktZml4dHVyZXMvMDAyLXp0b29scy1kZXZlbG9wZXItcGx1Z2luLXVpLXJvdXRlci5odG1sIiwiZml4dHVyZVJlbGF0aXZlUGF0aCI6IjAwMi16dG9vbHMtZGV2ZWxvcGVyLXBsdWdpbi11aS1yb3V0ZXIuaHRtbCIsInN1YklucHV0Ijp7InBsYWNlaG9sZGVyIjoiWlRvb2xzIOW8gOWPkeiAheW3peWFtyIsImZvY3VzIjpmYWxzZX0sInN1YklucHV0VmFsdWUiOiLlvIDlj5HogIXlt6XlhbciLCJvdXRwdXRJdGVtcyI6W119fQ",
+        "fixture_path": "/Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/002-ztools-developer-plugin-ui-router.html",
+        "fixture_url": "http://127.0.0.1:1434/002-ztools-developer-plugin-ui-router.html",
+        "probe_ids": [
+          "plugin-panel-iframe-src",
+          "real-entry-fixture-ready",
+          "real-entry-fixture-errors"
+        ],
+        "expected_dom": {
+          "runtime_chips": [
+            "运行状态",
+            "桥接能力",
+            "宿主探针"
+          ],
+          "body_mode": "iframe"
+        }
+      },
+      "screenshot_viewports": [
+        {
+          "name": "desktop",
+          "width": 1280,
+          "height": 820
+        },
+        {
+          "name": "compact",
+          "width": 390,
+          "height": 800
+        }
+      ],
+      "bridge_probes": [
+        {
+          "id": "plugin-enter-event",
+          "attribute": "data-atools-plugin-enter",
+          "expected": "true"
+        },
+        {
+          "id": "plugin-ready-event",
+          "attribute": "data-atools-plugin-ready",
+          "expected": "true"
+        },
+        {
+          "id": "utools-bridge-present",
+          "attribute": "data-utools-bridge-present",
+          "expected": "true"
+        },
+        {
+          "id": "ztools-alias-present",
+          "attribute": "data-ztools-alias-present",
+          "expected": "true"
+        },
+        {
+          "id": "iframe-dom-identity",
+          "attribute": "data-external-plugin-id",
+          "expected": "ztools-developer-plugin"
+        }
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "ztools-developer-plugin",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 3,
+      "name": "latex-ocr",
+      "title": "LaTeX公式编辑&识别",
+      "plugin_id": "latex-ocr",
+      "source_path": "/Users/harris/Desktop/ZTools-plugins/plugins/latex-ocr",
+      "runtime_status": "ready",
+      "activation": {
+        "feature_code": "latex-editor",
+        "feature_label": "LaTeX 公式编辑器",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "latex",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "desktop_action": {
+        "plugin_id": "latex-ocr",
+        "plugin_name": "LaTeX公式编辑&识别",
+        "feature_code": "latex-editor",
+        "main_url": "html/index.html",
+        "plugin_path": "/tmp/atools-ztools-plugin-smoke/latex-ocr",
+        "preload_path": "/tmp/atools-ztools-plugin-smoke/latex-ocr/preload.js",
+        "expand_height": 541,
+        "plugin_permissions": [],
+        "payload": {
+          "trigger_type": "text",
+          "query": "latex"
+        }
+      },
+      "web_preview": {
+        "mode": "externalPlan",
+        "url": "http://localhost:1420/?parity=1&pluginHostSmoke=externalPlan&pluginHostSmokeAction=eyJwbHVnaW5faWQiOiJsYXRleC1vY3IiLCJwbHVnaW5fbmFtZSI6IkxhVGVY5YWs5byP57yW6L6RJuivhuWIqyIsImZlYXR1cmVfY29kZSI6ImxhdGV4LWVkaXRvciIsIm1haW5fdXJsIjoiaW5kZXguaHRtbCIsInBsdWdpbl9wYXRoIjoiX19hdG9vbHNfcGx1Z2luX2hvc3RfcHJldmlld19fIiwiZXhwYW5kX2hlaWdodCI6NTQxLCJwbHVnaW5fcGVybWlzc2lvbnMiOltdLCJwYXlsb2FkIjp7InNyY2RvYyI6IjwhZG9jdHlwZSBodG1sPlxuPGh0bWw-XG48Ym9keSBkYXRhLWV4dGVybmFsLXBsdWdpbi1pZD1cImxhdGV4LW9jclwiIGRhdGEtZXh0ZXJuYWwtZmVhdHVyZS1jb2RlPVwibGF0ZXgtZWRpdG9yXCIgZGF0YS1leHRlcm5hbC10cmlnZ2VyLXR5cGU9XCJ0ZXh0XCI-XG48bWFpbiBkYXRhLXp0b29scy11aS1ob3N0LXNtb2tlPVwidHJ1ZVwiPlxuICA8aDE-TGFUZVjlhazlvI_nvJbovpEmYW1wO-ivhuWIqzwvaDE-XG4gIDxwIGRhdGEtZXh0ZXJuYWwtbWFpbi11cmw9XCJodG1sL2luZGV4Lmh0bWxcIj5sYXRleC1lZGl0b3I8L3A-XG4gIDxwIGRhdGEtZXh0ZXJuYWwtdHJpZ2dlci1xdWVyeT1cImxhdGV4XCI-bGF0ZXg8L3A-XG48L21haW4-XG48c2NyaXB0PlxuKGZ1bmN0aW9uKCl7XG4gIGZ1bmN0aW9uIG1hcmsobmFtZSwgdmFsdWUpIHtcbiAgICBkb2N1bWVudC5ib2R5LnNldEF0dHJpYnV0ZShuYW1lLCBTdHJpbmcodmFsdWUpKTtcbiAgfVxuICB3aW5kb3cuYWRkRXZlbnRMaXN0ZW5lcignYXRvb2xzLXBsdWdpbi1lbnRlcicsIGZ1bmN0aW9uKCl7IG1hcmsoJ2RhdGEtYXRvb2xzLXBsdWdpbi1lbnRlcicsIHRydWUpOyB9KTtcbiAgd2luZG93LmFkZEV2ZW50TGlzdGVuZXIoJ2F0b29scy1wbHVnaW4tcmVhZHknLCBmdW5jdGlvbigpe1xuICAgIG1hcmsoJ2RhdGEtYXRvb2xzLXBsdWdpbi1yZWFkeScsIHRydWUpO1xuICAgIHNldFRpbWVvdXQocmVwb3J0UHJvYmVSZXN1bHRzLCAwKTtcbiAgfSk7XG4gIHZhciBwcm9iZVJlcG9ydGVkID0gZmFsc2U7XG4gIGZ1bmN0aW9uIGNvbGxlY3RQcm9iZVJlc3VsdHMoKSB7XG4gICAgcmV0dXJuIFtcbiAgICAgIHsgaWQ6ICdwbHVnaW4tZW50ZXItZXZlbnQnLCBwYXNzZWQ6IGRvY3VtZW50LmJvZHkuZ2V0QXR0cmlidXRlKCdkYXRhLWF0b29scy1wbHVnaW4tZW50ZXInKSA9PT0gJ3RydWUnIH0sXG4gICAgICB7IGlkOiAncGx1Z2luLXJlYWR5LWV2ZW50JywgcGFzc2VkOiBkb2N1bWVudC5ib2R5LmdldEF0dHJpYnV0ZSgnZGF0YS1hdG9vbHMtcGx1Z2luLXJlYWR5JykgPT09ICd0cnVlJyB9LFxuICAgICAgeyBpZDogJ3V0b29scy1icmlkZ2UtcHJlc2VudCcsIHBhc3NlZDogISF3aW5kb3cudXRvb2xzIH0sXG4gICAgICB7IGlkOiAnenRvb2xzLWFsaWFzLXByZXNlbnQnLCBwYXNzZWQ6IHdpbmRvdy56dG9vbHMgPT09IHdpbmRvdy51dG9vbHMgfSxcbiAgICAgIHtcbiAgICAgICAgaWQ6ICdpZnJhbWUtZG9tLWlkZW50aXR5JyxcbiAgICAgICAgcGFzc2VkOiBkb2N1bWVudC5ib2R5LmdldEF0dHJpYnV0ZSgnZGF0YS1leHRlcm5hbC1wbHVnaW4taWQnKSA9PT0gXCJsYXRleC1vY3JcIlxuICAgICAgICAgICYmIGRvY3VtZW50LmJvZHkuZ2V0QXR0cmlidXRlKCdkYXRhLWV4dGVybmFsLWZlYXR1cmUtY29kZScpID09PSBcImxhdGV4LWVkaXRvclwiXG4gICAgICB9XG4gICAgXTtcbiAgfVxuICBmdW5jdGlvbiByZXBvcnRQcm9iZVJlc3VsdHMoKSB7XG4gICAgaWYgKHByb2JlUmVwb3J0ZWQpIHJldHVybjtcbiAgICBwcm9iZVJlcG9ydGVkID0gdHJ1ZTtcbiAgICBtYXJrKCdkYXRhLXV0b29scy1icmlkZ2UtcHJlc2VudCcsICEhd2luZG93LnV0b29scyk7XG4gICAgbWFyaygnZGF0YS16dG9vbHMtYWxpYXMtcHJlc2VudCcsIHdpbmRvdy56dG9vbHMgPT09IHdpbmRvdy51dG9vbHMpO1xuICAgIHZhciBwcm9iZVJlc3VsdHMgPSBjb2xsZWN0UHJvYmVSZXN1bHRzKCk7XG4gICAgd2luZG93Ll9fYXRvb2xzRXh0ZXJuYWxVaUhvc3RTbW9rZSA9IHtcbiAgICAgIHBsdWdpbklkOiBcImxhdGV4LW9jclwiLFxuICAgICAgZmVhdHVyZUNvZGU6IFwibGF0ZXgtZWRpdG9yXCIsXG4gICAgICB0cmlnZ2VyVHlwZTogXCJ0ZXh0XCIsXG4gICAgICBxdWVyeTogXCJsYXRleFwiLFxuICAgICAgcHJvYmVSZXN1bHRzOiBwcm9iZVJlc3VsdHNcbiAgICB9O1xuICAgIHdpbmRvdy5wYXJlbnQucG9zdE1lc3NhZ2Uoe1xuICAgICAgX19hdG9vbHNfdWlfaG9zdF9wcm9iZV9yZXN1bHRfXzogdHJ1ZSxcbiAgICAgIHBsdWdpbklkOiBcImxhdGV4LW9jclwiLFxuICAgICAgZmVhdHVyZUNvZGU6IFwibGF0ZXgtZWRpdG9yXCIsXG4gICAgICBwcm9iZXM6IHByb2JlUmVzdWx0c1xuICAgIH0sICcqJyk7XG4gIH1cbiAgc2V0VGltZW91dChyZXBvcnRQcm9iZVJlc3VsdHMsIDE2MCk7XG59KSgpO1xuPC9zY3JpcHQ-XG48L2JvZHk-XG48L2h0bWw-Iiwic3ViSW5wdXQiOnsicGxhY2Vob2xkZXIiOiJMYVRlWCDlhazlvI_nvJbovpHlmagiLCJmb2N1cyI6ZmFsc2V9LCJzdWJJbnB1dFZhbHVlIjoibGF0ZXgiLCJvdXRwdXRJdGVtcyI6W119fQ",
+        "expected_dom": {
+          "plugin_id_attribute": "latex-ocr",
+          "feature_code_attribute": "latex-editor",
+          "runtime_chips": [
+            "运行状态",
+            "桥接能力"
+          ]
+        }
+      },
+      "iframe_ready": {
+        "expected": true,
+        "ready_event": "atools-plugin-ready",
+        "host_body_mode": "iframe"
+      },
+      "real_entry_html": {
+        "expected": true,
+        "status": "ready",
+        "main_url": "html/index.html",
+        "html_path": "/Users/harris/Desktop/ZTools-plugins/plugins/latex-ocr/html/index.html",
+        "entry_directory": "/Users/harris/Desktop/ZTools-plugins/plugins/latex-ocr/html",
+        "relative_entry_directory": "html",
+        "bytes": 11302,
+        "sha256": "5f792053e22524e69238dc66fe04700563ac2b5be6e6992838104c423464a291",
+        "resource_signals": {
+          "script_src_count": 7,
+          "module_script_count": 0,
+          "inline_script_count": 0,
+          "stylesheet_link_count": 2,
+          "image_reference_count": 0,
+          "bridge_reference": false
+        }
+      },
+      "real_entry_resources": {
+        "expected": true,
+        "status": "ready",
+        "total_resources": 9,
+        "ready_resources": 9,
+        "missing_resources": 0,
+        "bytes": 516754,
+        "scripts": [
+          {
+            "kind": "script",
+            "url": "../lib/JQuery-3.4.1/jquery-3.4.1.min.js",
+            "module": false,
+            "path": "/Users/harris/Desktop/ZTools-plugins/plugins/latex-ocr/lib/JQuery-3.4.1/jquery-3.4.1.min.js",
+            "bytes": 88145,
+            "sha256": "0925e8ad7bd971391a8b1e98be8e87a6971919eb5b60c196485941c3c1df089a"
+          },
+          {
+            "kind": "script",
+            "url": "../lib/bootstrap-4.3.1-dist/js/bootstrap.bundle.min.js",
+            "module": false,
+            "path": "/Users/harris/Desktop/ZTools-plugins/plugins/latex-ocr/lib/bootstrap-4.3.1-dist/js/bootstrap.bundle.min.js",
+            "bytes": 78635,
+            "sha256": "7f3145c87d3570154f633975e8a4f8d30aa38603edaba145501e9c90ddbe186c"
+          },
+          {
+            "kind": "script",
+            "url": "../lib/tippy/popper.min.js",
+            "module": false,
+            "path": "/Users/harris/Desktop/ZTools-plugins/plugins/latex-ocr/lib/tippy/popper.min.js",
+            "bytes": 16931,
+            "sha256": "2b14f258382dd6086ce4f4f2e6dac0a1e923a133e3e46031362e6e16a6f7fab9"
+          },
+          {
+            "kind": "script",
+            "url": "../lib/tippy/tippy-bundle.umd.min.js",
+            "module": false,
+            "path": "/Users/harris/Desktop/ZTools-plugins/plugins/latex-ocr/lib/tippy/tippy-bundle.umd.min.js",
+            "bytes": 22347,
+            "sha256": "373f08da6b17c4937bccbb8204d240f7623c7e744b4e22d1ba7d60d78feac59d"
+          },
+          {
+            "kind": "script",
+            "url": "../lib/caret/caret.js",
+            "module": false,
+            "path": "/Users/harris/Desktop/ZTools-plugins/plugins/latex-ocr/lib/caret/caret.js",
+            "bytes": 12369,
+            "sha256": "7e1b3450c1f1a98eaa313c9687b02578295002c68c57a7b4135f91acb5f83b8f"
+          },
+          {
+            "kind": "script",
+            "url": "../config.js",
+            "module": false,
+            "path": "/Users/harris/Desktop/ZTools-plugins/plugins/latex-ocr/config.js",
+            "bytes": 357,
+            "sha256": "b6894a6fe4ac28e2a8e1b8484d42ffaa29bd920845c8a0d08cba321f15e66410"
+          },
+          {
+            "kind": "script",
+            "url": "../publish/latex.bundle.min.js",
+            "module": false,
+            "path": "/Users/harris/Desktop/ZTools-plugins/plugins/latex-ocr/publish/latex.bundle.min.js",
+            "bytes": 111212,
+            "sha256": "42cb42badb03614968f2b60fe45596a906b4035dfc70eaaf5c7edc9d5dd3d188"
+          }
+        ],
+        "stylesheets": [
+          {
+            "kind": "stylesheet",
+            "url": "../lib/bootstrap-4.3.1-dist/css/bootstrap.min.css",
+            "path": "/Users/harris/Desktop/ZTools-plugins/plugins/latex-ocr/lib/bootstrap-4.3.1-dist/css/bootstrap.min.css",
+            "bytes": 155758,
+            "sha256": "60b19e5da6a9234ff9220668a5ec1125c157a268513256188ee80f2d2c8d8d36"
+          },
+          {
+            "kind": "stylesheet",
+            "url": "../lib/font-awesome-4.7.0/Font-Awesome-master/css/font-awesome.min.css",
+            "path": "/Users/harris/Desktop/ZTools-plugins/plugins/latex-ocr/lib/font-awesome-4.7.0/Font-Awesome-master/css/font-awesome.min.css",
+            "bytes": 31000,
+            "sha256": "799aeb25cc0373fdee0e1b1db7ad6c2f6a0e058dfadaa3379689f583213190bd"
+          }
+        ],
+        "missing": []
+      },
+      "real_entry_fixture": {
+        "expected": true,
+        "status": "ready",
+        "path": "/Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/003-latex-ocr-latex-editor.html",
+        "relative_path": "003-latex-ocr-latex-editor.html",
+        "url": "file:///Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/003-latex-ocr-latex-editor.html",
+        "bytes": 542224,
+        "sha256": "02fd7d6addcdcfd614268f5b8ab79180540d0911cbde008a3df52a458d544a6d",
+        "inlined_scripts": 7,
+        "inlined_stylesheets": 2,
+        "runtime_support_files": 28,
+        "runtime_support_bytes": 2568910,
+        "bridge_api_probe_ids": [
+          "fixture-bridge-get-path",
+          "fixture-bridge-context",
+          "fixture-bridge-db-storage",
+          "fixture-bridge-db-all-docs",
+          "fixture-bridge-app-identity",
+          "fixture-bridge-system-flags",
+          "fixture-bridge-preload-ky",
+          "fixture-bridge-services",
+          "fixture-bridge-web-storage"
+        ],
+        "probe_ids": [
+          "real-entry-fixture-bridge",
+          "real-entry-fixture-ready",
+          "real-entry-plugin-identity"
+        ]
+      },
+      "real_entry_plugin_panel": {
+        "expected": true,
+        "status": "ready",
+        "mode": "externalPlanRealFixture",
+        "url": "http://localhost:1420/?parity=1&pluginHostSmoke=externalPlan&pluginHostSmokeAction=eyJwbHVnaW5faWQiOiJsYXRleC1vY3IiLCJwbHVnaW5fbmFtZSI6IkxhVGVY5YWs5byP57yW6L6RJuivhuWIqyIsImZlYXR1cmVfY29kZSI6ImxhdGV4LWVkaXRvciIsIm1haW5fdXJsIjoiaW5kZXguaHRtbCIsInBsdWdpbl9wYXRoIjoiX19hdG9vbHNfcGx1Z2luX2hvc3RfcHJldmlld19fIiwiZXhwYW5kX2hlaWdodCI6NTQxLCJwbHVnaW5fcGVybWlzc2lvbnMiOltdLCJwYXlsb2FkIjp7ImlmcmFtZVNyYyI6Imh0dHA6Ly8xMjcuMC4wLjE6MTQzNC8wMDMtbGF0ZXgtb2NyLWxhdGV4LWVkaXRvci5odG1sIiwicmVhbEVudHJ5Rml4dHVyZSI6dHJ1ZSwiZml4dHVyZVBhdGgiOiIvVXNlcnMvaGFycmlzL0Rlc2t0b3AvYXRvb2xzL291dHB1dC96dG9vbHMtdWktaG9zdC1yZWFsLWVudHJ5LWZpeHR1cmVzLzAwMy1sYXRleC1vY3ItbGF0ZXgtZWRpdG9yLmh0bWwiLCJmaXh0dXJlUmVsYXRpdmVQYXRoIjoiMDAzLWxhdGV4LW9jci1sYXRleC1lZGl0b3IuaHRtbCIsInN1YklucHV0Ijp7InBsYWNlaG9sZGVyIjoiTGFUZVgg5YWs5byP57yW6L6R5ZmoIiwiZm9jdXMiOmZhbHNlfSwic3ViSW5wdXRWYWx1ZSI6ImxhdGV4Iiwib3V0cHV0SXRlbXMiOltdfX0",
+        "fixture_path": "/Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/003-latex-ocr-latex-editor.html",
+        "fixture_url": "http://127.0.0.1:1434/003-latex-ocr-latex-editor.html",
+        "probe_ids": [
+          "plugin-panel-iframe-src",
+          "real-entry-fixture-ready",
+          "real-entry-fixture-errors"
+        ],
+        "expected_dom": {
+          "runtime_chips": [
+            "运行状态",
+            "桥接能力",
+            "宿主探针"
+          ],
+          "body_mode": "iframe"
+        }
+      },
+      "screenshot_viewports": [
+        {
+          "name": "desktop",
+          "width": 1280,
+          "height": 820
+        },
+        {
+          "name": "compact",
+          "width": 390,
+          "height": 800
+        }
+      ],
+      "bridge_probes": [
+        {
+          "id": "plugin-enter-event",
+          "attribute": "data-atools-plugin-enter",
+          "expected": "true"
+        },
+        {
+          "id": "plugin-ready-event",
+          "attribute": "data-atools-plugin-ready",
+          "expected": "true"
+        },
+        {
+          "id": "utools-bridge-present",
+          "attribute": "data-utools-bridge-present",
+          "expected": "true"
+        },
+        {
+          "id": "ztools-alias-present",
+          "attribute": "data-ztools-alias-present",
+          "expected": "true"
+        },
+        {
+          "id": "iframe-dom-identity",
+          "attribute": "data-external-plugin-id",
+          "expected": "latex-ocr"
+        }
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "latex-ocr",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 4,
+      "name": "2048",
+      "title": "2048",
+      "plugin_id": "2048",
+      "source_path": "/Users/harris/Desktop/ZTools-plugins/plugins/2048",
+      "runtime_status": "ready",
+      "activation": {
+        "feature_code": "2048",
+        "feature_label": "2048小游戏",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "2048",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "desktop_action": {
+        "plugin_id": "2048",
+        "plugin_name": "2048",
+        "feature_code": "2048",
+        "main_url": "2048-master/index.html",
+        "plugin_path": "/tmp/atools-ztools-plugin-smoke/2048",
+        "preload_path": "/tmp/atools-ztools-plugin-smoke/2048/preload.js",
+        "expand_height": 541,
+        "plugin_permissions": [],
+        "payload": {
+          "trigger_type": "text",
+          "query": "2048"
+        }
+      },
+      "web_preview": {
+        "mode": "externalPlan",
+        "url": "http://localhost:1420/?parity=1&pluginHostSmoke=externalPlan&pluginHostSmokeAction=eyJwbHVnaW5faWQiOiIyMDQ4IiwicGx1Z2luX25hbWUiOiIyMDQ4IiwiZmVhdHVyZV9jb2RlIjoiMjA0OCIsIm1haW5fdXJsIjoiaW5kZXguaHRtbCIsInBsdWdpbl9wYXRoIjoiX19hdG9vbHNfcGx1Z2luX2hvc3RfcHJldmlld19fIiwiZXhwYW5kX2hlaWdodCI6NTQxLCJwbHVnaW5fcGVybWlzc2lvbnMiOltdLCJwYXlsb2FkIjp7InNyY2RvYyI6IjwhZG9jdHlwZSBodG1sPlxuPGh0bWw-XG48Ym9keSBkYXRhLWV4dGVybmFsLXBsdWdpbi1pZD1cIjIwNDhcIiBkYXRhLWV4dGVybmFsLWZlYXR1cmUtY29kZT1cIjIwNDhcIiBkYXRhLWV4dGVybmFsLXRyaWdnZXItdHlwZT1cInRleHRcIj5cbjxtYWluIGRhdGEtenRvb2xzLXVpLWhvc3Qtc21va2U9XCJ0cnVlXCI-XG4gIDxoMT4yMDQ4PC9oMT5cbiAgPHAgZGF0YS1leHRlcm5hbC1tYWluLXVybD1cIjIwNDgtbWFzdGVyL2luZGV4Lmh0bWxcIj4yMDQ4PC9wPlxuICA8cCBkYXRhLWV4dGVybmFsLXRyaWdnZXItcXVlcnk9XCIyMDQ4XCI-MjA0ODwvcD5cbjwvbWFpbj5cbjxzY3JpcHQ-XG4oZnVuY3Rpb24oKXtcbiAgZnVuY3Rpb24gbWFyayhuYW1lLCB2YWx1ZSkge1xuICAgIGRvY3VtZW50LmJvZHkuc2V0QXR0cmlidXRlKG5hbWUsIFN0cmluZyh2YWx1ZSkpO1xuICB9XG4gIHdpbmRvdy5hZGRFdmVudExpc3RlbmVyKCdhdG9vbHMtcGx1Z2luLWVudGVyJywgZnVuY3Rpb24oKXsgbWFyaygnZGF0YS1hdG9vbHMtcGx1Z2luLWVudGVyJywgdHJ1ZSk7IH0pO1xuICB3aW5kb3cuYWRkRXZlbnRMaXN0ZW5lcignYXRvb2xzLXBsdWdpbi1yZWFkeScsIGZ1bmN0aW9uKCl7XG4gICAgbWFyaygnZGF0YS1hdG9vbHMtcGx1Z2luLXJlYWR5JywgdHJ1ZSk7XG4gICAgc2V0VGltZW91dChyZXBvcnRQcm9iZVJlc3VsdHMsIDApO1xuICB9KTtcbiAgdmFyIHByb2JlUmVwb3J0ZWQgPSBmYWxzZTtcbiAgZnVuY3Rpb24gY29sbGVjdFByb2JlUmVzdWx0cygpIHtcbiAgICByZXR1cm4gW1xuICAgICAgeyBpZDogJ3BsdWdpbi1lbnRlci1ldmVudCcsIHBhc3NlZDogZG9jdW1lbnQuYm9keS5nZXRBdHRyaWJ1dGUoJ2RhdGEtYXRvb2xzLXBsdWdpbi1lbnRlcicpID09PSAndHJ1ZScgfSxcbiAgICAgIHsgaWQ6ICdwbHVnaW4tcmVhZHktZXZlbnQnLCBwYXNzZWQ6IGRvY3VtZW50LmJvZHkuZ2V0QXR0cmlidXRlKCdkYXRhLWF0b29scy1wbHVnaW4tcmVhZHknKSA9PT0gJ3RydWUnIH0sXG4gICAgICB7IGlkOiAndXRvb2xzLWJyaWRnZS1wcmVzZW50JywgcGFzc2VkOiAhIXdpbmRvdy51dG9vbHMgfSxcbiAgICAgIHsgaWQ6ICd6dG9vbHMtYWxpYXMtcHJlc2VudCcsIHBhc3NlZDogd2luZG93Lnp0b29scyA9PT0gd2luZG93LnV0b29scyB9LFxuICAgICAge1xuICAgICAgICBpZDogJ2lmcmFtZS1kb20taWRlbnRpdHknLFxuICAgICAgICBwYXNzZWQ6IGRvY3VtZW50LmJvZHkuZ2V0QXR0cmlidXRlKCdkYXRhLWV4dGVybmFsLXBsdWdpbi1pZCcpID09PSBcIjIwNDhcIlxuICAgICAgICAgICYmIGRvY3VtZW50LmJvZHkuZ2V0QXR0cmlidXRlKCdkYXRhLWV4dGVybmFsLWZlYXR1cmUtY29kZScpID09PSBcIjIwNDhcIlxuICAgICAgfVxuICAgIF07XG4gIH1cbiAgZnVuY3Rpb24gcmVwb3J0UHJvYmVSZXN1bHRzKCkge1xuICAgIGlmIChwcm9iZVJlcG9ydGVkKSByZXR1cm47XG4gICAgcHJvYmVSZXBvcnRlZCA9IHRydWU7XG4gICAgbWFyaygnZGF0YS11dG9vbHMtYnJpZGdlLXByZXNlbnQnLCAhIXdpbmRvdy51dG9vbHMpO1xuICAgIG1hcmsoJ2RhdGEtenRvb2xzLWFsaWFzLXByZXNlbnQnLCB3aW5kb3cuenRvb2xzID09PSB3aW5kb3cudXRvb2xzKTtcbiAgICB2YXIgcHJvYmVSZXN1bHRzID0gY29sbGVjdFByb2JlUmVzdWx0cygpO1xuICAgIHdpbmRvdy5fX2F0b29sc0V4dGVybmFsVWlIb3N0U21va2UgPSB7XG4gICAgICBwbHVnaW5JZDogXCIyMDQ4XCIsXG4gICAgICBmZWF0dXJlQ29kZTogXCIyMDQ4XCIsXG4gICAgICB0cmlnZ2VyVHlwZTogXCJ0ZXh0XCIsXG4gICAgICBxdWVyeTogXCIyMDQ4XCIsXG4gICAgICBwcm9iZVJlc3VsdHM6IHByb2JlUmVzdWx0c1xuICAgIH07XG4gICAgd2luZG93LnBhcmVudC5wb3N0TWVzc2FnZSh7XG4gICAgICBfX2F0b29sc191aV9ob3N0X3Byb2JlX3Jlc3VsdF9fOiB0cnVlLFxuICAgICAgcGx1Z2luSWQ6IFwiMjA0OFwiLFxuICAgICAgZmVhdHVyZUNvZGU6IFwiMjA0OFwiLFxuICAgICAgcHJvYmVzOiBwcm9iZVJlc3VsdHNcbiAgICB9LCAnKicpO1xuICB9XG4gIHNldFRpbWVvdXQocmVwb3J0UHJvYmVSZXN1bHRzLCAxNjApO1xufSkoKTtcbjwvc2NyaXB0PlxuPC9ib2R5PlxuPC9odG1sPiIsInN1YklucHV0Ijp7InBsYWNlaG9sZGVyIjoiMjA0OOWwj-a4uOaIjyIsImZvY3VzIjpmYWxzZX0sInN1YklucHV0VmFsdWUiOiIyMDQ4Iiwib3V0cHV0SXRlbXMiOltdfX0",
+        "expected_dom": {
+          "plugin_id_attribute": "2048",
+          "feature_code_attribute": "2048",
+          "runtime_chips": [
+            "运行状态",
+            "桥接能力"
+          ]
+        }
+      },
+      "iframe_ready": {
+        "expected": true,
+        "ready_event": "atools-plugin-ready",
+        "host_body_mode": "iframe"
+      },
+      "real_entry_html": {
+        "expected": true,
+        "status": "ready",
+        "main_url": "2048-master/index.html",
+        "html_path": "/Users/harris/Desktop/ZTools-plugins/plugins/2048/2048-master/index.html",
+        "entry_directory": "/Users/harris/Desktop/ZTools-plugins/plugins/2048/2048-master",
+        "relative_entry_directory": "2048-master",
+        "bytes": 3144,
+        "sha256": "40e29ca7a85f6801b90bd34e4909114c21af0666c6dc42e1d740203a5ff9ffe3",
+        "resource_signals": {
+          "script_src_count": 10,
+          "module_script_count": 0,
+          "inline_script_count": 0,
+          "stylesheet_link_count": 1,
+          "image_reference_count": 0,
+          "bridge_reference": false
+        }
+      },
+      "real_entry_resources": {
+        "expected": true,
+        "status": "ready",
+        "total_resources": 11,
+        "ready_resources": 11,
+        "missing_resources": 0,
+        "bytes": 44201,
+        "scripts": [
+          {
+            "kind": "script",
+            "url": "js/bind_polyfill.js",
+            "module": false,
+            "path": "/Users/harris/Desktop/ZTools-plugins/plugins/2048/2048-master/js/bind_polyfill.js",
+            "bytes": 220,
+            "sha256": "90e671a58a24122ffac4fc28b9a967a3769398c906c348568bf731118d7fdf52"
+          },
+          {
+            "kind": "script",
+            "url": "js/classlist_polyfill.js",
+            "module": false,
+            "path": "/Users/harris/Desktop/ZTools-plugins/plugins/2048/2048-master/js/classlist_polyfill.js",
+            "bytes": 1794,
+            "sha256": "6abb09a37567fb3735e95d7096d30a01190a8eee016c781d51ae6b8b037261cd"
+          },
+          {
+            "kind": "script",
+            "url": "js/animframe_polyfill.js",
+            "module": false,
+            "path": "/Users/harris/Desktop/ZTools-plugins/plugins/2048/2048-master/js/animframe_polyfill.js",
+            "bytes": 890,
+            "sha256": "b97db8f8973c6c883d415e376f15ba657971e5704c8ecfd62e62a9adfec2792e"
+          },
+          {
+            "kind": "script",
+            "url": "js/keyboard_input_manager.js",
+            "module": false,
+            "path": "/Users/harris/Desktop/ZTools-plugins/plugins/2048/2048-master/js/keyboard_input_manager.js",
+            "bytes": 4005,
+            "sha256": "7d579ab5b67dddf339cf28a7d06e4e24eca08b0187204ce352d67c49ae1e48de"
+          },
+          {
+            "kind": "script",
+            "url": "js/html_actuator.js",
+            "module": false,
+            "path": "/Users/harris/Desktop/ZTools-plugins/plugins/2048/2048-master/js/html_actuator.js",
+            "bytes": 4049,
+            "sha256": "1ed3a3f6e22f7f3d5fca3c99694f466fe63a17ddb5313d6876ba3616568c5f51"
+          },
+          {
+            "kind": "script",
+            "url": "js/grid.js",
+            "module": false,
+            "path": "/Users/harris/Desktop/ZTools-plugins/plugins/2048/2048-master/js/grid.js",
+            "bytes": 2526,
+            "sha256": "169428f5ff7f726c38112fcf1c918028cbca3a1d9f9239838fbc7eb4396b9f9a"
+          },
+          {
+            "kind": "script",
+            "url": "js/tile.js",
+            "module": false,
+            "path": "/Users/harris/Desktop/ZTools-plugins/plugins/2048/2048-master/js/tile.js",
+            "bytes": 594,
+            "sha256": "13699e51d62179a6d36874108831a29901a98d6e11329918e64cfb5ee82d58e3"
+          },
+          {
+            "kind": "script",
+            "url": "js/local_storage_manager.js",
+            "module": false,
+            "path": "/Users/harris/Desktop/ZTools-plugins/plugins/2048/2048-master/js/local_storage_manager.js",
+            "bytes": 1588,
+            "sha256": "8e12c6a9aa34097c0b634b1f6690da091b1b4ac158ff914097a8ac83c86b5bc6"
+          },
+          {
+            "kind": "script",
+            "url": "js/game_manager.js",
+            "module": false,
+            "path": "/Users/harris/Desktop/ZTools-plugins/plugins/2048/2048-master/js/game_manager.js",
+            "bytes": 7627,
+            "sha256": "b02baa6b75f8c8cad8606e680b6f73b7c843c61e3a643ee48410022499a649f0"
+          },
+          {
+            "kind": "script",
+            "url": "js/application.js",
+            "module": false,
+            "path": "/Users/harris/Desktop/ZTools-plugins/plugins/2048/2048-master/js/application.js",
+            "bytes": 197,
+            "sha256": "5fc43863225b371c458615ef431fac73003546f437aa32026641de48817bd27a"
+          }
+        ],
+        "stylesheets": [
+          {
+            "kind": "stylesheet",
+            "url": "style/main.css",
+            "path": "/Users/harris/Desktop/ZTools-plugins/plugins/2048/2048-master/style/main.css",
+            "bytes": 20711,
+            "sha256": "62d5a79755f0f40ea1e76f1a440a75b1fd3ec9411b2b25e5788aafd5d5c238a6"
+          }
+        ],
+        "missing": []
+      },
+      "real_entry_fixture": {
+        "expected": true,
+        "status": "ready",
+        "path": "/Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/004-2048-2048.html",
+        "relative_path": "004-2048-2048.html",
+        "url": "file:///Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/004-2048-2048.html",
+        "bytes": 61507,
+        "sha256": "b79c1928d1f216f8782b674036329d3e9163efe8bb2882d4e968321d5e0d1fdd",
+        "inlined_scripts": 10,
+        "inlined_stylesheets": 1,
+        "runtime_support_files": 20,
+        "runtime_support_bytes": 438184,
+        "bridge_api_probe_ids": [
+          "fixture-bridge-get-path",
+          "fixture-bridge-context",
+          "fixture-bridge-db-storage",
+          "fixture-bridge-db-all-docs",
+          "fixture-bridge-app-identity",
+          "fixture-bridge-system-flags",
+          "fixture-bridge-preload-ky",
+          "fixture-bridge-services",
+          "fixture-bridge-web-storage"
+        ],
+        "probe_ids": [
+          "real-entry-fixture-bridge",
+          "real-entry-fixture-ready",
+          "real-entry-plugin-identity"
+        ]
+      },
+      "real_entry_plugin_panel": {
+        "expected": true,
+        "status": "ready",
+        "mode": "externalPlanRealFixture",
+        "url": "http://localhost:1420/?parity=1&pluginHostSmoke=externalPlan&pluginHostSmokeAction=eyJwbHVnaW5faWQiOiIyMDQ4IiwicGx1Z2luX25hbWUiOiIyMDQ4IiwiZmVhdHVyZV9jb2RlIjoiMjA0OCIsIm1haW5fdXJsIjoiaW5kZXguaHRtbCIsInBsdWdpbl9wYXRoIjoiX19hdG9vbHNfcGx1Z2luX2hvc3RfcHJldmlld19fIiwiZXhwYW5kX2hlaWdodCI6NTQxLCJwbHVnaW5fcGVybWlzc2lvbnMiOltdLCJwYXlsb2FkIjp7ImlmcmFtZVNyYyI6Imh0dHA6Ly8xMjcuMC4wLjE6MTQzNC8wMDQtMjA0OC0yMDQ4Lmh0bWwiLCJyZWFsRW50cnlGaXh0dXJlIjp0cnVlLCJmaXh0dXJlUGF0aCI6Ii9Vc2Vycy9oYXJyaXMvRGVza3RvcC9hdG9vbHMvb3V0cHV0L3p0b29scy11aS1ob3N0LXJlYWwtZW50cnktZml4dHVyZXMvMDA0LTIwNDgtMjA0OC5odG1sIiwiZml4dHVyZVJlbGF0aXZlUGF0aCI6IjAwNC0yMDQ4LTIwNDguaHRtbCIsInN1YklucHV0Ijp7InBsYWNlaG9sZGVyIjoiMjA0OOWwj-a4uOaIjyIsImZvY3VzIjpmYWxzZX0sInN1YklucHV0VmFsdWUiOiIyMDQ4Iiwib3V0cHV0SXRlbXMiOltdfX0",
+        "fixture_path": "/Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/004-2048-2048.html",
+        "fixture_url": "http://127.0.0.1:1434/004-2048-2048.html",
+        "probe_ids": [
+          "plugin-panel-iframe-src",
+          "real-entry-fixture-ready",
+          "real-entry-fixture-errors"
+        ],
+        "expected_dom": {
+          "runtime_chips": [
+            "运行状态",
+            "桥接能力",
+            "宿主探针"
+          ],
+          "body_mode": "iframe"
+        }
+      },
+      "screenshot_viewports": [
+        {
+          "name": "desktop",
+          "width": 1280,
+          "height": 820
+        },
+        {
+          "name": "compact",
+          "width": 390,
+          "height": 800
+        }
+      ],
+      "bridge_probes": [
+        {
+          "id": "plugin-enter-event",
+          "attribute": "data-atools-plugin-enter",
+          "expected": "true"
+        },
+        {
+          "id": "plugin-ready-event",
+          "attribute": "data-atools-plugin-ready",
+          "expected": "true"
+        },
+        {
+          "id": "utools-bridge-present",
+          "attribute": "data-utools-bridge-present",
+          "expected": "true"
+        },
+        {
+          "id": "ztools-alias-present",
+          "attribute": "data-ztools-alias-present",
+          "expected": "true"
+        },
+        {
+          "id": "iframe-dom-identity",
+          "attribute": "data-external-plugin-id",
+          "expected": "2048"
+        }
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "2048",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 5,
+      "name": "ai-automation-workbench",
+      "title": "AI 自动化工坊",
+      "plugin_id": "ai-automation-workbench",
+      "source_path": "/Users/harris/Desktop/ZTools-plugins/plugins/ai-automation-workbench",
+      "runtime_status": "ready",
+      "activation": {
+        "feature_code": "ai-automation-workbench",
+        "feature_label": "AI 自动化工坊",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "AI 自动化工坊",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "desktop_action": {
+        "plugin_id": "ai-automation-workbench",
+        "plugin_name": "AI 自动化工坊",
+        "feature_code": "ai-automation-workbench",
+        "main_url": "index.html",
+        "plugin_path": "/tmp/atools-ztools-plugin-smoke/ai-automation-workbench",
+        "preload_path": null,
+        "expand_height": 541,
+        "plugin_permissions": [],
+        "payload": {
+          "trigger_type": "text",
+          "query": "AI 自动化工坊"
+        }
+      },
+      "web_preview": {
+        "mode": "externalPlan",
+        "url": "http://localhost:1420/?parity=1&pluginHostSmoke=externalPlan&pluginHostSmokeAction=eyJwbHVnaW5faWQiOiJhaS1hdXRvbWF0aW9uLXdvcmtiZW5jaCIsInBsdWdpbl9uYW1lIjoiQUkg6Ieq5Yqo5YyW5bel5Z2KIiwiZmVhdHVyZV9jb2RlIjoiYWktYXV0b21hdGlvbi13b3JrYmVuY2giLCJtYWluX3VybCI6ImluZGV4Lmh0bWwiLCJwbHVnaW5fcGF0aCI6Il9fYXRvb2xzX3BsdWdpbl9ob3N0X3ByZXZpZXdfXyIsImV4cGFuZF9oZWlnaHQiOjU0MSwicGx1Z2luX3Blcm1pc3Npb25zIjpbXSwicGF5bG9hZCI6eyJzcmNkb2MiOiI8IWRvY3R5cGUgaHRtbD5cbjxodG1sPlxuPGJvZHkgZGF0YS1leHRlcm5hbC1wbHVnaW4taWQ9XCJhaS1hdXRvbWF0aW9uLXdvcmtiZW5jaFwiIGRhdGEtZXh0ZXJuYWwtZmVhdHVyZS1jb2RlPVwiYWktYXV0b21hdGlvbi13b3JrYmVuY2hcIiBkYXRhLWV4dGVybmFsLXRyaWdnZXItdHlwZT1cInRleHRcIj5cbjxtYWluIGRhdGEtenRvb2xzLXVpLWhvc3Qtc21va2U9XCJ0cnVlXCI-XG4gIDxoMT5BSSDoh6rliqjljJblt6XlnYo8L2gxPlxuICA8cCBkYXRhLWV4dGVybmFsLW1haW4tdXJsPVwiaW5kZXguaHRtbFwiPmFpLWF1dG9tYXRpb24td29ya2JlbmNoPC9wPlxuICA8cCBkYXRhLWV4dGVybmFsLXRyaWdnZXItcXVlcnk9XCJBSSDoh6rliqjljJblt6XlnYpcIj5BSSDoh6rliqjljJblt6XlnYo8L3A-XG48L21haW4-XG48c2NyaXB0PlxuKGZ1bmN0aW9uKCl7XG4gIGZ1bmN0aW9uIG1hcmsobmFtZSwgdmFsdWUpIHtcbiAgICBkb2N1bWVudC5ib2R5LnNldEF0dHJpYnV0ZShuYW1lLCBTdHJpbmcodmFsdWUpKTtcbiAgfVxuICB3aW5kb3cuYWRkRXZlbnRMaXN0ZW5lcignYXRvb2xzLXBsdWdpbi1lbnRlcicsIGZ1bmN0aW9uKCl7IG1hcmsoJ2RhdGEtYXRvb2xzLXBsdWdpbi1lbnRlcicsIHRydWUpOyB9KTtcbiAgd2luZG93LmFkZEV2ZW50TGlzdGVuZXIoJ2F0b29scy1wbHVnaW4tcmVhZHknLCBmdW5jdGlvbigpe1xuICAgIG1hcmsoJ2RhdGEtYXRvb2xzLXBsdWdpbi1yZWFkeScsIHRydWUpO1xuICAgIHNldFRpbWVvdXQocmVwb3J0UHJvYmVSZXN1bHRzLCAwKTtcbiAgfSk7XG4gIHZhciBwcm9iZVJlcG9ydGVkID0gZmFsc2U7XG4gIGZ1bmN0aW9uIGNvbGxlY3RQcm9iZVJlc3VsdHMoKSB7XG4gICAgcmV0dXJuIFtcbiAgICAgIHsgaWQ6ICdwbHVnaW4tZW50ZXItZXZlbnQnLCBwYXNzZWQ6IGRvY3VtZW50LmJvZHkuZ2V0QXR0cmlidXRlKCdkYXRhLWF0b29scy1wbHVnaW4tZW50ZXInKSA9PT0gJ3RydWUnIH0sXG4gICAgICB7IGlkOiAncGx1Z2luLXJlYWR5LWV2ZW50JywgcGFzc2VkOiBkb2N1bWVudC5ib2R5LmdldEF0dHJpYnV0ZSgnZGF0YS1hdG9vbHMtcGx1Z2luLXJlYWR5JykgPT09ICd0cnVlJyB9LFxuICAgICAgeyBpZDogJ3V0b29scy1icmlkZ2UtcHJlc2VudCcsIHBhc3NlZDogISF3aW5kb3cudXRvb2xzIH0sXG4gICAgICB7IGlkOiAnenRvb2xzLWFsaWFzLXByZXNlbnQnLCBwYXNzZWQ6IHdpbmRvdy56dG9vbHMgPT09IHdpbmRvdy51dG9vbHMgfSxcbiAgICAgIHtcbiAgICAgICAgaWQ6ICdpZnJhbWUtZG9tLWlkZW50aXR5JyxcbiAgICAgICAgcGFzc2VkOiBkb2N1bWVudC5ib2R5LmdldEF0dHJpYnV0ZSgnZGF0YS1leHRlcm5hbC1wbHVnaW4taWQnKSA9PT0gXCJhaS1hdXRvbWF0aW9uLXdvcmtiZW5jaFwiXG4gICAgICAgICAgJiYgZG9jdW1lbnQuYm9keS5nZXRBdHRyaWJ1dGUoJ2RhdGEtZXh0ZXJuYWwtZmVhdHVyZS1jb2RlJykgPT09IFwiYWktYXV0b21hdGlvbi13b3JrYmVuY2hcIlxuICAgICAgfVxuICAgIF07XG4gIH1cbiAgZnVuY3Rpb24gcmVwb3J0UHJvYmVSZXN1bHRzKCkge1xuICAgIGlmIChwcm9iZVJlcG9ydGVkKSByZXR1cm47XG4gICAgcHJvYmVSZXBvcnRlZCA9IHRydWU7XG4gICAgbWFyaygnZGF0YS11dG9vbHMtYnJpZGdlLXByZXNlbnQnLCAhIXdpbmRvdy51dG9vbHMpO1xuICAgIG1hcmsoJ2RhdGEtenRvb2xzLWFsaWFzLXByZXNlbnQnLCB3aW5kb3cuenRvb2xzID09PSB3aW5kb3cudXRvb2xzKTtcbiAgICB2YXIgcHJvYmVSZXN1bHRzID0gY29sbGVjdFByb2JlUmVzdWx0cygpO1xuICAgIHdpbmRvdy5fX2F0b29sc0V4dGVybmFsVWlIb3N0U21va2UgPSB7XG4gICAgICBwbHVnaW5JZDogXCJhaS1hdXRvbWF0aW9uLXdvcmtiZW5jaFwiLFxuICAgICAgZmVhdHVyZUNvZGU6IFwiYWktYXV0b21hdGlvbi13b3JrYmVuY2hcIixcbiAgICAgIHRyaWdnZXJUeXBlOiBcInRleHRcIixcbiAgICAgIHF1ZXJ5OiBcIkFJIOiHquWKqOWMluW3peWdilwiLFxuICAgICAgcHJvYmVSZXN1bHRzOiBwcm9iZVJlc3VsdHNcbiAgICB9O1xuICAgIHdpbmRvdy5wYXJlbnQucG9zdE1lc3NhZ2Uoe1xuICAgICAgX19hdG9vbHNfdWlfaG9zdF9wcm9iZV9yZXN1bHRfXzogdHJ1ZSxcbiAgICAgIHBsdWdpbklkOiBcImFpLWF1dG9tYXRpb24td29ya2JlbmNoXCIsXG4gICAgICBmZWF0dXJlQ29kZTogXCJhaS1hdXRvbWF0aW9uLXdvcmtiZW5jaFwiLFxuICAgICAgcHJvYmVzOiBwcm9iZVJlc3VsdHNcbiAgICB9LCAnKicpO1xuICB9XG4gIHNldFRpbWVvdXQocmVwb3J0UHJvYmVSZXN1bHRzLCAxNjApO1xufSkoKTtcbjwvc2NyaXB0PlxuPC9ib2R5PlxuPC9odG1sPiIsInN1YklucHV0Ijp7InBsYWNlaG9sZGVyIjoiQUkg6Ieq5Yqo5YyW5bel5Z2KIiwiZm9jdXMiOmZhbHNlfSwic3ViSW5wdXRWYWx1ZSI6IkFJIOiHquWKqOWMluW3peWdiiIsIm91dHB1dEl0ZW1zIjpbXX19",
+        "expected_dom": {
+          "plugin_id_attribute": "ai-automation-workbench",
+          "feature_code_attribute": "ai-automation-workbench",
+          "runtime_chips": [
+            "运行状态",
+            "桥接能力"
+          ]
+        }
+      },
+      "iframe_ready": {
+        "expected": true,
+        "ready_event": "atools-plugin-ready",
+        "host_body_mode": "iframe"
+      },
+      "real_entry_html": {
+        "expected": true,
+        "status": "ready",
+        "main_url": "index.html",
+        "html_path": "/Users/harris/Desktop/ZTools-plugins/plugins/ai-automation-workbench/index.html",
+        "entry_directory": "/Users/harris/Desktop/ZTools-plugins/plugins/ai-automation-workbench",
+        "relative_entry_directory": ".",
+        "bytes": 2819,
+        "sha256": "76a329ba8e863ff696d32a16e2af7ab9a22976479f6e588ceaebca137cbb0d96",
+        "resource_signals": {
+          "script_src_count": 0,
+          "module_script_count": 0,
+          "inline_script_count": 1,
+          "stylesheet_link_count": 0,
+          "image_reference_count": 0,
+          "bridge_reference": false
+        }
+      },
+      "real_entry_resources": {
+        "expected": true,
+        "status": "ready",
+        "total_resources": 0,
+        "ready_resources": 0,
+        "missing_resources": 0,
+        "bytes": 0,
+        "scripts": [],
+        "stylesheets": [],
+        "missing": []
+      },
+      "real_entry_fixture": {
+        "expected": true,
+        "status": "ready",
+        "path": "/Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/005-ai-automation-workbench-ai-automation-workbench.html",
+        "relative_path": "005-ai-automation-workbench-ai-automation-workbench.html",
+        "url": "file:///Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/005-ai-automation-workbench-ai-automation-workbench.html",
+        "bytes": 16822,
+        "sha256": "bb05d29d0fc25d5eeb7ef74914edd0873f08967e3efc7001b950b5a93008404c",
+        "inlined_scripts": 0,
+        "inlined_stylesheets": 0,
+        "runtime_support_files": 0,
+        "runtime_support_bytes": 0,
+        "bridge_api_probe_ids": [
+          "fixture-bridge-get-path",
+          "fixture-bridge-context",
+          "fixture-bridge-db-storage",
+          "fixture-bridge-db-all-docs",
+          "fixture-bridge-app-identity",
+          "fixture-bridge-system-flags",
+          "fixture-bridge-preload-ky",
+          "fixture-bridge-services",
+          "fixture-bridge-web-storage"
+        ],
+        "probe_ids": [
+          "real-entry-fixture-bridge",
+          "real-entry-fixture-ready",
+          "real-entry-plugin-identity"
+        ]
+      },
+      "real_entry_plugin_panel": {
+        "expected": true,
+        "status": "ready",
+        "mode": "externalPlanRealFixture",
+        "url": "http://localhost:1420/?parity=1&pluginHostSmoke=externalPlan&pluginHostSmokeAction=eyJwbHVnaW5faWQiOiJhaS1hdXRvbWF0aW9uLXdvcmtiZW5jaCIsInBsdWdpbl9uYW1lIjoiQUkg6Ieq5Yqo5YyW5bel5Z2KIiwiZmVhdHVyZV9jb2RlIjoiYWktYXV0b21hdGlvbi13b3JrYmVuY2giLCJtYWluX3VybCI6ImluZGV4Lmh0bWwiLCJwbHVnaW5fcGF0aCI6Il9fYXRvb2xzX3BsdWdpbl9ob3N0X3ByZXZpZXdfXyIsImV4cGFuZF9oZWlnaHQiOjU0MSwicGx1Z2luX3Blcm1pc3Npb25zIjpbXSwicGF5bG9hZCI6eyJpZnJhbWVTcmMiOiJodHRwOi8vMTI3LjAuMC4xOjE0MzQvMDA1LWFpLWF1dG9tYXRpb24td29ya2JlbmNoLWFpLWF1dG9tYXRpb24td29ya2JlbmNoLmh0bWwiLCJyZWFsRW50cnlGaXh0dXJlIjp0cnVlLCJmaXh0dXJlUGF0aCI6Ii9Vc2Vycy9oYXJyaXMvRGVza3RvcC9hdG9vbHMvb3V0cHV0L3p0b29scy11aS1ob3N0LXJlYWwtZW50cnktZml4dHVyZXMvMDA1LWFpLWF1dG9tYXRpb24td29ya2JlbmNoLWFpLWF1dG9tYXRpb24td29ya2JlbmNoLmh0bWwiLCJmaXh0dXJlUmVsYXRpdmVQYXRoIjoiMDA1LWFpLWF1dG9tYXRpb24td29ya2JlbmNoLWFpLWF1dG9tYXRpb24td29ya2JlbmNoLmh0bWwiLCJzdWJJbnB1dCI6eyJwbGFjZWhvbGRlciI6IkFJIOiHquWKqOWMluW3peWdiiIsImZvY3VzIjpmYWxzZX0sInN1YklucHV0VmFsdWUiOiJBSSDoh6rliqjljJblt6XlnYoiLCJvdXRwdXRJdGVtcyI6W119fQ",
+        "fixture_path": "/Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/005-ai-automation-workbench-ai-automation-workbench.html",
+        "fixture_url": "http://127.0.0.1:1434/005-ai-automation-workbench-ai-automation-workbench.html",
+        "probe_ids": [
+          "plugin-panel-iframe-src",
+          "real-entry-fixture-ready",
+          "real-entry-fixture-errors"
+        ],
+        "expected_dom": {
+          "runtime_chips": [
+            "运行状态",
+            "桥接能力",
+            "宿主探针"
+          ],
+          "body_mode": "iframe"
+        }
+      },
+      "screenshot_viewports": [
+        {
+          "name": "desktop",
+          "width": 1280,
+          "height": 820
+        },
+        {
+          "name": "compact",
+          "width": 390,
+          "height": 800
+        }
+      ],
+      "bridge_probes": [
+        {
+          "id": "plugin-enter-event",
+          "attribute": "data-atools-plugin-enter",
+          "expected": "true"
+        },
+        {
+          "id": "plugin-ready-event",
+          "attribute": "data-atools-plugin-ready",
+          "expected": "true"
+        },
+        {
+          "id": "utools-bridge-present",
+          "attribute": "data-utools-bridge-present",
+          "expected": "true"
+        },
+        {
+          "id": "ztools-alias-present",
+          "attribute": "data-ztools-alias-present",
+          "expected": "true"
+        },
+        {
+          "id": "iframe-dom-identity",
+          "attribute": "data-external-plugin-id",
+          "expected": "ai-automation-workbench"
+        }
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "ai-automation-workbench",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 6,
+      "name": "content-workbench",
+      "title": "内容整理工坊",
+      "plugin_id": "content-workbench",
+      "source_path": "/Users/harris/Desktop/ZTools-plugins/plugins/content-workbench",
+      "runtime_status": "ready",
+      "activation": {
+        "feature_code": "content-workbench",
+        "feature_label": "内容整理工坊",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "内容整理工坊",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "desktop_action": {
+        "plugin_id": "content-workbench",
+        "plugin_name": "内容整理工坊",
+        "feature_code": "content-workbench",
+        "main_url": "index.html",
+        "plugin_path": "/tmp/atools-ztools-plugin-smoke/content-workbench",
+        "preload_path": null,
+        "expand_height": 541,
+        "plugin_permissions": [],
+        "payload": {
+          "trigger_type": "text",
+          "query": "内容整理工坊"
+        }
+      },
+      "web_preview": {
+        "mode": "externalPlan",
+        "url": "http://localhost:1420/?parity=1&pluginHostSmoke=externalPlan&pluginHostSmokeAction=eyJwbHVnaW5faWQiOiJjb250ZW50LXdvcmtiZW5jaCIsInBsdWdpbl9uYW1lIjoi5YaF5a655pW055CG5bel5Z2KIiwiZmVhdHVyZV9jb2RlIjoiY29udGVudC13b3JrYmVuY2giLCJtYWluX3VybCI6ImluZGV4Lmh0bWwiLCJwbHVnaW5fcGF0aCI6Il9fYXRvb2xzX3BsdWdpbl9ob3N0X3ByZXZpZXdfXyIsImV4cGFuZF9oZWlnaHQiOjU0MSwicGx1Z2luX3Blcm1pc3Npb25zIjpbXSwicGF5bG9hZCI6eyJzcmNkb2MiOiI8IWRvY3R5cGUgaHRtbD5cbjxodG1sPlxuPGJvZHkgZGF0YS1leHRlcm5hbC1wbHVnaW4taWQ9XCJjb250ZW50LXdvcmtiZW5jaFwiIGRhdGEtZXh0ZXJuYWwtZmVhdHVyZS1jb2RlPVwiY29udGVudC13b3JrYmVuY2hcIiBkYXRhLWV4dGVybmFsLXRyaWdnZXItdHlwZT1cInRleHRcIj5cbjxtYWluIGRhdGEtenRvb2xzLXVpLWhvc3Qtc21va2U9XCJ0cnVlXCI-XG4gIDxoMT7lhoXlrrnmlbTnkIblt6XlnYo8L2gxPlxuICA8cCBkYXRhLWV4dGVybmFsLW1haW4tdXJsPVwiaW5kZXguaHRtbFwiPmNvbnRlbnQtd29ya2JlbmNoPC9wPlxuICA8cCBkYXRhLWV4dGVybmFsLXRyaWdnZXItcXVlcnk9XCLlhoXlrrnmlbTnkIblt6XlnYpcIj7lhoXlrrnmlbTnkIblt6XlnYo8L3A-XG48L21haW4-XG48c2NyaXB0PlxuKGZ1bmN0aW9uKCl7XG4gIGZ1bmN0aW9uIG1hcmsobmFtZSwgdmFsdWUpIHtcbiAgICBkb2N1bWVudC5ib2R5LnNldEF0dHJpYnV0ZShuYW1lLCBTdHJpbmcodmFsdWUpKTtcbiAgfVxuICB3aW5kb3cuYWRkRXZlbnRMaXN0ZW5lcignYXRvb2xzLXBsdWdpbi1lbnRlcicsIGZ1bmN0aW9uKCl7IG1hcmsoJ2RhdGEtYXRvb2xzLXBsdWdpbi1lbnRlcicsIHRydWUpOyB9KTtcbiAgd2luZG93LmFkZEV2ZW50TGlzdGVuZXIoJ2F0b29scy1wbHVnaW4tcmVhZHknLCBmdW5jdGlvbigpe1xuICAgIG1hcmsoJ2RhdGEtYXRvb2xzLXBsdWdpbi1yZWFkeScsIHRydWUpO1xuICAgIHNldFRpbWVvdXQocmVwb3J0UHJvYmVSZXN1bHRzLCAwKTtcbiAgfSk7XG4gIHZhciBwcm9iZVJlcG9ydGVkID0gZmFsc2U7XG4gIGZ1bmN0aW9uIGNvbGxlY3RQcm9iZVJlc3VsdHMoKSB7XG4gICAgcmV0dXJuIFtcbiAgICAgIHsgaWQ6ICdwbHVnaW4tZW50ZXItZXZlbnQnLCBwYXNzZWQ6IGRvY3VtZW50LmJvZHkuZ2V0QXR0cmlidXRlKCdkYXRhLWF0b29scy1wbHVnaW4tZW50ZXInKSA9PT0gJ3RydWUnIH0sXG4gICAgICB7IGlkOiAncGx1Z2luLXJlYWR5LWV2ZW50JywgcGFzc2VkOiBkb2N1bWVudC5ib2R5LmdldEF0dHJpYnV0ZSgnZGF0YS1hdG9vbHMtcGx1Z2luLXJlYWR5JykgPT09ICd0cnVlJyB9LFxuICAgICAgeyBpZDogJ3V0b29scy1icmlkZ2UtcHJlc2VudCcsIHBhc3NlZDogISF3aW5kb3cudXRvb2xzIH0sXG4gICAgICB7IGlkOiAnenRvb2xzLWFsaWFzLXByZXNlbnQnLCBwYXNzZWQ6IHdpbmRvdy56dG9vbHMgPT09IHdpbmRvdy51dG9vbHMgfSxcbiAgICAgIHtcbiAgICAgICAgaWQ6ICdpZnJhbWUtZG9tLWlkZW50aXR5JyxcbiAgICAgICAgcGFzc2VkOiBkb2N1bWVudC5ib2R5LmdldEF0dHJpYnV0ZSgnZGF0YS1leHRlcm5hbC1wbHVnaW4taWQnKSA9PT0gXCJjb250ZW50LXdvcmtiZW5jaFwiXG4gICAgICAgICAgJiYgZG9jdW1lbnQuYm9keS5nZXRBdHRyaWJ1dGUoJ2RhdGEtZXh0ZXJuYWwtZmVhdHVyZS1jb2RlJykgPT09IFwiY29udGVudC13b3JrYmVuY2hcIlxuICAgICAgfVxuICAgIF07XG4gIH1cbiAgZnVuY3Rpb24gcmVwb3J0UHJvYmVSZXN1bHRzKCkge1xuICAgIGlmIChwcm9iZVJlcG9ydGVkKSByZXR1cm47XG4gICAgcHJvYmVSZXBvcnRlZCA9IHRydWU7XG4gICAgbWFyaygnZGF0YS11dG9vbHMtYnJpZGdlLXByZXNlbnQnLCAhIXdpbmRvdy51dG9vbHMpO1xuICAgIG1hcmsoJ2RhdGEtenRvb2xzLWFsaWFzLXByZXNlbnQnLCB3aW5kb3cuenRvb2xzID09PSB3aW5kb3cudXRvb2xzKTtcbiAgICB2YXIgcHJvYmVSZXN1bHRzID0gY29sbGVjdFByb2JlUmVzdWx0cygpO1xuICAgIHdpbmRvdy5fX2F0b29sc0V4dGVybmFsVWlIb3N0U21va2UgPSB7XG4gICAgICBwbHVnaW5JZDogXCJjb250ZW50LXdvcmtiZW5jaFwiLFxuICAgICAgZmVhdHVyZUNvZGU6IFwiY29udGVudC13b3JrYmVuY2hcIixcbiAgICAgIHRyaWdnZXJUeXBlOiBcInRleHRcIixcbiAgICAgIHF1ZXJ5OiBcIuWGheWuueaVtOeQhuW3peWdilwiLFxuICAgICAgcHJvYmVSZXN1bHRzOiBwcm9iZVJlc3VsdHNcbiAgICB9O1xuICAgIHdpbmRvdy5wYXJlbnQucG9zdE1lc3NhZ2Uoe1xuICAgICAgX19hdG9vbHNfdWlfaG9zdF9wcm9iZV9yZXN1bHRfXzogdHJ1ZSxcbiAgICAgIHBsdWdpbklkOiBcImNvbnRlbnQtd29ya2JlbmNoXCIsXG4gICAgICBmZWF0dXJlQ29kZTogXCJjb250ZW50LXdvcmtiZW5jaFwiLFxuICAgICAgcHJvYmVzOiBwcm9iZVJlc3VsdHNcbiAgICB9LCAnKicpO1xuICB9XG4gIHNldFRpbWVvdXQocmVwb3J0UHJvYmVSZXN1bHRzLCAxNjApO1xufSkoKTtcbjwvc2NyaXB0PlxuPC9ib2R5PlxuPC9odG1sPiIsInN1YklucHV0Ijp7InBsYWNlaG9sZGVyIjoi5YaF5a655pW055CG5bel5Z2KIiwiZm9jdXMiOmZhbHNlfSwic3ViSW5wdXRWYWx1ZSI6IuWGheWuueaVtOeQhuW3peWdiiIsIm91dHB1dEl0ZW1zIjpbXX19",
+        "expected_dom": {
+          "plugin_id_attribute": "content-workbench",
+          "feature_code_attribute": "content-workbench",
+          "runtime_chips": [
+            "运行状态",
+            "桥接能力"
+          ]
+        }
+      },
+      "iframe_ready": {
+        "expected": true,
+        "ready_event": "atools-plugin-ready",
+        "host_body_mode": "iframe"
+      },
+      "real_entry_html": {
+        "expected": true,
+        "status": "ready",
+        "main_url": "index.html",
+        "html_path": "/Users/harris/Desktop/ZTools-plugins/plugins/content-workbench/index.html",
+        "entry_directory": "/Users/harris/Desktop/ZTools-plugins/plugins/content-workbench",
+        "relative_entry_directory": ".",
+        "bytes": 3387,
+        "sha256": "3974144209e4576fe2f2de54167fe50c7ba739984c63530aff2be40e6be37944",
+        "resource_signals": {
+          "script_src_count": 0,
+          "module_script_count": 0,
+          "inline_script_count": 1,
+          "stylesheet_link_count": 0,
+          "image_reference_count": 0,
+          "bridge_reference": false
+        }
+      },
+      "real_entry_resources": {
+        "expected": true,
+        "status": "ready",
+        "total_resources": 0,
+        "ready_resources": 0,
+        "missing_resources": 0,
+        "bytes": 0,
+        "scripts": [],
+        "stylesheets": [],
+        "missing": []
+      },
+      "real_entry_fixture": {
+        "expected": true,
+        "status": "ready",
+        "path": "/Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/006-content-workbench-content-workbench.html",
+        "relative_path": "006-content-workbench-content-workbench.html",
+        "url": "file:///Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/006-content-workbench-content-workbench.html",
+        "bytes": 17378,
+        "sha256": "0e93b4d022f17efeb3342d251c1e68d6bf2e0509df2332ff55e70b36c9aa8c6a",
+        "inlined_scripts": 0,
+        "inlined_stylesheets": 0,
+        "runtime_support_files": 0,
+        "runtime_support_bytes": 0,
+        "bridge_api_probe_ids": [
+          "fixture-bridge-get-path",
+          "fixture-bridge-context",
+          "fixture-bridge-db-storage",
+          "fixture-bridge-db-all-docs",
+          "fixture-bridge-app-identity",
+          "fixture-bridge-system-flags",
+          "fixture-bridge-preload-ky",
+          "fixture-bridge-services",
+          "fixture-bridge-web-storage"
+        ],
+        "probe_ids": [
+          "real-entry-fixture-bridge",
+          "real-entry-fixture-ready",
+          "real-entry-plugin-identity"
+        ]
+      },
+      "real_entry_plugin_panel": {
+        "expected": true,
+        "status": "ready",
+        "mode": "externalPlanRealFixture",
+        "url": "http://localhost:1420/?parity=1&pluginHostSmoke=externalPlan&pluginHostSmokeAction=eyJwbHVnaW5faWQiOiJjb250ZW50LXdvcmtiZW5jaCIsInBsdWdpbl9uYW1lIjoi5YaF5a655pW055CG5bel5Z2KIiwiZmVhdHVyZV9jb2RlIjoiY29udGVudC13b3JrYmVuY2giLCJtYWluX3VybCI6ImluZGV4Lmh0bWwiLCJwbHVnaW5fcGF0aCI6Il9fYXRvb2xzX3BsdWdpbl9ob3N0X3ByZXZpZXdfXyIsImV4cGFuZF9oZWlnaHQiOjU0MSwicGx1Z2luX3Blcm1pc3Npb25zIjpbXSwicGF5bG9hZCI6eyJpZnJhbWVTcmMiOiJodHRwOi8vMTI3LjAuMC4xOjE0MzQvMDA2LWNvbnRlbnQtd29ya2JlbmNoLWNvbnRlbnQtd29ya2JlbmNoLmh0bWwiLCJyZWFsRW50cnlGaXh0dXJlIjp0cnVlLCJmaXh0dXJlUGF0aCI6Ii9Vc2Vycy9oYXJyaXMvRGVza3RvcC9hdG9vbHMvb3V0cHV0L3p0b29scy11aS1ob3N0LXJlYWwtZW50cnktZml4dHVyZXMvMDA2LWNvbnRlbnQtd29ya2JlbmNoLWNvbnRlbnQtd29ya2JlbmNoLmh0bWwiLCJmaXh0dXJlUmVsYXRpdmVQYXRoIjoiMDA2LWNvbnRlbnQtd29ya2JlbmNoLWNvbnRlbnQtd29ya2JlbmNoLmh0bWwiLCJzdWJJbnB1dCI6eyJwbGFjZWhvbGRlciI6IuWGheWuueaVtOeQhuW3peWdiiIsImZvY3VzIjpmYWxzZX0sInN1YklucHV0VmFsdWUiOiLlhoXlrrnmlbTnkIblt6XlnYoiLCJvdXRwdXRJdGVtcyI6W119fQ",
+        "fixture_path": "/Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/006-content-workbench-content-workbench.html",
+        "fixture_url": "http://127.0.0.1:1434/006-content-workbench-content-workbench.html",
+        "probe_ids": [
+          "plugin-panel-iframe-src",
+          "real-entry-fixture-ready",
+          "real-entry-fixture-errors"
+        ],
+        "expected_dom": {
+          "runtime_chips": [
+            "运行状态",
+            "桥接能力",
+            "宿主探针"
+          ],
+          "body_mode": "iframe"
+        }
+      },
+      "screenshot_viewports": [
+        {
+          "name": "desktop",
+          "width": 1280,
+          "height": 820
+        },
+        {
+          "name": "compact",
+          "width": 390,
+          "height": 800
+        }
+      ],
+      "bridge_probes": [
+        {
+          "id": "plugin-enter-event",
+          "attribute": "data-atools-plugin-enter",
+          "expected": "true"
+        },
+        {
+          "id": "plugin-ready-event",
+          "attribute": "data-atools-plugin-ready",
+          "expected": "true"
+        },
+        {
+          "id": "utools-bridge-present",
+          "attribute": "data-utools-bridge-present",
+          "expected": "true"
+        },
+        {
+          "id": "ztools-alias-present",
+          "attribute": "data-ztools-alias-present",
+          "expected": "true"
+        },
+        {
+          "id": "iframe-dom-identity",
+          "attribute": "data-external-plugin-id",
+          "expected": "content-workbench"
+        }
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "content-workbench",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 7,
+      "name": "cron",
+      "title": "cron在线表达式",
+      "plugin_id": "cron",
+      "source_path": "/Users/harris/Desktop/ZTools-plugins/plugins/cron",
+      "runtime_status": "ready",
+      "activation": {
+        "feature_code": "cron",
+        "feature_label": "Cron 表达式生成器",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "cron",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "desktop_action": {
+        "plugin_id": "cron",
+        "plugin_name": "cron在线表达式",
+        "feature_code": "cron",
+        "main_url": "index.html",
+        "plugin_path": "/tmp/atools-ztools-plugin-smoke/cron",
+        "preload_path": null,
+        "expand_height": 541,
+        "plugin_permissions": [],
+        "payload": {
+          "trigger_type": "text",
+          "query": "cron"
+        }
+      },
+      "web_preview": {
+        "mode": "externalPlan",
+        "url": "http://localhost:1420/?parity=1&pluginHostSmoke=externalPlan&pluginHostSmokeAction=eyJwbHVnaW5faWQiOiJjcm9uIiwicGx1Z2luX25hbWUiOiJjcm9u5Zyo57q_6KGo6L6-5byPIiwiZmVhdHVyZV9jb2RlIjoiY3JvbiIsIm1haW5fdXJsIjoiaW5kZXguaHRtbCIsInBsdWdpbl9wYXRoIjoiX19hdG9vbHNfcGx1Z2luX2hvc3RfcHJldmlld19fIiwiZXhwYW5kX2hlaWdodCI6NTQxLCJwbHVnaW5fcGVybWlzc2lvbnMiOltdLCJwYXlsb2FkIjp7InNyY2RvYyI6IjwhZG9jdHlwZSBodG1sPlxuPGh0bWw-XG48Ym9keSBkYXRhLWV4dGVybmFsLXBsdWdpbi1pZD1cImNyb25cIiBkYXRhLWV4dGVybmFsLWZlYXR1cmUtY29kZT1cImNyb25cIiBkYXRhLWV4dGVybmFsLXRyaWdnZXItdHlwZT1cInRleHRcIj5cbjxtYWluIGRhdGEtenRvb2xzLXVpLWhvc3Qtc21va2U9XCJ0cnVlXCI-XG4gIDxoMT5jcm9u5Zyo57q_6KGo6L6-5byPPC9oMT5cbiAgPHAgZGF0YS1leHRlcm5hbC1tYWluLXVybD1cImluZGV4Lmh0bWxcIj5jcm9uPC9wPlxuICA8cCBkYXRhLWV4dGVybmFsLXRyaWdnZXItcXVlcnk9XCJjcm9uXCI-Y3JvbjwvcD5cbjwvbWFpbj5cbjxzY3JpcHQ-XG4oZnVuY3Rpb24oKXtcbiAgZnVuY3Rpb24gbWFyayhuYW1lLCB2YWx1ZSkge1xuICAgIGRvY3VtZW50LmJvZHkuc2V0QXR0cmlidXRlKG5hbWUsIFN0cmluZyh2YWx1ZSkpO1xuICB9XG4gIHdpbmRvdy5hZGRFdmVudExpc3RlbmVyKCdhdG9vbHMtcGx1Z2luLWVudGVyJywgZnVuY3Rpb24oKXsgbWFyaygnZGF0YS1hdG9vbHMtcGx1Z2luLWVudGVyJywgdHJ1ZSk7IH0pO1xuICB3aW5kb3cuYWRkRXZlbnRMaXN0ZW5lcignYXRvb2xzLXBsdWdpbi1yZWFkeScsIGZ1bmN0aW9uKCl7XG4gICAgbWFyaygnZGF0YS1hdG9vbHMtcGx1Z2luLXJlYWR5JywgdHJ1ZSk7XG4gICAgc2V0VGltZW91dChyZXBvcnRQcm9iZVJlc3VsdHMsIDApO1xuICB9KTtcbiAgdmFyIHByb2JlUmVwb3J0ZWQgPSBmYWxzZTtcbiAgZnVuY3Rpb24gY29sbGVjdFByb2JlUmVzdWx0cygpIHtcbiAgICByZXR1cm4gW1xuICAgICAgeyBpZDogJ3BsdWdpbi1lbnRlci1ldmVudCcsIHBhc3NlZDogZG9jdW1lbnQuYm9keS5nZXRBdHRyaWJ1dGUoJ2RhdGEtYXRvb2xzLXBsdWdpbi1lbnRlcicpID09PSAndHJ1ZScgfSxcbiAgICAgIHsgaWQ6ICdwbHVnaW4tcmVhZHktZXZlbnQnLCBwYXNzZWQ6IGRvY3VtZW50LmJvZHkuZ2V0QXR0cmlidXRlKCdkYXRhLWF0b29scy1wbHVnaW4tcmVhZHknKSA9PT0gJ3RydWUnIH0sXG4gICAgICB7IGlkOiAndXRvb2xzLWJyaWRnZS1wcmVzZW50JywgcGFzc2VkOiAhIXdpbmRvdy51dG9vbHMgfSxcbiAgICAgIHsgaWQ6ICd6dG9vbHMtYWxpYXMtcHJlc2VudCcsIHBhc3NlZDogd2luZG93Lnp0b29scyA9PT0gd2luZG93LnV0b29scyB9LFxuICAgICAge1xuICAgICAgICBpZDogJ2lmcmFtZS1kb20taWRlbnRpdHknLFxuICAgICAgICBwYXNzZWQ6IGRvY3VtZW50LmJvZHkuZ2V0QXR0cmlidXRlKCdkYXRhLWV4dGVybmFsLXBsdWdpbi1pZCcpID09PSBcImNyb25cIlxuICAgICAgICAgICYmIGRvY3VtZW50LmJvZHkuZ2V0QXR0cmlidXRlKCdkYXRhLWV4dGVybmFsLWZlYXR1cmUtY29kZScpID09PSBcImNyb25cIlxuICAgICAgfVxuICAgIF07XG4gIH1cbiAgZnVuY3Rpb24gcmVwb3J0UHJvYmVSZXN1bHRzKCkge1xuICAgIGlmIChwcm9iZVJlcG9ydGVkKSByZXR1cm47XG4gICAgcHJvYmVSZXBvcnRlZCA9IHRydWU7XG4gICAgbWFyaygnZGF0YS11dG9vbHMtYnJpZGdlLXByZXNlbnQnLCAhIXdpbmRvdy51dG9vbHMpO1xuICAgIG1hcmsoJ2RhdGEtenRvb2xzLWFsaWFzLXByZXNlbnQnLCB3aW5kb3cuenRvb2xzID09PSB3aW5kb3cudXRvb2xzKTtcbiAgICB2YXIgcHJvYmVSZXN1bHRzID0gY29sbGVjdFByb2JlUmVzdWx0cygpO1xuICAgIHdpbmRvdy5fX2F0b29sc0V4dGVybmFsVWlIb3N0U21va2UgPSB7XG4gICAgICBwbHVnaW5JZDogXCJjcm9uXCIsXG4gICAgICBmZWF0dXJlQ29kZTogXCJjcm9uXCIsXG4gICAgICB0cmlnZ2VyVHlwZTogXCJ0ZXh0XCIsXG4gICAgICBxdWVyeTogXCJjcm9uXCIsXG4gICAgICBwcm9iZVJlc3VsdHM6IHByb2JlUmVzdWx0c1xuICAgIH07XG4gICAgd2luZG93LnBhcmVudC5wb3N0TWVzc2FnZSh7XG4gICAgICBfX2F0b29sc191aV9ob3N0X3Byb2JlX3Jlc3VsdF9fOiB0cnVlLFxuICAgICAgcGx1Z2luSWQ6IFwiY3JvblwiLFxuICAgICAgZmVhdHVyZUNvZGU6IFwiY3JvblwiLFxuICAgICAgcHJvYmVzOiBwcm9iZVJlc3VsdHNcbiAgICB9LCAnKicpO1xuICB9XG4gIHNldFRpbWVvdXQocmVwb3J0UHJvYmVSZXN1bHRzLCAxNjApO1xufSkoKTtcbjwvc2NyaXB0PlxuPC9ib2R5PlxuPC9odG1sPiIsInN1YklucHV0Ijp7InBsYWNlaG9sZGVyIjoiQ3JvbiDooajovr7lvI_nlJ_miJDlmagiLCJmb2N1cyI6ZmFsc2V9LCJzdWJJbnB1dFZhbHVlIjoiY3JvbiIsIm91dHB1dEl0ZW1zIjpbXX19",
+        "expected_dom": {
+          "plugin_id_attribute": "cron",
+          "feature_code_attribute": "cron",
+          "runtime_chips": [
+            "运行状态",
+            "桥接能力"
+          ]
+        }
+      },
+      "iframe_ready": {
+        "expected": true,
+        "ready_event": "atools-plugin-ready",
+        "host_body_mode": "iframe"
+      },
+      "real_entry_html": {
+        "expected": true,
+        "status": "ready",
+        "main_url": "index.html",
+        "html_path": "/Users/harris/Desktop/ZTools-plugins/plugins/cron/index.html",
+        "entry_directory": "/Users/harris/Desktop/ZTools-plugins/plugins/cron",
+        "relative_entry_directory": ".",
+        "bytes": 12499,
+        "sha256": "7c42e3ce056595fb8094a428c4651f6c5a97aed2612ad0777a8b35ce36695283",
+        "resource_signals": {
+          "script_src_count": 1,
+          "module_script_count": 0,
+          "inline_script_count": 0,
+          "stylesheet_link_count": 1,
+          "image_reference_count": 0,
+          "bridge_reference": false
+        }
+      },
+      "real_entry_resources": {
+        "expected": true,
+        "status": "ready",
+        "total_resources": 2,
+        "ready_resources": 2,
+        "missing_resources": 0,
+        "bytes": 34086,
+        "scripts": [
+          {
+            "kind": "script",
+            "url": "script.js",
+            "module": false,
+            "path": "/Users/harris/Desktop/ZTools-plugins/plugins/cron/script.js",
+            "bytes": 28425,
+            "sha256": "c28934710c57fed38d2ee8ef0b10890d190c9cea649a22a1dfa0d67f1197e6ba"
+          }
+        ],
+        "stylesheets": [
+          {
+            "kind": "stylesheet",
+            "url": "style.css",
+            "path": "/Users/harris/Desktop/ZTools-plugins/plugins/cron/style.css",
+            "bytes": 5661,
+            "sha256": "eb427f126aed73c1729b1ee8513f13489261224a5b4c8df1e7fea422ca7d875a"
+          }
+        ],
+        "missing": []
+      },
+      "real_entry_fixture": {
+        "expected": true,
+        "status": "ready",
+        "path": "/Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/007-cron-cron.html",
+        "relative_path": "007-cron-cron.html",
+        "url": "file:///Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/007-cron-cron.html",
+        "bytes": 60523,
+        "sha256": "ef457af9db6e05922383c5fae121935fec329b6c1225ea7bb5a5a0543d4fa16a",
+        "inlined_scripts": 1,
+        "inlined_stylesheets": 1,
+        "runtime_support_files": 6,
+        "runtime_support_bytes": 50293,
+        "bridge_api_probe_ids": [
+          "fixture-bridge-get-path",
+          "fixture-bridge-context",
+          "fixture-bridge-db-storage",
+          "fixture-bridge-db-all-docs",
+          "fixture-bridge-app-identity",
+          "fixture-bridge-system-flags",
+          "fixture-bridge-preload-ky",
+          "fixture-bridge-services",
+          "fixture-bridge-web-storage"
+        ],
+        "probe_ids": [
+          "real-entry-fixture-bridge",
+          "real-entry-fixture-ready",
+          "real-entry-plugin-identity"
+        ]
+      },
+      "real_entry_plugin_panel": {
+        "expected": true,
+        "status": "ready",
+        "mode": "externalPlanRealFixture",
+        "url": "http://localhost:1420/?parity=1&pluginHostSmoke=externalPlan&pluginHostSmokeAction=eyJwbHVnaW5faWQiOiJjcm9uIiwicGx1Z2luX25hbWUiOiJjcm9u5Zyo57q_6KGo6L6-5byPIiwiZmVhdHVyZV9jb2RlIjoiY3JvbiIsIm1haW5fdXJsIjoiaW5kZXguaHRtbCIsInBsdWdpbl9wYXRoIjoiX19hdG9vbHNfcGx1Z2luX2hvc3RfcHJldmlld19fIiwiZXhwYW5kX2hlaWdodCI6NTQxLCJwbHVnaW5fcGVybWlzc2lvbnMiOltdLCJwYXlsb2FkIjp7ImlmcmFtZVNyYyI6Imh0dHA6Ly8xMjcuMC4wLjE6MTQzNC8wMDctY3Jvbi1jcm9uLmh0bWwiLCJyZWFsRW50cnlGaXh0dXJlIjp0cnVlLCJmaXh0dXJlUGF0aCI6Ii9Vc2Vycy9oYXJyaXMvRGVza3RvcC9hdG9vbHMvb3V0cHV0L3p0b29scy11aS1ob3N0LXJlYWwtZW50cnktZml4dHVyZXMvMDA3LWNyb24tY3Jvbi5odG1sIiwiZml4dHVyZVJlbGF0aXZlUGF0aCI6IjAwNy1jcm9uLWNyb24uaHRtbCIsInN1YklucHV0Ijp7InBsYWNlaG9sZGVyIjoiQ3JvbiDooajovr7lvI_nlJ_miJDlmagiLCJmb2N1cyI6ZmFsc2V9LCJzdWJJbnB1dFZhbHVlIjoiY3JvbiIsIm91dHB1dEl0ZW1zIjpbXX19",
+        "fixture_path": "/Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/007-cron-cron.html",
+        "fixture_url": "http://127.0.0.1:1434/007-cron-cron.html",
+        "probe_ids": [
+          "plugin-panel-iframe-src",
+          "real-entry-fixture-ready",
+          "real-entry-fixture-errors"
+        ],
+        "expected_dom": {
+          "runtime_chips": [
+            "运行状态",
+            "桥接能力",
+            "宿主探针"
+          ],
+          "body_mode": "iframe"
+        }
+      },
+      "screenshot_viewports": [
+        {
+          "name": "desktop",
+          "width": 1280,
+          "height": 820
+        },
+        {
+          "name": "compact",
+          "width": 390,
+          "height": 800
+        }
+      ],
+      "bridge_probes": [
+        {
+          "id": "plugin-enter-event",
+          "attribute": "data-atools-plugin-enter",
+          "expected": "true"
+        },
+        {
+          "id": "plugin-ready-event",
+          "attribute": "data-atools-plugin-ready",
+          "expected": "true"
+        },
+        {
+          "id": "utools-bridge-present",
+          "attribute": "data-utools-bridge-present",
+          "expected": "true"
+        },
+        {
+          "id": "ztools-alias-present",
+          "attribute": "data-ztools-alias-present",
+          "expected": "true"
+        },
+        {
+          "id": "iframe-dom-identity",
+          "attribute": "data-external-plugin-id",
+          "expected": "cron"
+        }
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "cron",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 8,
+      "name": "dev-data-workbench",
+      "title": "开发者数据工坊",
+      "plugin_id": "dev-data-workbench",
+      "source_path": "/Users/harris/Desktop/ZTools-plugins/plugins/dev-data-workbench",
+      "runtime_status": "ready",
+      "activation": {
+        "feature_code": "dev-data-workbench",
+        "feature_label": "开发者数据工坊",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "开发者数据工坊",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "desktop_action": {
+        "plugin_id": "dev-data-workbench",
+        "plugin_name": "开发者数据工坊",
+        "feature_code": "dev-data-workbench",
+        "main_url": "index.html",
+        "plugin_path": "/tmp/atools-ztools-plugin-smoke/dev-data-workbench",
+        "preload_path": null,
+        "expand_height": 541,
+        "plugin_permissions": [],
+        "payload": {
+          "trigger_type": "text",
+          "query": "开发者数据工坊"
+        }
+      },
+      "web_preview": {
+        "mode": "externalPlan",
+        "url": "http://localhost:1420/?parity=1&pluginHostSmoke=externalPlan&pluginHostSmokeAction=eyJwbHVnaW5faWQiOiJkZXYtZGF0YS13b3JrYmVuY2giLCJwbHVnaW5fbmFtZSI6IuW8gOWPkeiAheaVsOaNruW3peWdiiIsImZlYXR1cmVfY29kZSI6ImRldi1kYXRhLXdvcmtiZW5jaCIsIm1haW5fdXJsIjoiaW5kZXguaHRtbCIsInBsdWdpbl9wYXRoIjoiX19hdG9vbHNfcGx1Z2luX2hvc3RfcHJldmlld19fIiwiZXhwYW5kX2hlaWdodCI6NTQxLCJwbHVnaW5fcGVybWlzc2lvbnMiOltdLCJwYXlsb2FkIjp7InNyY2RvYyI6IjwhZG9jdHlwZSBodG1sPlxuPGh0bWw-XG48Ym9keSBkYXRhLWV4dGVybmFsLXBsdWdpbi1pZD1cImRldi1kYXRhLXdvcmtiZW5jaFwiIGRhdGEtZXh0ZXJuYWwtZmVhdHVyZS1jb2RlPVwiZGV2LWRhdGEtd29ya2JlbmNoXCIgZGF0YS1leHRlcm5hbC10cmlnZ2VyLXR5cGU9XCJ0ZXh0XCI-XG48bWFpbiBkYXRhLXp0b29scy11aS1ob3N0LXNtb2tlPVwidHJ1ZVwiPlxuICA8aDE-5byA5Y-R6ICF5pWw5o2u5bel5Z2KPC9oMT5cbiAgPHAgZGF0YS1leHRlcm5hbC1tYWluLXVybD1cImluZGV4Lmh0bWxcIj5kZXYtZGF0YS13b3JrYmVuY2g8L3A-XG4gIDxwIGRhdGEtZXh0ZXJuYWwtdHJpZ2dlci1xdWVyeT1cIuW8gOWPkeiAheaVsOaNruW3peWdilwiPuW8gOWPkeiAheaVsOaNruW3peWdijwvcD5cbjwvbWFpbj5cbjxzY3JpcHQ-XG4oZnVuY3Rpb24oKXtcbiAgZnVuY3Rpb24gbWFyayhuYW1lLCB2YWx1ZSkge1xuICAgIGRvY3VtZW50LmJvZHkuc2V0QXR0cmlidXRlKG5hbWUsIFN0cmluZyh2YWx1ZSkpO1xuICB9XG4gIHdpbmRvdy5hZGRFdmVudExpc3RlbmVyKCdhdG9vbHMtcGx1Z2luLWVudGVyJywgZnVuY3Rpb24oKXsgbWFyaygnZGF0YS1hdG9vbHMtcGx1Z2luLWVudGVyJywgdHJ1ZSk7IH0pO1xuICB3aW5kb3cuYWRkRXZlbnRMaXN0ZW5lcignYXRvb2xzLXBsdWdpbi1yZWFkeScsIGZ1bmN0aW9uKCl7XG4gICAgbWFyaygnZGF0YS1hdG9vbHMtcGx1Z2luLXJlYWR5JywgdHJ1ZSk7XG4gICAgc2V0VGltZW91dChyZXBvcnRQcm9iZVJlc3VsdHMsIDApO1xuICB9KTtcbiAgdmFyIHByb2JlUmVwb3J0ZWQgPSBmYWxzZTtcbiAgZnVuY3Rpb24gY29sbGVjdFByb2JlUmVzdWx0cygpIHtcbiAgICByZXR1cm4gW1xuICAgICAgeyBpZDogJ3BsdWdpbi1lbnRlci1ldmVudCcsIHBhc3NlZDogZG9jdW1lbnQuYm9keS5nZXRBdHRyaWJ1dGUoJ2RhdGEtYXRvb2xzLXBsdWdpbi1lbnRlcicpID09PSAndHJ1ZScgfSxcbiAgICAgIHsgaWQ6ICdwbHVnaW4tcmVhZHktZXZlbnQnLCBwYXNzZWQ6IGRvY3VtZW50LmJvZHkuZ2V0QXR0cmlidXRlKCdkYXRhLWF0b29scy1wbHVnaW4tcmVhZHknKSA9PT0gJ3RydWUnIH0sXG4gICAgICB7IGlkOiAndXRvb2xzLWJyaWRnZS1wcmVzZW50JywgcGFzc2VkOiAhIXdpbmRvdy51dG9vbHMgfSxcbiAgICAgIHsgaWQ6ICd6dG9vbHMtYWxpYXMtcHJlc2VudCcsIHBhc3NlZDogd2luZG93Lnp0b29scyA9PT0gd2luZG93LnV0b29scyB9LFxuICAgICAge1xuICAgICAgICBpZDogJ2lmcmFtZS1kb20taWRlbnRpdHknLFxuICAgICAgICBwYXNzZWQ6IGRvY3VtZW50LmJvZHkuZ2V0QXR0cmlidXRlKCdkYXRhLWV4dGVybmFsLXBsdWdpbi1pZCcpID09PSBcImRldi1kYXRhLXdvcmtiZW5jaFwiXG4gICAgICAgICAgJiYgZG9jdW1lbnQuYm9keS5nZXRBdHRyaWJ1dGUoJ2RhdGEtZXh0ZXJuYWwtZmVhdHVyZS1jb2RlJykgPT09IFwiZGV2LWRhdGEtd29ya2JlbmNoXCJcbiAgICAgIH1cbiAgICBdO1xuICB9XG4gIGZ1bmN0aW9uIHJlcG9ydFByb2JlUmVzdWx0cygpIHtcbiAgICBpZiAocHJvYmVSZXBvcnRlZCkgcmV0dXJuO1xuICAgIHByb2JlUmVwb3J0ZWQgPSB0cnVlO1xuICAgIG1hcmsoJ2RhdGEtdXRvb2xzLWJyaWRnZS1wcmVzZW50JywgISF3aW5kb3cudXRvb2xzKTtcbiAgICBtYXJrKCdkYXRhLXp0b29scy1hbGlhcy1wcmVzZW50Jywgd2luZG93Lnp0b29scyA9PT0gd2luZG93LnV0b29scyk7XG4gICAgdmFyIHByb2JlUmVzdWx0cyA9IGNvbGxlY3RQcm9iZVJlc3VsdHMoKTtcbiAgICB3aW5kb3cuX19hdG9vbHNFeHRlcm5hbFVpSG9zdFNtb2tlID0ge1xuICAgICAgcGx1Z2luSWQ6IFwiZGV2LWRhdGEtd29ya2JlbmNoXCIsXG4gICAgICBmZWF0dXJlQ29kZTogXCJkZXYtZGF0YS13b3JrYmVuY2hcIixcbiAgICAgIHRyaWdnZXJUeXBlOiBcInRleHRcIixcbiAgICAgIHF1ZXJ5OiBcIuW8gOWPkeiAheaVsOaNruW3peWdilwiLFxuICAgICAgcHJvYmVSZXN1bHRzOiBwcm9iZVJlc3VsdHNcbiAgICB9O1xuICAgIHdpbmRvdy5wYXJlbnQucG9zdE1lc3NhZ2Uoe1xuICAgICAgX19hdG9vbHNfdWlfaG9zdF9wcm9iZV9yZXN1bHRfXzogdHJ1ZSxcbiAgICAgIHBsdWdpbklkOiBcImRldi1kYXRhLXdvcmtiZW5jaFwiLFxuICAgICAgZmVhdHVyZUNvZGU6IFwiZGV2LWRhdGEtd29ya2JlbmNoXCIsXG4gICAgICBwcm9iZXM6IHByb2JlUmVzdWx0c1xuICAgIH0sICcqJyk7XG4gIH1cbiAgc2V0VGltZW91dChyZXBvcnRQcm9iZVJlc3VsdHMsIDE2MCk7XG59KSgpO1xuPC9zY3JpcHQ-XG48L2JvZHk-XG48L2h0bWw-Iiwic3ViSW5wdXQiOnsicGxhY2Vob2xkZXIiOiLlvIDlj5HogIXmlbDmja7lt6XlnYoiLCJmb2N1cyI6ZmFsc2V9LCJzdWJJbnB1dFZhbHVlIjoi5byA5Y-R6ICF5pWw5o2u5bel5Z2KIiwib3V0cHV0SXRlbXMiOltdfX0",
+        "expected_dom": {
+          "plugin_id_attribute": "dev-data-workbench",
+          "feature_code_attribute": "dev-data-workbench",
+          "runtime_chips": [
+            "运行状态",
+            "桥接能力"
+          ]
+        }
+      },
+      "iframe_ready": {
+        "expected": true,
+        "ready_event": "atools-plugin-ready",
+        "host_body_mode": "iframe"
+      },
+      "real_entry_html": {
+        "expected": true,
+        "status": "ready",
+        "main_url": "index.html",
+        "html_path": "/Users/harris/Desktop/ZTools-plugins/plugins/dev-data-workbench/index.html",
+        "entry_directory": "/Users/harris/Desktop/ZTools-plugins/plugins/dev-data-workbench",
+        "relative_entry_directory": ".",
+        "bytes": 3599,
+        "sha256": "5c72970edd4e6f8deae4ea57cca80981c6ed9b73ca139f5249eafc555d1adca0",
+        "resource_signals": {
+          "script_src_count": 0,
+          "module_script_count": 0,
+          "inline_script_count": 1,
+          "stylesheet_link_count": 0,
+          "image_reference_count": 0,
+          "bridge_reference": false
+        }
+      },
+      "real_entry_resources": {
+        "expected": true,
+        "status": "ready",
+        "total_resources": 0,
+        "ready_resources": 0,
+        "missing_resources": 0,
+        "bytes": 0,
+        "scripts": [],
+        "stylesheets": [],
+        "missing": []
+      },
+      "real_entry_fixture": {
+        "expected": true,
+        "status": "ready",
+        "path": "/Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/008-dev-data-workbench-dev-data-workbench.html",
+        "relative_path": "008-dev-data-workbench-dev-data-workbench.html",
+        "url": "file:///Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/008-dev-data-workbench-dev-data-workbench.html",
+        "bytes": 17616,
+        "sha256": "b738b510d5d54450410cfeb5c370dbdb08214b3ff4d9699a4bdcaf3001979b61",
+        "inlined_scripts": 0,
+        "inlined_stylesheets": 0,
+        "runtime_support_files": 0,
+        "runtime_support_bytes": 0,
+        "bridge_api_probe_ids": [
+          "fixture-bridge-get-path",
+          "fixture-bridge-context",
+          "fixture-bridge-db-storage",
+          "fixture-bridge-db-all-docs",
+          "fixture-bridge-app-identity",
+          "fixture-bridge-system-flags",
+          "fixture-bridge-preload-ky",
+          "fixture-bridge-services",
+          "fixture-bridge-web-storage"
+        ],
+        "probe_ids": [
+          "real-entry-fixture-bridge",
+          "real-entry-fixture-ready",
+          "real-entry-plugin-identity"
+        ]
+      },
+      "real_entry_plugin_panel": {
+        "expected": true,
+        "status": "ready",
+        "mode": "externalPlanRealFixture",
+        "url": "http://localhost:1420/?parity=1&pluginHostSmoke=externalPlan&pluginHostSmokeAction=eyJwbHVnaW5faWQiOiJkZXYtZGF0YS13b3JrYmVuY2giLCJwbHVnaW5fbmFtZSI6IuW8gOWPkeiAheaVsOaNruW3peWdiiIsImZlYXR1cmVfY29kZSI6ImRldi1kYXRhLXdvcmtiZW5jaCIsIm1haW5fdXJsIjoiaW5kZXguaHRtbCIsInBsdWdpbl9wYXRoIjoiX19hdG9vbHNfcGx1Z2luX2hvc3RfcHJldmlld19fIiwiZXhwYW5kX2hlaWdodCI6NTQxLCJwbHVnaW5fcGVybWlzc2lvbnMiOltdLCJwYXlsb2FkIjp7ImlmcmFtZVNyYyI6Imh0dHA6Ly8xMjcuMC4wLjE6MTQzNC8wMDgtZGV2LWRhdGEtd29ya2JlbmNoLWRldi1kYXRhLXdvcmtiZW5jaC5odG1sIiwicmVhbEVudHJ5Rml4dHVyZSI6dHJ1ZSwiZml4dHVyZVBhdGgiOiIvVXNlcnMvaGFycmlzL0Rlc2t0b3AvYXRvb2xzL291dHB1dC96dG9vbHMtdWktaG9zdC1yZWFsLWVudHJ5LWZpeHR1cmVzLzAwOC1kZXYtZGF0YS13b3JrYmVuY2gtZGV2LWRhdGEtd29ya2JlbmNoLmh0bWwiLCJmaXh0dXJlUmVsYXRpdmVQYXRoIjoiMDA4LWRldi1kYXRhLXdvcmtiZW5jaC1kZXYtZGF0YS13b3JrYmVuY2guaHRtbCIsInN1YklucHV0Ijp7InBsYWNlaG9sZGVyIjoi5byA5Y-R6ICF5pWw5o2u5bel5Z2KIiwiZm9jdXMiOmZhbHNlfSwic3ViSW5wdXRWYWx1ZSI6IuW8gOWPkeiAheaVsOaNruW3peWdiiIsIm91dHB1dEl0ZW1zIjpbXX19",
+        "fixture_path": "/Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/008-dev-data-workbench-dev-data-workbench.html",
+        "fixture_url": "http://127.0.0.1:1434/008-dev-data-workbench-dev-data-workbench.html",
+        "probe_ids": [
+          "plugin-panel-iframe-src",
+          "real-entry-fixture-ready",
+          "real-entry-fixture-errors"
+        ],
+        "expected_dom": {
+          "runtime_chips": [
+            "运行状态",
+            "桥接能力",
+            "宿主探针"
+          ],
+          "body_mode": "iframe"
+        }
+      },
+      "screenshot_viewports": [
+        {
+          "name": "desktop",
+          "width": 1280,
+          "height": 820
+        },
+        {
+          "name": "compact",
+          "width": 390,
+          "height": 800
+        }
+      ],
+      "bridge_probes": [
+        {
+          "id": "plugin-enter-event",
+          "attribute": "data-atools-plugin-enter",
+          "expected": "true"
+        },
+        {
+          "id": "plugin-ready-event",
+          "attribute": "data-atools-plugin-ready",
+          "expected": "true"
+        },
+        {
+          "id": "utools-bridge-present",
+          "attribute": "data-utools-bridge-present",
+          "expected": "true"
+        },
+        {
+          "id": "ztools-alias-present",
+          "attribute": "data-ztools-alias-present",
+          "expected": "true"
+        },
+        {
+          "id": "iframe-dom-identity",
+          "attribute": "data-external-plugin-id",
+          "expected": "dev-data-workbench"
+        }
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "dev-data-workbench",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 9,
+      "name": "developer-codec-tools",
+      "title": "开发加解密编码工具",
+      "plugin_id": "developer-codec-tools",
+      "source_path": "/Users/harris/Desktop/ZTools-plugins/plugins/developer-codec-tools",
+      "runtime_status": "ready",
+      "activation": {
+        "feature_code": "codec-tools",
+        "feature_label": "加密解密与编码转换",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "加密解密",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "desktop_action": {
+        "plugin_id": "developer-codec-tools",
+        "plugin_name": "开发加解密编码工具",
+        "feature_code": "codec-tools",
+        "main_url": "index.html",
+        "plugin_path": "/tmp/atools-ztools-plugin-smoke/developer-codec-tools",
+        "preload_path": null,
+        "expand_height": 541,
+        "plugin_permissions": [],
+        "payload": {
+          "trigger_type": "text",
+          "query": "加密解密"
+        }
+      },
+      "web_preview": {
+        "mode": "externalPlan",
+        "url": "http://localhost:1420/?parity=1&pluginHostSmoke=externalPlan&pluginHostSmokeAction=eyJwbHVnaW5faWQiOiJkZXZlbG9wZXItY29kZWMtdG9vbHMiLCJwbHVnaW5fbmFtZSI6IuW8gOWPkeWKoOino-Wvhue8lueggeW3peWFtyIsImZlYXR1cmVfY29kZSI6ImNvZGVjLXRvb2xzIiwibWFpbl91cmwiOiJpbmRleC5odG1sIiwicGx1Z2luX3BhdGgiOiJfX2F0b29sc19wbHVnaW5faG9zdF9wcmV2aWV3X18iLCJleHBhbmRfaGVpZ2h0Ijo1NDEsInBsdWdpbl9wZXJtaXNzaW9ucyI6W10sInBheWxvYWQiOnsic3JjZG9jIjoiPCFkb2N0eXBlIGh0bWw-XG48aHRtbD5cbjxib2R5IGRhdGEtZXh0ZXJuYWwtcGx1Z2luLWlkPVwiZGV2ZWxvcGVyLWNvZGVjLXRvb2xzXCIgZGF0YS1leHRlcm5hbC1mZWF0dXJlLWNvZGU9XCJjb2RlYy10b29sc1wiIGRhdGEtZXh0ZXJuYWwtdHJpZ2dlci10eXBlPVwidGV4dFwiPlxuPG1haW4gZGF0YS16dG9vbHMtdWktaG9zdC1zbW9rZT1cInRydWVcIj5cbiAgPGgxPuW8gOWPkeWKoOino-Wvhue8lueggeW3peWFtzwvaDE-XG4gIDxwIGRhdGEtZXh0ZXJuYWwtbWFpbi11cmw9XCJpbmRleC5odG1sXCI-Y29kZWMtdG9vbHM8L3A-XG4gIDxwIGRhdGEtZXh0ZXJuYWwtdHJpZ2dlci1xdWVyeT1cIuWKoOWvhuino-WvhlwiPuWKoOWvhuino-WvhjwvcD5cbjwvbWFpbj5cbjxzY3JpcHQ-XG4oZnVuY3Rpb24oKXtcbiAgZnVuY3Rpb24gbWFyayhuYW1lLCB2YWx1ZSkge1xuICAgIGRvY3VtZW50LmJvZHkuc2V0QXR0cmlidXRlKG5hbWUsIFN0cmluZyh2YWx1ZSkpO1xuICB9XG4gIHdpbmRvdy5hZGRFdmVudExpc3RlbmVyKCdhdG9vbHMtcGx1Z2luLWVudGVyJywgZnVuY3Rpb24oKXsgbWFyaygnZGF0YS1hdG9vbHMtcGx1Z2luLWVudGVyJywgdHJ1ZSk7IH0pO1xuICB3aW5kb3cuYWRkRXZlbnRMaXN0ZW5lcignYXRvb2xzLXBsdWdpbi1yZWFkeScsIGZ1bmN0aW9uKCl7XG4gICAgbWFyaygnZGF0YS1hdG9vbHMtcGx1Z2luLXJlYWR5JywgdHJ1ZSk7XG4gICAgc2V0VGltZW91dChyZXBvcnRQcm9iZVJlc3VsdHMsIDApO1xuICB9KTtcbiAgdmFyIHByb2JlUmVwb3J0ZWQgPSBmYWxzZTtcbiAgZnVuY3Rpb24gY29sbGVjdFByb2JlUmVzdWx0cygpIHtcbiAgICByZXR1cm4gW1xuICAgICAgeyBpZDogJ3BsdWdpbi1lbnRlci1ldmVudCcsIHBhc3NlZDogZG9jdW1lbnQuYm9keS5nZXRBdHRyaWJ1dGUoJ2RhdGEtYXRvb2xzLXBsdWdpbi1lbnRlcicpID09PSAndHJ1ZScgfSxcbiAgICAgIHsgaWQ6ICdwbHVnaW4tcmVhZHktZXZlbnQnLCBwYXNzZWQ6IGRvY3VtZW50LmJvZHkuZ2V0QXR0cmlidXRlKCdkYXRhLWF0b29scy1wbHVnaW4tcmVhZHknKSA9PT0gJ3RydWUnIH0sXG4gICAgICB7IGlkOiAndXRvb2xzLWJyaWRnZS1wcmVzZW50JywgcGFzc2VkOiAhIXdpbmRvdy51dG9vbHMgfSxcbiAgICAgIHsgaWQ6ICd6dG9vbHMtYWxpYXMtcHJlc2VudCcsIHBhc3NlZDogd2luZG93Lnp0b29scyA9PT0gd2luZG93LnV0b29scyB9LFxuICAgICAge1xuICAgICAgICBpZDogJ2lmcmFtZS1kb20taWRlbnRpdHknLFxuICAgICAgICBwYXNzZWQ6IGRvY3VtZW50LmJvZHkuZ2V0QXR0cmlidXRlKCdkYXRhLWV4dGVybmFsLXBsdWdpbi1pZCcpID09PSBcImRldmVsb3Blci1jb2RlYy10b29sc1wiXG4gICAgICAgICAgJiYgZG9jdW1lbnQuYm9keS5nZXRBdHRyaWJ1dGUoJ2RhdGEtZXh0ZXJuYWwtZmVhdHVyZS1jb2RlJykgPT09IFwiY29kZWMtdG9vbHNcIlxuICAgICAgfVxuICAgIF07XG4gIH1cbiAgZnVuY3Rpb24gcmVwb3J0UHJvYmVSZXN1bHRzKCkge1xuICAgIGlmIChwcm9iZVJlcG9ydGVkKSByZXR1cm47XG4gICAgcHJvYmVSZXBvcnRlZCA9IHRydWU7XG4gICAgbWFyaygnZGF0YS11dG9vbHMtYnJpZGdlLXByZXNlbnQnLCAhIXdpbmRvdy51dG9vbHMpO1xuICAgIG1hcmsoJ2RhdGEtenRvb2xzLWFsaWFzLXByZXNlbnQnLCB3aW5kb3cuenRvb2xzID09PSB3aW5kb3cudXRvb2xzKTtcbiAgICB2YXIgcHJvYmVSZXN1bHRzID0gY29sbGVjdFByb2JlUmVzdWx0cygpO1xuICAgIHdpbmRvdy5fX2F0b29sc0V4dGVybmFsVWlIb3N0U21va2UgPSB7XG4gICAgICBwbHVnaW5JZDogXCJkZXZlbG9wZXItY29kZWMtdG9vbHNcIixcbiAgICAgIGZlYXR1cmVDb2RlOiBcImNvZGVjLXRvb2xzXCIsXG4gICAgICB0cmlnZ2VyVHlwZTogXCJ0ZXh0XCIsXG4gICAgICBxdWVyeTogXCLliqDlr4bop6Plr4ZcIixcbiAgICAgIHByb2JlUmVzdWx0czogcHJvYmVSZXN1bHRzXG4gICAgfTtcbiAgICB3aW5kb3cucGFyZW50LnBvc3RNZXNzYWdlKHtcbiAgICAgIF9fYXRvb2xzX3VpX2hvc3RfcHJvYmVfcmVzdWx0X186IHRydWUsXG4gICAgICBwbHVnaW5JZDogXCJkZXZlbG9wZXItY29kZWMtdG9vbHNcIixcbiAgICAgIGZlYXR1cmVDb2RlOiBcImNvZGVjLXRvb2xzXCIsXG4gICAgICBwcm9iZXM6IHByb2JlUmVzdWx0c1xuICAgIH0sICcqJyk7XG4gIH1cbiAgc2V0VGltZW91dChyZXBvcnRQcm9iZVJlc3VsdHMsIDE2MCk7XG59KSgpO1xuPC9zY3JpcHQ-XG48L2JvZHk-XG48L2h0bWw-Iiwic3ViSW5wdXQiOnsicGxhY2Vob2xkZXIiOiLliqDlr4bop6Plr4bkuI7nvJbnoIHovazmjaIiLCJmb2N1cyI6ZmFsc2V9LCJzdWJJbnB1dFZhbHVlIjoi5Yqg5a-G6Kej5a-GIiwib3V0cHV0SXRlbXMiOltdfX0",
+        "expected_dom": {
+          "plugin_id_attribute": "developer-codec-tools",
+          "feature_code_attribute": "codec-tools",
+          "runtime_chips": [
+            "运行状态",
+            "桥接能力"
+          ]
+        }
+      },
+      "iframe_ready": {
+        "expected": true,
+        "ready_event": "atools-plugin-ready",
+        "host_body_mode": "iframe"
+      },
+      "real_entry_html": {
+        "expected": true,
+        "status": "ready",
+        "main_url": "index.html",
+        "html_path": "/Users/harris/Desktop/ZTools-plugins/plugins/developer-codec-tools/index.html",
+        "entry_directory": "/Users/harris/Desktop/ZTools-plugins/plugins/developer-codec-tools",
+        "relative_entry_directory": ".",
+        "bytes": 2537,
+        "sha256": "579ee999e9a728416e516bae3f67b2dcee4ec0aad7db0e1584517247e30da072",
+        "resource_signals": {
+          "script_src_count": 1,
+          "module_script_count": 1,
+          "inline_script_count": 0,
+          "stylesheet_link_count": 1,
+          "image_reference_count": 0,
+          "bridge_reference": false
+        }
+      },
+      "real_entry_resources": {
+        "expected": true,
+        "status": "ready",
+        "total_resources": 2,
+        "ready_resources": 2,
+        "missing_resources": 0,
+        "bytes": 14064,
+        "scripts": [
+          {
+            "kind": "script",
+            "url": "./app.js",
+            "module": true,
+            "path": "/Users/harris/Desktop/ZTools-plugins/plugins/developer-codec-tools/app.js",
+            "bytes": 9653,
+            "sha256": "b322e7a33b4900ab18c9c82e0fb1b3e751d1ba67785de65a9cac29af40b594ad"
+          }
+        ],
+        "stylesheets": [
+          {
+            "kind": "stylesheet",
+            "url": "./styles.css",
+            "path": "/Users/harris/Desktop/ZTools-plugins/plugins/developer-codec-tools/styles.css",
+            "bytes": 4411,
+            "sha256": "8996ceb5473210d2ed2131468615ea6d407d2a37e3c3e3b4be6a614bddee6a05"
+          }
+        ],
+        "missing": []
+      },
+      "real_entry_fixture": {
+        "expected": true,
+        "status": "ready",
+        "path": "/Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/009-developer-codec-tools-codec-tools.html",
+        "relative_path": "009-developer-codec-tools-codec-tools.html",
+        "url": "file:///Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/009-developer-codec-tools-codec-tools.html",
+        "bytes": 30625,
+        "sha256": "e229379da7006dfb117b2dcbbf066814081f9b4d10eebee56e1f11aab7c6f4df",
+        "inlined_scripts": 1,
+        "inlined_stylesheets": 1,
+        "runtime_support_files": 7,
+        "runtime_support_bytes": 32258,
+        "bridge_api_probe_ids": [
+          "fixture-bridge-get-path",
+          "fixture-bridge-context",
+          "fixture-bridge-db-storage",
+          "fixture-bridge-db-all-docs",
+          "fixture-bridge-app-identity",
+          "fixture-bridge-system-flags",
+          "fixture-bridge-preload-ky",
+          "fixture-bridge-services",
+          "fixture-bridge-web-storage"
+        ],
+        "probe_ids": [
+          "real-entry-fixture-bridge",
+          "real-entry-fixture-ready",
+          "real-entry-plugin-identity"
+        ]
+      },
+      "real_entry_plugin_panel": {
+        "expected": true,
+        "status": "ready",
+        "mode": "externalPlanRealFixture",
+        "url": "http://localhost:1420/?parity=1&pluginHostSmoke=externalPlan&pluginHostSmokeAction=eyJwbHVnaW5faWQiOiJkZXZlbG9wZXItY29kZWMtdG9vbHMiLCJwbHVnaW5fbmFtZSI6IuW8gOWPkeWKoOino-Wvhue8lueggeW3peWFtyIsImZlYXR1cmVfY29kZSI6ImNvZGVjLXRvb2xzIiwibWFpbl91cmwiOiJpbmRleC5odG1sIiwicGx1Z2luX3BhdGgiOiJfX2F0b29sc19wbHVnaW5faG9zdF9wcmV2aWV3X18iLCJleHBhbmRfaGVpZ2h0Ijo1NDEsInBsdWdpbl9wZXJtaXNzaW9ucyI6W10sInBheWxvYWQiOnsiaWZyYW1lU3JjIjoiaHR0cDovLzEyNy4wLjAuMToxNDM0LzAwOS1kZXZlbG9wZXItY29kZWMtdG9vbHMtY29kZWMtdG9vbHMuaHRtbCIsInJlYWxFbnRyeUZpeHR1cmUiOnRydWUsImZpeHR1cmVQYXRoIjoiL1VzZXJzL2hhcnJpcy9EZXNrdG9wL2F0b29scy9vdXRwdXQvenRvb2xzLXVpLWhvc3QtcmVhbC1lbnRyeS1maXh0dXJlcy8wMDktZGV2ZWxvcGVyLWNvZGVjLXRvb2xzLWNvZGVjLXRvb2xzLmh0bWwiLCJmaXh0dXJlUmVsYXRpdmVQYXRoIjoiMDA5LWRldmVsb3Blci1jb2RlYy10b29scy1jb2RlYy10b29scy5odG1sIiwic3ViSW5wdXQiOnsicGxhY2Vob2xkZXIiOiLliqDlr4bop6Plr4bkuI7nvJbnoIHovazmjaIiLCJmb2N1cyI6ZmFsc2V9LCJzdWJJbnB1dFZhbHVlIjoi5Yqg5a-G6Kej5a-GIiwib3V0cHV0SXRlbXMiOltdfX0",
+        "fixture_path": "/Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/009-developer-codec-tools-codec-tools.html",
+        "fixture_url": "http://127.0.0.1:1434/009-developer-codec-tools-codec-tools.html",
+        "probe_ids": [
+          "plugin-panel-iframe-src",
+          "real-entry-fixture-ready",
+          "real-entry-fixture-errors"
+        ],
+        "expected_dom": {
+          "runtime_chips": [
+            "运行状态",
+            "桥接能力",
+            "宿主探针"
+          ],
+          "body_mode": "iframe"
+        }
+      },
+      "screenshot_viewports": [
+        {
+          "name": "desktop",
+          "width": 1280,
+          "height": 820
+        },
+        {
+          "name": "compact",
+          "width": 390,
+          "height": 800
+        }
+      ],
+      "bridge_probes": [
+        {
+          "id": "plugin-enter-event",
+          "attribute": "data-atools-plugin-enter",
+          "expected": "true"
+        },
+        {
+          "id": "plugin-ready-event",
+          "attribute": "data-atools-plugin-ready",
+          "expected": "true"
+        },
+        {
+          "id": "utools-bridge-present",
+          "attribute": "data-utools-bridge-present",
+          "expected": "true"
+        },
+        {
+          "id": "ztools-alias-present",
+          "attribute": "data-ztools-alias-present",
+          "expected": "true"
+        },
+        {
+          "id": "iframe-dom-identity",
+          "attribute": "data-external-plugin-id",
+          "expected": "developer-codec-tools"
+        }
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "developer-codec-tools",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 10,
+      "name": "file-workbench",
+      "title": "文件收纳工坊",
+      "plugin_id": "file-workbench",
+      "source_path": "/Users/harris/Desktop/ZTools-plugins/plugins/file-workbench",
+      "runtime_status": "ready",
+      "activation": {
+        "feature_code": "file-workbench",
+        "feature_label": "文件收纳工坊",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "文件收纳工坊",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "desktop_action": {
+        "plugin_id": "file-workbench",
+        "plugin_name": "文件收纳工坊",
+        "feature_code": "file-workbench",
+        "main_url": "index.html",
+        "plugin_path": "/tmp/atools-ztools-plugin-smoke/file-workbench",
+        "preload_path": null,
+        "expand_height": 541,
+        "plugin_permissions": [],
+        "payload": {
+          "trigger_type": "text",
+          "query": "文件收纳工坊"
+        }
+      },
+      "web_preview": {
+        "mode": "externalPlan",
+        "url": "http://localhost:1420/?parity=1&pluginHostSmoke=externalPlan&pluginHostSmokeAction=eyJwbHVnaW5faWQiOiJmaWxlLXdvcmtiZW5jaCIsInBsdWdpbl9uYW1lIjoi5paH5Lu25pS257qz5bel5Z2KIiwiZmVhdHVyZV9jb2RlIjoiZmlsZS13b3JrYmVuY2giLCJtYWluX3VybCI6ImluZGV4Lmh0bWwiLCJwbHVnaW5fcGF0aCI6Il9fYXRvb2xzX3BsdWdpbl9ob3N0X3ByZXZpZXdfXyIsImV4cGFuZF9oZWlnaHQiOjU0MSwicGx1Z2luX3Blcm1pc3Npb25zIjpbXSwicGF5bG9hZCI6eyJzcmNkb2MiOiI8IWRvY3R5cGUgaHRtbD5cbjxodG1sPlxuPGJvZHkgZGF0YS1leHRlcm5hbC1wbHVnaW4taWQ9XCJmaWxlLXdvcmtiZW5jaFwiIGRhdGEtZXh0ZXJuYWwtZmVhdHVyZS1jb2RlPVwiZmlsZS13b3JrYmVuY2hcIiBkYXRhLWV4dGVybmFsLXRyaWdnZXItdHlwZT1cInRleHRcIj5cbjxtYWluIGRhdGEtenRvb2xzLXVpLWhvc3Qtc21va2U9XCJ0cnVlXCI-XG4gIDxoMT7mlofku7bmlLbnurPlt6XlnYo8L2gxPlxuICA8cCBkYXRhLWV4dGVybmFsLW1haW4tdXJsPVwiaW5kZXguaHRtbFwiPmZpbGUtd29ya2JlbmNoPC9wPlxuICA8cCBkYXRhLWV4dGVybmFsLXRyaWdnZXItcXVlcnk9XCLmlofku7bmlLbnurPlt6XlnYpcIj7mlofku7bmlLbnurPlt6XlnYo8L3A-XG48L21haW4-XG48c2NyaXB0PlxuKGZ1bmN0aW9uKCl7XG4gIGZ1bmN0aW9uIG1hcmsobmFtZSwgdmFsdWUpIHtcbiAgICBkb2N1bWVudC5ib2R5LnNldEF0dHJpYnV0ZShuYW1lLCBTdHJpbmcodmFsdWUpKTtcbiAgfVxuICB3aW5kb3cuYWRkRXZlbnRMaXN0ZW5lcignYXRvb2xzLXBsdWdpbi1lbnRlcicsIGZ1bmN0aW9uKCl7IG1hcmsoJ2RhdGEtYXRvb2xzLXBsdWdpbi1lbnRlcicsIHRydWUpOyB9KTtcbiAgd2luZG93LmFkZEV2ZW50TGlzdGVuZXIoJ2F0b29scy1wbHVnaW4tcmVhZHknLCBmdW5jdGlvbigpe1xuICAgIG1hcmsoJ2RhdGEtYXRvb2xzLXBsdWdpbi1yZWFkeScsIHRydWUpO1xuICAgIHNldFRpbWVvdXQocmVwb3J0UHJvYmVSZXN1bHRzLCAwKTtcbiAgfSk7XG4gIHZhciBwcm9iZVJlcG9ydGVkID0gZmFsc2U7XG4gIGZ1bmN0aW9uIGNvbGxlY3RQcm9iZVJlc3VsdHMoKSB7XG4gICAgcmV0dXJuIFtcbiAgICAgIHsgaWQ6ICdwbHVnaW4tZW50ZXItZXZlbnQnLCBwYXNzZWQ6IGRvY3VtZW50LmJvZHkuZ2V0QXR0cmlidXRlKCdkYXRhLWF0b29scy1wbHVnaW4tZW50ZXInKSA9PT0gJ3RydWUnIH0sXG4gICAgICB7IGlkOiAncGx1Z2luLXJlYWR5LWV2ZW50JywgcGFzc2VkOiBkb2N1bWVudC5ib2R5LmdldEF0dHJpYnV0ZSgnZGF0YS1hdG9vbHMtcGx1Z2luLXJlYWR5JykgPT09ICd0cnVlJyB9LFxuICAgICAgeyBpZDogJ3V0b29scy1icmlkZ2UtcHJlc2VudCcsIHBhc3NlZDogISF3aW5kb3cudXRvb2xzIH0sXG4gICAgICB7IGlkOiAnenRvb2xzLWFsaWFzLXByZXNlbnQnLCBwYXNzZWQ6IHdpbmRvdy56dG9vbHMgPT09IHdpbmRvdy51dG9vbHMgfSxcbiAgICAgIHtcbiAgICAgICAgaWQ6ICdpZnJhbWUtZG9tLWlkZW50aXR5JyxcbiAgICAgICAgcGFzc2VkOiBkb2N1bWVudC5ib2R5LmdldEF0dHJpYnV0ZSgnZGF0YS1leHRlcm5hbC1wbHVnaW4taWQnKSA9PT0gXCJmaWxlLXdvcmtiZW5jaFwiXG4gICAgICAgICAgJiYgZG9jdW1lbnQuYm9keS5nZXRBdHRyaWJ1dGUoJ2RhdGEtZXh0ZXJuYWwtZmVhdHVyZS1jb2RlJykgPT09IFwiZmlsZS13b3JrYmVuY2hcIlxuICAgICAgfVxuICAgIF07XG4gIH1cbiAgZnVuY3Rpb24gcmVwb3J0UHJvYmVSZXN1bHRzKCkge1xuICAgIGlmIChwcm9iZVJlcG9ydGVkKSByZXR1cm47XG4gICAgcHJvYmVSZXBvcnRlZCA9IHRydWU7XG4gICAgbWFyaygnZGF0YS11dG9vbHMtYnJpZGdlLXByZXNlbnQnLCAhIXdpbmRvdy51dG9vbHMpO1xuICAgIG1hcmsoJ2RhdGEtenRvb2xzLWFsaWFzLXByZXNlbnQnLCB3aW5kb3cuenRvb2xzID09PSB3aW5kb3cudXRvb2xzKTtcbiAgICB2YXIgcHJvYmVSZXN1bHRzID0gY29sbGVjdFByb2JlUmVzdWx0cygpO1xuICAgIHdpbmRvdy5fX2F0b29sc0V4dGVybmFsVWlIb3N0U21va2UgPSB7XG4gICAgICBwbHVnaW5JZDogXCJmaWxlLXdvcmtiZW5jaFwiLFxuICAgICAgZmVhdHVyZUNvZGU6IFwiZmlsZS13b3JrYmVuY2hcIixcbiAgICAgIHRyaWdnZXJUeXBlOiBcInRleHRcIixcbiAgICAgIHF1ZXJ5OiBcIuaWh-S7tuaUtue6s-W3peWdilwiLFxuICAgICAgcHJvYmVSZXN1bHRzOiBwcm9iZVJlc3VsdHNcbiAgICB9O1xuICAgIHdpbmRvdy5wYXJlbnQucG9zdE1lc3NhZ2Uoe1xuICAgICAgX19hdG9vbHNfdWlfaG9zdF9wcm9iZV9yZXN1bHRfXzogdHJ1ZSxcbiAgICAgIHBsdWdpbklkOiBcImZpbGUtd29ya2JlbmNoXCIsXG4gICAgICBmZWF0dXJlQ29kZTogXCJmaWxlLXdvcmtiZW5jaFwiLFxuICAgICAgcHJvYmVzOiBwcm9iZVJlc3VsdHNcbiAgICB9LCAnKicpO1xuICB9XG4gIHNldFRpbWVvdXQocmVwb3J0UHJvYmVSZXN1bHRzLCAxNjApO1xufSkoKTtcbjwvc2NyaXB0PlxuPC9ib2R5PlxuPC9odG1sPiIsInN1YklucHV0Ijp7InBsYWNlaG9sZGVyIjoi5paH5Lu25pS257qz5bel5Z2KIiwiZm9jdXMiOmZhbHNlfSwic3ViSW5wdXRWYWx1ZSI6IuaWh-S7tuaUtue6s-W3peWdiiIsIm91dHB1dEl0ZW1zIjpbXX19",
+        "expected_dom": {
+          "plugin_id_attribute": "file-workbench",
+          "feature_code_attribute": "file-workbench",
+          "runtime_chips": [
+            "运行状态",
+            "桥接能力"
+          ]
+        }
+      },
+      "iframe_ready": {
+        "expected": true,
+        "ready_event": "atools-plugin-ready",
+        "host_body_mode": "iframe"
+      },
+      "real_entry_html": {
+        "expected": true,
+        "status": "ready",
+        "main_url": "index.html",
+        "html_path": "/Users/harris/Desktop/ZTools-plugins/plugins/file-workbench/index.html",
+        "entry_directory": "/Users/harris/Desktop/ZTools-plugins/plugins/file-workbench",
+        "relative_entry_directory": ".",
+        "bytes": 2620,
+        "sha256": "20fd46def691f5432e3f7c483641ce30e80379c736dbefd7da8023b34593d080",
+        "resource_signals": {
+          "script_src_count": 0,
+          "module_script_count": 0,
+          "inline_script_count": 1,
+          "stylesheet_link_count": 0,
+          "image_reference_count": 0,
+          "bridge_reference": false
+        }
+      },
+      "real_entry_resources": {
+        "expected": true,
+        "status": "ready",
+        "total_resources": 0,
+        "ready_resources": 0,
+        "missing_resources": 0,
+        "bytes": 0,
+        "scripts": [],
+        "stylesheets": [],
+        "missing": []
+      },
+      "real_entry_fixture": {
+        "expected": true,
+        "status": "ready",
+        "path": "/Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/010-file-workbench-file-workbench.html",
+        "relative_path": "010-file-workbench-file-workbench.html",
+        "url": "file:///Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/010-file-workbench-file-workbench.html",
+        "bytes": 16605,
+        "sha256": "8268ab5ee8110f80b14c1cb91fcddaff7690d5a0d260c039b35eaf89b3940fea",
+        "inlined_scripts": 0,
+        "inlined_stylesheets": 0,
+        "runtime_support_files": 0,
+        "runtime_support_bytes": 0,
+        "bridge_api_probe_ids": [
+          "fixture-bridge-get-path",
+          "fixture-bridge-context",
+          "fixture-bridge-db-storage",
+          "fixture-bridge-db-all-docs",
+          "fixture-bridge-app-identity",
+          "fixture-bridge-system-flags",
+          "fixture-bridge-preload-ky",
+          "fixture-bridge-services",
+          "fixture-bridge-web-storage"
+        ],
+        "probe_ids": [
+          "real-entry-fixture-bridge",
+          "real-entry-fixture-ready",
+          "real-entry-plugin-identity"
+        ]
+      },
+      "real_entry_plugin_panel": {
+        "expected": true,
+        "status": "ready",
+        "mode": "externalPlanRealFixture",
+        "url": "http://localhost:1420/?parity=1&pluginHostSmoke=externalPlan&pluginHostSmokeAction=eyJwbHVnaW5faWQiOiJmaWxlLXdvcmtiZW5jaCIsInBsdWdpbl9uYW1lIjoi5paH5Lu25pS257qz5bel5Z2KIiwiZmVhdHVyZV9jb2RlIjoiZmlsZS13b3JrYmVuY2giLCJtYWluX3VybCI6ImluZGV4Lmh0bWwiLCJwbHVnaW5fcGF0aCI6Il9fYXRvb2xzX3BsdWdpbl9ob3N0X3ByZXZpZXdfXyIsImV4cGFuZF9oZWlnaHQiOjU0MSwicGx1Z2luX3Blcm1pc3Npb25zIjpbXSwicGF5bG9hZCI6eyJpZnJhbWVTcmMiOiJodHRwOi8vMTI3LjAuMC4xOjE0MzQvMDEwLWZpbGUtd29ya2JlbmNoLWZpbGUtd29ya2JlbmNoLmh0bWwiLCJyZWFsRW50cnlGaXh0dXJlIjp0cnVlLCJmaXh0dXJlUGF0aCI6Ii9Vc2Vycy9oYXJyaXMvRGVza3RvcC9hdG9vbHMvb3V0cHV0L3p0b29scy11aS1ob3N0LXJlYWwtZW50cnktZml4dHVyZXMvMDEwLWZpbGUtd29ya2JlbmNoLWZpbGUtd29ya2JlbmNoLmh0bWwiLCJmaXh0dXJlUmVsYXRpdmVQYXRoIjoiMDEwLWZpbGUtd29ya2JlbmNoLWZpbGUtd29ya2JlbmNoLmh0bWwiLCJzdWJJbnB1dCI6eyJwbGFjZWhvbGRlciI6IuaWh-S7tuaUtue6s-W3peWdiiIsImZvY3VzIjpmYWxzZX0sInN1YklucHV0VmFsdWUiOiLmlofku7bmlLbnurPlt6XlnYoiLCJvdXRwdXRJdGVtcyI6W119fQ",
+        "fixture_path": "/Users/harris/Desktop/atools/output/ztools-ui-host-real-entry-fixtures/010-file-workbench-file-workbench.html",
+        "fixture_url": "http://127.0.0.1:1434/010-file-workbench-file-workbench.html",
+        "probe_ids": [
+          "plugin-panel-iframe-src",
+          "real-entry-fixture-ready",
+          "real-entry-fixture-errors"
+        ],
+        "expected_dom": {
+          "runtime_chips": [
+            "运行状态",
+            "桥接能力",
+            "宿主探针"
+          ],
+          "body_mode": "iframe"
+        }
+      },
+      "screenshot_viewports": [
+        {
+          "name": "desktop",
+          "width": 1280,
+          "height": 820
+        },
+        {
+          "name": "compact",
+          "width": 390,
+          "height": 800
+        }
+      ],
+      "bridge_probes": [
+        {
+          "id": "plugin-enter-event",
+          "attribute": "data-atools-plugin-enter",
+          "expected": "true"
+        },
+        {
+          "id": "plugin-ready-event",
+          "attribute": "data-atools-plugin-ready",
+          "expected": "true"
+        },
+        {
+          "id": "utools-bridge-present",
+          "attribute": "data-utools-bridge-present",
+          "expected": "true"
+        },
+        {
+          "id": "ztools-alias-present",
+          "attribute": "data-ztools-alias-present",
+          "expected": "true"
+        },
+        {
+          "id": "iframe-dom-identity",
+          "attribute": "data-external-plugin-id",
+          "expected": "file-workbench"
+        }
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "file-workbench",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    }
+  ],
+  "skipped": []
+}

@@ -1,0 +1,20 @@
+{
+  "name": "JSON",
+  "description": "格式化和验证 JSON 数据",
+  "author": "ATools",
+  "version": "1.0.0",
+  "main": "index.html",
+  "pluginSetting": {
+    "single": false,
+    "height": 600
+  },
+  "features": [
+    {
+      "code": "json",
+      "label": "JSON 查看器",
+      "icon": "logo.png",
+      "explain": "格式化和验证 JSON 数据",
+      "cmds": ["json", "JSON", "json查看", "格式化"]
+    }
+  ]
+}

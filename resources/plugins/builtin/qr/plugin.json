@@ -1,0 +1,23 @@
+{
+  "name": "二维码",
+  "version": "1.0.0",
+  "description": "QR 码生成器",
+  "main": "index.html",
+  "preload": "preload.js",
+  "author": "ATools",
+  "homepage": "https://atools.app",
+  "pluginSetting": {
+    "single": false,
+    "height": 600,
+    "width": 500
+  },
+  "features": [
+    {
+      "code": "二维码",
+      "label": "二维码",
+      "explain": "生成二维码",
+      "cmds": ["二维码", "qr", "qrcode"]
+    }
+  ],
+  "logo": "logo.png"
+}

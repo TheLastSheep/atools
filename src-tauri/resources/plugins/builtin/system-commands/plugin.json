@@ -1,0 +1,55 @@
+{
+  "name": "system-commands",
+  "version": "1.0.0",
+  "logo": "logo.png",
+  "description": "系统命令 - 关机、重启、睡眠、锁屏等",
+  "author": "ATools Team",
+  "features": [
+    {
+      "code": "shutdown",
+      "explain": "关闭计算机",
+      "cmds": ["关机", "shutdown", "关闭电脑"]
+    },
+    {
+      "code": "restart",
+      "explain": "重启计算机",
+      "cmds": ["重启", "restart", "reboot"]
+    },
+    {
+      "code": "sleep",
+      "explain": "睡眠模式",
+      "cmds": ["睡眠", "sleep", "休眠"]
+    },
+    {
+      "code": "lock",
+      "explain": "锁定屏幕",
+      "cmds": ["锁屏", "lock", "锁定"]
+    },
+    {
+      "code": "logout",
+      "explain": "注销用户",
+      "cmds": ["注销", "logout", "切换用户"]
+    },
+    {
+      "code": "empty-trash",
+      "explain": "清空废纸篓",
+      "cmds": ["清空废纸篓", "empty trash", "清空回收站"]
+    },
+    {
+      "code": "hide-desktop",
+      "explain": "显示桌面",
+      "cmds": ["显示桌面", "show desktop", "最小化全部"]
+    },
+    {
+      "code": "screenshot",
+      "explain": "截图工具",
+      "cmds": [
+        {
+          "type": "regex",
+          "label": "截图",
+          "match": "^截图|screenshot|截屏$"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,3122 @@
+{
+  "generated_at": "2026-06-30T10:29:31.845Z",
+  "source": "/Users/harris/Desktop/ZTools-plugins/plugins",
+  "summary": {
+    "scanned_plugins": 125,
+    "compatible_plugins": 59,
+    "warning_plugins": 6,
+    "error_plugins": 60,
+    "feature_count": 254,
+    "command_count": 738,
+    "main_missing": 60,
+    "preload_missing": 4,
+    "logo_missing": 1,
+    "platform_unsupported": 7,
+    "unsupported_cmd_plugins": 0,
+    "duplicate_feature_codes": 11
+  },
+  "unsupported_cmd_types": {},
+  "duplicate_feature_codes": [
+    {
+      "code": "chat",
+      "plugins": [
+        "ai-helper",
+        "kuke-ai-agent"
+      ]
+    },
+    {
+      "code": "default",
+      "plugins": [
+        "ip-switcher",
+        "sql-utils"
+      ]
+    },
+    {
+      "code": "find",
+      "plugins": [
+        "everything",
+        "mac-file-search"
+      ]
+    },
+    {
+      "code": "image-batch",
+      "plugins": [
+        "image-batch-studio",
+        "imgbatch"
+      ]
+    },
+    {
+      "code": "main",
+      "plugins": [
+        "project-manager",
+        "whiteboard"
+      ]
+    },
+    {
+      "code": "ocr",
+      "plugins": [
+        "mt-ocr",
+        "ocr-new"
+      ]
+    },
+    {
+      "code": "password",
+      "plugins": [
+        "devbox",
+        "random-password"
+      ]
+    },
+    {
+      "code": "qrcode",
+      "plugins": [
+        "devbox",
+        "qrcode-helper"
+      ]
+    },
+    {
+      "code": "rename",
+      "plugins": [
+        "file-renamer",
+        "sqlmate"
+      ]
+    },
+    {
+      "code": "search",
+      "plugins": [
+        "bookmarks",
+        "memo-quick-paste"
+      ]
+    },
+    {
+      "code": "timestamp",
+      "plugins": [
+        "codecalc",
+        "timestamp"
+      ]
+    }
+  ],
+  "plugins": [
+    {
+      "name": "2048",
+      "title": "2048",
+      "version": "1.0.5",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/2048",
+      "main": "2048-master/index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "2048"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "ai-automation-workbench",
+      "title": "AI 自动化工坊",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ai-automation-workbench",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "",
+      "preload_exists": true,
+      "logo": "logo.svg",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 6,
+      "feature_codes": [
+        "ai-automation-workbench"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "ai-helper",
+      "title": "AI助手",
+      "version": "1.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ai-helper/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "chat"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "ai-skills-manager",
+      "title": "AI-Skills管理器",
+      "version": "1.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ai-skills-manager",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": false,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 2,
+      "command_count": 3,
+      "feature_codes": [
+        "manage",
+        "quick-install"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [
+        "Missing preload file: preload.js"
+      ],
+      "errors": [],
+      "status": "warning"
+    },
+    {
+      "name": "anywhere",
+      "title": "AI Anywhere",
+      "version": "2.4.14",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/anywhere/public",
+      "main": "/main/index.html",
+      "main_exists": false,
+      "preload": "preload.js",
+      "preload_exists": false,
+      "logo": "favicon.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 2,
+      "command_count": 3,
+      "feature_codes": [
+        "Anywhere Settings",
+        "Resume Conversation"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [
+        "Missing preload file: preload.js"
+      ],
+      "errors": [
+        "Missing main file: /main/index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "ascii-tree",
+      "title": "ASCII Tree",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ascii-tree",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.jpg",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "ascii-tree-open"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "ascll-art-font",
+      "title": "ASCII Art Font",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ascll-art-font/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 5,
+      "feature_codes": [
+        "ascii-art"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "automode",
+      "title": "主题自动切换",
+      "version": "1.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/automode",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": false,
+      "feature_count": 1,
+      "command_count": 5,
+      "feature_codes": [
+        "theme-scheduler"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [
+        "Platform does not include darwin"
+      ],
+      "errors": [],
+      "status": "warning"
+    },
+    {
+      "name": "bookmarks",
+      "title": "浏览器书签搜索",
+      "version": "2.1.2",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/bookmarks",
+      "main": "",
+      "main_exists": false,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 2,
+      "command_count": 2,
+      "feature_codes": [
+        "bookmarks",
+        "search"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: <empty>"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "calculation-paper",
+      "title": "计算稿纸",
+      "version": "1.4.2",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/calculation-paper",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 4,
+      "command_count": 5,
+      "feature_codes": [
+        "calc",
+        "expression",
+        "sum",
+        "average"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "chrome-history",
+      "title": "浏览器历史记录搜索",
+      "version": "v2.2.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/chrome-history",
+      "main": "",
+      "main_exists": false,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "icon/browser.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 2,
+      "command_count": 6,
+      "feature_codes": [
+        "ch",
+        "ch-setting"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: <empty>"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "clipboard",
+      "title": "剪贴板",
+      "version": "1.2.7",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/clipboard/public",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 2,
+      "feature_codes": [
+        "clipboard"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "clipboard-image-paintbrush",
+      "title": "剪贴板图片涂改",
+      "version": "1.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/clipboard-image-paintbrush",
+      "main": "",
+      "main_exists": false,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 7,
+      "command_count": 15,
+      "feature_codes": [
+        "annotate-clipboard",
+        "save-clipboard",
+        "annotate-img",
+        "save-img",
+        "annotate-files",
+        "save-files",
+        "clipboard-detect"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: <empty>"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "code-screenshot",
+      "title": "代码截图",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/code-screenshot/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.svg",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 2,
+      "command_count": 3,
+      "feature_codes": [
+        "code-screenshot",
+        "code-screenshot-file"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "code-snippets",
+      "title": "代码模板",
+      "version": "1.1.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/code-snippets/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "snippets"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "codecalc",
+      "title": "Code Calculator",
+      "version": "3.2.3",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/codecalc/app",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 4,
+      "command_count": 11,
+      "feature_codes": [
+        "codecalc",
+        "quickcalc",
+        "timestamp",
+        "ts2date"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "colors",
+      "title": "颜色助手",
+      "version": "1.3.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/colors/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 2,
+      "command_count": 2,
+      "feature_codes": [
+        "选择颜色",
+        "预览颜色"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "com-ztools-timestamp",
+      "title": "时间戳转换",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/com-ztools-timestamp/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 7,
+      "feature_codes": [
+        "com-ztools-timestamp"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "content-workbench",
+      "title": "内容整理工坊",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/content-workbench",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "",
+      "preload_exists": true,
+      "logo": "logo.svg",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 6,
+      "feature_codes": [
+        "content-workbench"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "cron",
+      "title": "cron在线表达式",
+      "version": "1.0.6",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/cron",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 7,
+      "feature_codes": [
+        "cron"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "ctool",
+      "title": "Ctool",
+      "version": "##version##",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ctool/packages/ctool-adapter/utools/resources",
+      "main": "tool.html",
+      "main_exists": false,
+      "preload": "",
+      "preload_exists": true,
+      "logo": "icon/icon_utools.png",
+      "logo_exists": false,
+      "platform_supported": true,
+      "feature_count": 0,
+      "command_count": 0,
+      "feature_codes": [],
+      "unsupported_cmd_types": [],
+      "warnings": [
+        "Missing logo file: icon/icon_utools.png"
+      ],
+      "errors": [
+        "Missing main file: tool.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "curl-tool",
+      "title": "Curl Tool",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/curl-tool/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 7,
+      "feature_codes": [
+        "curl"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "dev-data-workbench",
+      "title": "开发者数据工坊",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/dev-data-workbench",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "",
+      "preload_exists": true,
+      "logo": "logo.svg",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 6,
+      "feature_codes": [
+        "dev-data-workbench"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "devbox",
+      "title": "开发百宝箱",
+      "version": "2.3.3",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/devbox/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 11,
+      "command_count": 78,
+      "feature_codes": [
+        "identity",
+        "password",
+        "number",
+        "uuid",
+        "color",
+        "signature",
+        "pinyin",
+        "qrcode",
+        "htmlpreview",
+        "timeconvert",
+        "textcompress"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "developer-codec-tools",
+      "title": "开发加解密编码工具",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/developer-codec-tools",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "",
+      "preload_exists": true,
+      "logo": "logo.svg",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 9,
+      "feature_codes": [
+        "codec-tools"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "diff-compare",
+      "title": "对比助手",
+      "version": "1.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/diff-compare/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 6,
+      "command_count": 13,
+      "feature_codes": [
+        "diff-main",
+        "diff-text",
+        "diff-image",
+        "diff-excel",
+        "diff-word",
+        "diff-pdf"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "domain-helper",
+      "title": "域名助手",
+      "version": "3.3.12",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/domain-helper",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "域名助手"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "doutu",
+      "title": "斗图表情包",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/doutu/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 2,
+      "feature_codes": [
+        "doutu"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "easy-translate",
+      "title": "易翻翻译",
+      "version": "2.22.2",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/easy-translate/src",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload/index.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 4,
+      "command_count": 9,
+      "feature_codes": [
+        "keyword",
+        "anyword__fanyi",
+        "translateImg",
+        "codeMode__setting"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "english-typing-practice",
+      "title": "英语单词肌肉记忆打字练习",
+      "version": "3.3.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/english-typing-practice",
+      "main": "",
+      "main_exists": false,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "typing"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: <empty>"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "everything",
+      "title": "本地搜索",
+      "version": "2.7.3",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/everything",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload/preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": false,
+      "feature_count": 2,
+      "command_count": 4,
+      "feature_codes": [
+        "find",
+        "oversearch"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [
+        "Platform does not include darwin"
+      ],
+      "errors": [],
+      "status": "warning"
+    },
+    {
+      "name": "fidget",
+      "title": "指针蜗牛",
+      "version": "1.0.2",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/fidget",
+      "main": "",
+      "main_exists": false,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 7,
+      "feature_codes": [
+        "fidget"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: <empty>"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "file-renamer",
+      "title": "文件批量重命名",
+      "version": "1.0.2",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/file-renamer/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.svg",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "rename"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "file-tree",
+      "title": "目录树生成器",
+      "version": "1.0.5",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/file-tree",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 5,
+      "feature_codes": [
+        "file-tree"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "file-workbench",
+      "title": "文件收纳工坊",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/file-workbench",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "",
+      "preload_exists": true,
+      "logo": "logo.svg",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 7,
+      "feature_codes": [
+        "file-workbench"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "floating",
+      "title": "悬浮",
+      "version": "1.2.13",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/floating",
+      "main": "",
+      "main_exists": false,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "icon.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "suspend-screenshot"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: <empty>"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "flyfont",
+      "title": "打飞字",
+      "version": "1.0.2",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/flyfont",
+      "main": "static/index.html",
+      "main_exists": true,
+      "preload": "static/preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "flyfont"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "githubproxy",
+      "title": "GitHubProxy",
+      "version": "1.0.4",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/githubproxy/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 3,
+      "command_count": 6,
+      "feature_codes": [
+        "download",
+        "copygitclone",
+        "copygiturl"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "goose-note",
+      "title": "鹅的笔记",
+      "version": "2.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/goose-note",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 3,
+      "command_count": 7,
+      "feature_codes": [
+        "gn",
+        "new_page",
+        "open_folder"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "he-calendar",
+      "title": "合社日历",
+      "version": "1.3.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/he-calendar/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "calendar"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "hooost",
+      "title": "hooost",
+      "version": "1.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/hooost/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "hosts"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "ibox-wallpaper",
+      "title": "IBox - 无限壁纸",
+      "version": "2.3.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ibox-wallpaper/src",
+      "main": "ui/index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "ibox"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "image-batch-studio",
+      "title": "图片批处理",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/image-batch-studio",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload/services.js",
+      "preload_exists": false,
+      "logo": "logo.svg",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 7,
+      "feature_codes": [
+        "image-batch"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [
+        "Missing preload file: preload/services.js"
+      ],
+      "errors": [],
+      "status": "warning"
+    },
+    {
+      "name": "image-delivery-workbench",
+      "title": "图片交付工坊",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/image-delivery-workbench",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "",
+      "preload_exists": true,
+      "logo": "logo.svg",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 6,
+      "feature_codes": [
+        "image-delivery-workbench"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "imgbatch",
+      "title": "Imgbatch",
+      "version": "0.1.6",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/imgbatch",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": false,
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "image-batch"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [
+        "Platform does not include darwin"
+      ],
+      "errors": [],
+      "status": "warning"
+    },
+    {
+      "name": "ip-switcher",
+      "title": "IP 地址切换",
+      "version": "0.0.5",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ip-switcher/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": false,
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "default"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [
+        "Platform does not include darwin"
+      ],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "jet-plugin",
+      "title": "jet plugin",
+      "version": "1.0.3",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/jet-plugin",
+      "main": "",
+      "main_exists": false,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 7,
+      "feature_codes": [
+        "all"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: <empty>"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "json-editor",
+      "title": "json-editor",
+      "version": "1.7.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/json-editor",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 2,
+      "feature_codes": [
+        "clean-cache"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "json-tools",
+      "title": "JSON Tools",
+      "version": "1.22.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/json-tools/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "json"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "killprocess",
+      "title": "killprocess",
+      "version": "1.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/killprocess/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 2,
+      "feature_codes": [
+        "killprocess"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "knowledge-workbench",
+      "title": "知识资料工坊",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/knowledge-workbench",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "",
+      "preload_exists": true,
+      "logo": "logo.svg",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 6,
+      "feature_codes": [
+        "knowledge-workbench"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "kuke-ai-agent",
+      "title": "Kuke AI Agent",
+      "version": "1.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/kuke-ai-agent/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 2,
+      "command_count": 6,
+      "feature_codes": [
+        "chat",
+        "quickask"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "latex-ocr",
+      "title": "LaTeX公式编辑&识别",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/latex-ocr",
+      "main": "html/index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 2,
+      "command_count": 6,
+      "feature_codes": [
+        "latex-editor",
+        "latex-ocr"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "lihua",
+      "title": "礼花",
+      "version": "1.1.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/lihua",
+      "main": "",
+      "main_exists": false,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "confetti"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: <empty>"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "linuxcmddoc",
+      "title": "linux命令文档",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/linuxcmddoc/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "linuxcmddoc"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "local-ip",
+      "title": "内网 IP",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/local-ip",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "ip"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "long-screenshot",
+      "title": "长截图",
+      "version": "3.0.4",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/long-screenshot",
+      "main": "",
+      "main_exists": false,
+      "preload": "core/preload.js",
+      "preload_exists": true,
+      "logo": "assets/logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "长截图"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: <empty>"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "mac-file-search",
+      "title": "Mac 文件搜索",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/mac-file-search",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 2,
+      "command_count": 8,
+      "feature_codes": [
+        "find",
+        "find-push"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "mac-system-preference-ztools-plugin",
+      "title": "系统设置",
+      "version": "26.307.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/mac-system-preference-ztools-plugin",
+      "main": "",
+      "main_exists": false,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 29,
+      "command_count": 30,
+      "feature_codes": [
+        "preference.general",
+        "preference.bluetooth",
+        "preference.network",
+        "preference.battery",
+        "preference.universalaccess",
+        "preference.spotlight",
+        "preference.desktop",
+        "preference.appearance",
+        "preference.displays",
+        "preference.dock",
+        "preference.siri",
+        "preference.notifications",
+        "preference.sound",
+        "preference.screentime",
+        "preference.lock.screen",
+        "preference.security",
+        "preference.security.touchid",
+        "preference.users",
+        "preference.internetaccounts",
+        "preference.gamecenter",
+        "preference.appleid",
+        "preference.keyboard",
+        "preference.trackpad",
+        "preference.printfax",
+        "settings.Storage",
+        "settings.SoftwareUpdate",
+        "settings.LoginItems",
+        "about",
+        "preference.network.wifi"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: <empty>"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "markdown",
+      "title": "markdown",
+      "version": "1.7.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/markdown/public",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "markdown"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "memo-quick-paste",
+      "title": "备忘快贴",
+      "version": "4.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/memo-quick-paste",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 3,
+      "command_count": 7,
+      "feature_codes": [
+        "collection",
+        "record",
+        "search"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "mt-ocr",
+      "title": "馒头OCR",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/mt-ocr/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.svg",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 7,
+      "feature_codes": [
+        "ocr"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "musicsquare",
+      "title": "皮卡丘的音乐站",
+      "version": "1.0.2",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/musicsquare",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 5,
+      "feature_codes": [
+        "music_search"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "my-calculator",
+      "title": "计算器",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/my-calculator/My-Calculator",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 4,
+      "command_count": 9,
+      "feature_codes": [
+        "hello",
+        "read",
+        "write",
+        "calculator"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "my-calculator",
+      "title": "计算器",
+      "version": "1.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/my-calculator/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "calculator"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "my-hash-tool",
+      "title": "哈希计算器",
+      "version": "1.3.2",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/my-hash-tool/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 14,
+      "feature_codes": [
+        "file-hash"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "mybatis-sql-formatter",
+      "title": "MyBatis SQL 日志格式化",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/mybatis-sql-formatter",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 6,
+      "feature_codes": [
+        "format-sql-log"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "ocr-new",
+      "title": "OCR 翻译",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ocr-new/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 7,
+      "command_count": 18,
+      "feature_codes": [
+        "ocr",
+        "ocr-settings",
+        "ocr-copy",
+        "ocr-translate",
+        "ocr-screenshot",
+        "ocr-screenshot-copy",
+        "ocr-screenshot-translate"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "otp-2fa",
+      "title": "2FA动态验证码",
+      "version": "1.2.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/otp-2fa/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 8,
+      "feature_codes": [
+        "otp-2fa"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "pdf-office-workbench",
+      "title": "PDF 办公工坊",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/pdf-office-workbench",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "",
+      "preload_exists": true,
+      "logo": "logo.svg",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 6,
+      "feature_codes": [
+        "pdf-office-workbench"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "piclist-plugin",
+      "title": "piclist 的插件",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/piclist-plugin/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "piclistImg"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "plain-text",
+      "title": "纯文本编辑",
+      "version": "1.0.2",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/plain-text",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 9,
+      "feature_codes": [
+        "editor"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "pomodoro-timer",
+      "title": "超级番茄",
+      "version": "1.0.2",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/pomodoro-timer",
+      "main": "page/index/index.html",
+      "main_exists": true,
+      "preload": "base/js/preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 2,
+      "feature_codes": [
+        "tomato"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "port-use",
+      "title": "port-use",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/port-use/public",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "port-use"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "project-launchpad",
+      "title": "项目启动台",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/project-launchpad",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "",
+      "preload_exists": true,
+      "logo": "logo.svg",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 5,
+      "feature_codes": [
+        "project-launchpad"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "project-manager",
+      "title": "项目管理器",
+      "version": "1.3.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/project-manager",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 2,
+      "command_count": 8,
+      "feature_codes": [
+        "main",
+        "import_project"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "qrcode-helper",
+      "title": "QRCode",
+      "version": "3.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/qrcode-helper",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 5,
+      "feature_codes": [
+        "qrcode"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "quickcommand",
+      "title": "快捷命令",
+      "version": "5.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/quickcommand/plugin",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 6,
+      "command_count": 11,
+      "feature_codes": [
+        "configuration",
+        "code",
+        "composer",
+        "newcommand",
+        "importcommand",
+        "server"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "random-data",
+      "title": "随机数据",
+      "version": "1.2.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/random-data",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.svg",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "randomDataSettings"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "random-password",
+      "title": "随机密码",
+      "version": "1.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/random-password/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "",
+      "preload_exists": true,
+      "logo": "logo-v2.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "password"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "redis-client",
+      "title": "redis操作工具",
+      "version": "1.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/redis-client/src",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 6,
+      "feature_codes": [
+        "redis"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "remote-manager",
+      "title": "远程桌面管理",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/remote-manager/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": false,
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "remote-manager"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [
+        "Platform does not include darwin"
+      ],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "rogue-shooter",
+      "title": "无限重载",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/rogue-shooter",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "icon.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 5,
+      "feature_codes": [
+        "rogue_shooter"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "saladict-ztools",
+      "title": "沙拉查词",
+      "version": "1.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/saladict-ztools",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.cjs",
+      "preload_exists": true,
+      "logo": "ext-saladic/assets/icon-128.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "沙拉查词"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "screen-recorder",
+      "title": "录屏助手",
+      "version": "2.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/screen-recorder",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 2,
+      "command_count": 2,
+      "feature_codes": [
+        "recorder",
+        "region"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "shortcut-capture",
+      "title": "截图",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/shortcut-capture/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 4,
+      "command_count": 10,
+      "feature_codes": [
+        "shortcut-capture",
+        "shortcut-capture-copy",
+        "shortcut-capture-save",
+        "shortcut-capture-image"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "shorthand-box",
+      "title": "速记盒",
+      "version": "1.0.3",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/shorthand-box/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 2,
+      "feature_codes": [
+        "sj"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "showcode",
+      "title": "Showcode",
+      "version": "1.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/showcode/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 6,
+      "feature_codes": [
+        "showcode"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "splayer-z",
+      "title": "SPlayerZ",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/splayer-z/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "music"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "sql-utils",
+      "title": "SQL工具箱",
+      "version": "1.0.30",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/sql-utils/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 2,
+      "command_count": 2,
+      "feature_codes": [
+        "default",
+        "textJoint-regex"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "sqlmate",
+      "title": "SQLMate",
+      "version": "1.0.2",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/sqlmate/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 15,
+      "command_count": 62,
+      "feature_codes": [
+        "merge",
+        "split",
+        "segment",
+        "extract",
+        "dedupe",
+        "mask",
+        "rename",
+        "offset",
+        "stats",
+        "convert",
+        "format",
+        "sqltoCsv",
+        "csvToSql",
+        "diff",
+        "ddldiff"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "srktoolbox",
+      "title": "SRK Toolbox for Ztools",
+      "version": "10.22.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/srktoolbox",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 7,
+      "feature_codes": [
+        "srk-toolbox"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "ssh-screenshot",
+      "title": "SSH 截图",
+      "version": "0.2.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ssh-screenshot",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.svg",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 3,
+      "command_count": 8,
+      "feature_codes": [
+        "paste-screenshot-path",
+        "copy-screenshot-path",
+        "ssh-screenshot-config"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "sticky-note",
+      "title": "悬浮便签",
+      "version": "1.0.13",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/sticky-note",
+      "main": "dist/index.html",
+      "main_exists": true,
+      "preload": "ztools-preload/preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 3,
+      "command_count": 6,
+      "feature_codes": [
+        "home",
+        "new-note",
+        "view-recent-note"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "subnet-calculator",
+      "title": "子网掩码计算器",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/subnet-calculator",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 2,
+      "command_count": 5,
+      "feature_codes": [
+        "subnet",
+        "subnet-regex"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "super-mario",
+      "title": "super-mario",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/super-mario/public",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "super-mario"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "swap-file",
+      "title": "SwapFile文件分享",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/swap-file/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 2,
+      "command_count": 2,
+      "feature_codes": [
+        "SwapFile",
+        "swap-file"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "tetris",
+      "title": "俄罗斯方块",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/tetris",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "",
+      "preload_exists": true,
+      "logo": "logo.jpg",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 2,
+      "feature_codes": [
+        "tetris"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "text-copy",
+      "title": "复制纯文本",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/text-copy/public",
+      "main": "",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 4,
+      "command_count": 4,
+      "feature_codes": [
+        "copyText",
+        "removeTrim",
+        "copyTextSetting",
+        "copyUrl"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: <empty>"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "timestamp",
+      "title": "timestamp",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/timestamp/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "timestamp"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "tiny-clock",
+      "title": "小小时钟",
+      "version": "0.0.2",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/tiny-clock",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "xiaoxiao"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "tiny-rdm",
+      "title": "TinyRDM",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/tiny-rdm",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "favicon.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "tiny-rdm"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "tinypng",
+      "title": "TinyPNG 压缩图片",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/tinypng/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "tinypng"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "today-gold-price",
+      "title": "今日金价",
+      "version": "1.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/today-gold-price",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "gold-price"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "todo-neo",
+      "title": "Todo",
+      "version": "0.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/todo-neo/public",
+      "main": "../index.html",
+      "main_exists": true,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 2,
+      "command_count": 2,
+      "feature_codes": [
+        "todo",
+        "add"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "topwindow",
+      "title": "窗口置顶",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/topwindow",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": false,
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "topwindow"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [
+        "Platform does not include darwin"
+      ],
+      "errors": [],
+      "status": "warning"
+    },
+    {
+      "name": "totodo",
+      "title": "totodo",
+      "version": "1.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/totodo",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 2,
+      "command_count": 5,
+      "feature_codes": [
+        "totodo",
+        "add_from_selection"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "traditional-simplified-cn",
+      "title": "繁简转换",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/traditional-simplified-cn",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 2,
+      "command_count": 3,
+      "feature_codes": [
+        "convert-clipboard",
+        "convert-ui"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "url-wizard",
+      "title": "网址精灵",
+      "version": "2.1.11",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/url-wizard",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 3,
+      "command_count": 6,
+      "feature_codes": [
+        "goodweb",
+        "searchweb",
+        "addweb"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "utools-upassword",
+      "title": "密码管理",
+      "version": "1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/utools-upassword/public",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 2,
+      "command_count": 3,
+      "feature_codes": [
+        "passwords",
+        "random"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "variable-name",
+      "title": "起个变量名",
+      "version": "1.0.07",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/variable-name/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 2,
+      "feature_codes": [
+        "fy"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "video-parse",
+      "title": "轻溪去水印",
+      "version": "1.0.3",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/video-parse/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 2,
+      "feature_codes": [
+        "parse"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "vimtutor",
+      "title": "vim教程",
+      "version": "1.0.2",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/vimtutor",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 2,
+      "feature_codes": [
+        "vimtutor"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "virtual-data",
+      "title": "虚拟数据",
+      "version": "1.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/virtual-data/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 2,
+      "feature_codes": [
+        "xn"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "wechat-ocr",
+      "title": "微信 OCR",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/wechat-ocr/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 3,
+      "command_count": 5,
+      "feature_codes": [
+        "wechat-ocr",
+        "wechat-ocr-capture",
+        "wechat-ocr-image"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "whiteboard",
+      "title": "白板",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/whiteboard/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "icon.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "main"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "wifi-export-tool",
+      "title": "WiFi历史密码查看器",
+      "version": "1.0.3",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/wifi-export-tool",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.svg",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "wifi-export-tool"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "yanhua",
+      "title": "烟花",
+      "version": "1.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/yanhua",
+      "main": "",
+      "main_exists": false,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "fireworks"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: <empty>"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "zapapi",
+      "title": "ZapApi",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/zapapi/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": false,
+      "logo": "logo.svg",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "zapapi"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [
+        "Missing preload file: preload/services.js"
+      ],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "zhi-interaction",
+      "title": "Zhi 智能交互",
+      "version": "1.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/zhi-interaction",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "zhi-info"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "zosenlink-tunnel",
+      "title": "内网穿透",
+      "version": "1.0.3",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/zosenlink-tunnel",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "zosenlink-tunnel-open"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "ztool-vsc-recent",
+      "title": "VSCode 最近项目",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ztool-vsc-recent",
+      "main": "index.html",
+      "main_exists": true,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "vsc-recent"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "ztools-developer-plugin",
+      "title": "ZTools 开发者工具",
+      "version": "1.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ztools-developer-plugin",
+      "main": "dist/index.html",
+      "main_exists": true,
+      "preload": "",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 3,
+      "command_count": 3,
+      "feature_codes": [
+        "ui.router",
+        "function.reload-all-plugin",
+        "function.add-dev-plugin"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [],
+      "status": "compatible"
+    },
+    {
+      "name": "ztools-node-manager",
+      "title": "Node Dashboard",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ztools-node-manager/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": false,
+      "feature_count": 3,
+      "command_count": 7,
+      "feature_codes": [
+        "node-manager",
+        "node-quick-switch",
+        "npm-quick-source"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [
+        "Platform does not include darwin"
+      ],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    },
+    {
+      "name": "ztools-simpletimer",
+      "title": "计时器",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ztools-simpletimer/public",
+      "main": "index.html",
+      "main_exists": false,
+      "preload": "preload/services.js",
+      "preload_exists": true,
+      "logo": "logo.png",
+      "logo_exists": true,
+      "platform_supported": true,
+      "feature_count": 2,
+      "command_count": 4,
+      "feature_codes": [
+        "stopwatch",
+        "countdown"
+      ],
+      "unsupported_cmd_types": [],
+      "warnings": [],
+      "errors": [
+        "Missing main file: index.html"
+      ],
+      "status": "error"
+    }
+  ]
+}

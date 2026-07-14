@@ -1,0 +1,32 @@
+{
+  "name": "hello-world",
+  "version": "0.1.0",
+  "description": "示例插件：Hello World",
+  "author": "ATools",
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "pluginSetting": {
+    "single": false,
+    "height": 300
+  },
+  "features": [
+    {
+      "code": "hello",
+      "explain": "Hello World 示例",
+      "cmds": ["Hello", "你好", "hw"],
+      "mainPush": true
+    },
+    {
+      "code": "search",
+      "explain": "搜索示例",
+      "cmds": [
+        {
+          "type": "regex",
+          "label": "正则搜索",
+          "match": "^s\\s+(.+)$"
+        }
+      ]
+    }
+  ]
+}

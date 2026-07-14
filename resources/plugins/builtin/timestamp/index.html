@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>时间戳转换</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+      background: #f5f5f7;
+      color: #1d1d1f;
+      padding: 16px;
+    }
+    .header { display: flex; align-items: center; margin-bottom: 16px; }
+    .header h2 { font-size: 18px; font-weight: 600; }
+    .section {
+      background: #fff;
+      border: 1px solid #e4e4e6;
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .section-title {
+      font-size: 12px;
+      color: #86868b;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 8px;
+    }
+    .current-time {
+      font-size: 28px;
+      font-weight: 700;
+      color: #0071e3;
+      font-family: "SF Mono", "JetBrains Mono", monospace;
+      letter-spacing: -0.02em;
+    }
+    .current-timestamp {
+      font-size: 14px;
+      color: #86868b;
+      margin-top: 4px;
+      font-family: "SF Mono", "JetBrains Mono", monospace;
+      cursor: pointer;
+    }
+    .current-timestamp:hover { color: #0071e3; }
+    .row { display: flex; gap: 8px; align-items: flex-end; }
+    label { display: block; font-size: 12px; color: #86868b; margin-bottom: 6px; }
+    input, select {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #d2d2d7;
+      border-radius: 8px;
+      font-size: 14px;
+      background: #fff;
+      outline: none;
+      font-family: inherit;
+    }
+    input:focus { border-color: #0071e3; }
+    .btn {
+      padding: 8px 16px;
+      background: #0071e3;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn:hover { background: #005ecb; }
+    .btn.secondary { background: #fff; color: #0071e3; border: 1px solid #0071e3; }
+    .btn.secondary:hover { background: rgba(0, 113, 227, 0.05); }
+    .result-box {
+      padding: 10px 12px;
+      background: #f9f9fb;
+      border-radius: 8px;
+      font-family: "SF Mono", "JetBrains Mono", monospace;
+      font-size: 13px;
+      color: #1d1d1f;
+      cursor: pointer;
+      user-select: all;
+      margin-top: 8px;
+    }
+    .result-box:hover { background: #eeeef2; }
+    .quick-btns { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+    .quick-btn {
+      padding: 6px 12px;
+      background: #f5f5f7;
+      border: 1px solid #e4e4e6;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .quick-btn:hover { border-color: #0071e3; color: #0071e3; }
+    .error { color: #ff3b30; font-size: 12px; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <div class="header"><h2>🕐 时间戳转换</h2></div>
+
+  <div class="section">
+    <div class="section-title">当前时间</div>
+    <div class="current-time" id="current-time">--:--:--</div>
+    <div class="current-timestamp" id="current-ts" title="点击复制">Unix: --</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">时间戳 → 日期</div>
+    <div class="row">
+      <div style="flex:1;">
+        <input type="text" id="ts-input" placeholder="输入时间戳（如 1700000000）" />
+      </div>
+      <button class="btn" id="ts-to-date-btn">转换</button>
+    </div>
+    <div class="quick-btns">
+      <button class="quick-btn" data-ts="now">当前时间</button>
+      <button class="quick-btn" data-ts="0">Unix 纪元</button>
+      <button class="quick-btn" data-ts="1700000000">2023-11-14</button>
+    </div>
+    <div id="ts-result"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">日期 → 时间戳</div>
+    <div class="row">
+      <div style="flex:1;">
+        <input type="datetime-local" id="date-input" step="1" />
+      </div>
+      <button class="btn" id="date-to-ts-btn">转换</button>
+    </div>
+    <div id="date-result"></div>
+  </div>
+
+  <script>
+    const currentTimeEl = document.getElementById('current-time');
+    const currentTsEl = document.getElementById('current-ts');
+    const tsInput = document.getElementById('ts-input');
+    const tsResult = document.getElementById('ts-result');
+    const dateInput = document.getElementById('date-input');
+    const dateResult = document.getElementById('date-result');
+
+    function formatDateTime(d) {
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    }
+
+    function updateClock() {
+      const now = new Date();
+      currentTimeEl.textContent = formatDateTime(now).split(' ')[1];
+      const ts = Math.floor(now.getTime() / 1000);
+      currentTsEl.textContent = `Unix: ${ts}  ·  毫秒: ${now.getTime()}`;
+    }
+
+    setInterval(updateClock, 500);
+    updateClock();
+
+    currentTsEl.addEventListener('click', () => {
+      const ts = Math.floor(Date.now() / 1000);
+      navigator.clipboard.writeText(String(ts));
+      window.utools?.showNotification('已复制时间戳：' + ts);
+    });
+
+    function tsToDate() {
+      const val = tsInput.value.trim();
+      if (!val) { tsResult.innerHTML = ''; return; }
+
+      try {
+        let ts = parseFloat(val);
+        if (isNaN(ts)) throw new Error('无效的时间戳');
+
+        // Auto-detect seconds vs milliseconds
+        const isMs = ts > 9999999999;
+        const date = new Date(isMs ? ts : ts * 1000);
+        if (isNaN(date.getTime())) throw new Error('无效的时间戳');
+
+        const pad = n => String(n).padStart(2, '0');
+        const iso = date.toISOString();
+        const local = formatDateTime(date);
+        const utc = `${date.getUTCFullYear()}-${pad(date.getUTCMonth()+1)}-${pad(date.getUTCDate())} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())} UTC`;
+        const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+
+        tsResult.innerHTML = `
+          <div class="result-box" onclick="navigator.clipboard.writeText('${local}'); window.utools?.showNotification('已复制')">
+            <div style="font-size:11px;color:#86868b;margin-bottom:2px;">本地时间</div>
+            ${local} 周${weekdays[date.getDay()]}
+          </div>
+          <div class="result-box" onclick="navigator.clipboard.writeText('${utc}'); window.utools?.showNotification('已复制')">
+            <div style="font-size:11px;color:#86868b;margin-bottom:2px;">UTC 时间</div>
+            ${utc}
+          </div>
+          <div class="result-box" onclick="navigator.clipboard.writeText('${iso}'); window.utools?.showNotification('已复制')">
+            <div style="font-size:11px;color:#86868b;margin-bottom:2px;">ISO 8601</div>
+            ${iso}
+          </div>
+        `;
+      } catch (e) {
+        tsResult.innerHTML = `<div class="error">${e.message}</div>`;
+      }
+    }
+
+    function dateToTs() {
+      const val = dateInput.value;
+      if (!val) { dateResult.innerHTML = ''; return; }
+
+      const date = new Date(val);
+      if (isNaN(date.getTime())) {
+        dateResult.innerHTML = `<div class="error">无效的日期</div>`;
+        return;
+      }
+
+      const seconds = Math.floor(date.getTime() / 1000);
+      const ms = date.getTime();
+
+      dateResult.innerHTML = `
+        <div class="result-box" onclick="navigator.clipboard.writeText('${seconds}'); window.utools?.showNotification('已复制')">
+          <div style="font-size:11px;color:#86868b;margin-bottom:2px;">秒级时间戳</div>
+          ${seconds}
+        </div>
+        <div class="result-box" onclick="navigator.clipboard.writeText('${ms}'); window.utools?.showNotification('已复制')">
+          <div style="font-size:11px;color:#86868b;margin-bottom:2px;">毫秒级时间戳</div>
+          ${ms}
+        </div>
+      `;
+    }
+
+    document.getElementById('ts-to-date-btn').addEventListener('click', tsToDate);
+    document.getElementById('date-to-ts-btn').addEventListener('click', dateToTs);
+    tsInput.addEventListener('keydown', e => { if (e.key === 'Enter') tsToDate(); });
+    tsInput.addEventListener('input', tsToDate);
+    dateInput.addEventListener('change', dateToTs);
+
+    // Quick buttons
+    document.querySelectorAll('.quick-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const ts = btn.dataset.ts;
+        tsInput.value = ts === 'now' ? Math.floor(Date.now() / 1000) : ts;
+        tsToDate();
+      });
+    });
+
+    // Initialize date input to now
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000;
+    dateInput.value = new Date(now - offset).toISOString().slice(0, 19);
+    tsInput.value = Math.floor(Date.now() / 1000);
+    tsToDate();
+    dateToTs();
+  </script>
+</body>
+</html>

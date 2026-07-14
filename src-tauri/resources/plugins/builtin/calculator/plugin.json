@@ -1,0 +1,29 @@
+{
+  "name": "calculator",
+  "version": "1.0.0",
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "description": "科学计算器 - 支持数学表达式和常用计算",
+  "author": "ATools Team",
+  "pluginSetting": {
+    "height": 400
+  },
+  "features": [
+    {
+      "code": "calc",
+      "explain": "计算数学表达式",
+      "cmds": [
+        {
+          "type": "regex",
+          "label": "计算",
+          "match": "^(\\d+\\s*[+\\-*/^%]\\s*\\d+|[\\d\\s+\\-*/^%()]+)$"
+        },
+        "calculator",
+        "计算",
+        "计算器",
+        "calc"
+      ]
+    }
+  ]
+}

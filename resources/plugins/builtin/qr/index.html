@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>QR 码生成器</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+      background: #f5f5f7;
+      color: #1d1d1f;
+      padding: 16px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .header h2 {
+      font-size: 18px;
+      font-weight: 600;
+    }
+    .input-group {
+      margin-bottom: 12px;
+    }
+    label {
+      display: block;
+      font-size: 12px;
+      color: #86868b;
+      margin-bottom: 6px;
+    }
+    textarea {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid #d2d2d7;
+      border-radius: 8px;
+      font-size: 14px;
+      background: #fff;
+      outline: none;
+      resize: vertical;
+      min-height: 60px;
+      font-family: inherit;
+    }
+    textarea:focus {
+      border-color: #0071e3;
+      box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.1);
+    }
+    .options {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    select {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid #d2d2d7;
+      border-radius: 8px;
+      font-size: 13px;
+      background: #fff;
+      outline: none;
+      cursor: pointer;
+    }
+    .qr-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    #qr-container {
+      display: inline-block;
+      padding: 16px;
+      background: #fff;
+      border: 1px solid #e4e4e6;
+      border-radius: 12px;
+    }
+    #qr-container canvas, #qr-container img, #qr-container table {
+      display: block !important;
+    }
+    .btn-group {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+    }
+    .btn {
+      flex: 1;
+      padding: 8px 16px;
+      background: #fff;
+      border: 1px solid #d2d2d7;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn:hover {
+      border-color: #0071e3;
+      color: #0071e3;
+    }
+    .btn.primary {
+      background: #0071e3;
+      color: #fff;
+      border-color: #0071e3;
+    }
+    .btn.primary:hover {
+      background: #005ecb;
+    }
+    .empty-state, .error-state {
+      padding: 48px 24px;
+      text-align: center;
+      color: #86868b;
+      font-size: 14px;
+    }
+    .error-state { color: #ff3b30; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h2>🔳 QR 码生成器</h2>
+  </div>
+  <div class="input-group">
+    <label>输入文本或 URL</label>
+    <textarea id="qr-input" placeholder="例如: https://example.com">ATools 3.0</textarea>
+  </div>
+  <div class="options">
+    <div style="flex:1;">
+      <label>尺寸</label>
+      <select id="qr-size">
+        <option value="128">小 (128)</option>
+        <option value="200" selected>中 (200)</option>
+        <option value="300">大 (300)</option>
+      </select>
+    </div>
+    <div style="flex:1;">
+      <label>容错</label>
+      <select id="qr-ec">
+        <option value="M">中 (15%)</option>
+        <option value="L">低 (7%)</option>
+        <option value="Q">高 (25%)</option>
+        <option value="H">最高 (30%)</option>
+      </select>
+    </div>
+  </div>
+  <div class="btn-group" style="margin-bottom: 16px;">
+    <button class="btn primary" id="generate-btn">生成 QR 码</button>
+  </div>
+  <div class="qr-wrapper" id="qr-wrapper" style="display:none;">
+    <div id="qr-container"></div>
+    <div class="btn-group">
+      <button class="btn" id="copy-btn">复制到剪贴板</button>
+      <button class="btn" id="download-btn">下载图片</button>
+    </div>
+  </div>
+  <div id="error-state" style="display:none;"></div>
+
+  <script src="qrcode.js"></script>
+  <script>
+    const qrInput = document.getElementById('qr-input');
+    const qrContainer = document.getElementById('qr-container');
+    const qrWrapper = document.getElementById('qr-wrapper');
+    const errorState = document.getElementById('error-state');
+    const generateBtn = document.getElementById('generate-btn');
+    const copyBtn = document.getElementById('copy-btn');
+    const downloadBtn = document.getElementById('download-btn');
+    let currentQR = null;
+
+    function generateQR() {
+      const text = qrInput.value.trim();
+      if (!text) {
+        showError("请输入内容");
+        return;
+      }
+      const size = parseInt(document.getElementById('qr-size').value);
+      const ec = document.getElementById('qr-ec').value;
+
+      try {
+        qrContainer.innerHTML = '';
+        errorState.style.display = 'none';
+        qrWrapper.style.display = 'flex';
+
+        if (typeof QRCode === 'undefined') {
+          throw new Error('QR 码库未加载');
+        }
+
+        currentQR = new QRCode(qrContainer, {
+          text: text,
+          width: size,
+          height: size,
+          colorDark: "#000000",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel[ec] !== undefined ? QRCode.CorrectLevel[ec] : QRCode.CorrectLevel.M
+        });
+      } catch (e) {
+        showError(e.message);
+      }
+    }
+
+    function showError(msg) {
+      qrWrapper.style.display = 'none';
+      errorState.style.display = 'block';
+      errorState.innerHTML = `<div class="error-state">${msg}</div>`;
+    }
+
+    function downloadQR() {
+      const canvas = qrContainer.querySelector('canvas');
+      const img = qrContainer.querySelector('img');
+      const src = canvas ? canvas.toDataURL('image/png') : (img ? img.src : null);
+      if (!src) {
+        showError("QR 码未就绪");
+        return;
+      }
+      const a = document.createElement('a');
+      a.href = src;
+      a.download = `qrcode-${Date.now()}.png`;
+      a.click();
+    }
+
+    async function copyQR() {
+      try {
+        const canvas = qrContainer.querySelector('canvas');
+        if (canvas) {
+          const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+          await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': blob })
+          ]);
+          copyBtn.textContent = '已复制!';
+          setTimeout(() => copyBtn.textContent = '复制到剪贴板', 2000);
+        } else {
+          showError("复制失败：请尝试下载");
+        }
+      } catch (e) {
+        showError("复制失败：" + e.message);
+      }
+    }
+
+    generateBtn.addEventListener('click', generateQR);
+    downloadBtn.addEventListener('click', downloadQR);
+    copyBtn.addEventListener('click', copyQR);
+    qrInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) generateQR();
+    });
+
+    // Auto-generate on load
+    generateQR();
+  </script>
+</body>
+</html>

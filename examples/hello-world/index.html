@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Hello World</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #1e1e2e;
+      color: #cdd6f4;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 12px;
+    }
+    p {
+      font-size: 14px;
+      color: #a6adc8;
+    }
+  </style>
+</head>
+<body>
+  <h1>👋 Hello, ATools!</h1>
+  <p>这是一个示例插件的 UI 页面。</p>
+  <p>Feature code: <code id="code"></code></p>
+  <script>
+    // 从 URL 参数获取 feature code
+    const params = new URLSearchParams(window.location.search);
+    document.getElementById('code').textContent = params.get('code') || 'unknown';
+  </script>
+</body>
+</html>

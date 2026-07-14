@@ -1,0 +1,19 @@
+{
+  "name": "json-viewer",
+  "version": "1.0.0",
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "description": "JSON 格式化与校验",
+  "author": "ATools Team",
+  "pluginSetting": {
+    "height": 500
+  },
+  "features": [
+    {
+      "code": "json",
+      "explain": "格式化和校验 JSON",
+      "cmds": ["json", "json格式化", "json格式化", "格式化json"]
+    }
+  ]
+}

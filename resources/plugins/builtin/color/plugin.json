@@ -1,0 +1,16 @@
+{
+  "name": "颜色转换",
+  "description": "Hex / RGB / HSL 颜色转换工具",
+  "author": "ATools",
+  "version": "1.0.0",
+  "main": "index.html",
+  "features": [
+    {
+      "code": "颜色转换",
+      "label": "颜色转换",
+      "icon": "logo.png",
+      "explain": "Hex / RGB / HSL 颜色互相转换",
+      "cmds": ["颜色转换", "颜色", "color", "yanse", "hex", "rgb", "hsl"]
+    }
+  ]
+}

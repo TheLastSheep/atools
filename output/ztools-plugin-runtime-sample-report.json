@@ -1,0 +1,6163 @@
+{
+  "generated_at": "2026-06-30T10:29:31.900Z",
+  "source": "/Users/harris/Desktop/ZTools-plugins/plugins",
+  "summary": {
+    "scanned_plugins": 125,
+    "launchable_plugins": 61,
+    "ready_candidates": 21,
+    "risk_candidates": 40,
+    "blocked_plugins": 64,
+    "html_entry_plugins": 65,
+    "missing_local_resource_plugins": 10,
+    "missing_local_resources": 17,
+    "external_resource_plugins": 6,
+    "preload_missing_plugins": 4,
+    "preload_node_risk_plugins": 69,
+    "preload_electron_require_plugins": 26,
+    "selected_sample_count": 20
+  },
+  "sample_candidates": [
+    {
+      "name": "calculation-paper",
+      "title": "计算稿纸",
+      "version": "1.4.2",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/calculation-paper",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 4,
+      "command_count": 5,
+      "feature_codes": [
+        "calc",
+        "expression",
+        "sum",
+        "average"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "index.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "ztools-developer-plugin",
+      "title": "ZTools 开发者工具",
+      "version": "1.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ztools-developer-plugin",
+      "main": "dist/index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 3,
+      "command_count": 3,
+      "feature_codes": [
+        "ui.router",
+        "function.reload-all-plugin",
+        "function.add-dev-plugin"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "dist/index.html",
+        "is_html": true,
+        "local_resources": [
+          "dist/assets/index-D5fSJ76W.js",
+          "dist/assets/index-P8ixMW7d.css",
+          "dist/favicon.ico"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "latex-ocr",
+      "title": "LaTeX公式编辑&识别",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/latex-ocr",
+      "main": "html/index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 2,
+      "command_count": 6,
+      "feature_codes": [
+        "latex-editor",
+        "latex-ocr"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "html/index.html",
+        "is_html": true,
+        "local_resources": [
+          "config.js",
+          "lib/bootstrap-4.3.1-dist/css/bootstrap.min.css",
+          "lib/bootstrap-4.3.1-dist/js/bootstrap.bundle.min.js",
+          "lib/caret/caret.js",
+          "lib/font-awesome-4.7.0/Font-Awesome-master/css/font-awesome.min.css",
+          "lib/JQuery-3.4.1/jquery-3.4.1.min.js",
+          "lib/tippy/popper.min.js",
+          "lib/tippy/tippy-bundle.umd.min.js",
+          "publish/latex.bundle.min.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "2048",
+      "title": "2048",
+      "version": "1.0.5",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/2048",
+      "main": "2048-master/index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "2048"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "2048-master/index.html",
+        "is_html": true,
+        "local_resources": [
+          "2048-master/favicon.ico",
+          "2048-master/js/animframe_polyfill.js",
+          "2048-master/js/application.js",
+          "2048-master/js/bind_polyfill.js",
+          "2048-master/js/classlist_polyfill.js",
+          "2048-master/js/game_manager.js",
+          "2048-master/js/grid.js",
+          "2048-master/js/html_actuator.js",
+          "2048-master/js/keyboard_input_manager.js",
+          "2048-master/js/local_storage_manager.js",
+          "2048-master/js/tile.js",
+          "2048-master/meta/apple-touch-icon.png",
+          "2048-master/meta/apple-touch-startup-image-640x1096.png",
+          "2048-master/meta/apple-touch-startup-image-640x920.png",
+          "2048-master/style/main.css"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "ai-automation-workbench",
+      "title": "AI 自动化工坊",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ai-automation-workbench",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 6,
+      "feature_codes": [
+        "ai-automation-workbench"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "logo.svg"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "content-workbench",
+      "title": "内容整理工坊",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/content-workbench",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 6,
+      "feature_codes": [
+        "content-workbench"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "logo.svg"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "cron",
+      "title": "cron在线表达式",
+      "version": "1.0.6",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/cron",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 7,
+      "feature_codes": [
+        "cron"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "script.js",
+          "style.css"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "dev-data-workbench",
+      "title": "开发者数据工坊",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/dev-data-workbench",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 6,
+      "feature_codes": [
+        "dev-data-workbench"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "logo.svg"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "developer-codec-tools",
+      "title": "开发加解密编码工具",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/developer-codec-tools",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 9,
+      "feature_codes": [
+        "codec-tools"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "app.js",
+          "styles.css"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "file-workbench",
+      "title": "文件收纳工坊",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/file-workbench",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 7,
+      "feature_codes": [
+        "file-workbench"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "logo.svg"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "ibox-wallpaper",
+      "title": "IBox - 无限壁纸",
+      "version": "2.3.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ibox-wallpaper/src",
+      "main": "ui/index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "ibox"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "ui/index.html",
+        "is_html": true,
+        "local_resources": [
+          "ui/assets/index.7941eb5b.js",
+          "ui/assets/index.8f6f3833.css"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "image-delivery-workbench",
+      "title": "图片交付工坊",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/image-delivery-workbench",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 6,
+      "feature_codes": [
+        "image-delivery-workbench"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "logo.svg"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "mybatis-sql-formatter",
+      "title": "MyBatis SQL 日志格式化",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/mybatis-sql-formatter",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 6,
+      "feature_codes": [
+        "format-sql-log"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "pdf-office-workbench",
+      "title": "PDF 办公工坊",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/pdf-office-workbench",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 6,
+      "feature_codes": [
+        "pdf-office-workbench"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "logo.svg"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "project-launchpad",
+      "title": "项目启动台",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/project-launchpad",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 5,
+      "feature_codes": [
+        "project-launchpad"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "logo.svg"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "qrcode-helper",
+      "title": "QRCode",
+      "version": "3.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/qrcode-helper",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 5,
+      "feature_codes": [
+        "qrcode"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "index.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "random-data",
+      "title": "随机数据",
+      "version": "1.2.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/random-data",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "randomDataSettings"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "rogue-shooter",
+      "title": "无限重载",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/rogue-shooter",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 5,
+      "feature_codes": [
+        "rogue_shooter"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "vimtutor",
+      "title": "vim教程",
+      "version": "1.0.2",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/vimtutor",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 2,
+      "feature_codes": [
+        "vimtutor"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "umi.css",
+          "umi.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "zhi-interaction",
+      "title": "Zhi 智能交互",
+      "version": "1.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/zhi-interaction",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "zhi-info"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    }
+  ],
+  "plugins": [
+    {
+      "name": "2048",
+      "title": "2048",
+      "version": "1.0.5",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/2048",
+      "main": "2048-master/index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "2048"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "2048-master/index.html",
+        "is_html": true,
+        "local_resources": [
+          "2048-master/favicon.ico",
+          "2048-master/js/animframe_polyfill.js",
+          "2048-master/js/application.js",
+          "2048-master/js/bind_polyfill.js",
+          "2048-master/js/classlist_polyfill.js",
+          "2048-master/js/game_manager.js",
+          "2048-master/js/grid.js",
+          "2048-master/js/html_actuator.js",
+          "2048-master/js/keyboard_input_manager.js",
+          "2048-master/js/local_storage_manager.js",
+          "2048-master/js/tile.js",
+          "2048-master/meta/apple-touch-icon.png",
+          "2048-master/meta/apple-touch-startup-image-640x1096.png",
+          "2048-master/meta/apple-touch-startup-image-640x920.png",
+          "2048-master/style/main.css"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "ai-automation-workbench",
+      "title": "AI 自动化工坊",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ai-automation-workbench",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 6,
+      "feature_codes": [
+        "ai-automation-workbench"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "logo.svg"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "ai-helper",
+      "title": "AI助手",
+      "version": "1.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ai-helper/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "chat"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "ai-skills-manager",
+      "title": "AI-Skills管理器",
+      "version": "1.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ai-skills-manager",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 2,
+      "command_count": 3,
+      "feature_codes": [
+        "manage",
+        "quick-install"
+      ],
+      "compatibility_status": "warning",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 65,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "favicon.svg",
+          "src/main.ts"
+        ],
+        "missing_local_resources": [
+          "favicon.svg"
+        ],
+        "external_resources": []
+      },
+      "warnings": [
+        "Missing local entry resources: favicon.svg",
+        "Missing preload file: preload.js"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "anywhere",
+      "title": "AI Anywhere",
+      "version": "2.4.14",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/anywhere/public",
+      "main": "/main/index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 2,
+      "command_count": 3,
+      "feature_codes": [
+        "Anywhere Settings",
+        "Resume Conversation"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "/main/index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Missing preload file: preload.js"
+      ],
+      "blockers": [
+        "Missing main file: /main/index.html"
+      ]
+    },
+    {
+      "name": "ascii-tree",
+      "title": "ASCII Tree",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ascii-tree",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "ascii-tree-open"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "index.css",
+          "index.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "ascll-art-font",
+      "title": "ASCII Art Font",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ascll-art-font/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 5,
+      "feature_codes": [
+        "ascii-art"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "automode",
+      "title": "主题自动切换",
+      "version": "1.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/automode",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process",
+          "fs",
+          "os",
+          "path"
+        ],
+        "uses_child_process": true,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 5,
+      "feature_codes": [
+        "theme-scheduler"
+      ],
+      "compatibility_status": "warning",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "lib/ui-state.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: child_process, fs, os, path"
+      ],
+      "blockers": [
+        "Platform does not include darwin"
+      ]
+    },
+    {
+      "name": "bookmarks",
+      "title": "浏览器书签搜索",
+      "version": "2.1.2",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/bookmarks",
+      "main": "",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process",
+          "fs",
+          "path"
+        ],
+        "uses_child_process": true,
+        "uses_fs": true
+      },
+      "feature_count": 2,
+      "command_count": 2,
+      "feature_codes": [
+        "bookmarks",
+        "search"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: child_process, fs, path"
+      ],
+      "blockers": [
+        "Missing main file: <empty>"
+      ]
+    },
+    {
+      "name": "calculation-paper",
+      "title": "计算稿纸",
+      "version": "1.4.2",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/calculation-paper",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 4,
+      "command_count": 5,
+      "feature_codes": [
+        "calc",
+        "expression",
+        "sum",
+        "average"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "index.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "chrome-history",
+      "title": "浏览器历史记录搜索",
+      "version": "v2.2.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/chrome-history",
+      "main": "",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 2,
+      "command_count": 6,
+      "feature_codes": [
+        "ch",
+        "ch-setting"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": [
+        "Missing main file: <empty>"
+      ]
+    },
+    {
+      "name": "clipboard",
+      "title": "剪贴板",
+      "version": "1.2.7",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/clipboard/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 2,
+      "feature_codes": [
+        "clipboard"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 40,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-B_f4Xz_u.css",
+          "assets/index-rh3Qu-4Y.js",
+          "favicon.ico"
+        ],
+        "missing_local_resources": [
+          "assets/index-B_f4Xz_u.css",
+          "assets/index-rh3Qu-4Y.js",
+          "favicon.ico"
+        ],
+        "external_resources": []
+      },
+      "warnings": [
+        "Missing local entry resources: assets/index-B_f4Xz_u.css, assets/index-rh3Qu-4Y.js, favicon.ico",
+        "Preload requires Electron module"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "clipboard-image-paintbrush",
+      "title": "剪贴板图片涂改",
+      "version": "1.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/clipboard-image-paintbrush",
+      "main": "",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "os",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 7,
+      "command_count": 15,
+      "feature_codes": [
+        "annotate-clipboard",
+        "save-clipboard",
+        "annotate-img",
+        "save-img",
+        "annotate-files",
+        "save-files",
+        "clipboard-detect"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: fs, os, path"
+      ],
+      "blockers": [
+        "Missing main file: <empty>"
+      ]
+    },
+    {
+      "name": "code-screenshot",
+      "title": "代码截图",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/code-screenshot/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 2,
+      "command_count": 3,
+      "feature_codes": [
+        "code-screenshot",
+        "code-screenshot-file"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, path"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "code-snippets",
+      "title": "代码模板",
+      "version": "1.1.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/code-snippets/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "snippets"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, path"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "codecalc",
+      "title": "Code Calculator",
+      "version": "3.2.3",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/codecalc/app",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 4,
+      "command_count": 11,
+      "feature_codes": [
+        "codecalc",
+        "quickcalc",
+        "timestamp",
+        "ts2date"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 40,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "logo.png",
+          "src/app.bundle.js",
+          "src/calculator.min.js",
+          "src/styles.css"
+        ],
+        "missing_local_resources": [
+          "src/app.bundle.js",
+          "src/calculator.min.js"
+        ],
+        "external_resources": [
+          "https://epleone.github.io/codecalc-doc/",
+          "https://github.com/epleone/CodeCalc"
+        ]
+      },
+      "warnings": [
+        "External entry resources: https://epleone.github.io/codecalc-doc/, https://github.com/epleone/CodeCalc",
+        "Missing local entry resources: src/app.bundle.js, src/calculator.min.js"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "colors",
+      "title": "颜色助手",
+      "version": "1.3.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/colors/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 2,
+      "command_count": 2,
+      "feature_codes": [
+        "选择颜色",
+        "预览颜色"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "com-ztools-timestamp",
+      "title": "时间戳转换",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/com-ztools-timestamp/public",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 7,
+      "feature_codes": [
+        "com-ztools-timestamp"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "content-workbench",
+      "title": "内容整理工坊",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/content-workbench",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 6,
+      "feature_codes": [
+        "content-workbench"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "logo.svg"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "cron",
+      "title": "cron在线表达式",
+      "version": "1.0.6",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/cron",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 7,
+      "feature_codes": [
+        "cron"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "script.js",
+          "style.css"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "ctool",
+      "title": "Ctool",
+      "version": "##version##",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ctool/packages/ctool-adapter/utools/resources",
+      "main": "tool.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 0,
+      "command_count": 0,
+      "feature_codes": [],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "tool.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": [
+        "Missing main file: tool.html"
+      ]
+    },
+    {
+      "name": "curl-tool",
+      "title": "Curl Tool",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/curl-tool/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "http",
+          "https",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 7,
+      "feature_codes": [
+        "curl"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, http, https, path"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "dev-data-workbench",
+      "title": "开发者数据工坊",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/dev-data-workbench",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 6,
+      "feature_codes": [
+        "dev-data-workbench"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "logo.svg"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "devbox",
+      "title": "开发百宝箱",
+      "version": "2.3.3",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/devbox/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 11,
+      "command_count": 78,
+      "feature_codes": [
+        "identity",
+        "password",
+        "number",
+        "uuid",
+        "color",
+        "signature",
+        "pinyin",
+        "qrcode",
+        "htmlpreview",
+        "timeconvert",
+        "textcompress"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "developer-codec-tools",
+      "title": "开发加解密编码工具",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/developer-codec-tools",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 9,
+      "feature_codes": [
+        "codec-tools"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "app.js",
+          "styles.css"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "diff-compare",
+      "title": "对比助手",
+      "version": "1.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/diff-compare/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 6,
+      "command_count": 13,
+      "feature_codes": [
+        "diff-main",
+        "diff-text",
+        "diff-image",
+        "diff-excel",
+        "diff-word",
+        "diff-pdf"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, path"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "domain-helper",
+      "title": "域名助手",
+      "version": "3.3.12",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/domain-helper",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "crypto",
+          "fs",
+          "http",
+          "https"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "域名助手"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 70,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "src/main.js",
+          "vite.svg"
+        ],
+        "missing_local_resources": [
+          "vite.svg"
+        ],
+        "external_resources": []
+      },
+      "warnings": [
+        "Missing local entry resources: vite.svg",
+        "Preload requires Node modules: crypto, fs, http, https"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "doutu",
+      "title": "斗图表情包",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/doutu/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "crypto",
+          "fs",
+          "http",
+          "https",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 2,
+      "feature_codes": [
+        "doutu"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: crypto, fs, http, https, path"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "easy-translate",
+      "title": "易翻翻译",
+      "version": "2.22.2",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/easy-translate/src",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/index.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 4,
+      "command_count": 9,
+      "feature_codes": [
+        "keyword",
+        "anyword__fanyi",
+        "translateImg",
+        "codeMode__setting"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/arco-Db5X7Atd.js",
+          "assets/dep-O753C9ij.js",
+          "assets/index-DIbm2xhO.js",
+          "assets/index-Tq-EWa2c.css",
+          "favicon.svg"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "english-typing-practice",
+      "title": "英语单词肌肉记忆打字练习",
+      "version": "3.3.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/english-typing-practice",
+      "main": "",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "typing"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module"
+      ],
+      "blockers": [
+        "Missing main file: <empty>"
+      ]
+    },
+    {
+      "name": "everything",
+      "title": "本地搜索",
+      "version": "2.7.3",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/everything",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process",
+          "os",
+          "path"
+        ],
+        "uses_child_process": true,
+        "uses_fs": false
+      },
+      "feature_count": 2,
+      "command_count": 4,
+      "feature_codes": [
+        "find",
+        "oversearch"
+      ],
+      "compatibility_status": "warning",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "index.js",
+          "pdf.mjs",
+          "psd.min.js",
+          "xlsx.full.min.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: child_process, os, path"
+      ],
+      "blockers": [
+        "Platform does not include darwin"
+      ]
+    },
+    {
+      "name": "fidget",
+      "title": "指针蜗牛",
+      "version": "1.0.2",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/fidget",
+      "main": "",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 7,
+      "feature_codes": [
+        "fidget"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": [
+        "Missing main file: <empty>"
+      ]
+    },
+    {
+      "name": "file-renamer",
+      "title": "文件批量重命名",
+      "version": "1.0.2",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/file-renamer/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "rename"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: fs"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "file-tree",
+      "title": "目录树生成器",
+      "version": "1.0.5",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/file-tree",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 5,
+      "feature_codes": [
+        "file-tree"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "codemirror.min.css",
+          "codemirror.min.js",
+          "html2canvas.min.js",
+          "icons.css",
+          "logo.png",
+          "main.js",
+          "monokai.min.css",
+          "styles.css"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "file-workbench",
+      "title": "文件收纳工坊",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/file-workbench",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 7,
+      "feature_codes": [
+        "file-workbench"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "logo.svg"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "floating",
+      "title": "悬浮",
+      "version": "1.2.13",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/floating",
+      "main": "",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "suspend-screenshot"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: fs"
+      ],
+      "blockers": [
+        "Missing main file: <empty>"
+      ]
+    },
+    {
+      "name": "flyfont",
+      "title": "打飞字",
+      "version": "1.0.2",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/flyfont",
+      "main": "static/index.html",
+      "preload": {
+        "file": "static/preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "flyfont"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "static/index.html",
+        "is_html": true,
+        "local_resources": [
+          "static/phobos.png",
+          "static/ztype.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "githubproxy",
+      "title": "GitHubProxy",
+      "version": "1.0.4",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/githubproxy/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "http",
+          "https",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 3,
+      "command_count": 6,
+      "feature_codes": [
+        "download",
+        "copygitclone",
+        "copygiturl"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, http, https, path"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "goose-note",
+      "title": "鹅的笔记",
+      "version": "2.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/goose-note",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 3,
+      "command_count": 7,
+      "feature_codes": [
+        "gn",
+        "new_page",
+        "open_folder"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-BA5baQP0.js",
+          "assets/index-C4EIjs4S.css",
+          "assets/vendor-hightlight-CTCUKY7f.js",
+          "assets/vendor-react-Cjgk7kFL.js",
+          "assets/vendor-tiptap-B5RmlGK7.js",
+          "assets/vendor-ui-DXyhtVLq.js",
+          "logo.png"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "he-calendar",
+      "title": "合社日历",
+      "version": "1.3.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/he-calendar/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "calendar"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, path"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "hooost",
+      "title": "hooost",
+      "version": "1.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/hooost/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process",
+          "fs",
+          "os",
+          "path"
+        ],
+        "uses_child_process": true,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "hosts"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: child_process, fs, os, path"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "ibox-wallpaper",
+      "title": "IBox - 无限壁纸",
+      "version": "2.3.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ibox-wallpaper/src",
+      "main": "ui/index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "ibox"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "ui/index.html",
+        "is_html": true,
+        "local_resources": [
+          "ui/assets/index.7941eb5b.js",
+          "ui/assets/index.8f6f3833.css"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "image-batch-studio",
+      "title": "图片批处理",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/image-batch-studio",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 7,
+      "feature_codes": [
+        "image-batch"
+      ],
+      "compatibility_status": "warning",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 85,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "logo.svg",
+          "src/ui/main.tsx"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Missing preload file: preload/services.js"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "image-delivery-workbench",
+      "title": "图片交付工坊",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/image-delivery-workbench",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 6,
+      "feature_codes": [
+        "image-delivery-workbench"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "logo.svg"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "imgbatch",
+      "title": "Imgbatch",
+      "version": "0.1.6",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/imgbatch",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process",
+          "fs",
+          "os",
+          "path"
+        ],
+        "uses_child_process": true,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "image-batch"
+      ],
+      "compatibility_status": "warning",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/app/main.js",
+          "assets/styles/app.css",
+          "assets/styles/theme.css"
+        ],
+        "missing_local_resources": [],
+        "external_resources": [
+          "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap"
+        ]
+      },
+      "warnings": [
+        "External entry resources: https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap",
+        "Preload requires Electron module",
+        "Preload requires Node modules: child_process, fs, os, path"
+      ],
+      "blockers": [
+        "Platform does not include darwin"
+      ]
+    },
+    {
+      "name": "ip-switcher",
+      "title": "IP 地址切换",
+      "version": "0.0.5",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ip-switcher/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "os"
+        ],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "default"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: os"
+      ],
+      "blockers": [
+        "Missing main file: index.html",
+        "Platform does not include darwin"
+      ]
+    },
+    {
+      "name": "jet-plugin",
+      "title": "jet plugin",
+      "version": "1.0.3",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/jet-plugin",
+      "main": "",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 7,
+      "feature_codes": [
+        "all"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": [
+        "Missing main file: <empty>"
+      ]
+    },
+    {
+      "name": "json-editor",
+      "title": "json-editor",
+      "version": "1.7.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/json-editor",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 2,
+      "feature_codes": [
+        "clean-cache"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "index.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "json-tools",
+      "title": "JSON Tools",
+      "version": "1.22.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/json-tools/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "json"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "killprocess",
+      "title": "killprocess",
+      "version": "1.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/killprocess/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process"
+        ],
+        "uses_child_process": true,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 2,
+      "feature_codes": [
+        "killprocess"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: child_process"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "knowledge-workbench",
+      "title": "知识资料工坊",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/knowledge-workbench",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 6,
+      "feature_codes": [
+        "knowledge-workbench"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "logo.svg"
+        ],
+        "missing_local_resources": [],
+        "external_resources": [
+          "https://z.tools"
+        ]
+      },
+      "warnings": [
+        "External entry resources: https://z.tools"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "kuke-ai-agent",
+      "title": "Kuke AI Agent",
+      "version": "1.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/kuke-ai-agent/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process",
+          "fs",
+          "http",
+          "https",
+          "os",
+          "path"
+        ],
+        "uses_child_process": true,
+        "uses_fs": true
+      },
+      "feature_count": 2,
+      "command_count": 6,
+      "feature_codes": [
+        "chat",
+        "quickask"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: child_process, fs, http, https, os, path"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "latex-ocr",
+      "title": "LaTeX公式编辑&识别",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/latex-ocr",
+      "main": "html/index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 2,
+      "command_count": 6,
+      "feature_codes": [
+        "latex-editor",
+        "latex-ocr"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "html/index.html",
+        "is_html": true,
+        "local_resources": [
+          "config.js",
+          "lib/bootstrap-4.3.1-dist/css/bootstrap.min.css",
+          "lib/bootstrap-4.3.1-dist/js/bootstrap.bundle.min.js",
+          "lib/caret/caret.js",
+          "lib/font-awesome-4.7.0/Font-Awesome-master/css/font-awesome.min.css",
+          "lib/JQuery-3.4.1/jquery-3.4.1.min.js",
+          "lib/tippy/popper.min.js",
+          "lib/tippy/tippy-bundle.umd.min.js",
+          "publish/latex.bundle.min.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "lihua",
+      "title": "礼花",
+      "version": "1.1.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/lihua",
+      "main": "",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "confetti"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": [
+        "Missing main file: <empty>"
+      ]
+    },
+    {
+      "name": "linuxcmddoc",
+      "title": "linux命令文档",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/linuxcmddoc/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "linuxcmddoc"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, path"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "local-ip",
+      "title": "内网 IP",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/local-ip",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "os"
+        ],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "ip"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: os"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "long-screenshot",
+      "title": "长截图",
+      "version": "3.0.4",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/long-screenshot",
+      "main": "",
+      "preload": {
+        "file": "core/preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "长截图"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module"
+      ],
+      "blockers": [
+        "Missing main file: <empty>"
+      ]
+    },
+    {
+      "name": "mac-file-search",
+      "title": "Mac 文件搜索",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/mac-file-search",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process",
+          "fs",
+          "path"
+        ],
+        "uses_child_process": true,
+        "uses_fs": true
+      },
+      "feature_count": 2,
+      "command_count": 8,
+      "feature_codes": [
+        "find",
+        "find-push"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "app.js",
+          "styles.css"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: child_process, fs, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "mac-system-preference-ztools-plugin",
+      "title": "系统设置",
+      "version": "26.307.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/mac-system-preference-ztools-plugin",
+      "main": "",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process"
+        ],
+        "uses_child_process": true,
+        "uses_fs": false
+      },
+      "feature_count": 29,
+      "command_count": 30,
+      "feature_codes": [
+        "preference.general",
+        "preference.bluetooth",
+        "preference.network",
+        "preference.battery",
+        "preference.universalaccess",
+        "preference.spotlight",
+        "preference.desktop",
+        "preference.appearance",
+        "preference.displays",
+        "preference.dock",
+        "preference.siri",
+        "preference.notifications",
+        "preference.sound",
+        "preference.screentime",
+        "preference.lock.screen",
+        "preference.security",
+        "preference.security.touchid",
+        "preference.users",
+        "preference.internetaccounts",
+        "preference.gamecenter",
+        "preference.appleid",
+        "preference.keyboard",
+        "preference.trackpad",
+        "preference.printfax",
+        "settings.Storage",
+        "settings.SoftwareUpdate",
+        "settings.LoginItems",
+        "about",
+        "preference.network.wifi"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: child_process"
+      ],
+      "blockers": [
+        "Missing main file: <empty>"
+      ]
+    },
+    {
+      "name": "markdown",
+      "title": "markdown",
+      "version": "1.7.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/markdown/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "os",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "markdown"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 30,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-B_f4Xz_u.css",
+          "assets/index-rh3Qu-4Y.js",
+          "favicon.ico"
+        ],
+        "missing_local_resources": [
+          "assets/index-B_f4Xz_u.css",
+          "assets/index-rh3Qu-4Y.js",
+          "favicon.ico"
+        ],
+        "external_resources": []
+      },
+      "warnings": [
+        "Missing local entry resources: assets/index-B_f4Xz_u.css, assets/index-rh3Qu-4Y.js, favicon.ico",
+        "Preload requires Electron module",
+        "Preload requires Node modules: fs, os, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "memo-quick-paste",
+      "title": "备忘快贴",
+      "version": "4.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/memo-quick-paste",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "crypto",
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 3,
+      "command_count": 7,
+      "feature_codes": [
+        "collection",
+        "record",
+        "search"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "index.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: crypto, fs, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "mt-ocr",
+      "title": "馒头OCR",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/mt-ocr/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 7,
+      "feature_codes": [
+        "ocr"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, path"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "musicsquare",
+      "title": "皮卡丘的音乐站",
+      "version": "1.0.2",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/musicsquare",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "http",
+          "https",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 5,
+      "feature_codes": [
+        "music_search"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 50,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "css/style.css",
+          "js/main.js",
+          "pikachu.gif"
+        ],
+        "missing_local_resources": [],
+        "external_resources": [
+          "https://fonts.googleapis.com",
+          "https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600&family=Nunito:wght@400;600&display=swap",
+          "https://fonts.gstatic.com"
+        ]
+      },
+      "warnings": [
+        "External entry resources: https://fonts.googleapis.com, https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600&family=Nunito:wght@400;600&display=swap, https://fonts.gstatic.com",
+        "Preload requires Electron module",
+        "Preload requires Node modules: fs, http, https, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "my-calculator",
+      "title": "计算器",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/my-calculator/My-Calculator",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 4,
+      "command_count": 9,
+      "feature_codes": [
+        "hello",
+        "read",
+        "write",
+        "calculator"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-BnIWHEZd.js",
+          "assets/index-guEMkjp6.css"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "my-calculator",
+      "title": "计算器",
+      "version": "1.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/my-calculator/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "calculator"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, path"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "my-hash-tool",
+      "title": "哈希计算器",
+      "version": "1.3.2",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/my-hash-tool/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "crypto",
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 14,
+      "feature_codes": [
+        "file-hash"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: crypto, fs, path"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "mybatis-sql-formatter",
+      "title": "MyBatis SQL 日志格式化",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/mybatis-sql-formatter",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 6,
+      "feature_codes": [
+        "format-sql-log"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "ocr-new",
+      "title": "OCR 翻译",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ocr-new/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process",
+          "crypto",
+          "fs",
+          "path"
+        ],
+        "uses_child_process": true,
+        "uses_fs": true
+      },
+      "feature_count": 7,
+      "command_count": 18,
+      "feature_codes": [
+        "ocr",
+        "ocr-settings",
+        "ocr-copy",
+        "ocr-translate",
+        "ocr-screenshot",
+        "ocr-screenshot-copy",
+        "ocr-screenshot-translate"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: child_process, crypto, fs, path"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "otp-2fa",
+      "title": "2FA动态验证码",
+      "version": "1.2.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/otp-2fa/public",
+      "main": "index.html",
+      "preload": {
+        "file": "services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 8,
+      "feature_codes": [
+        "otp-2fa"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, path"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "pdf-office-workbench",
+      "title": "PDF 办公工坊",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/pdf-office-workbench",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 6,
+      "feature_codes": [
+        "pdf-office-workbench"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "logo.svg"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "piclist-plugin",
+      "title": "piclist 的插件",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/piclist-plugin/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "http",
+          "https",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "piclistImg"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, http, https, path"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "plain-text",
+      "title": "纯文本编辑",
+      "version": "1.0.2",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/plain-text",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 9,
+      "feature_codes": [
+        "editor"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index.css",
+          "assets/index.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "pomodoro-timer",
+      "title": "超级番茄",
+      "version": "1.0.2",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/pomodoro-timer",
+      "main": "page/index/index.html",
+      "preload": {
+        "file": "base/js/preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 2,
+      "feature_codes": [
+        "tomato"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 80,
+      "entry": {
+        "file": "page/index/index.html",
+        "is_html": true,
+        "local_resources": [
+          "base/css/color.css",
+          "base/js/audioList.js",
+          "base/js/settingsConfig.js",
+          "page/index/js/calendar.js",
+          "page/index/js/confetti.min.js",
+          "page/index/js/contextMenuWindow.js",
+          "page/index/js/drag.js",
+          "page/index/js/env.js",
+          "page/index/js/floatingWindow.js",
+          "page/index/js/index.js",
+          "page/index/js/select.js",
+          "page/index/js/slider.js",
+          "page/index/js/switch.js",
+          "page/index/js/tipsWindow.js",
+          "page/index/js/todoList.js",
+          "page/index/js/tomatoPileWindow.js",
+          "page/index/js/user.js",
+          "page/index/style/audio.css",
+          "page/index/style/calendar.css",
+          "page/index/style/frame.css",
+          "page/index/style/select.css",
+          "page/index/style/settingPage.css",
+          "page/index/style/shop.css",
+          "page/index/style/slider.css",
+          "page/index/style/switch.css",
+          "page/index/style/todoList.css",
+          "page/index/style/user.css",
+          "pic/clock.svg",
+          "pic/fish.png",
+          "pic/meme.png",
+          "pic/moon.svg",
+          "pic/setting.svg",
+          "pic/statistics.svg",
+          "pic/tomato_yellow.png",
+          "pic/tomato.png"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "port-use",
+      "title": "port-use",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/port-use/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process"
+        ],
+        "uses_child_process": true,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "port-use"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 30,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-B_f4Xz_u.css",
+          "assets/index-rh3Qu-4Y.js",
+          "favicon.ico"
+        ],
+        "missing_local_resources": [
+          "assets/index-B_f4Xz_u.css",
+          "assets/index-rh3Qu-4Y.js",
+          "favicon.ico"
+        ],
+        "external_resources": []
+      },
+      "warnings": [
+        "Missing local entry resources: assets/index-B_f4Xz_u.css, assets/index-rh3Qu-4Y.js, favicon.ico",
+        "Preload requires Electron module",
+        "Preload requires Node modules: child_process"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "project-launchpad",
+      "title": "项目启动台",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/project-launchpad",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 5,
+      "feature_codes": [
+        "project-launchpad"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "logo.svg"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "project-manager",
+      "title": "项目管理器",
+      "version": "1.3.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/project-manager",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process",
+          "fs",
+          "path"
+        ],
+        "uses_child_process": true,
+        "uses_fs": true
+      },
+      "feature_count": 2,
+      "command_count": 8,
+      "feature_codes": [
+        "main",
+        "import_project"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "logo.png",
+          "src/main.ts"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: child_process, fs, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "qrcode-helper",
+      "title": "QRCode",
+      "version": "3.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/qrcode-helper",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 5,
+      "feature_codes": [
+        "qrcode"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "index.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "quickcommand",
+      "title": "快捷命令",
+      "version": "5.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/quickcommand/plugin",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process",
+          "crypto",
+          "fs",
+          "http",
+          "https",
+          "os",
+          "path"
+        ],
+        "uses_child_process": true,
+        "uses_fs": true
+      },
+      "feature_count": 6,
+      "command_count": 11,
+      "feature_codes": [
+        "configuration",
+        "code",
+        "composer",
+        "newcommand",
+        "importcommand",
+        "server"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: child_process, crypto, fs, http, https, os, path"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "random-data",
+      "title": "随机数据",
+      "version": "1.2.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/random-data",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "randomDataSettings"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "random-password",
+      "title": "随机密码",
+      "version": "1.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/random-password/public",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "password"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "redis-client",
+      "title": "redis操作工具",
+      "version": "1.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/redis-client/src",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process",
+          "fs",
+          "path",
+          "zlib"
+        ],
+        "uses_child_process": true,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 6,
+      "feature_codes": [
+        "redis"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 70,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "bundle.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: child_process, fs, path, zlib"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "remote-manager",
+      "title": "远程桌面管理",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/remote-manager/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process",
+          "fs",
+          "os",
+          "path"
+        ],
+        "uses_child_process": true,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "remote-manager"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: child_process, fs, os, path"
+      ],
+      "blockers": [
+        "Missing main file: index.html",
+        "Platform does not include darwin"
+      ]
+    },
+    {
+      "name": "rogue-shooter",
+      "title": "无限重载",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/rogue-shooter",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 5,
+      "feature_codes": [
+        "rogue_shooter"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "saladict-ztools",
+      "title": "沙拉查词",
+      "version": "1.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/saladict-ztools",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.cjs",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "沙拉查词"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 60,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "webextensions-emulator-master/dist/core.js"
+        ],
+        "missing_local_resources": [
+          "webextensions-emulator-master/dist/core.js"
+        ],
+        "external_resources": []
+      },
+      "warnings": [
+        "Missing local entry resources: webextensions-emulator-master/dist/core.js",
+        "Preload requires Electron module"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "screen-recorder",
+      "title": "录屏助手",
+      "version": "2.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/screen-recorder",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process",
+          "fs",
+          "os",
+          "path"
+        ],
+        "uses_child_process": true,
+        "uses_fs": true
+      },
+      "feature_count": 2,
+      "command_count": 2,
+      "feature_codes": [
+        "recorder",
+        "region"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 70,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "index.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: child_process, fs, os, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "shortcut-capture",
+      "title": "截图",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/shortcut-capture/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 4,
+      "command_count": 10,
+      "feature_codes": [
+        "shortcut-capture",
+        "shortcut-capture-copy",
+        "shortcut-capture-save",
+        "shortcut-capture-image"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: fs, path"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "shorthand-box",
+      "title": "速记盒",
+      "version": "1.0.3",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/shorthand-box/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 2,
+      "feature_codes": [
+        "sj"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, path"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "showcode",
+      "title": "Showcode",
+      "version": "1.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/showcode/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process",
+          "fs",
+          "os",
+          "path"
+        ],
+        "uses_child_process": true,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 6,
+      "feature_codes": [
+        "showcode"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: child_process, fs, os, path"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "splayer-z",
+      "title": "SPlayerZ",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/splayer-z/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process",
+          "path"
+        ],
+        "uses_child_process": true,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "music"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: child_process, path"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "sql-utils",
+      "title": "SQL工具箱",
+      "version": "1.0.30",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/sql-utils/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 2,
+      "command_count": 2,
+      "feature_codes": [
+        "default",
+        "textJoint-regex"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "sqlmate",
+      "title": "SQLMate",
+      "version": "1.0.2",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/sqlmate/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "os",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 15,
+      "command_count": 62,
+      "feature_codes": [
+        "merge",
+        "split",
+        "segment",
+        "extract",
+        "dedupe",
+        "mask",
+        "rename",
+        "offset",
+        "stats",
+        "convert",
+        "format",
+        "sqltoCsv",
+        "csvToSql",
+        "diff",
+        "ddldiff"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, os, path"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "srktoolbox",
+      "title": "SRK Toolbox for Ztools",
+      "version": "10.22.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/srktoolbox",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 7,
+      "feature_codes": [
+        "srk-toolbox"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "ssh-screenshot",
+      "title": "SSH 截图",
+      "version": "0.2.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ssh-screenshot",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "os",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 3,
+      "command_count": 8,
+      "feature_codes": [
+        "paste-screenshot-path",
+        "copy-screenshot-path",
+        "ssh-screenshot-config"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "src/main.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, os, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "sticky-note",
+      "title": "悬浮便签",
+      "version": "1.0.13",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/sticky-note",
+      "main": "dist/index.html",
+      "preload": {
+        "file": "ztools-preload/preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 3,
+      "command_count": 6,
+      "feature_codes": [
+        "home",
+        "new-note",
+        "view-recent-note"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 80,
+      "entry": {
+        "file": "dist/index.html",
+        "is_html": true,
+        "local_resources": [
+          "dist/assets/index-BjRAu7wy.js",
+          "dist/assets/index-MebRzRgI.css",
+          "dist/assets/primeicons-BD1Avdx-.js",
+          "dist/assets/primeicons-ClEMeZd5.css",
+          "dist/favicon.ico"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "subnet-calculator",
+      "title": "子网掩码计算器",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/subnet-calculator",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 2,
+      "command_count": 5,
+      "feature_codes": [
+        "subnet",
+        "subnet-regex"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 80,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "super-mario",
+      "title": "super-mario",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/super-mario/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "super-mario"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 80,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "swap-file",
+      "title": "SwapFile文件分享",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/swap-file/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process",
+          "fs",
+          "os",
+          "path"
+        ],
+        "uses_child_process": true,
+        "uses_fs": true
+      },
+      "feature_count": 2,
+      "command_count": 2,
+      "feature_codes": [
+        "SwapFile",
+        "swap-file"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: child_process, fs, os, path"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "tetris",
+      "title": "俄罗斯方块",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/tetris",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 2,
+      "feature_codes": [
+        "tetris"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 80,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "logo.jpg",
+          "src/main.ts"
+        ],
+        "missing_local_resources": [],
+        "external_resources": [
+          "https://fonts.googleapis.com",
+          "https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Press+Start+2P&family=ZCOOL+KuaiLe&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap",
+          "https://fonts.gstatic.com"
+        ]
+      },
+      "warnings": [
+        "External entry resources: https://fonts.googleapis.com, https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Press+Start+2P&family=ZCOOL+KuaiLe&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap, https://fonts.gstatic.com"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "text-copy",
+      "title": "复制纯文本",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/text-copy/public",
+      "main": "",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 4,
+      "command_count": 4,
+      "feature_codes": [
+        "copyText",
+        "removeTrim",
+        "copyTextSetting",
+        "copyUrl"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": [
+        "Missing main file: <empty>"
+      ]
+    },
+    {
+      "name": "timestamp",
+      "title": "timestamp",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/timestamp/public",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "timestamp"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "tiny-clock",
+      "title": "小小时钟",
+      "version": "0.0.2",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/tiny-clock",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "xiaoxiao"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 70,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-Cvo0KVB7.css",
+          "assets/index-DJBTNHd4.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: fs, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "tiny-rdm",
+      "title": "TinyRDM",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/tiny-rdm",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process",
+          "fs",
+          "path"
+        ],
+        "uses_child_process": true,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "tiny-rdm"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 70,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-jY_F1LsS.js",
+          "assets/index-PS8Zs0HE.css",
+          "favicon.png",
+          "src/styles/style.scss"
+        ],
+        "missing_local_resources": [
+          "src/styles/style.scss"
+        ],
+        "external_resources": []
+      },
+      "warnings": [
+        "Missing local entry resources: src/styles/style.scss",
+        "Preload requires Node modules: child_process, fs, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "tinypng",
+      "title": "TinyPNG 压缩图片",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/tinypng/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "tinypng"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, path"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "today-gold-price",
+      "title": "今日金价",
+      "version": "1.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/today-gold-price",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "gold-price"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "todo-neo",
+      "title": "Todo",
+      "version": "0.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/todo-neo/public",
+      "main": "../index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 2,
+      "command_count": 2,
+      "feature_codes": [
+        "todo",
+        "add"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 60,
+      "entry": {
+        "file": "../index.html",
+        "is_html": true,
+        "local_resources": [
+          "src/main.ts"
+        ],
+        "missing_local_resources": [
+          "src/main.ts"
+        ],
+        "external_resources": []
+      },
+      "warnings": [
+        "Missing local entry resources: src/main.ts",
+        "Preload requires Electron module"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "topwindow",
+      "title": "窗口置顶",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/topwindow",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process",
+          "path"
+        ],
+        "uses_child_process": true,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "topwindow"
+      ],
+      "compatibility_status": "warning",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: child_process, path"
+      ],
+      "blockers": [
+        "Platform does not include darwin"
+      ]
+    },
+    {
+      "name": "totodo",
+      "title": "totodo",
+      "version": "1.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/totodo",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 2,
+      "command_count": 5,
+      "feature_codes": [
+        "totodo",
+        "add_from_selection"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "app.js",
+          "style.css",
+          "vue.global.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "traditional-simplified-cn",
+      "title": "繁简转换",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/traditional-simplified-cn",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 2,
+      "command_count": 3,
+      "feature_codes": [
+        "convert-clipboard",
+        "convert-ui"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 80,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "index.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "url-wizard",
+      "title": "网址精灵",
+      "version": "2.1.11",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/url-wizard",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process",
+          "fs",
+          "path"
+        ],
+        "uses_child_process": true,
+        "uses_fs": true
+      },
+      "feature_count": 3,
+      "command_count": 6,
+      "feature_codes": [
+        "goodweb",
+        "searchweb",
+        "addweb"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 80,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-4d792b2f.js",
+          "assets/index-d3e98782.css",
+          "assets/tools-8f8edc89.js",
+          "assets/vue-5f6c84d3.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": [
+          "//at.alicdn.com/t/c/font_3875473_kogpb3xxhb.css"
+        ]
+      },
+      "warnings": [
+        "External entry resources: //at.alicdn.com/t/c/font_3875473_kogpb3xxhb.css",
+        "Preload requires Node modules: child_process, fs, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "utools-upassword",
+      "title": "密码管理",
+      "version": "1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/utools-upassword/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "crypto",
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 2,
+      "command_count": 3,
+      "feature_codes": [
+        "passwords",
+        "random"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 70,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "index.js"
+        ],
+        "missing_local_resources": [
+          "index.js"
+        ],
+        "external_resources": []
+      },
+      "warnings": [
+        "Missing local entry resources: index.js",
+        "Preload requires Node modules: crypto, fs, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "variable-name",
+      "title": "起个变量名",
+      "version": "1.0.07",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/variable-name/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 2,
+      "feature_codes": [
+        "fy"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, path"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "video-parse",
+      "title": "轻溪去水印",
+      "version": "1.0.3",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/video-parse/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "https",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 2,
+      "feature_codes": [
+        "parse"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, https, path"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "vimtutor",
+      "title": "vim教程",
+      "version": "1.0.2",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/vimtutor",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 2,
+      "feature_codes": [
+        "vimtutor"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "umi.css",
+          "umi.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "virtual-data",
+      "title": "虚拟数据",
+      "version": "1.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/virtual-data/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 2,
+      "feature_codes": [
+        "xn"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, path"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "wechat-ocr",
+      "title": "微信 OCR",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/wechat-ocr/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "crypto",
+          "fs",
+          "https",
+          "os",
+          "path",
+          "zlib"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 3,
+      "command_count": 5,
+      "feature_codes": [
+        "wechat-ocr",
+        "wechat-ocr-capture",
+        "wechat-ocr-image"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: crypto, fs, https, os, path, zlib"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "whiteboard",
+      "title": "白板",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/whiteboard/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "http",
+          "https",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "main"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, http, https, path"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "wifi-export-tool",
+      "title": "WiFi历史密码查看器",
+      "version": "1.0.3",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/wifi-export-tool",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process",
+          "os"
+        ],
+        "uses_child_process": true,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "wifi-export-tool"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "index.css",
+          "index.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: child_process, os"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "yanhua",
+      "title": "烟花",
+      "version": "1.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/yanhua",
+      "main": "",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "fireworks"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": [
+        "Missing main file: <empty>"
+      ]
+    },
+    {
+      "name": "zapapi",
+      "title": "ZapApi",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/zapapi/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "zapapi"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Missing preload file: preload/services.js"
+      ],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    },
+    {
+      "name": "zhi-interaction",
+      "title": "Zhi 智能交互",
+      "version": "1.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/zhi-interaction",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "zhi-info"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "zosenlink-tunnel",
+      "title": "内网穿透",
+      "version": "1.0.3",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/zosenlink-tunnel",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process",
+          "crypto",
+          "fs",
+          "https",
+          "os",
+          "path",
+          "zlib"
+        ],
+        "uses_child_process": true,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "zosenlink-tunnel-open"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "src/main.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: child_process, crypto, fs, https, os, path, zlib"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "ztool-vsc-recent",
+      "title": "VSCode 最近项目",
+      "version": "0.1.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ztool-vsc-recent",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "vsc-recent"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "index.css",
+          "index.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "ztools-developer-plugin",
+      "title": "ZTools 开发者工具",
+      "version": "1.0.1",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ztools-developer-plugin",
+      "main": "dist/index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 3,
+      "command_count": 3,
+      "feature_codes": [
+        "ui.router",
+        "function.reload-all-plugin",
+        "function.add-dev-plugin"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "dist/index.html",
+        "is_html": true,
+        "local_resources": [
+          "dist/assets/index-D5fSJ76W.js",
+          "dist/assets/index-P8ixMW7d.css",
+          "dist/favicon.ico"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "ztools-node-manager",
+      "title": "Node Dashboard",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ztools-node-manager/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process",
+          "fs",
+          "https",
+          "path"
+        ],
+        "uses_child_process": true,
+        "uses_fs": true
+      },
+      "feature_count": 3,
+      "command_count": 7,
+      "feature_codes": [
+        "node-manager",
+        "node-quick-switch",
+        "npm-quick-source"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: child_process, fs, https, path"
+      ],
+      "blockers": [
+        "Missing main file: index.html",
+        "Platform does not include darwin"
+      ]
+    },
+    {
+      "name": "ztools-simpletimer",
+      "title": "计时器",
+      "version": "1.0.0",
+      "path": "/Users/harris/Desktop/ZTools-plugins/plugins/ztools-simpletimer/public",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 2,
+      "command_count": 4,
+      "feature_codes": [
+        "stopwatch",
+        "countdown"
+      ],
+      "compatibility_status": "error",
+      "launch_candidate": false,
+      "runtime_status": "blocked",
+      "score": 0,
+      "entry": {
+        "file": "index.html",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": [
+        "Missing main file: index.html"
+      ]
+    }
+  ]
+}

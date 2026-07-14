@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>JSON 查看器</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+      background: #f5f5f7;
+      color: #1d1d1f;
+      padding: 16px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .header h2 { font-size: 18px; font-weight: 600; }
+    .actions { display: flex; gap: 6px; }
+    .btn {
+      padding: 6px 12px;
+      background: #fff;
+      border: 1px solid #d2d2d7;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.15s;
+    }
+    .btn:hover { border-color: #0071e3; color: #0071e3; }
+    .btn.primary { background: #0071e3; color: #fff; border-color: #0071e3; }
+    .btn.primary:hover { background: #005ec2; }
+    .main { flex: 1; display: flex; gap: 12px; min-height: 0; }
+    .col { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    label {
+      display: block;
+      font-size: 11px;
+      color: #86868b;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    textarea {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #d2d2d7;
+      border-radius: 8px;
+      font-size: 12px;
+      background: #fff;
+      outline: none;
+      resize: none;
+      font-family: "SF Mono", "JetBrains Mono", monospace;
+      line-height: 1.5;
+    }
+    textarea:focus { border-color: #0071e3; }
+    .output {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #d2d2d7;
+      border-radius: 8px;
+      background: #fff;
+      font-family: "SF Mono", "JetBrains Mono", monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .output.valid { color: #34c759; }
+    .output.invalid { color: #ff3b30; }
+    .status {
+      padding: 6px 0;
+      font-size: 11px;
+      color: #86868b;
+      text-align: right;
+    }
+    .json-key { color: #b44a00; }
+    .json-string { color: #1a7f37; }
+    .json-number { color: #0071e3; }
+    .json-bool { color: #a40e4c; }
+    .json-null { color: #86868b; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h2>📦 JSON 查看器</h2>
+    <div class="actions">
+      <button class="btn" onclick="clearAll()">清空</button>
+      <button class="btn" onclick="copyOutput()">复制</button>
+      <button class="btn primary" onclick="formatJson()">格式化</button>
+      <button class="btn" onclick="compressJson()">压缩</button>
+    </div>
+  </div>
+  <div class="main">
+    <div class="col">
+      <label>输入 JSON</label>
+      <textarea id="input" placeholder='粘贴 JSON 数据...' oninput="updatePreview()"></textarea>
+    </div>
+    <div class="col">
+      <label>格式化输出</label>
+      <pre id="output" class="output">输入 JSON 开始格式化</pre>
+    </div>
+  </div>
+  <div class="status" id="status">等待输入</div>
+
+  <script>
+    const input = document.getElementById('input');
+    const output = document.getElementById('output');
+    const status = document.getElementById('status');
+
+    function escapeHtml(s) {
+      return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    }
+
+    function syntaxHighlight(json) {
+      json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return json.replace(
+        /("(\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g,
+        function(match) {
+          let cls = 'json-number';
+          if (/^"/.test(match)) {
+            cls = /:$/.test(match) ? 'json-key' : 'json-string';
+          } else if (/true|false/.test(match)) {
+            cls = 'json-bool';
+          } else if (/null/.test(match)) {
+            cls = 'json-null';
+          }
+          return `<span class="${cls}">${match}</span>`;
+        }
+      );
+    }
+
+    function updatePreview() {
+      const value = input.value.trim();
+      if (!value) {
+        output.textContent = '输入 JSON 开始格式化';
+        output.className = 'output';
+        status.textContent = '等待输入';
+        return;
+      }
+
+      try {
+        const parsed = JSON.parse(value);
+        const formatted = JSON.stringify(parsed, null, 2);
+        output.innerHTML = syntaxHighlight(formatted);
+        output.className = 'output valid';
+        const itemCount = countItems(parsed);
+        status.textContent = `✓ 有效 JSON · ${itemCount} 个键/元素`;
+      } catch (e) {
+        output.textContent = '⚠ ' + e.message;
+        output.className = 'output invalid';
+        status.textContent = '✗ 无效 JSON · ' + e.message;
+      }
+    }
+
+    function countItems(obj) {
+      if (Array.isArray(obj)) return obj.length + obj.reduce((sum, item) => sum + countItems(item), 0);
+      if (obj && typeof obj === 'object') {
+        return Object.keys(obj).length + Object.values(obj).reduce((sum, val) => sum + countItems(val), 0);
+      }
+      return 0;
+    }
+
+    function formatJson() {
+      try {
+        const parsed = JSON.parse(input.value.trim());
+        input.value = JSON.stringify(parsed, null, 2);
+        updatePreview();
+        window.utools?.showNotification('已格式化');
+      } catch (e) {
+        window.utools?.showNotification('JSON 无效：' + e.message);
+      }
+    }
+
+    function compressJson() {
+      try {
+        const parsed = JSON.parse(input.value.trim());
+        input.value = JSON.stringify(parsed);
+        updatePreview();
+        window.utools?.showNotification('已压缩');
+      } catch (e) {
+        window.utools?.showNotification('JSON 无效：' + e.message);
+      }
+    }
+
+    function copyOutput() {
+      const text = output.textContent;
+      navigator.clipboard.writeText(text);
+      window.utools?.showNotification('已复制到剪贴板');
+    }
+
+    function clearAll() {
+      input.value = '';
+      output.textContent = '输入 JSON 开始格式化';
+      output.className = 'output';
+      status.textContent = '等待输入';
+    }
+  </script>
+</body>
+</html>

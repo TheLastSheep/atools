@@ -1,0 +1,55 @@
+[package]
+name = "atools"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+name = "atools_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+atools-core = { path = "../crates/atools-core" }
+atools-plugin = { path = "../crates/atools-plugin" }
+atools-api-shim = { path = "../crates/atools-api-shim" }
+
+tauri = { version = "2", features = ["tray-icon", "macos-private-api"] }
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-shell = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-store = "2"
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-os = "2"
+tauri-plugin-process = "2"
+tauri-plugin-http = "2"
+
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+once_cell.workspace = true
+parking_lot.workspace = true
+dirs.workspace = true
+base64 = "0.22"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "webp"] }
+sha2 = "0.10"
+ed25519-dalek = "2.1"
+url = { version = "2", default-features = false }
+zip = { version = "2.4", default-features = false, features = ["deflate"] }
+
+[dev-dependencies]
+tempfile = "3.10"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+devtools = ["tauri/devtools"]

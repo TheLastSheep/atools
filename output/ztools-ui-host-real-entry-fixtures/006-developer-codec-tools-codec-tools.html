@@ -1,0 +1,967 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+<script data-atools-real-entry-fixture-bridge="true">
+(function(){
+  var pluginId = "developer-codec-tools";
+  var featureCode = "codec-tools";
+  var fixtureErrors = [];
+  var bridgeApiProbeIds = ["fixture-bridge-get-path","fixture-bridge-context","fixture-bridge-db-storage","fixture-bridge-db-all-docs","fixture-bridge-app-identity","fixture-bridge-system-flags","fixture-bridge-preload-ky","fixture-bridge-services","fixture-bridge-web-storage"];
+  function mark(name, value) {
+    if (document.body) document.body.setAttribute(name, String(value));
+  }
+  function errorText(value) {
+    if (value && value.message) return String(value.message);
+    if (typeof value === 'object') {
+      try { return JSON.stringify(value); } catch (error) { return String(value); }
+    }
+    return String(value || 'error');
+  }
+  function recordError(value) {
+    fixtureErrors.push(errorText(value));
+    mark('data-atools-real-entry-errors', fixtureErrors.length);
+    mark('data-atools-real-entry-error-messages', fixtureErrors.slice(-5).join(' | ').slice(0, 800));
+  }
+  function safeStorage() {
+    var values = Object.create(null);
+    return {
+      get length() { return Object.keys(values).length; },
+      key: function(index) { return Object.keys(values)[Number(index) || 0] || null; },
+      getItem: function(key) {
+        key = String(key);
+        return Object.prototype.hasOwnProperty.call(values, key) ? values[key] : null;
+      },
+      setItem: function(key, value) {
+        values[String(key)] = String(value);
+      },
+      removeItem: function(key) {
+        delete values[String(key)];
+      },
+      clear: function() {
+        values = Object.create(null);
+      }
+    };
+  }
+  function installStorageStub(name) {
+    try {
+      void window[name];
+      return;
+    } catch (error) {
+      // Sandboxed iframes without allow-same-origin throw on storage access.
+    }
+    try {
+      Object.defineProperty(window, name, {
+        value: safeStorage(),
+        configurable: true
+      });
+    } catch (error) {
+      // Leave the original browser error visible if the property is not replaceable.
+    }
+  }
+  installStorageStub('localStorage');
+  installStorageStub('sessionStorage');
+  function bridgeFunction(name) {
+    return function(){ return Promise.resolve(null); };
+  }
+  function probeResult(id, passed, detail) {
+    return { id: id, passed: passed === true, detail: detail ? String(detail).slice(0, 240) : '' };
+  }
+  async function probeBridgeApi(id, callback) {
+    try {
+      return probeResult(id, await callback() === true);
+    } catch (error) {
+      return probeResult(id, false, errorText(error));
+    }
+  }
+  function markBridgeApiProbes(results) {
+    var passed = results.filter(function(result) { return result.passed; }).length;
+    var failedIds = results.filter(function(result) { return !result.passed; }).map(function(result) { return result.id; });
+    mark('data-atools-real-entry-bridge-api-passed', passed);
+    mark('data-atools-real-entry-bridge-api-total', results.length);
+    mark('data-atools-real-entry-bridge-api-failed', failedIds.length);
+    mark('data-atools-real-entry-bridge-api-failed-ids', failedIds.join(','));
+    window.__atoolsRealEntryFixture.bridgeApiProbes = results;
+    return { passed: passed, total: results.length, failedIds: failedIds };
+  }
+  function fixturePath(name) {
+    return '/tmp/atools-real-entry-fixture/' + String(name || '');
+  }
+  function allDocsResult() {
+    var rows = [];
+    rows.rows = rows;
+    rows.total_rows = 0;
+    rows.offset = 0;
+    return rows;
+  }
+  var fixtureContext = {
+    pluginId: pluginId,
+    pluginName: "开发加解密编码工具",
+    featureCode: featureCode,
+    code: featureCode,
+    type: "text",
+    query: "加密解密",
+    text: "加密解密",
+    payload: "加密解密",
+    option: {},
+    args: [],
+    files: [],
+    paths: [],
+    pluginEnterParams: {
+      code: featureCode,
+      type: "text",
+      payload: "加密解密",
+      text: "加密解密",
+      option: {},
+      args: [],
+      files: [],
+      paths: []
+    },
+    umami: {
+      track: function(){ return undefined; },
+      identify: function(){ return undefined; }
+    }
+  };
+  var dbBridge = {
+    get: function(){ return Promise.resolve(null); },
+    put: function(){ return Promise.resolve({ ok: true, id: '', rev: 'fixture' }); },
+    remove: function(){ return Promise.resolve({ ok: true, id: '', rev: 'fixture' }); },
+    allDocs: function(){ return Promise.resolve(allDocsResult()); },
+    postAttachment: function(){ return Promise.resolve({ ok: true, id: '', rev: 'fixture' }); },
+    getAttachment: function(){ return Promise.resolve(null); },
+    getAttachmentType: function(){ return Promise.resolve(''); },
+    replicateStateFromCloud: function(){ return Promise.resolve({ ok: true, state: 'fixture' }); }
+  };
+  dbBridge.promises = dbBridge;
+  var dbStorageBridge = safeStorage();
+  var bridge = new Proxy({
+    dbStorage: dbStorageBridge,
+    db: dbBridge,
+    showNotification: function(){ return undefined; },
+    copyText: function(){ return Promise.resolve(undefined); },
+    getWindowType: function(){ return 'main'; },
+    getPath: function(name){ return fixturePath(name); },
+    getContext: function(){ return fixtureContext; },
+    getFeatures: function(){ return []; },
+    getFeature: function(){ return null; },
+    getUser: function(){ return null; },
+    getAppName: function(){ return 'ATools'; },
+    getAppVersion: function(){ return '3.0.0'; },
+    getNativeId: function(){ return 0; },
+    isMacOS: function(){ return true; },
+    isMacOs: function(){ return true; },
+    isWindows: function(){ return false; },
+    isLinux: function(){ return false; },
+    isDev: function(){ return true; },
+    readCurrentBrowserUrl: function(){ return ''; },
+    getCurrentBrowserUrl: function(){ return ''; },
+    readCurrentFolderPath: function(){ return ''; },
+    onPluginEnter: function(callback){ if (typeof callback === 'function') window.addEventListener('atools-plugin-enter', function(){ callback(fixtureContext); }); },
+    onPluginReady: function(callback){ if (typeof callback === 'function') window.addEventListener('atools-plugin-ready', function(){ callback(fixtureContext); }); },
+    outPlugin: function(payload){ window.__atoolsRealEntryFixtureOutput = payload; return undefined; },
+    setSubInput: function(){ return undefined; },
+    setExpendHeight: function(){ return undefined; },
+    setExpandHeight: function(){ return undefined; }
+  }, {
+    get: function(target, prop) {
+      if (prop in target) return target[prop];
+      if (prop === 'promises') return target;
+      var fn = bridgeFunction(String(prop));
+      target[prop] = fn;
+      return fn;
+    }
+  });
+  window.utools = window.utools || bridge;
+  window.ztools = window.ztools || window.utools;
+  function kyResponse() {
+    return {
+      text: function(){ return Promise.resolve(''); },
+      json: function(){ return Promise.resolve({}); },
+      blob: function(){ return Promise.resolve(new Blob([])); },
+      arrayBuffer: function(){ return Promise.resolve(new ArrayBuffer(0)); }
+    };
+  }
+  function kyStub() {
+    return kyResponse();
+  }
+  var kyMethods = {
+    get: function(){ return kyResponse(); },
+    post: function(){ return kyResponse(); },
+    put: function(){ return kyResponse(); },
+    delete: function(){ return kyResponse(); },
+    create: function(){ return kyStub; }
+  };
+  kyStub.get = kyMethods.get;
+  kyStub.post = kyMethods.post;
+  kyStub.put = kyMethods.put;
+  kyStub.delete = kyMethods.delete;
+  kyStub.create = kyMethods.create;
+  window.services = window.services || {
+    umami: fixtureContext.umami,
+    qrDecode: function(){ return Promise.resolve([]); },
+    formatMybatisLog: function(value){ return String(value || ''); }
+  };
+  window.Preload = window.Preload || {
+    umami: fixtureContext.umami,
+    ky: kyStub,
+    loadPage: function(){ return Promise.resolve(null); },
+    downloader: function(){},
+    wallpaper: function(){ return Promise.resolve(undefined); }
+  };
+  window.__atoolsRealEntryFixture = {
+    pluginId: pluginId,
+    pluginName: "开发加解密编码工具",
+    featureCode: featureCode,
+    triggerType: "text",
+    query: "加密解密",
+    errors: fixtureErrors,
+    bridgeApiProbeIds: bridgeApiProbeIds,
+    bridgeApiProbes: []
+  };
+  async function runBridgeApiProbes() {
+    var key = 'atools-fixture-probe';
+    return Promise.all([
+      probeBridgeApi('fixture-bridge-get-path', async function(){
+        return typeof window.utools.getPath('home') === 'string' && window.utools.getPath('home').indexOf('/tmp/atools-real-entry-fixture/') === 0;
+      }),
+      probeBridgeApi('fixture-bridge-context', async function(){
+        var context = window.utools.getContext();
+        return context && context.pluginId === pluginId && context.featureCode === featureCode && context.pluginEnterParams && context.pluginEnterParams.code === featureCode;
+      }),
+      probeBridgeApi('fixture-bridge-db-storage', async function(){
+        window.utools.dbStorage.setItem(key, 'ok');
+        var stored = window.utools.dbStorage.getItem(key);
+        window.utools.dbStorage.removeItem(key);
+        return stored === 'ok' && window.utools.dbStorage.getItem(key) === null;
+      }),
+      probeBridgeApi('fixture-bridge-db-all-docs', async function(){
+        var docs = await window.utools.db.allDocs();
+        return Array.isArray(docs) && docs.rows === docs && docs.total_rows === 0;
+      }),
+      probeBridgeApi('fixture-bridge-app-identity', async function(){
+        return window.utools.getAppName() === 'ATools' && typeof window.utools.getAppVersion() === 'string' && window.utools.getNativeId() === 0;
+      }),
+      probeBridgeApi('fixture-bridge-system-flags', async function(){
+        return window.utools.isMacOS() === true && window.utools.isWindows() === false && window.utools.isLinux() === false && window.utools.isDev() === true;
+      }),
+      probeBridgeApi('fixture-bridge-preload-ky', async function(){
+        var ky = window.Preload && window.Preload.ky;
+        var created = ky && ky.create && ky.create();
+        var response = created && created.get && created.get('/fixture');
+        var json = response && response.json && await response.json();
+        return !!ky && typeof created === 'function' && json && typeof json === 'object';
+      }),
+      probeBridgeApi('fixture-bridge-services', async function(){
+        return !!window.services && window.services.umami.track() === undefined && window.services.formatMybatisLog('select 1') === 'select 1';
+      }),
+      probeBridgeApi('fixture-bridge-web-storage', async function(){
+        window.localStorage.setItem(key, 'ok');
+        window.sessionStorage.setItem(key, 'session');
+        var passed = window.localStorage.getItem(key) === 'ok' && window.sessionStorage.getItem(key) === 'session';
+        window.localStorage.removeItem(key);
+        window.sessionStorage.removeItem(key);
+        return passed && window.localStorage.getItem(key) === null;
+      })
+    ]);
+  }
+  window.addEventListener('error', function(event){
+    recordError(event && (event.message || event.error) || 'error');
+  });
+  window.addEventListener('unhandledrejection', function(event){
+    recordError(event && event.reason || 'unhandledrejection');
+  });
+  function ready() {
+    mark('data-atools-real-entry-fixture', true);
+    mark('data-atools-real-entry-plugin-id', pluginId);
+    mark('data-atools-real-entry-feature-code', featureCode);
+    mark('data-atools-real-entry-bridge-present', !!window.utools);
+    mark('data-atools-real-entry-ztools-alias', window.ztools === window.utools);
+    mark('data-atools-real-entry-errors', fixtureErrors.length);
+    mark('data-atools-real-entry-error-messages', fixtureErrors.slice(-5).join(' | ').slice(0, 800));
+    window.dispatchEvent(new CustomEvent('atools-plugin-enter', { detail: fixtureContext }));
+    setTimeout(async function(){
+      window.dispatchEvent(new CustomEvent('atools-plugin-ready', { detail: fixtureContext }));
+      mark('data-atools-real-entry-ready', true);
+      var bridgeApiProbes = await runBridgeApiProbes();
+      markBridgeApiProbes(bridgeApiProbes);
+      var probeResults = [
+        { id: 'real-entry-fixture-ready', passed: document.body && document.body.getAttribute('data-atools-real-entry-ready') === 'true' },
+        { id: 'real-entry-fixture-bridge', passed: !!window.utools },
+        { id: 'real-entry-fixture-ztools-alias', passed: window.ztools === window.utools },
+        { id: 'real-entry-fixture-identity', passed: document.body && document.body.getAttribute('data-atools-real-entry-plugin-id') === pluginId && document.body.getAttribute('data-atools-real-entry-feature-code') === featureCode },
+        { id: 'real-entry-fixture-errors', passed: fixtureErrors.length === 0 }
+      ].concat(bridgeApiProbes);
+      window.parent && window.parent.postMessage({
+        __atools_real_entry_fixture_probe__: true,
+        pluginId: pluginId,
+        featureCode: featureCode,
+        probes: probeResults,
+        errors: fixtureErrors,
+        bridgeApiProbes: bridgeApiProbes
+      }, '*');
+    }, 80);
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', ready);
+  } else {
+    ready();
+  }
+})();
+</script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>开发加解密编码工具</title>
+    <style data-atools-inlined-stylesheet-href="./styles.css">
+:root {
+  color-scheme: light dark;
+  --bg: #f4f6f8;
+  --panel: #ffffff;
+  --panel-soft: #eef2f4;
+  --text: #17202a;
+  --muted: #637083;
+  --line: #d8e0e6;
+  --accent: #0f8b8d;
+  --accent-strong: #0a6f71;
+  --accent-soft: #d9f1ef;
+  --warn: #b86b00;
+  --danger: #b42318;
+  --shadow: 0 8px 22px rgba(18, 32, 44, 0.08);
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #11161d;
+    --panel: #1a222d;
+    --panel-soft: #202b37;
+    --text: #edf2f7;
+    --muted: #9ba8b7;
+    --line: #314050;
+    --accent: #49c5b6;
+    --accent-strong: #76d8cc;
+    --accent-soft: #173f42;
+    --warn: #f2b84b;
+    --danger: #ff8a7a;
+    --shadow: 0 10px 24px rgba(0, 0, 0, 0.24);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+select {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.tool-shell {
+  min-height: 100vh;
+  padding: 8px;
+}
+
+.workspace {
+  display: grid;
+  gap: 8px;
+  margin: 0 auto;
+  max-width: 980px;
+}
+
+.toolbar {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
+}
+
+.category-list {
+  align-items: center;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  min-width: 0;
+  padding: 4px;
+}
+
+.category-item {
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--muted);
+  height: 30px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 8px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.category-item.active {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.top-actions,
+.action-row {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px;
+}
+
+.control-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 0.55fr);
+}
+
+.field,
+.editor-block {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.field span,
+.editor-block span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 680;
+}
+
+select,
+input,
+textarea {
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  outline: none;
+}
+
+select:focus,
+input:focus,
+textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+select,
+input {
+  height: 32px;
+  padding: 0 9px;
+}
+
+.editor-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+textarea {
+  height: 210px;
+  min-height: 180px;
+  padding: 8px;
+  resize: vertical;
+  tab-size: 2;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.primary-button,
+.secondary-button,
+.ghost-button {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-weight: 700;
+  height: 32px;
+  padding: 0 11px;
+  white-space: nowrap;
+}
+
+.primary-button {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.primary-button:hover {
+  background: var(--accent-strong);
+}
+
+.secondary-button {
+  background: var(--panel-soft);
+  border-color: var(--line);
+  color: var(--text);
+}
+
+.secondary-button:hover,
+.ghost-button:hover {
+  border-color: var(--accent);
+}
+
+.ghost-button {
+  background: var(--panel);
+  border-color: var(--line);
+  color: var(--text);
+}
+
+.status-line {
+  color: var(--muted);
+  min-height: 18px;
+}
+
+.status-line.error {
+  color: var(--danger);
+}
+
+.status-line.warn {
+  color: var(--warn);
+}
+
+.hidden {
+  display: none;
+}
+
+@media (max-width: 620px) {
+  .toolbar {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .top-actions {
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 520px) {
+  .tool-shell {
+    padding: 6px;
+  }
+
+  .category-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .control-grid,
+  .editor-grid {
+    grid-template-columns: 1fr;
+  }
+
+  textarea {
+    height: 150px;
+    min-height: 130px;
+  }
+}
+
+</style>
+  </head>
+  <body>
+    <main class="tool-shell">
+      <section class="workspace">
+        <div class="toolbar" aria-label="工具栏">
+          <nav class="category-list" aria-label="分类">
+            <button class="category-item active" type="button" data-category="encoding">编码</button>
+            <button class="category-item" type="button" data-category="hash">哈希</button>
+            <button class="category-item" type="button" data-category="crypto">加密</button>
+            <button class="category-item" type="button" data-category="jwt">JWT</button>
+            <button class="category-item" type="button" data-category="text">文本</button>
+          </nav>
+
+          <div class="top-actions">
+            <button id="copyOutput" class="ghost-button" type="button">复制结果</button>
+            <button id="clearAll" class="ghost-button" type="button">清空</button>
+          </div>
+        </div>
+
+        <section class="panel">
+          <div class="control-grid">
+            <label class="field">
+              <span>操作</span>
+              <select id="operation"></select>
+            </label>
+            <label class="field key-field hidden" id="keyField">
+              <span id="keyLabel">密钥</span>
+              <input id="secretKey" type="text" autocomplete="off" spellcheck="false" />
+            </label>
+          </div>
+
+          <div class="editor-grid">
+            <label class="editor-block">
+              <span>输入</span>
+              <textarea id="inputText" spellcheck="false"></textarea>
+            </label>
+            <label class="editor-block">
+              <span>输出</span>
+              <textarea id="outputText" spellcheck="false" readonly></textarea>
+            </label>
+          </div>
+
+          <div class="action-row">
+            <button id="runOperation" class="primary-button" type="button">执行</button>
+            <button id="swapText" class="secondary-button" type="button">交换</button>
+            <button id="pasteInput" class="secondary-button" type="button">粘贴</button>
+          </div>
+
+          <div id="statusLine" class="status-line" role="status"></div>
+        </section>
+      </section>
+    </main>
+
+    <script type="module"  data-atools-inlined-script-src="./app.js">
+import {
+  base64Decode,
+  base64Encode,
+  base64UrlDecode,
+  base64UrlEncode,
+  binaryToBytes,
+  bytesToBinary,
+  bytesToHex,
+  decodeJwt,
+  decryptAes,
+  digestHex,
+  encryptAes,
+  formatJson,
+  hexToBytes,
+  hmacHex,
+  htmlDecode,
+  htmlEncode,
+  minifyJson,
+  textToBytes,
+  bytesToText,
+  unicodeEscapeDecode,
+  unicodeEscapeEncode,
+  urlDecode,
+  urlEncode,
+  verifyJwtHs
+} from './codec.js'
+
+const categories = [
+  {
+    id: 'encoding',
+    label: '编码转换',
+    operations: [
+      op('base64-encode', 'Base64 编码', ({ input }) => base64Encode(input)),
+      op('base64-decode', 'Base64 解码', ({ input }) => base64Decode(input)),
+      op('base64url-encode', 'Base64URL 编码', ({ input }) => base64UrlEncode(input)),
+      op('base64url-decode', 'Base64URL 解码', ({ input }) => base64UrlDecode(input)),
+      op('url-encode', 'URL Component 编码', ({ input }) => urlEncode(input)),
+      op('url-decode', 'URL Component 解码', ({ input }) => urlDecode(input)),
+      op('url-form-decode', 'URL Form 解码', ({ input }) => urlDecode(input, 'form')),
+      op('html-encode', 'HTML Entity 编码', ({ input }) => htmlEncode(input)),
+      op('html-decode', 'HTML Entity 解码', ({ input }) => htmlDecode(input)),
+      op('unicode-encode', 'Unicode escape 编码', ({ input }) => unicodeEscapeEncode(input)),
+      op('unicode-decode', 'Unicode escape 解码', ({ input }) => unicodeEscapeDecode(input)),
+      op('hex-encode', 'Hex 编码 UTF-8', ({ input }) => bytesToHex(textToBytes(input))),
+      op('hex-decode', 'Hex 解码 UTF-8', ({ input }) => bytesToText(hexToBytes(input))),
+      op('binary-encode', 'Binary 编码 UTF-8', ({ input }) => bytesToBinary(textToBytes(input))),
+      op('binary-decode', 'Binary 解码 UTF-8', ({ input }) => bytesToText(binaryToBytes(input)))
+    ]
+  },
+  {
+    id: 'hash',
+    label: '哈希与签名',
+    operations: [
+      op('md5', 'MD5', ({ input }) => digestHex('MD5', input)),
+      op('sha1', 'SHA-1', ({ input }) => digestHex('SHA-1', input)),
+      op('sha256', 'SHA-256', ({ input }) => digestHex('SHA-256', input)),
+      op('sha384', 'SHA-384', ({ input }) => digestHex('SHA-384', input)),
+      op('sha512', 'SHA-512', ({ input }) => digestHex('SHA-512', input)),
+      op('hmac-sha256', 'HMAC-SHA256', ({ input, secret }) => hmacHex('SHA-256', input, secret), {
+        keyLabel: 'HMAC 密钥'
+      }),
+      op('hmac-sha384', 'HMAC-SHA384', ({ input, secret }) => hmacHex('SHA-384', input, secret), {
+        keyLabel: 'HMAC 密钥'
+      }),
+      op('hmac-sha512', 'HMAC-SHA512', ({ input, secret }) => hmacHex('SHA-512', input, secret), {
+        keyLabel: 'HMAC 密钥'
+      })
+    ]
+  },
+  {
+    id: 'crypto',
+    label: '对称加密',
+    operations: [
+      op('aes-gcm-encrypt', 'AES-GCM 加密', ({ input, secret }) => encryptAes(input, secret, 'AES-GCM'), {
+        keyLabel: '口令'
+      }),
+      op('aes-gcm-decrypt', 'AES-GCM 解密', ({ input, secret }) => decryptAes(input, secret), {
+        keyLabel: '口令'
+      }),
+      op('aes-cbc-encrypt', 'AES-CBC 加密', ({ input, secret }) => encryptAes(input, secret, 'AES-CBC'), {
+        keyLabel: '口令'
+      }),
+      op('aes-cbc-decrypt', 'AES-CBC 解密', ({ input, secret }) => decryptAes(input, secret), {
+        keyLabel: '口令'
+      })
+    ]
+  },
+  {
+    id: 'jwt',
+    label: 'JWT',
+    operations: [
+      op('jwt-decode', 'JWT 解码', ({ input }) => JSON.stringify(decodeJwt(input), null, 2)),
+      op(
+        'jwt-verify-hs',
+        'JWT HS 校验',
+        async ({ input, secret }) => {
+          const decoded = decodeJwt(input)
+          const verified = await verifyJwtHs(input, secret)
+          return JSON.stringify({ verified, ...decoded }, null, 2)
+        },
+        { keyLabel: 'JWT Secret' }
+      )
+    ]
+  },
+  {
+    id: 'text',
+    label: '文本转换',
+    operations: [
+      op('json-format', 'JSON 格式化', ({ input }) => formatJson(input)),
+      op('json-minify', 'JSON 压缩', ({ input }) => minifyJson(input)),
+      op('json-stringify', 'JSON 字符串转义', ({ input }) => JSON.stringify(input)),
+      op('json-parse-string', 'JSON 字符串反转义', ({ input }) => JSON.parse(input)),
+      op('upper-case', '转大写', ({ input }) => input.toUpperCase()),
+      op('lower-case', '转小写', ({ input }) => input.toLowerCase()),
+      op('trim-lines', '逐行 Trim', ({ input }) =>
+        input
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .join('\n')
+      ),
+      op('dedupe-lines', '逐行去重', ({ input }) => Array.from(new Set(input.split(/\r?\n/))).join('\n'))
+    ]
+  }
+]
+
+const operationsById = new Map()
+for (const category of categories) {
+  for (const operation of category.operations) operationsById.set(operation.id, operation)
+}
+
+const els = {
+  categoryButtons: Array.from(document.querySelectorAll('.category-item')),
+  operation: document.querySelector('#operation'),
+  keyField: document.querySelector('#keyField'),
+  keyLabel: document.querySelector('#keyLabel'),
+  secretKey: document.querySelector('#secretKey'),
+  input: document.querySelector('#inputText'),
+  output: document.querySelector('#outputText'),
+  run: document.querySelector('#runOperation'),
+  swap: document.querySelector('#swapText'),
+  paste: document.querySelector('#pasteInput'),
+  copy: document.querySelector('#copyOutput'),
+  clear: document.querySelector('#clearAll'),
+  status: document.querySelector('#statusLine')
+}
+
+let activeCategory = 'encoding'
+
+renderOperations(activeCategory)
+bindEvents()
+resizePlugin()
+
+function op(id, label, run, options = {}) {
+  return {
+    id,
+    label,
+    run,
+    keyLabel: options.keyLabel || '',
+    needsKey: !!options.keyLabel
+  }
+}
+
+function bindEvents() {
+  for (const button of els.categoryButtons) {
+    button.addEventListener('click', () => {
+      activeCategory = button.dataset.category
+      renderOperations(activeCategory)
+    })
+  }
+
+  els.operation.addEventListener('change', () => {
+    updateKeyField()
+    setStatus('')
+  })
+  els.run.addEventListener('click', runCurrentOperation)
+  els.swap.addEventListener('click', swapInputOutput)
+  els.copy.addEventListener('click', copyOutput)
+  els.paste.addEventListener('click', pasteInput)
+  els.clear.addEventListener('click', clearAll)
+
+  document.addEventListener('keydown', (event) => {
+    const modifier = event.metaKey || event.ctrlKey
+    if (modifier && event.key === 'Enter') {
+      event.preventDefault()
+      runCurrentOperation()
+    }
+  })
+
+  window.addEventListener('resize', resizePlugin)
+
+  if (window.ztools?.onPluginEnter) {
+    window.ztools.onPluginEnter((action) => {
+      const payload = action?.payload
+      if (typeof payload === 'string' && payload) {
+        els.input.value = payload
+        setStatus('已载入启动文本')
+      }
+      resizePlugin()
+    })
+  }
+}
+
+function renderOperations(categoryId) {
+  const category = categories.find((item) => item.id === categoryId) || categories[0]
+  for (const button of els.categoryButtons) {
+    button.classList.toggle('active', button.dataset.category === category.id)
+  }
+
+  els.operation.innerHTML = ''
+  for (const operation of category.operations) {
+    const option = document.createElement('option')
+    option.value = operation.id
+    option.textContent = operation.label
+    els.operation.append(option)
+  }
+
+  updateKeyField()
+  resizePlugin()
+}
+
+function updateKeyField() {
+  const operation = getCurrentOperation()
+  const needsKey = !!operation?.needsKey
+  els.keyField.classList.toggle('hidden', !needsKey)
+  els.keyLabel.textContent = operation?.keyLabel || '密钥'
+}
+
+async function runCurrentOperation() {
+  const operation = getCurrentOperation()
+  if (!operation) return
+
+  setBusy(true)
+  setStatus('处理中')
+  try {
+    const result = await operation.run({
+      input: els.input.value,
+      secret: els.secretKey.value
+    })
+    els.output.value = typeof result === 'string' ? result : JSON.stringify(result, null, 2)
+    setStatus('完成')
+  } catch (error) {
+    els.output.value = ''
+    setStatus(error instanceof Error ? error.message : String(error), 'error')
+  } finally {
+    setBusy(false)
+    resizePlugin()
+  }
+}
+
+function swapInputOutput() {
+  const currentOutput = els.output.value
+  els.output.value = els.input.value
+  els.input.value = currentOutput
+  setStatus('已交换')
+}
+
+async function pasteInput() {
+  try {
+    els.input.value = await navigator.clipboard.readText()
+    setStatus('已粘贴')
+  } catch {
+    setStatus('无法读取剪贴板', 'warn')
+  }
+}
+
+async function copyOutput() {
+  if (!els.output.value) {
+    setStatus('没有可复制的结果', 'warn')
+    return
+  }
+
+  try {
+    if (window.ztools?.copyText) {
+      window.ztools.copyText(els.output.value)
+    } else {
+      await navigator.clipboard.writeText(els.output.value)
+    }
+    setStatus('已复制')
+  } catch {
+    setStatus('复制失败', 'error')
+  }
+}
+
+function clearAll() {
+  els.input.value = ''
+  els.output.value = ''
+  setStatus('')
+}
+
+function getCurrentOperation() {
+  return operationsById.get(els.operation.value)
+}
+
+function setBusy(isBusy) {
+  els.run.disabled = isBusy
+  els.run.textContent = isBusy ? '执行中' : '执行'
+}
+
+function setStatus(message, tone = '') {
+  els.status.textContent = message
+  els.status.classList.toggle('error', tone === 'error')
+  els.status.classList.toggle('warn', tone === 'warn')
+}
+
+function resizePlugin() {
+  if (!window.ztools?.setExpendHeight) return
+  window.requestAnimationFrame(() => {
+    const height = Math.min(Math.max(document.documentElement.scrollHeight, 430), 560)
+    window.ztools.setExpendHeight(height)
+  })
+}
+
+</script>
+  </body>
+</html>

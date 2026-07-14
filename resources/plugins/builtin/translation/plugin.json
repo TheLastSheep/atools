@@ -1,0 +1,20 @@
+{
+  "name": "翻译",
+  "description": "多语言翻译工具",
+  "author": "ATools",
+  "version": "1.0.0",
+  "main": "index.html",
+  "pluginSetting": {
+    "single": false,
+    "height": 520
+  },
+  "features": [
+    {
+      "code": "翻译",
+      "label": "翻译",
+      "icon": "logo.png",
+      "explain": "中英日韩多语言翻译",
+      "cmds": ["翻译", "translate", "trans", "fanyi"]
+    }
+  ]
+}

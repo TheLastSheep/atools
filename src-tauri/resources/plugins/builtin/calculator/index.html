@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calculator</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: var(--bg-primary, #1e1e1e);
+      color: var(--text-primary, #d4d4d4);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .subtitle {
+      margin: 0 0 16px 0;
+      font-size: 14px;
+      color: var(--text-secondary, #888);
+    }
+
+    .results-list {
+      margin-top: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="content">
+    <p class="subtitle">输入数学表达式，按 Enter 计算</p>
+    <p class="subtitle">支持：加减乘除、幂运算(^)、三角函数、对数等</p>
+  </div>
+  <div class="results-list" id="results"></div>
+
+  <script src="preload.js"></script>
+</body>
+</html>

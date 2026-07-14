@@ -1,0 +1,35 @@
+{
+  "name": "encoding",
+  "version": "1.0.0",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "description": "编解码工具 - Base64, URL, HTML, Unicode 等",
+  "author": "ATools Team",
+  "features": [
+    {
+      "code": "base64",
+      "explain": "Base64 编解码",
+      "cmds": ["base64", "b64"]
+    },
+    {
+      "code": "urlencode",
+      "explain": "URL 编解码",
+      "cmds": ["urlencode", "url编码", "urldecode", "url解码"]
+    },
+    {
+      "code": "html",
+      "explain": "HTML 实体转义",
+      "cmds": ["html转义", "html实体", "html escape"]
+    },
+    {
+      "code": "md5",
+      "explain": "计算 MD5 哈希",
+      "cmds": ["md5", "hash"]
+    },
+    {
+      "code": "unicode",
+      "explain": "Unicode 转换",
+      "cmds": ["unicode", "uniescape"]
+    }
+  ]
+}
