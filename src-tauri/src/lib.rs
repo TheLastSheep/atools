@@ -229,12 +229,19 @@ pub fn run() {
                 .clone();
             let db_for_plugins = app_state.inner().db.clone();
             let app_for_plugins = handle.clone();
+            let builtin_plugins_dir = handle
+                .path()
+                .resolve("plugins/builtin", tauri::path::BaseDirectory::Resource)
+                .ok();
             std::thread::spawn(move || {
                 tauri::async_runtime::block_on(async move {
                     let db_for_plugin_tools = db_for_plugins.clone();
-                    if let Err(e) =
-                        builtin_plugins::load_builtin_plugins(runtime_for_plugins, db_for_plugins)
-                            .await
+                    if let Err(e) = builtin_plugins::load_builtin_plugins(
+                        runtime_for_plugins,
+                        db_for_plugins,
+                        builtin_plugins_dir,
+                    )
+                    .await
                     {
                         tracing::error!("Failed to load builtin plugins: {}", e);
                         let state = app_for_plugins.state::<AppState>();

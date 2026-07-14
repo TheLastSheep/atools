@@ -46,6 +46,7 @@
     "test:home-recent-type-icons": "node scripts/test-home-recent-type-icons.mjs",
     "test:builtin-json-plugin": "node scripts/test-builtin-json-plugin.mjs",
     "test:builtin-color-plugin": "node scripts/test-builtin-color-plugin.mjs",
+    "test:builtin-plugin-bundle": "node scripts/test-builtin-plugin-bundle.mjs",
     "test:ztools-import-view": "node scripts/test-ztools-import-view.mjs",
     "test:ztools-plugin-compatibility-report": "node scripts/test-ztools-plugin-compatibility-report.mjs",
     "test:ztools-plugin-runtime-sample-report": "node scripts/test-ztools-plugin-runtime-sample-report.mjs",

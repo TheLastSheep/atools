@@ -14,8 +14,12 @@ use tracing::{info, warn};
 /// 2. Save plugin record to the database
 /// 3. Index features for search
 /// 4. Execute preload script in the QuickJS runtime (if present)
-pub async fn load_builtin_plugins(runtime: Arc<JsRuntime>, db: Arc<Database>) -> Result<()> {
-    let builtin_dir = get_builtin_plugins_dir();
+pub async fn load_builtin_plugins(
+    runtime: Arc<JsRuntime>,
+    db: Arc<Database>,
+    resource_builtin_dir: Option<PathBuf>,
+) -> Result<()> {
+    let builtin_dir = get_builtin_plugins_dir(resource_builtin_dir);
 
     if !builtin_dir.exists() {
         warn!("Builtin plugins directory not found: {:?}", builtin_dir);
@@ -79,11 +83,17 @@ async fn load_single_builtin_plugin(
     Ok(())
 }
 
-fn get_builtin_plugins_dir() -> PathBuf {
-    // Try to find the builtin plugins directory.
-    // In development and CI, the workspace root usually contains
-    // `resources/plugins/builtin`.
+fn get_builtin_plugins_dir(resource_builtin_dir: Option<PathBuf>) -> PathBuf {
+    // Prefer Tauri's resource directory. tauri-build copies the configured
+    // bundle resources into the Cargo target directory for development and
+    // into the application resource directory for packaged builds.
     let mut candidates = Vec::new();
+    if let Some(resource_builtin_dir) = resource_builtin_dir {
+        candidates.push(resource_builtin_dir);
+    }
+
+    // Keep source-tree fallbacks for direct Rust tests and unusual developer
+    // invocations that do not run through the Tauri build pipeline.
     if let Some(root_builtin_dir) = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .map(|p| p.join("resources/plugins/builtin"))
