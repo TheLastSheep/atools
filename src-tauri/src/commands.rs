@@ -4456,14 +4456,32 @@ pub async fn call_agent_tool(
 #[tauri::command]
 pub fn start_agent_tool(
     app: AppHandle,
-    state: tauri::State<'_, AppState>,
+    _state: tauri::State<'_, AppState>,
     name: String,
     arguments: serde_json::Value,
     client_id: Option<String>,
     confirmed: Option<bool>,
     retry_of: Option<String>,
 ) -> Result<TaskRun, String> {
-    let client_id = client_id.unwrap_or_else(|| "atools-ui".to_string());
+    start_agent_tool_background(
+        &app,
+        name,
+        arguments,
+        client_id.unwrap_or_else(|| "atools-ui".to_string()),
+        confirmed.unwrap_or(false),
+        retry_of,
+    )
+}
+
+pub(crate) fn start_agent_tool_background(
+    app: &AppHandle,
+    name: String,
+    arguments: serde_json::Value,
+    client_id: String,
+    confirmed: bool,
+    retry_of: Option<String>,
+) -> Result<TaskRun, String> {
+    let state = app.state::<AppState>();
     let initiator = if client_id == "atools-ui" {
         TaskRunInitiator::human(Some(client_id.clone()))
     } else {
@@ -4506,7 +4524,7 @@ pub fn start_agent_tool(
             &client_id,
             &name,
             arguments,
-            confirmed.unwrap_or(false),
+            confirmed,
             Some(&task_run_id),
         )
         .await;
@@ -4552,15 +4570,20 @@ pub fn get_task_run(state: tauri::State<AppState>, id: String) -> Result<Option<
 #[tauri::command]
 pub fn cancel_task_run(
     app: AppHandle,
-    state: tauri::State<AppState>,
+    _state: tauri::State<AppState>,
     id: String,
 ) -> Result<TaskRun, String> {
+    cancel_task_run_by_id(&app, &id)
+}
+
+pub(crate) fn cancel_task_run_by_id(app: &AppHandle, id: &str) -> Result<TaskRun, String> {
+    let state = app.state::<AppState>();
     let mut run = state
         .db
-        .get_task_run(&id)
+        .get_task_run(id)
         .map_err(|error| error.to_string())?
         .ok_or_else(|| format!("TaskRun not found: {id}"))?;
-    let abort_handle = state.active_task_runs.lock().remove(&id);
+    let abort_handle = state.active_task_runs.lock().remove(id);
     if run.status == TaskRunStatus::Running && abort_handle.is_none() {
         return Err(format!(
             "TaskRun {} is running outside the cancellable background executor",

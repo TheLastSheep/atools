@@ -85,6 +85,33 @@ For clients or modes that do not support HTTP MCP, copy the stdio proxy template
 - When the desktop app is running, `resources/list` also exposes `atools://skills`, `resources/templates/list` exposes `atools://skills/{skillId}`, and `prompts/list` exposes one `atools_skill_<skillId>` prompt per enabled local Skill. Every Skill prompt states that tool permissions are still checked on each call.
 - JSON-RPC batch requests are supported over HTTP MCP and stdio fallback. Mixed batches omit notification responses and return an array for requests with IDs; notification-only batches produce no response body/line. Empty batches return `-32600 Invalid Request`.
 
+## Durable Task Calls
+
+The running desktop HTTP server implements the experimental MCP Tasks contract from protocol revision `2025-11-25`. Its `initialize` response declares `tasks.requests.tools.call` and `tasks.cancel`, and every enabled tool returned by `tools/list` declares `execution.taskSupport: "optional"`. The static stdio fallback does not advertise Tasks; when stdio can forward to a running desktop app, it receives the desktop server's capabilities.
+
+Existing short calls stay synchronous. To avoid holding the original `tools/call` request open for a long operation, include a `task` object:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 10,
+  "method": "tools/call",
+  "params": {
+    "name": "find_local_files",
+    "arguments": { "root": "/Users/example", "query": "report" },
+    "task": { "ttl": 60000 }
+  }
+}
+```
+
+ATools immediately returns a task whose `taskId` is the durable `TaskRun.runId`. Requested TTL values are currently overridden with `ttl: null`, so persisted task results have no automatic expiry. Poll `tasks/get` at or above the returned `pollInterval`; ATools maps created/running to `working`, permission confirmation to `input_required`, success/partial to `completed`, and preserves `failed` and `cancelled` terminal states.
+
+Use `tasks/result` after the task reaches a terminal status. It returns the same `CallToolResult` envelope as a synchronous call, including `structuredContent.runId`, status, summary, metrics, artifacts, validation, and result URL, plus the standard related-task metadata. Calling `tasks/result` before a terminal state waits for completion, as required by the Tasks contract.
+
+Use `tasks/cancel` for a non-terminal task. ATools aborts executions started by the tracked background executor, removes pending permission requests, persists `cancelled` before replying, and prevents a late executor result from replacing that terminal state. Cancelling an already-terminal or unknown task returns JSON-RPC `-32602`.
+
+Task lookup is scoped to the authenticated desktop MCP context. A task created through another local UI/client surface is not exposed through these MCP task methods.
+
 ## Built-in Context Tool
 
 The built-in `get_current_context` tool attempts to read the current browser URL and Finder folder path through the same macOS command-layer bridges used by the plugin context surface. When a supported frontmost browser exposes a URL, the tool returns `browser_url`; otherwise it returns `browser_url:null` with an explicit unavailable or bridge-error reason. For Finder context, `finder_path` follows the command-layer folder bridge, including the Desktop fallback when Finder has no open windows, or returns an explicit bridge-error reason.
@@ -114,6 +141,7 @@ If a plugin Agent tool is called before its UI/runtime context has been opened, 
 ## Current Limitations
 
 - The first denied call is not held open. Clients should retry after the user grants the tool.
+- MCP Tasks are the experimental `2025-11-25` protocol shape. Clients should negotiate the advertised capabilities and tool-level `taskSupport` instead of assuming Tasks are available from the static fallback.
 - Plugin-declared tools are executable through MCP/Agent when the plugin manifest, preload, and `utools.registerTool` handler are compatible. More real third-party plugin tool compatibility regression and client matrix testing are still needed.
 - OCR depends on a local OCR endpoint at `127.0.0.1:8765`.
 - Image compression supports the default original-format output and explicit `format: "webp"` lossless WebP output. `max_bytes` is still a best-effort target and returns `target_met` / `target_reason`; WebP output does not perform lossy quality tuning yet.

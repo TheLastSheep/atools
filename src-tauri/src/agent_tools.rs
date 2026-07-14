@@ -788,6 +788,18 @@ fn task_run_error(run: &TaskRun, output: Value) -> McpToolCallResult {
     }
 }
 
+pub(crate) fn task_run_result(run: &TaskRun) -> McpToolCallResult {
+    let output = run.output.clone();
+    if matches!(
+        run.status,
+        TaskRunStatus::Succeeded | TaskRunStatus::Partial
+    ) {
+        task_run_success(run, output)
+    } else {
+        task_run_error(run, output)
+    }
+}
+
 fn task_run_envelope(run: &TaskRun, output: Value) -> Value {
     let mut fields = match output {
         Value::Object(fields) => fields,

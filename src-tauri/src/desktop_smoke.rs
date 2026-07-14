@@ -111,6 +111,7 @@ pub struct DataDebugSmokeSummary {
     pub mcp_prompts_ok: bool,
     pub mcp_batch_ok: bool,
     pub mcp_notification_ok: bool,
+    pub mcp_tasks_ok: bool,
     pub error: Option<String>,
 }
 
@@ -131,6 +132,7 @@ impl DataDebugSmokeSummary {
             mcp_prompts_ok: false,
             mcp_batch_ok: false,
             mcp_notification_ok: false,
+            mcp_tasks_ok: false,
             error: Some(error.into()),
         }
     }
@@ -150,6 +152,7 @@ impl DataDebugSmokeSummary {
             && self.mcp_prompts_ok
             && self.mcp_batch_ok
             && self.mcp_notification_ok
+            && self.mcp_tasks_ok
             && self.error.is_none()
     }
 }
@@ -2457,6 +2460,7 @@ pub fn run_data_debug_smoke(app: &tauri::AppHandle, db: &Database) -> DataDebugS
         mcp_prompts_ok: mcp_protocol_smoke.prompts_ok,
         mcp_batch_ok: mcp_protocol_smoke.batch_ok,
         mcp_notification_ok: mcp_protocol_smoke.notification_ok,
+        mcp_tasks_ok: mcp_protocol_smoke.tasks_ok,
         error: audit_filtered_export.error.or(mcp_protocol_smoke.error),
     }
 }
@@ -2564,6 +2568,7 @@ struct McpProtocolSmokeSummary {
     prompts_ok: bool,
     batch_ok: bool,
     notification_ok: bool,
+    tasks_ok: bool,
     error: Option<String>,
 }
 
@@ -2577,6 +2582,7 @@ fn run_mcp_protocol_smoke(status: Option<&McpServerStatus>) -> McpProtocolSmokeS
             prompts_ok: false,
             batch_ok: false,
             notification_ok: false,
+            tasks_ok: false,
             error: Some("mcp server is not ready".to_string()),
         };
     };
@@ -2696,6 +2702,8 @@ fn run_mcp_protocol_smoke(status: Option<&McpServerStatus>) -> McpProtocolSmokeS
         })
     });
 
+    let tasks_result = run_mcp_tasks_smoke(&status.bind, &status.token);
+
     let mut errors = Vec::new();
     if let Err(error) = &ping_result {
         errors.push(error.clone());
@@ -2720,6 +2728,9 @@ fn run_mcp_protocol_smoke(status: Option<&McpServerStatus>) -> McpProtocolSmokeS
     if let Err(error) = &notification_result {
         errors.push(error.clone());
     }
+    if let Err(error) = &tasks_result {
+        errors.push(error.clone());
+    }
 
     McpProtocolSmokeSummary {
         ping_ok: ping_result.is_ok(),
@@ -2729,8 +2740,169 @@ fn run_mcp_protocol_smoke(status: Option<&McpServerStatus>) -> McpProtocolSmokeS
         prompts_ok: prompts_result.is_ok(),
         batch_ok: batch_result.is_ok(),
         notification_ok: notification_result.is_ok(),
+        tasks_ok: tasks_result.is_ok(),
         error: (!errors.is_empty()).then(|| errors.join("; ")),
     }
+}
+
+fn run_mcp_tasks_smoke(bind: &str, token: &str) -> Result<(), String> {
+    let initialize = send_mcp_http_request(
+        bind,
+        token,
+        json!({
+            "jsonrpc": "2.0",
+            "id": 7010,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2025-11-25",
+                "capabilities": {},
+                "clientInfo": { "name": "atools-desktop-smoke", "version": "1" }
+            }
+        }),
+    )?;
+    let initialize_payload = serde_json::from_str::<serde_json::Value>(&initialize.body)
+        .map_err(|error| error.to_string())?;
+    if initialize.status != 200
+        || initialize_payload.pointer("/result/capabilities/tasks/requests/tools/call")
+            != Some(&json!({}))
+        || initialize_payload.pointer("/result/capabilities/tasks/cancel") != Some(&json!({}))
+    {
+        return Err(format!(
+            "unexpected MCP task capabilities: {} {}",
+            initialize.status, initialize.body
+        ));
+    }
+
+    let tools = send_mcp_http_request(
+        bind,
+        token,
+        json!({ "jsonrpc": "2.0", "id": 7011, "method": "tools/list" }),
+    )?;
+    let tools_payload = serde_json::from_str::<serde_json::Value>(&tools.body)
+        .map_err(|error| error.to_string())?;
+    let task_tool_advertised = tools_payload
+        .pointer("/result/tools")
+        .and_then(serde_json::Value::as_array)
+        .is_some_and(|tools| {
+            tools.iter().any(|tool| {
+                tool.get("name") == Some(&json!("find_local_files"))
+                    && tool.pointer("/execution/taskSupport") == Some(&json!("optional"))
+            })
+        });
+    if tools.status != 200 || !task_tool_advertised {
+        return Err(format!(
+            "unexpected MCP task tool catalog: {} {}",
+            tools.status, tools.body
+        ));
+    }
+
+    let created = send_mcp_http_request(
+        bind,
+        token,
+        json!({
+            "jsonrpc": "2.0",
+            "id": 7012,
+            "method": "tools/call",
+            "params": {
+                "name": "find_local_files",
+                "arguments": {
+                    "root": "/tmp",
+                    "query": "atools-mcp-task-smoke-never-match",
+                    "limit": 1
+                },
+                "task": { "ttl": 60000 }
+            }
+        }),
+    )?;
+    let created_payload = serde_json::from_str::<serde_json::Value>(&created.body)
+        .map_err(|error| error.to_string())?;
+    let task_id = created_payload
+        .pointer("/result/task/taskId")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| format!("MCP task creation returned no taskId: {}", created.body))?;
+    if created.status != 200
+        || created_payload.pointer("/result/task/ttl") != Some(&serde_json::Value::Null)
+        || created_payload.pointer("/result/_meta/io.modelcontextprotocol~1related-task/taskId")
+            != Some(&json!(task_id))
+    {
+        return Err(format!(
+            "unexpected MCP task creation response: {} {}",
+            created.status, created.body
+        ));
+    }
+
+    let get = send_mcp_http_request(
+        bind,
+        token,
+        json!({
+            "jsonrpc": "2.0",
+            "id": 7013,
+            "method": "tasks/get",
+            "params": { "taskId": task_id }
+        }),
+    )?;
+    let get_payload =
+        serde_json::from_str::<serde_json::Value>(&get.body).map_err(|error| error.to_string())?;
+    let status = get_payload
+        .pointer("/result/status")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default();
+    if get.status != 200
+        || get_payload.pointer("/result/taskId") != Some(&json!(task_id))
+        || !matches!(status, "working" | "input_required")
+    {
+        return Err(format!(
+            "unexpected MCP tasks/get response: {} {}",
+            get.status, get.body
+        ));
+    }
+
+    let cancelled = send_mcp_http_request(
+        bind,
+        token,
+        json!({
+            "jsonrpc": "2.0",
+            "id": 7014,
+            "method": "tasks/cancel",
+            "params": { "taskId": task_id }
+        }),
+    )?;
+    let cancelled_payload = serde_json::from_str::<serde_json::Value>(&cancelled.body)
+        .map_err(|error| error.to_string())?;
+    if cancelled.status != 200
+        || cancelled_payload.pointer("/result/taskId") != Some(&json!(task_id))
+        || cancelled_payload.pointer("/result/status") != Some(&json!("cancelled"))
+    {
+        return Err(format!(
+            "unexpected MCP tasks/cancel response: {} {}",
+            cancelled.status, cancelled.body
+        ));
+    }
+
+    let result = send_mcp_http_request(
+        bind,
+        token,
+        json!({
+            "jsonrpc": "2.0",
+            "id": 7015,
+            "method": "tasks/result",
+            "params": { "taskId": task_id }
+        }),
+    )?;
+    let result_payload = serde_json::from_str::<serde_json::Value>(&result.body)
+        .map_err(|error| error.to_string())?;
+    let result_ok = result.status == 200
+        && result_payload.pointer("/result/isError") == Some(&json!(true))
+        && result_payload.pointer("/result/structuredContent/runId") == Some(&json!(task_id))
+        && result_payload.pointer("/result/structuredContent/status") == Some(&json!("cancelled"))
+        && result_payload.pointer("/result/_meta/io.modelcontextprotocol~1related-task/taskId")
+            == Some(&json!(task_id));
+    result_ok.then_some(()).ok_or_else(|| {
+        format!(
+            "unexpected MCP tasks/result response: {} {}",
+            result.status, result.body
+        )
+    })
 }
 
 fn send_mcp_agent_tools_resource_request(bind: &str, token: &str) -> Result<(), String> {
@@ -3712,6 +3884,7 @@ mod tests {
                 mcp_prompts_ok: true,
                 mcp_batch_ok: true,
                 mcp_notification_ok: true,
+                mcp_tasks_ok: true,
                 error: None,
             },
             SystemSettingsSmokeSummary {
@@ -3814,6 +3987,7 @@ mod tests {
         assert!(snapshot.data_debug_smoke.mcp_prompts_ok);
         assert!(snapshot.data_debug_smoke.mcp_batch_ok);
         assert!(snapshot.data_debug_smoke.mcp_notification_ok);
+        assert!(snapshot.data_debug_smoke.mcp_tasks_ok);
         assert!(snapshot.system_settings_smoke.main_window_centered);
         assert!(snapshot.system_settings_smoke.hotkey_old_unregistered);
         assert!(snapshot.system_settings_smoke.hotkey_reregistered);

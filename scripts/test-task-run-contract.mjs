@@ -2,12 +2,15 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const root = new URL("../", import.meta.url);
-const [model, memory, database, tools, commands, appLib, types, agentPanel, settingsPanel] = await Promise.all([
+const [model, memory, database, tools, commands, mcpServer, desktopSmoke, mcpDocs, appLib, types, agentPanel, settingsPanel] = await Promise.all([
   readFile(new URL("crates/atools-core/src/task_run.rs", root), "utf8"),
   readFile(new URL("crates/atools-core/src/memory.rs", root), "utf8"),
   readFile(new URL("crates/atools-core/src/db.rs", root), "utf8"),
   readFile(new URL("src-tauri/src/agent_tools.rs", root), "utf8"),
   readFile(new URL("src-tauri/src/commands.rs", root), "utf8"),
+  readFile(new URL("src-tauri/src/mcp_server.rs", root), "utf8"),
+  readFile(new URL("src-tauri/src/desktop_smoke.rs", root), "utf8"),
+  readFile(new URL("docs/agent-mcp-client.md", root), "utf8"),
   readFile(new URL("src-tauri/src/lib.rs", root), "utf8"),
   readFile(new URL("src/lib/types.ts", root), "utf8"),
   readFile(new URL("src/components/AgentPanel.svelte", root), "utf8"),
@@ -53,6 +56,24 @@ assert.match(commands, /active_task_runs[\s\S]*abort_handle/);
 assert.match(commands, /TaskRunStatus::Running[\s\S]*cancellable background executor/);
 assert.match(commands, /retry_of: Option<String>/);
 assert.match(commands, /run\.retry_of = Some\(previous_id\)/);
+assert.match(commands, /pub\(crate\) fn start_agent_tool_background/);
+assert.match(commands, /pub\(crate\) fn cancel_task_run_by_id/);
+assert.match(mcpServer, /"tasks\/get" \| "tasks\/result" \| "tasks\/cancel"/);
+assert.match(mcpServer, /"taskSupport": "optional"/);
+assert.match(mcpServer, /"io\.modelcontextprotocol\/related-task"/);
+assert.match(mcpServer, /start_agent_tool_background/);
+assert.match(mcpServer, /cancel_task_run_by_id/);
+assert.match(mcpServer, /while !current\.status\.is_terminal\(\)/);
+assert.match(mcpServer, /TaskRunStatus::AwaitingPermission => "input_required"/);
+assert.match(mcpServer, /TaskRunStatus::Partial \| TaskRunStatus::Succeeded => "completed"/);
+assert.match(desktopSmoke, /fn run_mcp_tasks_smoke/);
+assert.match(desktopSmoke, /pub mcp_tasks_ok: bool/);
+assert.match(desktopSmoke, /"method": "tasks\/get"/);
+assert.match(desktopSmoke, /"method": "tasks\/cancel"/);
+assert.match(desktopSmoke, /"method": "tasks\/result"/);
+for (const method of ["tasks/get", "tasks/result", "tasks/cancel"]) {
+  assert.ok(mcpDocs.includes(`\`${method}\``), `MCP client docs must describe ${method}`);
+}
 assert.match(commands, /pub fn activate_feature[\s\S]*TaskRun::new/);
 assert.match(commands, /TaskRunInitiator::human/);
 assert.match(commands, /plugin\.feature\.\{code\}/);
