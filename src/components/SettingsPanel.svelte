@@ -2136,7 +2136,7 @@
     busyPluginId = plugin.id;
     pluginsStatus = "正在定位插件目录";
     try {
-      await invoke("shell_show_item_in_folder", { path: plugin.path });
+      await callHumanCapability("open_or_reveal_path", { path: plugin.path, reveal: true });
       pluginsStatus = `已定位 ${plugin.title}`;
     } catch (error) {
       pluginsStatus = String(error);
@@ -2223,7 +2223,7 @@
       return;
     }
     try {
-      await invoke("shell_open", { url: pluginMarketUrl.trim() });
+      await callHumanCapability("open_url", { url: pluginMarketUrl.trim() });
       pluginMarketStatusText = "已打开插件市场地址";
     } catch (error) {
       pluginMarketStatusText = String(error);
@@ -2695,7 +2695,7 @@
   async function previewWebQuickOpenEntry(entry: WebQuickOpenEntry) {
     const url = webQuickOpenPreviewUrl(entry);
     if (hasTauriRuntime()) {
-      await invoke("shell_open", { url });
+      await callHumanCapability("open_url", { url });
     } else {
       window.open(url, "_blank", "noopener,noreferrer");
     }
@@ -2885,7 +2885,7 @@
       return;
     }
     try {
-      await invoke("shell_open", { url: resolvedPath });
+      await callHumanCapability("open_or_reveal_path", { path: resolvedPath, reveal: false });
       localLaunchStatus = `已打开 ${entry.name}`;
     } catch (error) {
       localLaunchStatus = String(error);
@@ -2899,7 +2899,7 @@
       return;
     }
     try {
-      await invoke("shell_show_item_in_folder", { path: resolvedPath });
+      await callHumanCapability("open_or_reveal_path", { path: resolvedPath, reveal: true });
       localLaunchStatus = `已定位 ${entry.name}`;
     } catch (error) {
       localLaunchStatus = String(error);
@@ -3131,6 +3131,15 @@
       mcpStatus: debugMcpStatus,
       audits: debugAudits,
       crashLogs,
+    });
+  }
+
+  async function callHumanCapability(name: string, arguments_: Record<string, unknown>) {
+    return invoke("call_agent_tool", {
+      name,
+      arguments: arguments_,
+      clientId: "atools-ui",
+      confirmed: true,
     });
   }
 

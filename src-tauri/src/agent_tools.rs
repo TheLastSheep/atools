@@ -45,6 +45,7 @@ pub fn builtin_tool_registry() -> ToolRegistry {
         get_current_context_tool(),
         ocr_image_tool(),
         open_or_reveal_path_tool(),
+        open_url_tool(),
         rename_files_tool(),
         search_clipboard_tool(),
     ] {
@@ -663,6 +664,20 @@ fn structured_result_artifacts(run: &TaskRun) -> Vec<Artifact> {
                 ));
             }
         }
+        "open_url" => {
+            if let Some(url) = run.output.get("url").and_then(Value::as_str) {
+                artifacts.push(Artifact {
+                    id: format!("artifact-{}", atools_core::utils::generate_rev()),
+                    kind: ArtifactKind::Url,
+                    label: "Opened URL".to_string(),
+                    media_type: Some("text/uri-list".to_string()),
+                    uri: Some(url.to_string()),
+                    path: None,
+                    size_bytes: None,
+                    metadata: json!({}),
+                });
+            }
+        }
         "ocr_image" => artifacts.push(output_field_artifact(
             run,
             ArtifactKind::RichText,
@@ -1005,6 +1020,7 @@ pub async fn execute_builtin_tool(
         "find_local_files" => find_local_files_tool_call(arguments),
         "get_current_context" => get_current_context(),
         "open_or_reveal_path" => open_or_reveal_path(arguments),
+        "open_url" => open_url(app, arguments),
         "rename_files" => rename_files_tool_call(arguments),
         "compress_images" => compress_images(arguments),
         "ocr_image" => ocr_image(arguments).await,
@@ -1517,6 +1533,33 @@ pub fn open_or_reveal_path(arguments: Value) -> Result<Value, String> {
             std::env::consts::OS
         ))
     }
+}
+
+fn open_url(app: &AppHandle, arguments: Value) -> Result<Value, String> {
+    use tauri_plugin_opener::OpenerExt;
+
+    let target = validated_open_url(&arguments)?;
+    app.opener()
+        .open_url(&target, None::<&str>)
+        .map_err(|error| format!("Failed to open URL: {error}"))?;
+    Ok(json!({ "ok": true, "url": target }))
+}
+
+fn validated_open_url(arguments: &Value) -> Result<String, String> {
+    let raw = arguments
+        .get("url")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| "Missing URL".to_string())?;
+    let parsed = url::Url::parse(raw).map_err(|error| format!("Invalid URL: {error}"))?;
+    if !matches!(parsed.scheme(), "http" | "https") {
+        return Err("URL must use http or https".to_string());
+    }
+    if parsed.host_str().is_none() {
+        return Err("URL must include a host".to_string());
+    }
+    Ok(parsed.to_string())
 }
 
 pub fn get_current_context() -> Result<Value, String> {
@@ -2425,6 +2468,29 @@ fn open_or_reveal_path_tool() -> ToolDefinition {
     )
 }
 
+fn open_url_tool() -> ToolDefinition {
+    tool(
+        "open_url",
+        "Open an explicit HTTP or HTTPS URL in the default browser.",
+        json!({
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "url": { "type": "string", "format": "uri" }
+            },
+            "required": ["url"]
+        }),
+        json!({
+            "type": "object",
+            "properties": {
+                "ok": { "type": "boolean" },
+                "url": { "type": "string", "format": "uri" }
+            }
+        }),
+        vec![PermissionScope::Shell],
+    )
+}
+
 fn get_current_context_tool() -> ToolDefinition {
     tool(
         "get_current_context",
@@ -2437,7 +2503,7 @@ fn get_current_context_tool() -> ToolDefinition {
 
 #[cfg(test)]
 mod artifact_tests {
-    use super::structured_result_artifacts;
+    use super::{structured_result_artifacts, validated_open_url};
     use atools_core::task_run::{ArtifactKind, TaskRun, TaskRunInitiator};
     use serde_json::json;
 
@@ -2479,5 +2545,16 @@ mod artifact_tests {
         assert_eq!(artifacts[1].metadata["outputField"], "text");
         assert_eq!(artifacts[1].size_bytes, Some(10));
         assert!(artifacts[1].metadata.get("content").is_none());
+    }
+
+    #[test]
+    fn open_url_only_accepts_explicit_http_targets() {
+        assert_eq!(
+            validated_open_url(&json!({ "url": " https://example.com/docs " })).unwrap(),
+            "https://example.com/docs"
+        );
+        assert!(validated_open_url(&json!({ "url": "file:///tmp/secret" })).is_err());
+        assert!(validated_open_url(&json!({ "url": "javascript:alert(1)" })).is_err());
+        assert!(validated_open_url(&json!({ "url": "https://" })).is_err());
     }
 }

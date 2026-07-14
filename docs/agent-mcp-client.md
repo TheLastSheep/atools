@@ -88,6 +88,10 @@ For clients or modes that do not support HTTP MCP, copy the stdio proxy template
 
 The built-in `get_current_context` tool attempts to read the current browser URL and Finder folder path through the same macOS command-layer bridges used by the plugin context surface. When a supported frontmost browser exposes a URL, the tool returns `browser_url`; otherwise it returns `browser_url:null` with an explicit unavailable or bridge-error reason. For Finder context, `finder_path` follows the command-layer folder bridge, including the Desktop fallback when Finder has no open windows, or returns an explicit bridge-error reason.
 
+## Built-in Open Tools
+
+`open_url` only accepts explicit `http` or `https` addresses. It and `open_or_reveal_path` both enter the permission, TaskRun, audit, and result-center pipeline. The desktop search UI reuses these same capabilities for web quick open, direct URL open, local launch, and local application results.
+
 ## Built-in File Search Tool
 
 The built-in `find_local_files` tool supports directory-name ignores through `ignore_dirs` and wildcard ignores through `ignore_patterns`. Patterns match both filenames and root-relative slash paths; examples include `*.tmp` for temporary files and `generated/**` for an ignored subtree. These filters are applied during traversal, so ignored directories are skipped before recursion.

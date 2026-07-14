@@ -29,7 +29,7 @@
 | --- | --- | --- | --- |
 | 本地优先、无模型可用 | 已证明 | 搜索、插件、剪贴板、文件、设置与 MCP 核心均不要求模型；`ask_ai_model` 是独立可选工具 | 后续功能继续禁止引入强制远程依赖 |
 | MCP HTTP/stdio、模型无关 | 已证明 | `src-tauri/src/mcp_server.rs`、`crates/atools-core/src/mcp.rs`、`docs/agent-mcp-client.md`；桌面 MCP smoke | 保持协议兼容 |
-| 人与 Agent 共用 TaskRun | 部分完成 | MCP/Agent 工具由 `call_tool_with_task_run` 统一；插件搜索激活由 `activate_feature` 创建 human TaskRun | 网页快开、本地应用、系统命令、文本快操作等人类入口尚未全部进入统一 Capability/TaskRun/审计层 |
+| 人与 Agent 共用 TaskRun | 验证中 | MCP/Agent 工具由 `call_tool_with_task_run` 统一；插件激活、网页快开、URL 快开、本地启动/应用、粘贴工具和路径文本操作均创建 human TaskRun | 等待完整远程 UI/Rust/桌面 smoke；纯文本复制和仅切换面板的 UI 导航不作为持久任务 |
 | 统一 Capability 目录 | 部分完成 | `ToolRegistry` 已统一内置 Agent 工具和用户启用的插件 tools | 搜索 Feature、本地启动项、Skills 与 MCP Tool 仍是多个目录模型，需要稳定 `Capability` 领域契约 |
 | 结构化执行优先 | 已证明 | 原生、插件、CLI/系统桥接优先；项目未内建通用 Computer Use/Browser Use 执行器 | 低优先级兜底一旦新增必须记录选择原因 |
 

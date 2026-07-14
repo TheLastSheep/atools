@@ -4,7 +4,6 @@
   import { listen } from "@tauri-apps/api/event";
   import { homeDir } from "@tauri-apps/api/path";
   import { readText, writeText } from "@tauri-apps/plugin-clipboard-manager";
-  import { open as openExternal } from "@tauri-apps/plugin-shell";
   import HomePanel from "./components/HomePanel.svelte";
   import AppUpdatePrompt from "./components/AppUpdatePrompt.svelte";
   import PermissionConfirmDialog from "./components/PermissionConfirmDialog.svelte";
@@ -1332,7 +1331,7 @@
       return;
     }
     try {
-      await invoke("shell_open", { url: resolvedPath });
+      await callAgentToolFromUi("open_or_reveal_path", { path: resolvedPath, reveal: false }, true);
       scheduleAutoClearSearch();
     } catch (error) {
       console.warn("Failed to open local launch path:", error);
@@ -1347,7 +1346,7 @@
       return;
     }
     try {
-      await invoke("shell_open", { url: path });
+      await callAgentToolFromUi("open_or_reveal_path", { path, reveal: false }, true);
       scheduleAutoClearSearch();
     } catch (error) {
       console.warn("Failed to open local app:", error);
@@ -1364,12 +1363,8 @@
 
   async function openUrl(url: string) {
     if (hasTauriRuntime()) {
-      try {
-        await openExternal(url);
-        return;
-      } catch (error) {
-        console.warn("Failed to open URL with Tauri shell:", error);
-      }
+      await callAgentToolFromUi("open_url", { url }, true);
+      return;
     }
     window.open(url, "_blank", "noopener,noreferrer");
   }
@@ -1699,7 +1694,11 @@
     await onQueryChange(candidate);
   }
 
-  async function callAgentToolFromUi(name: string, args: Record<string, unknown>) {
+  async function callAgentToolFromUi(
+    name: string,
+    args: Record<string, unknown>,
+    confirmed = false,
+  ) {
     if (!hasTauriRuntime()) {
       console.info("Agent tool preview:", name, args);
       return;
@@ -1709,7 +1708,7 @@
         name,
         arguments: args,
         clientId: "atools-ui",
-        confirmed: false,
+        confirmed,
       });
       await loadPendingPermissionRequests();
     } catch (error) {

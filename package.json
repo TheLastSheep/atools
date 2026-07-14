@@ -156,6 +156,7 @@
     "test:artifact-view": "node scripts/test-artifact-view.mjs",
     "test:skill-contract": "node scripts/test-skill-contract.mjs",
     "test:database-benchmark": "node scripts/test-database-benchmark.mjs",
+    "test:human-capability-pipeline": "node scripts/test-human-capability-pipeline.mjs",
     "test:release-bundle-budget": "node scripts/test-release-bundle-budget.mjs",
     "test:macos-release-readiness": "node scripts/test-macos-release-readiness.mjs",
     "test:macos-release-app-smoke": "node scripts/test-macos-release-app-smoke.mjs",

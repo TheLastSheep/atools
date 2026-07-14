@@ -29,6 +29,7 @@ const expectedTools = [
   "get_current_context",
   "ocr_image",
   "open_or_reveal_path",
+  "open_url",
   "rename_files",
   "search_clipboard",
 ];
@@ -40,6 +41,7 @@ assertOrder(builtinBody, [
   "get_current_context_tool()",
   "ocr_image_tool()",
   "open_or_reveal_path_tool()",
+  "open_url_tool()",
   "rename_files_tool()",
   "search_clipboard_tool()",
 ]);
@@ -62,5 +64,5 @@ assert.ok(panel.includes('{tool.description || "无描述"} · {tool.scopes.join
 assert.ok(panel.includes("checked={tool.enabled}"), "Settings MCP page should show enabled state");
 assert.ok(panel.includes("toggleAgentTool(tool"), "Settings MCP page should let users toggle tools");
 
-const checkedRow = "- [x] 工具白名单至少显示默认 8 个内置工具，并包含 `ask_ai_model`。";
+const checkedRow = "- [x] 工具白名单至少显示默认 9 个内置工具，并包含 `ask_ai_model`。";
 assert.ok(smokeChecklist.includes(checkedRow), "macOS smoke checklist should mark Settings MCP tool whitelist complete");

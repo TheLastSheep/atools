@@ -1476,8 +1476,10 @@ fn export_audit_entries_jsonl(entries: Vec<AuditLogEntry>) -> Result<String> {
 fn ensure_memory_scope_columns(conn: &Connection) -> Result<()> {
     let existing = {
         let mut stmt = conn.prepare("PRAGMA table_info(memory_items)")?;
-        stmt.query_map([], |row| row.get::<_, String>(1))?
-            .collect::<std::result::Result<std::collections::BTreeSet<_>, _>>()?
+        let columns = stmt
+            .query_map([], |row| row.get::<_, String>(1))?
+            .collect::<std::result::Result<std::collections::BTreeSet<_>, _>>()?;
+        columns
     };
     for column in [
         "scope_workspace",

@@ -29,9 +29,9 @@ assert.match(panel, /ondrop=\{onLocalLaunchDrop\}/);
 assert.match(panel, /拖拽文件或文件夹到这里添加/);
 
 assert.match(panel, /async function openLocalLaunchPath\(entry: LocalLaunchEntry\)/);
-assert.match(panel, /invoke\("shell_open", \{ url: resolvedPath \}\)/);
+assert.match(panel, /callHumanCapability\("open_or_reveal_path", \{ path: resolvedPath, reveal: false \}\)/);
 assert.match(panel, /async function revealLocalLaunchPath\(entry: LocalLaunchEntry\)/);
-assert.match(panel, /invoke\("shell_show_item_in_folder", \{ path: resolvedPath \}\)/);
+assert.match(panel, /callHumanCapability\("open_or_reveal_path", \{ path: resolvedPath, reveal: true \}\)/);
 
 assert.match(panel, /async function removeLocalLaunchEntry\(entry: LocalLaunchEntry\)/);
 assert.match(panel, /title: "删除本地启动项"/);

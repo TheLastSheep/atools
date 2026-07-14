@@ -90,7 +90,7 @@ try {
   assert.match(panel, /bind:value=\{pluginMarketUrl\}/);
   assert.match(panel, /pluginMarketCustom \? "插件市场页将使用该地址作为外部市场入口"/);
   assert.match(panel, /openPluginMarketUrl/);
-  assert.match(panel, /invoke\("shell_open", \{ url: pluginMarketUrl\.trim\(\) \}\)/);
+  assert.match(panel, /callHumanCapability\("open_url", \{ url: pluginMarketUrl\.trim\(\) \}\)/);
   assert.match(panel, /打开市场地址/);
   assert.match(panel, /setFloatingBallVisible/);
   assert.match(panel, /invoke\("set_floating_ball_visible", \{ visible: floatingBallEnabled \}\)/);

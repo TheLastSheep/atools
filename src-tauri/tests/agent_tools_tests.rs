@@ -68,6 +68,7 @@ fn builtin_registry_contains_agent_whitelist() {
             "get_current_context",
             "ocr_image",
             "open_or_reveal_path",
+            "open_url",
             "rename_files",
             "search_clipboard",
         ]

@@ -421,7 +421,7 @@ ZTools 插件导入：
 - [x] 设置页 `我的数据` 首屏显示 `数据概览`，包含设置数据、最近使用、剪贴板历史、审计记录、插件数据 5 张概览卡。
 - [x] 设置页 `我的数据` 显示 `本地隐私边界`，明确这些数据默认保存在本机，且 `Agent 只能通过授权工具读取` 并写入本地审计。
 - [x] 设置页 `我的数据` 显示 `审计数据概览`；无审计时显示空状态，有记录时显示状态分布、Top 工具/客户端、最近记录和异常记录。
-- [x] 工具白名单至少显示默认 8 个内置工具，并包含 `ask_ai_model`。
+- [x] 工具白名单至少显示默认 9 个内置工具，并包含 `ask_ai_model`。
 - [x] 已启用插件的 manifest `tools` 会以 `plugin_<plugin>_<tool>` 形式出现在工具白名单中，默认关闭；用户打开后才进入 MCP `tools/list`，插件禁用或卸载后对应工具会从白名单移除。
 - [x] 已启用且授权后的插件 manifest tool 会调用插件注册的同步或异步 handler；异步 handler 可 await `utools.dbStorage` 等插件 IPC API；插件 UI/runtime context 未打开时会按 manifest `preload` 懒加载后重试；越界 preload 路径、未注册 handler、Promise rejection 或超时返回明确错误；真实第三方兼容和更多客户端实测仍需回归。
 - [x] `ask_ai_model` 显示 `network` scope；保守确认模式下调用会先进入权限确认，不应静默发送 prompt。
