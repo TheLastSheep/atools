@@ -55,3 +55,6 @@ assert.doesNotMatch(
   /readyPattern\.test/,
   "browser tests must use the HTTP probe instead of depending on ANSI-formatted Vite output",
 );
+
+const screenshotCapture = await readFile(new URL("scripts/capture-ztools-ui-host-screenshots.mjs", root), "utf8");
+assert.match(screenshotCapture, /body \? body\.scrollWidth > body\.clientWidth \+ 1 : false/);

@@ -181,13 +181,17 @@ async function readScreenshotState(page) {
         pluginTitle: document.querySelector(".plugin-title")?.textContent?.trim() || "",
         hostProbe: runtimeChips.find((chip) => chip.label === "宿主探针") || null,
         viteOverlayCount: overlaySelectors.reduce((count, selector) => count + document.querySelectorAll(selector).length, 0),
-        documentOverflows: root.scrollWidth > root.clientWidth + 1,
-        bodyOverflows: body.scrollWidth > body.clientWidth + 1,
+        documentOverflows: root ? root.scrollWidth > root.clientWidth + 1 : false,
+        bodyOverflows: body ? body.scrollWidth > body.clientWidth + 1 : false,
       };
     })()`,
   });
   if (response.exceptionDetails) {
-    assert.fail(response.exceptionDetails.text || "Failed to evaluate screenshot capture state");
+    assert.fail(
+      response.exceptionDetails.exception?.description
+        || response.exceptionDetails.text
+        || "Failed to evaluate screenshot capture state",
+    );
   }
   return response.result.value;
 }
