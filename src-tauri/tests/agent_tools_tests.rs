@@ -829,14 +829,49 @@ fn compress_images_does_not_mark_failed_sips_as_compressed() {
     fs::create_dir(&output_dir).unwrap();
     fs::write(&input, "plain text").unwrap();
 
-    let error = compress_images(serde_json::json!({
+    let output = compress_images(serde_json::json!({
         "paths": [input],
         "output_dir": output_dir,
         "max_width": 100
     }))
-    .unwrap_err();
+    .unwrap();
 
-    assert!(error.contains("sips failed"));
+    assert_eq!(output["items"][0]["status"], "failed");
+    assert!(output["items"][0]["error"]
+        .as_str()
+        .unwrap()
+        .contains("sips failed"));
+}
+
+#[test]
+fn compress_images_keeps_successful_items_when_another_input_fails() {
+    let temp = TempDir::new().unwrap();
+    let input = temp.path().join("pixel.png");
+    let missing = temp.path().join("missing.png");
+    let output_dir = temp.path().join("out");
+    fs::create_dir(&output_dir).unwrap();
+    image::RgbaImage::from_pixel(1, 1, image::Rgba([255, 0, 0, 255]))
+        .save(&input)
+        .unwrap();
+
+    let output = compress_images(serde_json::json!({
+        "paths": [input, missing.clone()],
+        "output_dir": output_dir,
+        "max_width": 100
+    }))
+    .unwrap();
+
+    assert_eq!(output["items"].as_array().unwrap().len(), 2);
+    assert_ne!(output["items"][0]["status"], "failed");
+    assert_eq!(output["items"][1]["status"], "failed");
+    assert_eq!(
+        output["items"][1]["input"],
+        missing.to_string_lossy().as_ref()
+    );
+    assert!(output["items"][1]["error"]
+        .as_str()
+        .unwrap()
+        .contains("Failed to read input metadata"));
 }
 
 #[tokio::test]

@@ -495,28 +495,68 @@ async fn call_tool_with_task_run(
     }
     match result {
         Ok(output) => {
-            let status = if confirmed {
+            let failed_items = structured_failed_items(&output);
+            let item_count = output
+                .get("items")
+                .and_then(Value::as_array)
+                .map(Vec::len)
+                .unwrap_or(0);
+            let task_status = structured_result_task_status(item_count, failed_items.len());
+            let status = if task_status == TaskRunStatus::Failed {
+                AuditStatus::Error
+            } else if confirmed {
                 AuditStatus::Confirmed
             } else {
                 AuditStatus::Allowed
             };
-            let entry = AuditLogEntry::new(client_id, tool_name, arguments, status)
+            let mut entry = AuditLogEntry::new(client_id, tool_name, arguments, status)
                 .with_output(output.clone())
                 .with_duration_ms(duration_ms);
+            if task_status == TaskRunStatus::Failed {
+                entry = entry.with_error(format!("All {} result item(s) failed", item_count));
+            }
             let _ = db.insert_audit_entry(&entry);
             run.output = output.clone();
             run.audit_id = Some(entry.id);
             run.summary = Some(structured_result_summary(tool_name, &output));
             run.metrics = json!({ "durationMs": duration_ms });
             run.artifacts = structured_result_artifacts(&run);
-            run.validation.status = TaskValidationStatus::Passed;
-            run.validation.summary =
-                Some("Structured executor completed without an error".to_string());
-            run.transition(TaskRunStatus::Succeeded)
-                .expect("running TaskRun can succeed");
+            run.errors = failed_items
+                .into_iter()
+                .map(|item| TaskIssue {
+                    code: "item_failed".to_string(),
+                    message: item
+                        .get("error")
+                        .and_then(Value::as_str)
+                        .unwrap_or("Result item failed")
+                        .to_string(),
+                    details: Value::Object(item.clone()),
+                    retryable: true,
+                })
+                .collect();
+            if task_status == TaskRunStatus::Succeeded {
+                run.validation.status = TaskValidationStatus::Passed;
+                run.validation.summary =
+                    Some("Structured executor completed without an error".to_string());
+            } else {
+                run.validation.status = TaskValidationStatus::Failed;
+                run.validation.summary = Some(format!(
+                    "{} of {} structured result item(s) failed",
+                    run.errors.len(),
+                    item_count
+                ));
+            }
+            run.transition(task_status)
+                .expect("running TaskRun can reach a structured result terminal state");
             persist_task_run(db, &run);
-            let _ = db.record_memory_success(&run.memory_ids);
-            task_run_success(&run, output)
+            if task_status == TaskRunStatus::Succeeded {
+                let _ = db.record_memory_success(&run.memory_ids);
+            }
+            if task_status == TaskRunStatus::Failed {
+                task_run_error(&run, output)
+            } else {
+                task_run_success(&run, output)
+            }
         }
         Err(error) => {
             let entry = AuditLogEntry::new(client_id, tool_name, arguments, AuditStatus::Error)
@@ -604,9 +644,29 @@ fn structured_result_summary(tool_name: &str, output: &Value) -> String {
         .and_then(Value::as_array)
         .or_else(|| output.get("operations").and_then(Value::as_array))
         .map(Vec::len);
+    let failed = structured_failed_items(output).len();
     match count {
+        Some(count) if failed > 0 => {
+            format!("{tool_name} completed with {count} result item(s); {failed} failed")
+        }
         Some(count) => format!("{tool_name} completed with {count} result item(s)"),
         None => format!("{tool_name} completed"),
+    }
+}
+
+fn structured_failed_items(output: &Value) -> Vec<&serde_json::Map<String, Value>> {
+    output_items(output)
+        .filter(|item| item.get("status").and_then(Value::as_str) == Some("failed"))
+        .collect()
+}
+
+fn structured_result_task_status(item_count: usize, failed_count: usize) -> TaskRunStatus {
+    if failed_count == 0 {
+        TaskRunStatus::Succeeded
+    } else if failed_count < item_count {
+        TaskRunStatus::Partial
+    } else {
+        TaskRunStatus::Failed
     }
 }
 
@@ -1627,89 +1687,112 @@ pub fn compress_images(arguments: Value) -> Result<Value, String> {
 
     let mut outputs = Vec::new();
     for path in paths.iter().filter_map(Value::as_str) {
-        let input = PathBuf::from(path);
-        let original_size = fs::metadata(&input)
-            .map_err(|e| format!("Failed to read input metadata for {}: {}", path, e))?
-            .len();
-        let file_name = input
-            .file_name()
-            .and_then(|name| name.to_str())
-            .ok_or_else(|| format!("Invalid file path: {}", path))?;
-        let target_dir = output_dir.clone().unwrap_or_else(|| {
-            input
-                .parent()
-                .unwrap_or_else(|| Path::new("."))
-                .to_path_buf()
-        });
-        if !target_dir.exists() {
-            return Err(format!(
-                "Output directory does not exist: {}",
-                target_dir.to_string_lossy()
-            ));
+        match compress_image_item(
+            path,
+            output_dir.as_deref(),
+            max_width,
+            max_bytes,
+            output_format,
+        ) {
+            Ok(item) => outputs.push(item),
+            Err(error) => outputs.push(json!({
+                "input": path,
+                "status": "failed",
+                "error": error
+            })),
         }
-        let output = compressed_output_path(&input, &target_dir, file_name, output_format)?;
-        match output_format {
-            CompressionImageFormat::Original => {
-                fs::copy(&input, &output).map_err(|e| {
-                    format!(
-                        "Failed to copy {} to {}: {}",
-                        input.to_string_lossy(),
-                        output.to_string_lossy(),
-                        e
-                    )
-                })?;
-                if cfg!(target_os = "macos") {
-                    let sips_output = Command::new("sips")
-                        .arg("--resampleWidth")
-                        .arg(max_width.to_string())
-                        .arg(&output)
-                        .output()
-                        .map_err(|e| {
-                            format!("Failed to run sips for {}: {}", output.to_string_lossy(), e)
-                        })?;
-                    if !sips_output.status.success() {
-                        let stderr = String::from_utf8_lossy(&sips_output.stderr)
-                            .trim()
-                            .to_string();
-                        return Err(format!(
-                            "sips failed for {}{}",
-                            output.to_string_lossy(),
-                            if stderr.is_empty() {
-                                format!(" with status {}", sips_output.status)
-                            } else {
-                                format!(": {}", stderr)
-                            }
-                        ));
-                    }
-                }
-            }
-            CompressionImageFormat::Webp => write_webp_output(&input, &output, max_width)?,
-        }
-        let (output, output_size, target_reason) =
-            tune_image_to_target(output, max_bytes, output_format.allows_quality_tuning())?;
-        let target_met = max_bytes.map(|target| output_size <= target);
-        let status = if target_met == Some(false) {
-            "target_unmet"
-        } else if cfg!(target_os = "macos") || output_format.is_encoded() {
-            "compressed"
-        } else {
-            "copied"
-        };
-        outputs.push(json!({
-            "input": input.to_string_lossy(),
-            "output": output.to_string_lossy(),
-            "format": output_format.as_str(),
-            "status": status,
-            "original_size": original_size,
-            "output_size": output_size,
-            "target_size": max_bytes,
-            "target_met": target_met,
-            "target_reason": target_reason,
-            "compression_ratio": compression_ratio(original_size, output_size)
-        }));
     }
 
     Ok(json!({ "items": outputs }))
+}
+
+fn compress_image_item(
+    path: &str,
+    output_dir: Option<&Path>,
+    max_width: u64,
+    max_bytes: Option<u64>,
+    output_format: CompressionImageFormat,
+) -> Result<Value, String> {
+    let input = PathBuf::from(path);
+    let original_size = fs::metadata(&input)
+        .map_err(|e| format!("Failed to read input metadata for {}: {}", path, e))?
+        .len();
+    let file_name = input
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| format!("Invalid file path: {}", path))?;
+    let target_dir = output_dir.map(Path::to_path_buf).unwrap_or_else(|| {
+        input
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .to_path_buf()
+    });
+    if !target_dir.exists() {
+        return Err(format!(
+            "Output directory does not exist: {}",
+            target_dir.to_string_lossy()
+        ));
+    }
+    let output = compressed_output_path(&input, &target_dir, file_name, output_format)?;
+    match output_format {
+        CompressionImageFormat::Original => {
+            fs::copy(&input, &output).map_err(|e| {
+                format!(
+                    "Failed to copy {} to {}: {}",
+                    input.to_string_lossy(),
+                    output.to_string_lossy(),
+                    e
+                )
+            })?;
+            if cfg!(target_os = "macos") {
+                let sips_output = Command::new("sips")
+                    .arg("--resampleWidth")
+                    .arg(max_width.to_string())
+                    .arg(&output)
+                    .output()
+                    .map_err(|e| {
+                        format!("Failed to run sips for {}: {}", output.to_string_lossy(), e)
+                    })?;
+                if !sips_output.status.success() {
+                    let stderr = String::from_utf8_lossy(&sips_output.stderr)
+                        .trim()
+                        .to_string();
+                    return Err(format!(
+                        "sips failed for {}{}",
+                        output.to_string_lossy(),
+                        if stderr.is_empty() {
+                            format!(" with status {}", sips_output.status)
+                        } else {
+                            format!(": {}", stderr)
+                        }
+                    ));
+                }
+            }
+        }
+        CompressionImageFormat::Webp => write_webp_output(&input, &output, max_width)?,
+    }
+    let (output, output_size, target_reason) =
+        tune_image_to_target(output, max_bytes, output_format.allows_quality_tuning())?;
+    let target_met = max_bytes.map(|target| output_size <= target);
+    let status = if target_met == Some(false) {
+        "target_unmet"
+    } else if cfg!(target_os = "macos") || output_format.is_encoded() {
+        "compressed"
+    } else {
+        "copied"
+    };
+    Ok(json!({
+        "input": input.to_string_lossy(),
+        "output": output.to_string_lossy(),
+        "format": output_format.as_str(),
+        "status": status,
+        "original_size": original_size,
+        "output_size": output_size,
+        "target_size": max_bytes,
+        "target_met": target_met,
+        "target_reason": target_reason,
+        "compression_ratio": compression_ratio(original_size, output_size)
+    }))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -2528,8 +2611,11 @@ fn get_current_context_tool() -> ToolDefinition {
 
 #[cfg(test)]
 mod artifact_tests {
-    use super::{structured_result_artifacts, validated_open_url};
-    use atools_core::task_run::{ArtifactKind, TaskRun, TaskRunInitiator};
+    use super::{
+        structured_failed_items, structured_result_artifacts, structured_result_task_status,
+        validated_open_url,
+    };
+    use atools_core::task_run::{ArtifactKind, TaskRun, TaskRunInitiator, TaskRunStatus};
     use serde_json::json;
 
     #[test]
@@ -2557,6 +2643,23 @@ mod artifact_tests {
             .iter()
             .all(|artifact| artifact.kind == ArtifactKind::Image));
         assert_eq!(artifacts[1].size_bytes, Some(128));
+    }
+
+    #[test]
+    fn structured_item_failures_select_partial_and_failed_task_statuses() {
+        let output = json!({
+            "items": [
+                { "input": "ok.png", "status": "compressed" },
+                { "input": "bad.png", "status": "failed", "error": "invalid image" }
+            ]
+        });
+        assert_eq!(structured_failed_items(&output).len(), 1);
+        assert_eq!(structured_result_task_status(2, 1), TaskRunStatus::Partial);
+        assert_eq!(structured_result_task_status(2, 2), TaskRunStatus::Failed);
+        assert_eq!(
+            structured_result_task_status(2, 0),
+            TaskRunStatus::Succeeded
+        );
     }
 
     #[test]

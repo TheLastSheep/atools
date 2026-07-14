@@ -658,13 +658,35 @@
     }
   }
 
-  async function retryTaskRun(run: TaskRun) {
+  function failedItemRetryArguments(run: TaskRun): unknown | null {
+    if (run.capabilityId !== "compress_images") return null;
+    const output = run.output && typeof run.output === "object"
+      ? run.output as { items?: unknown }
+      : null;
+    const input = run.input && typeof run.input === "object" && !Array.isArray(run.input)
+      ? run.input as Record<string, unknown>
+      : null;
+    if (!input || !Array.isArray(output?.items)) return null;
+    const paths = output.items
+      .filter((item): item is { input: string; status: string } => {
+        if (!item || typeof item !== "object") return false;
+        const candidate = item as { input?: unknown; status?: unknown };
+        return candidate.status === "failed" && typeof candidate.input === "string";
+      })
+      .map((item) => item.input);
+    return paths.length > 0 ? { ...input, paths } : null;
+  }
+
+  async function retryTaskRun(run: TaskRun, argumentsOverride: unknown | null = null) {
+    const failedOnly = argumentsOverride !== null;
     busyKey = `run:retry:${run.id}`;
-    taskRunStatus = `正在重试 ${run.capabilityId}`;
+    taskRunStatus = failedOnly
+      ? `正在重试 ${run.capabilityId} 的失败项`
+      : `正在重试 ${run.capabilityId}`;
     try {
       const retry = await invoke<TaskRun>("start_agent_tool", {
         name: run.capabilityId,
-        arguments: run.input,
+        arguments: argumentsOverride ?? run.input,
         clientId: run.initiator.clientId ?? "atools-ui",
         confirmed: false,
         retryOf: run.id,
@@ -1252,6 +1274,7 @@
         </div>
         {#each taskRuns.filter((run) => run.id === selectedTaskRunId) as run}
           {@const statusMeta = taskRunStatusMeta(run)}
+          {@const failedRetryArguments = failedItemRetryArguments(run)}
           <article class="task-run-detail">
             <div class="task-run-detail-head">
               <div>
@@ -1267,8 +1290,8 @@
                 {#if taskRunCanRetry(run)}
                   <button
                     disabled={busyKey === `run:retry:${run.id}`}
-                    onclick={() => retryTaskRun(run)}
-                  >重试</button>
+                    onclick={() => retryTaskRun(run, failedRetryArguments)}
+                  >{failedRetryArguments ? "重试失败项" : "重试"}</button>
                 {/if}
                 {#if run.status === "succeeded"}
                   <button
