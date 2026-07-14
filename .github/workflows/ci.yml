@@ -97,7 +97,22 @@ jobs:
         run: |
           set -o pipefail
           pnpm test:desktop 2>&1 | tee test-desktop.log || {
-            diagnostic="$(tr '\r' '\n' < test-desktop.log | tail -n 80)"
+            # Cargo's in-place progress lines can consume GitHub's annotation
+            # limit before the actual desktop smoke failure is reached. Keep
+            # only the application/runtime tail and strip terminal escapes.
+            diagnostic="$(
+              tr '\r' '\n' < test-desktop.log |
+                perl -pe 's/\e\[[0-9;?]*[ -\/]*[@-~]//g' |
+                awk '/Running `.*target\/debug\/atools`/ { runtime = 1 } runtime' |
+                tail -n 24
+            )"
+            if [ -z "$diagnostic" ]; then
+              diagnostic="$(
+                tr '\r' '\n' < test-desktop.log |
+                  perl -pe 's/\e\[[0-9;?]*[ -\/]*[@-~]//g' |
+                  tail -n 24
+              )"
+            fi
             diagnostic="${diagnostic//'%'/'%25'}"
             diagnostic="${diagnostic//$'\r'/'%0D'}"
             diagnostic="${diagnostic//$'\n'/'%0A'}"
