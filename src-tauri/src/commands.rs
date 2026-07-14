@@ -4309,6 +4309,36 @@ pub fn get_task_run(state: tauri::State<AppState>, id: String) -> Result<Option<
 }
 
 #[tauri::command]
+pub fn cancel_task_run(state: tauri::State<AppState>, id: String) -> Result<TaskRun, String> {
+    let mut run = state
+        .db
+        .get_task_run(&id)
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| format!("TaskRun not found: {id}"))?;
+    if !matches!(
+        run.status,
+        TaskRunStatus::Created | TaskRunStatus::AwaitingPermission
+    ) {
+        return Err(format!(
+            "TaskRun {} cannot be cancelled from status {}",
+            run.id,
+            run.status.as_str()
+        ));
+    }
+    state
+        .pending_agent_requests
+        .lock()
+        .retain(|_, request| request.run_id.as_deref() != Some(run.id.as_str()));
+    run.summary = Some("TaskRun was cancelled by the user".to_string());
+    run.transition(TaskRunStatus::Cancelled);
+    state
+        .db
+        .upsert_task_run(&run)
+        .map_err(|error| error.to_string())?;
+    Ok(run)
+}
+
+#[tauri::command]
 pub fn list_audit_entries(
     state: tauri::State<AppState>,
     limit: Option<usize>,

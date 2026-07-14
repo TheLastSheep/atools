@@ -127,6 +127,7 @@ pub fn run() {
             commands::call_agent_tool,
             commands::list_task_runs,
             commands::get_task_run,
+            commands::cancel_task_run,
             commands::list_audit_entries,
             commands::query_audit_entries,
             commands::query_audit_entries_page,

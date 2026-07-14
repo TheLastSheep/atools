@@ -12,6 +12,7 @@
     AuditLogQuery,
     McpServerStatus,
     PendingAgentToolRequest,
+    TaskRun,
     ToolDefinition
   } from "../lib/types";
   import {
@@ -60,11 +61,14 @@
   let grants: AgentToolGrant[] = $state([]);
   let scopePolicies: AgentScopePolicy[] = $state([]);
   let pendingRequests: PendingAgentToolRequest[] = $state([]);
+  let taskRuns: TaskRun[] = $state([]);
   let status: McpServerStatus | null = $state(null);
   let permissionMode = $state("conservative");
   let error = $state("");
   let busyKey = $state("");
   let selectedAuditId = $state("");
+  let selectedTaskRunId = $state("");
+  let taskRunStatus = $state("");
   let auditQuery = $state("");
   let auditStatusFilter = $state("all");
   let auditToolFilter = $state("all");
@@ -135,7 +139,7 @@
 
   async function refresh() {
     try {
-      const [toolList, auditPage, mcpStatus, mode, grantList, scopePolicyList, pendingList] = await Promise.all([
+      const [toolList, auditPage, mcpStatus, mode, grantList, scopePolicyList, pendingList, runList] = await Promise.all([
         invoke<ToolDefinition[]>("list_agent_tools"),
         invoke<AuditLogPage>("query_audit_entries_page", { query: auditBackendQuery(auditPageLimit, 0) }),
         invoke<McpServerStatus | null>("get_mcp_status"),
@@ -143,6 +147,7 @@
         invoke<AgentToolGrant[]>("list_agent_tool_grants"),
         invoke<AgentScopePolicy[]>("list_agent_scope_policies"),
         invoke<PendingAgentToolRequest[]>("list_pending_agent_requests"),
+        invoke<TaskRun[]>("list_task_runs", { limit: 100 }),
       ]);
       tools = toolList;
       applyAuditPage(auditPage);
@@ -151,6 +156,10 @@
       grants = grantList;
       scopePolicies = scopePolicyList;
       pendingRequests = pendingList;
+      taskRuns = runList;
+      if (selectedTaskRunId && !runList.some((run) => run.id === selectedTaskRunId)) {
+        selectedTaskRunId = "";
+      }
       error = "";
     } catch (e) {
       error = String(e);
@@ -408,6 +417,79 @@
     }
   }
 
+  async function retryTaskRun(run: TaskRun) {
+    busyKey = `run:retry:${run.id}`;
+    taskRunStatus = `正在重试 ${run.capabilityId}`;
+    try {
+      await invoke("call_agent_tool", {
+        name: run.capabilityId,
+        arguments: run.input,
+        clientId: run.initiator.clientId ?? "atools-ui",
+        confirmed: false,
+        runId: run.id,
+      });
+      taskRunStatus = `${run.capabilityId} 重试已完成`;
+    } catch (e) {
+      taskRunStatus = String(e);
+    } finally {
+      await refresh();
+      busyKey = "";
+    }
+  }
+
+  async function cancelTaskRun(run: TaskRun) {
+    busyKey = `run:cancel:${run.id}`;
+    try {
+      await invoke("cancel_task_run", { id: run.id });
+      taskRunStatus = `${run.capabilityId} 已取消`;
+      await refresh();
+    } catch (e) {
+      taskRunStatus = String(e);
+    } finally {
+      busyKey = "";
+    }
+  }
+
+  async function copyTaskRun(run: TaskRun) {
+    busyKey = `run:copy:${run.id}`;
+    try {
+      await copyText(JSON.stringify(run, null, 2));
+      taskRunStatus = `已复制 ${run.capabilityId} 的完整结果`;
+    } finally {
+      busyKey = "";
+    }
+  }
+
+  function taskRunStatusMeta(run: TaskRun) {
+    if (run.status === "succeeded") return { label: "成功", tone: "success" };
+    if (run.status === "failed") return { label: "失败", tone: "error" };
+    if (run.status === "partial") return { label: "部分成功", tone: "pending" };
+    if (run.status === "cancelled") return { label: "已取消", tone: "denied" };
+    if (run.status === "awaiting_permission") return { label: "待授权", tone: "pending" };
+    if (run.status === "running") return { label: "执行中", tone: "pending" };
+    return { label: "已创建", tone: "pending" };
+  }
+
+  function taskRunValidationLabel(run: TaskRun) {
+    if (run.validation.status === "passed") return "验收通过";
+    if (run.validation.status === "failed") return "验收失败";
+    return "未执行验收";
+  }
+
+  function taskRunDuration(run: TaskRun) {
+    const metrics = run.metrics as { durationMs?: unknown } | null;
+    const durationMs = metrics?.durationMs;
+    return typeof durationMs === "number" ? auditDurationLabel(durationMs) : "—";
+  }
+
+  function taskRunCanRetry(run: TaskRun) {
+    return run.status === "failed" || run.status === "partial" || run.status === "cancelled";
+  }
+
+  function taskRunCanCancel(run: TaskRun) {
+    return run.status === "created" || run.status === "awaiting_permission";
+  }
+
   function compact(value: unknown) {
     return auditPreview(value);
   }
@@ -647,6 +729,140 @@
                 onclick={() => dismissRequest(request.id)}
               >拒绝</button>
             </div>
+          </article>
+        {/each}
+      </div>
+    {/if}
+  </section>
+
+  <section class="agent-section result-center-section">
+    <div class="section-title">
+      <div>
+        <h3>结果中心</h3>
+        <p>持久 TaskRun、验收状态与结构化产物</p>
+      </div>
+      <button onclick={refresh}>刷新</button>
+    </div>
+    {#if taskRunStatus}
+      <div class="empty">{taskRunStatus}</div>
+    {/if}
+    {#if taskRuns.length === 0}
+      <div class="empty">暂无 TaskRun；从 MCP 或 Agent 工具执行后会在这里保留结果。</div>
+    {:else}
+      <div class="task-run-layout">
+        <div class="task-run-list">
+          {#each taskRuns as run}
+            {@const statusMeta = taskRunStatusMeta(run)}
+            <button
+              class="task-run-row"
+              class:selected={selectedTaskRunId === run.id}
+              onclick={() => selectedTaskRunId = selectedTaskRunId === run.id ? "" : run.id}
+            >
+              <div class="task-run-row-head">
+                <strong>{run.capabilityId}</strong>
+                <span class={`status-badge ${statusMeta.tone}`}>{statusMeta.label}</span>
+              </div>
+              <p>{run.summary ?? "等待执行摘要"}</p>
+              <small>
+                {run.initiator.type} · {run.initiator.clientId ?? "local"} · {taskRunDuration(run)} · {run.createdAt}
+              </small>
+            </button>
+          {/each}
+        </div>
+        {#each taskRuns.filter((run) => run.id === selectedTaskRunId) as run}
+          {@const statusMeta = taskRunStatusMeta(run)}
+          <article class="task-run-detail">
+            <div class="task-run-detail-head">
+              <div>
+                <strong>{run.capabilityId}</strong>
+                <code>{run.id}</code>
+              </div>
+              <div class="row-actions">
+                <span class={`status-badge ${statusMeta.tone}`}>{statusMeta.label}</span>
+                <button
+                  disabled={busyKey === `run:copy:${run.id}`}
+                  onclick={() => copyTaskRun(run)}
+                >复制</button>
+                {#if taskRunCanRetry(run)}
+                  <button
+                    disabled={busyKey === `run:retry:${run.id}`}
+                    onclick={() => retryTaskRun(run)}
+                  >重试</button>
+                {/if}
+                {#if taskRunCanCancel(run)}
+                  <button
+                    disabled={busyKey === `run:cancel:${run.id}`}
+                    onclick={() => cancelTaskRun(run)}
+                  >取消</button>
+                {/if}
+              </div>
+            </div>
+            <div class="task-run-summary-grid">
+              <div><span>来源</span><strong>{run.initiator.type} / {run.initiator.clientId ?? "local"}</strong></div>
+              <div><span>耗时</span><strong>{taskRunDuration(run)}</strong></div>
+              <div><span>验收</span><strong>{taskRunValidationLabel(run)}</strong></div>
+              <div><span>产物</span><strong>{run.artifacts.length}</strong></div>
+              <div><span>记忆</span><strong>{run.memoryIds.length}</strong></div>
+            </div>
+            {#if run.retryOf}
+              <p class="task-run-retry-link">重试来源：<code>{run.retryOf}</code></p>
+            {/if}
+            <section class="detail-block">
+              <h4>验收说明</h4>
+              <p>{run.validation.summary ?? "本次结果没有独立验收说明。"}</p>
+            </section>
+            {#if run.artifacts.length > 0}
+              <section class="detail-block">
+                <h4>Artifacts</h4>
+                <div class="artifact-list">
+                  {#each run.artifacts as artifact}
+                    <div>
+                      <strong>{artifact.label}</strong>
+                      <span>{artifact.kind} · {artifact.mediaType ?? "unknown"}</span>
+                      <code>{artifact.path ?? artifact.uri ?? "受控引用"}</code>
+                    </div>
+                  {/each}
+                </div>
+              </section>
+            {/if}
+            {#if run.warnings.length > 0 || run.errors.length > 0}
+              <section class="detail-block task-run-issues">
+                <h4>警告与错误</h4>
+                {#each [...run.warnings, ...run.errors] as issue}
+                  <p><strong>{issue.code}</strong> · {issue.message}</p>
+                {/each}
+              </section>
+            {/if}
+            <div class="task-run-data-grid">
+              <section class="detail-block">
+                <h4>输入</h4>
+                <pre>{auditDetailValue(run.input, "无输入")}</pre>
+              </section>
+              <section class="detail-block">
+                <h4>输出</h4>
+                <pre>{auditDetailValue(run.output, "无输出")}</pre>
+              </section>
+              <section class="detail-block">
+                <h4>指标</h4>
+                <pre>{auditDetailValue(run.metrics, "无指标")}</pre>
+              </section>
+            </div>
+            <section class="detail-block">
+              <h4>结果动作</h4>
+              {#if run.actions.length === 0}
+                <p>暂无后续动作；重试与取消仍会重新经过能力和权限检查。</p>
+              {:else}
+                <div class="artifact-list">
+                  {#each run.actions as action}
+                    <div>
+                      <strong>{action.label}</strong>
+                      <code>{action.capabilityId}</code>
+                      <span>{action.requiresConfirmation ? "需要确认" : "按策略检查"}</span>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
+            </section>
           </article>
         {/each}
       </div>
@@ -964,10 +1180,12 @@
     font-size: 18px;
   }
   .agent-header p,
+  .section-title p,
   .tool-row p,
   .scope-policy-row p,
   .pending-row p,
   .grant-row p,
+  .task-run-row p,
   .empty {
     margin: 4px 0 0;
     color: var(--text-tertiary);
@@ -983,6 +1201,147 @@
     border-radius: 6px;
     padding: 6px 10px;
     cursor: pointer;
+  }
+
+  .task-run-layout {
+    display: grid;
+    grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.4fr);
+    gap: 12px;
+    margin-top: 10px;
+  }
+
+  .task-run-list {
+    display: grid;
+    align-content: start;
+    gap: 6px;
+    max-height: 430px;
+    overflow: auto;
+  }
+
+  .task-run-row {
+    display: grid;
+    gap: 5px;
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .task-run-row.selected {
+    border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+    background: color-mix(in srgb, var(--accent) 7%, var(--bg-secondary));
+  }
+
+  .task-run-row-head,
+  .task-run-detail-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .task-run-row p {
+    overflow: hidden;
+    margin: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .task-run-row small,
+  .task-run-retry-link {
+    color: var(--text-tertiary);
+    font-size: 10.5px;
+  }
+
+  .task-run-detail {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+  }
+
+  .task-run-detail-head > div:first-child {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .task-run-detail code,
+  .artifact-list code {
+    overflow-wrap: anywhere;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+  }
+
+  .task-run-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .task-run-summary-grid > div {
+    min-width: 0;
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-primary);
+  }
+
+  .task-run-summary-grid span,
+  .task-run-summary-grid strong {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .task-run-summary-grid span,
+  .artifact-list span {
+    color: var(--text-tertiary);
+    font-size: 10.5px;
+  }
+
+  .task-run-summary-grid strong {
+    margin-top: 3px;
+    color: var(--text-primary);
+    font-size: 11px;
+  }
+
+  .task-run-data-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .artifact-list {
+    display: grid;
+    gap: 6px;
+  }
+
+  .artifact-list > div {
+    display: grid;
+    grid-template-columns: minmax(120px, 0.8fr) minmax(120px, 0.6fr) minmax(0, 1.6fr);
+    gap: 8px;
+    align-items: center;
+    padding: 7px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-primary);
+  }
+
+  .task-run-issues p,
+  .task-run-detail .detail-block > p {
+    margin: 4px 0 0;
+    color: var(--text-secondary);
+    font-size: 11px;
   }
   .icon-button {
     width: 28px;
@@ -1647,6 +2006,23 @@
   }
 
   @media (max-width: 760px) {
+    .task-run-layout,
+    .task-run-data-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .task-run-summary-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .artifact-list > div {
+      grid-template-columns: 1fr;
+    }
+
+    .task-run-detail-head {
+      flex-direction: column;
+    }
+
     .audit-summary-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }

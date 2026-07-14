@@ -381,6 +381,17 @@ async fn call_tool_with_task_run(
     let started = Instant::now();
     let mut run = resumable_task_run(db, run_id, client_id, tool_name, &arguments)
         .unwrap_or_else(|| new_task_run(client_id, tool_name, arguments.clone()));
+    if let Some(retry_of) = run_id
+        .filter(|run_id| run.id != *run_id)
+        .and_then(|run_id| db.get_task_run(run_id).ok().flatten())
+        .filter(|previous| {
+            previous.status.is_terminal()
+                && previous.capability_id == tool_name
+                && previous.initiator.client_id.as_deref() == Some(client_id)
+        })
+    {
+        run.retry_of = Some(retry_of.id);
+    }
     persist_task_run(db, &run);
 
     let Some(tool) = db
