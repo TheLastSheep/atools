@@ -9,3 +9,4 @@ target/
 src-tauri/gen/
 .vite/
 .playwright-cli/
+.worktrees/
