@@ -1,7 +1,7 @@
 # ATools 北极星交付审计
 
 > 基线：`docs/superpowers/specs/2026-07-14-atools-product-engineering-north-star.md`  
-> 审计日期：2026-07-14  
+> 审计日期：2026-07-15
 > 口径：只有源码、自动化测试、真实桌面 smoke、发布产物或受控实测能够证明的项目才记为完成。
 
 ## 状态定义
@@ -28,7 +28,7 @@
 | 要求 | 状态 | 权威证据 | 缺口 |
 | --- | --- | --- | --- |
 | 本地优先、无模型可用 | 已证明 | 搜索、插件、剪贴板、文件、设置与 MCP 核心均不要求模型；`ask_ai_model` 是独立可选工具 | 后续功能继续禁止引入强制远程依赖 |
-| MCP HTTP/stdio、模型无关 | 已证明 | `src-tauri/src/mcp_server.rs`、`crates/atools-core/src/mcp.rs`、`docs/agent-mcp-client.md`；桌面 MCP smoke | 保持协议兼容 |
+| MCP HTTP/stdio、模型无关 | 已证明 | `src-tauri/src/mcp_server.rs`、`crates/atools-core/src/mcp.rs`、`docs/agent-mcp-client.md`；HTTP 运行时按 MCP `2025-11-25` 协商可选 Tasks，静态 stdio fallback 不虚报异步能力；CI run `29352447573` 的真实桌面 smoke 完整验证能力、创建、查询、取消和结果读取 | Tasks 在该协议版本仍是实验能力，升级协议前必须重新核对兼容性 |
 | 人与 Agent 共用 TaskRun | 已证明 | MCP/Agent 工具由 `call_tool_with_task_run` 统一；插件激活、网页快开、URL 快开、本地启动/应用、粘贴工具、路径文本操作和纯文本复制均创建 TaskRun；`copy_text` 只持久化字符数/字节数和脱敏标记，CI run `29343263011` 的真实桌面与 release smoke 完整通过并验证正文未进入 input | 仅切换面板属于 UI 导航，不记作任务 |
 | 统一 Capability 目录 | 已证明 | `Capability` 核心合同与注册表统一适配内置/插件 Tool、插件 Feature 和 Skill，桌面 `list_capabilities` 与 MCP `atools://capabilities` 共用目录；CI run `29341354858` 完整通过 | 外部 MCP 执行器尚未接入；本地应用启动项属于搜索数据，不伪装成可复用 Tool |
 | 结构化执行优先 | 已证明 | 原生、插件、CLI/系统桥接优先；项目未内建通用 Computer Use/Browser Use 执行器 | 低优先级兜底一旦新增必须记录选择原因 |
@@ -38,12 +38,12 @@
 | 要求 | 状态 | 权威证据 | 缺口 |
 | --- | --- | --- | --- |
 | TaskRun 模型与状态机 | 已证明 | `TaskRunStatus::can_transition_to` 与 `InvalidTaskRunTransition` 在核心层拒绝非法跳转；回归覆盖成功终态不可重开及 partial/failed 重试；CI run `29338826896` | 无 |
-| MCP 结构化摘要、runId、指标和 Artifact | 已证明 | `task_run_envelope` 与 `scripts/test-task-run-contract.mjs` | 无 |
+| MCP 结构化摘要、runId、指标和 Artifact | 已证明 | `task_run_envelope`、`scripts/test-task-run-contract.mjs`；异步 `tools/call` 直接以持久 `TaskRun.runId` 作为 `taskId`，`tasks/result` 返回相同 CallToolResult envelope 和 related-task 元数据；CI run `29352447573` | 无 |
 | 持久结果中心 | 已证明 | `src/components/AgentPanel.svelte` 支持历史、详情、验收、错误、指标、复制和来源 | 无 |
 | 通用 Artifact 协议 | 已证明 | `ArtifactKind` 覆盖文件、目录、图片、截图、Markdown、富文本、表格、CSV、JSON、Diff、URL、报告和日志 | 大文件继续只保存受控引用 |
 | 专业 Artifact 渲染器 | 已证明 | `src/lib/artifactView.ts` 与结果中心实现图片、表格/CSV、Markdown、JSON、Diff、文件/目录、URL 和安全降级；`test-artifact-view.mjs`；CI run `29336438932` 完整通过 | 无 |
 | 打开、定位、复制产物 | 已证明 | 结果中心通过 `shell_open`、`shell_show_item_in_folder` 和剪贴板桥接执行；CI run `29336438932` 桌面 smoke 通过 | 无 |
-| 失败重试与取消 | 部分完成 | 终态失败/部分/取消的重试会立即创建带 `retryOf` 的后台 TaskRun；结果中心通过 `task-run-updated` 查看状态，并可中止受跟踪的 created/running/awaiting-permission 任务；取消终态优先于迟到执行结果；CI run `29350414557` 完整通过 | 直接同步调用和 MCP HTTP 调用尚未切换为可取消异步协议；同步副作用只能 best-effort 中止，失败项粒度重试尚未完成 |
+| 失败重试与取消 | 部分完成 | 终态失败/部分/取消的重试会立即创建带 `retryOf` 的后台 TaskRun；结果中心通过 `task-run-updated` 查看状态，并可中止受跟踪的 created/running/awaiting-permission 任务；MCP HTTP 保留同步短调用并支持客户端显式选择异步 Tasks，提供 `tasks/get`、`tasks/cancel`、`tasks/result`；取消终态优先于迟到执行结果；CI run `29352447573` 六个 job 全部成功且真实桌面走通 Tasks 生命周期 | 直接同步调用仍不可取消；同步副作用只能 best-effort 中止，失败项粒度重试尚未完成 |
 | 独立验收状态 | 已证明 | `TaskValidation` 与结果中心独立展示，不把调用成功等同目标验收 | 当前多数内置工具只有执行器级验收，仍需按 Skill/任务定义业务验收 |
 
 ## Phase 2：Skills 与执行记忆
