@@ -50,3 +50,8 @@ assert.doesNotMatch(
   /spawn\("pnpm", \["exec", "vite"/,
   "browser tests must not leave a Vite grandchild behind after killing pnpm",
 );
+assert.doesNotMatch(
+  browserUtils,
+  /readyPattern\.test/,
+  "browser tests must use the HTTP probe instead of depending on ANSI-formatted Vite output",
+);

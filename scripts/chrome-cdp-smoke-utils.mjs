@@ -62,7 +62,7 @@ export async function launchViteServer(options = {}) {
     output += chunk.toString();
   });
   try {
-    await waitForViteReady(child, () => output, { host, port, probeUrl, timeoutMs: options.timeoutMs ?? 20000 });
+    await waitForViteReady(child, { probeUrl, timeoutMs: options.timeoutMs ?? 20000 });
   } catch (error) {
     child.kill("SIGTERM");
     await waitForProcessExit(child, 3000);
@@ -317,14 +317,13 @@ class WebSocketConnection {
   }
 }
 
-function waitForViteReady(child, readOutput, options) {
-  const { host, port, probeUrl, timeoutMs } = options;
-  const readyPattern = new RegExp(`Local:\\s+http://${escapeRegExp(host)}:${port}/`);
+function waitForViteReady(child, options) {
+  const { probeUrl, timeoutMs } = options;
   return new Promise((resolve, reject) => {
     let settled = false;
     let lastError;
     const timer = setTimeout(() => {
-      finish(reject, new Error(`Timed out waiting for Vite server: ${lastError?.message || "ready URL not printed"}`));
+      finish(reject, new Error(`Timed out waiting for Vite server: ${lastError?.message || "HTTP probe did not become ready"}`));
     }, timeoutMs);
     const interval = setInterval(() => {
       void checkReady();
@@ -346,7 +345,6 @@ function waitForViteReady(child, readOutput, options) {
       callback(value);
     };
     const checkReady = async () => {
-      if (!readyPattern.test(readOutput())) return;
       try {
         const response = await fetch(probeUrl);
         await response.body?.cancel();
