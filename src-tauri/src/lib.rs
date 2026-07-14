@@ -7,6 +7,7 @@ mod hotkey;
 pub mod mcp_server;
 mod state;
 mod tray;
+mod updater;
 pub mod webdav;
 mod window;
 pub mod ztools_import;

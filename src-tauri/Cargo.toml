@@ -28,6 +28,8 @@ tauri-plugin-os = "2"
 tauri-plugin-process = "2"
 tauri-plugin-http = "2"
 tauri-plugin-updater = "2.10.1"
+async-trait.workspace = true
+semver = "1"
 
 tokio.workspace = true
 serde.workspace = true

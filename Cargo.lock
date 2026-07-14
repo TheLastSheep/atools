@@ -254,6 +254,7 @@ name = "atools"
 version = "3.0.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "atools-api-shim",
  "atools-core",
  "atools-plugin",
@@ -264,6 +265,7 @@ dependencies = [
  "once_cell",
  "parking_lot",
  "reqwest 0.12.28",
+ "semver",
  "serde",
  "serde_json",
  "sha2",
