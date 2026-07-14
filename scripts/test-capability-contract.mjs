@@ -34,6 +34,7 @@ for (const field of [
 
 assert.match(core, /pub enum CapabilitySourceKind[\s\S]*BuiltinTool[\s\S]*PluginTool[\s\S]*PluginFeature[\s\S]*Skill[\s\S]*ExternalMcp/);
 assert.match(core, /pub fn capability_catalog\(/);
+assert.match(core, /pub fn redacted_text_copy\(/);
 assert.match(core, /plugin\.feature\.\{\}/);
 assert.match(core, /"compress_images" \| "ocr_image" \| "open_or_reveal_path" \| "open_url"/);
 assert.match(commands, /pub fn list_capabilities\(/);

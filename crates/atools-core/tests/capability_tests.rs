@@ -24,7 +24,7 @@ fn catalog_normalizes_tools_plugin_features_and_skills() {
 
     let catalog = capability_catalog(&[tool], &[plugin], &[skill], "3.0.0");
 
-    assert_eq!(catalog.len(), 3);
+    assert_eq!(catalog.len(), 4);
     let tool = catalog
         .iter()
         .find(|capability| capability.id == "find_local_files")
@@ -57,6 +57,14 @@ fn catalog_normalizes_tools_plugin_features_and_skills() {
     assert_eq!(skill.executor.kind, CapabilityExecutorKind::SkillRecipe);
     assert_eq!(skill.version, "1.0.0");
     assert!(skill.agent_invocable);
+
+    let copy = catalog
+        .iter()
+        .find(|capability| capability.id == "copy_text")
+        .expect("redacted clipboard capability");
+    assert!(copy.human_invocable);
+    assert!(!copy.agent_invocable);
+    assert_eq!(copy.permission_scopes, vec!["clipboard_write"]);
 }
 
 #[test]

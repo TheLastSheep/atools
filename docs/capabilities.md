@@ -10,7 +10,7 @@
 - 执行器类型、执行器 id 和可用性原因；
 - 来源版本、已验证的 ATools 版本和平台。
 
-内置/插件 Tool 沿用 MCP tool name，避免 Skill 依赖与 TaskRun capability id 再做映射；其中当前确有 UI 入口的 `compress_images`、`ocr_image`、`open_or_reveal_path`、`open_url` 同时标记为人工可调。插件 Feature 沿用 `plugin.feature.<feature-code>`，与人工激活产生的 TaskRun 一致；Skill 使用 `skill.<skill-id>`。
+内置/插件 Tool 沿用 MCP tool name，避免 Skill 依赖与 TaskRun capability id 再做映射；其中当前确有 UI 入口的 `compress_images`、`ocr_image`、`open_or_reveal_path`、`open_url` 同时标记为人工可调。`copy_text` 是人工专用能力：TaskRun 只保存字符数、字节数和 `contentRedacted`，不会落剪贴板正文。插件 Feature 沿用 `plugin.feature.<feature-code>`，与人工激活产生的 TaskRun 一致；Skill 使用 `skill.<skill-id>`。
 
 桌面端 Agent 面板通过 `list_capabilities` 展示同一目录。外部 Agent 可读取 MCP resource：
 

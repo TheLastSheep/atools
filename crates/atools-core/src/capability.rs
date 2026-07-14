@@ -76,6 +76,50 @@ pub struct Capability {
 }
 
 impl Capability {
+    pub fn redacted_text_copy(atools_version: &str) -> Self {
+        Self {
+            id: "copy_text".to_string(),
+            name: "Copy text".to_string(),
+            description:
+                "Copy text locally while persisting only redacted size metadata in TaskRun history"
+                    .to_string(),
+            source: CapabilitySource {
+                kind: CapabilitySourceKind::BuiltinTool,
+                id: "atools".to_string(),
+                name: "ATools".to_string(),
+            },
+            input_schema: json!({
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["text"],
+                "properties": {
+                    "text": { "type": "string", "description": "Clipboard text; never persisted in TaskRun input" }
+                }
+            }),
+            output_schema: Some(json!({
+                "type": "object",
+                "properties": {
+                    "copied": { "type": "boolean" },
+                    "characterCount": { "type": "integer" },
+                    "byteCount": { "type": "integer" }
+                }
+            })),
+            permission_scopes: vec!["clipboard_write".to_string()],
+            human_invocable: true,
+            agent_invocable: false,
+            executor: CapabilityExecutor {
+                kind: CapabilityExecutorKind::Builtin,
+                id: "copy_text".to_string(),
+            },
+            availability: CapabilityAvailability {
+                available: true,
+                reason: None,
+            },
+            version: atools_version.to_string(),
+            compatibility: current_compatibility(atools_version),
+        }
+    }
+
     pub fn from_tool(
         tool: &ToolDefinition,
         source_name: impl Into<String>,
@@ -262,6 +306,7 @@ pub fn capability_catalog(
         })
         .collect::<BTreeMap<_, _>>();
     let mut registry = CapabilityRegistry::default();
+    registry.register(Capability::redacted_text_copy(atools_version));
     for tool in tools {
         let (source_name, version) = tool
             .plugin_id

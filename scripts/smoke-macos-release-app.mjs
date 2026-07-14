@@ -198,6 +198,11 @@ export function evaluateReleaseAppSmoke(input) {
         ? ok("release-smoke-agent", "Release smoke reported agent/mcp page opening")
         : error("release-smoke-agent", "Release smoke did not confirm agent/mcp page opening")
     );
+    checks.push(
+      releaseSmoke.clipboard_copy_tracked === true
+        ? ok("release-smoke-clipboard-task-run", "Release smoke confirmed redacted clipboard TaskRun persistence")
+        : error("release-smoke-clipboard-task-run", "Release smoke did not confirm the redacted clipboard TaskRun contract")
+    );
     if (!Array.isArray(releaseSmoke.errors)) {
       checks.push(
         warn(releaseSmokeErrorPrefix, `${releaseSmokeErrorPrefix}: missing errors field in report`)

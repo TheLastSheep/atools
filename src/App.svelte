@@ -3,7 +3,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
   import { homeDir } from "@tauri-apps/api/path";
-  import { readText, writeText } from "@tauri-apps/plugin-clipboard-manager";
+  import { readText } from "@tauri-apps/plugin-clipboard-manager";
   import HomePanel from "./components/HomePanel.svelte";
   import AppUpdatePrompt from "./components/AppUpdatePrompt.svelte";
   import PermissionConfirmDialog from "./components/PermissionConfirmDialog.svelte";
@@ -14,7 +14,7 @@
   import ShellFrame from "./components/ShellFrame.svelte";
   import SystemPanel from "./components/SystemPanel.svelte";
   import ZMark from "./components/ZMark.svelte";
-  import type { FeatureAction, PendingAgentToolRequest, SearchResult } from "./lib/types";
+  import type { FeatureAction, PendingAgentToolRequest, SearchResult, TaskRun } from "./lib/types";
   import { desktopSmokePluginQueueActionActive } from "./lib/desktopSmokePluginQueue";
   import {
     applyAToolsAppearance,
@@ -116,6 +116,7 @@
     settings_page_opened?: boolean;
     plugin_page_opened?: boolean;
     agent_page_opened?: boolean;
+    clipboard_copy_tracked?: boolean;
     errors?: string[];
     completed?: boolean;
   };
@@ -702,7 +703,7 @@
       const cmdLabel = typeof detail?.cmdLabel === "string" ? detail.cmdLabel.trim() : "";
       if (detail?.autocopy === true && cmdLabel && navigator.clipboard?.writeText) {
         try {
-          await navigator.clipboard.writeText(cmdLabel);
+          await copyText(cmdLabel);
         } catch (err) {
           console.warn("[PluginPanel] redirectHotKeySetting autocopy failed:", err);
         }
@@ -1064,6 +1065,7 @@
             settings_page_opened: patch.settings_page_opened,
             plugin_page_opened: patch.plugin_page_opened,
             agent_page_opened: patch.agent_page_opened,
+            clipboard_copy_tracked: patch.clipboard_copy_tracked,
             errors,
             completed: patch.completed ?? false,
           },
@@ -1082,6 +1084,7 @@
             settings_page_opened: patch.settings_page_opened,
             plugin_page_opened: patch.plugin_page_opened,
             agent_page_opened: patch.agent_page_opened,
+            clipboard_copy_tracked: patch.clipboard_copy_tracked,
             errors,
             completed: patch.completed ?? false,
           });
@@ -1103,6 +1106,26 @@
       errors.push(`Option+Z smoke failed: ${String(error)}`);
     }
     await emitReport({ option_z_toggled: optionZToggled });
+
+    let clipboardCopyTracked = false;
+    try {
+      await invoke("copy_text", { text: "ATools release smoke" });
+      const runs = await invoke<TaskRun[]>("list_task_runs", { limit: 10 });
+      const copyRun = runs.find((run) => run.capabilityId === "copy_text");
+      const redactedInput = copyRun?.input && typeof copyRun.input === "object" && !Array.isArray(copyRun.input)
+        ? copyRun.input as Record<string, unknown>
+        : null;
+      clipboardCopyTracked = copyRun?.status === "succeeded"
+        && redactedInput?.contentRedacted === true
+        && redactedInput.characterCount === 20
+        && !("text" in redactedInput);
+      if (!clipboardCopyTracked) {
+        errors.push("Clipboard copy TaskRun did not preserve the redacted input contract");
+      }
+    } catch (error) {
+      errors.push(`Clipboard copy TaskRun smoke failed: ${String(error)}`);
+    }
+    await emitReport({ clipboard_copy_tracked: clipboardCopyTracked });
 
     let settingsOpened = false;
     try {
@@ -1172,7 +1195,7 @@
   async function copySuperPanelText() {
     if (!superPanelClipboardText.trim()) return;
     try {
-      await writeText(superPanelClipboardText);
+      await copyText(superPanelClipboardText);
       superPanelStatus = "已复制";
     } catch (error) {
       superPanelStatus = String(error);
@@ -1587,11 +1610,11 @@
   }
 
   async function copyText(text: string) {
-    try {
-      await writeText(text);
-    } catch {
-      await navigator.clipboard.writeText(text);
+    if (hasTauriRuntime()) {
+      await invoke("copy_text", { text });
+      return;
     }
+    await navigator.clipboard.writeText(text);
   }
 
   async function activatePastedResult(result: SearchResult) {

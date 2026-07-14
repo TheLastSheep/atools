@@ -2,7 +2,6 @@
   import { onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
-  import { writeText } from "@tauri-apps/plugin-clipboard-manager";
   import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
   import SettingsConfirmDialog from "./SettingsConfirmDialog.svelte";
   import {
@@ -3076,11 +3075,11 @@
   }
 
   async function copyText(text: string) {
-    try {
-      await writeText(text);
-    } catch {
-      await navigator.clipboard.writeText(text);
+    if (hasTauriRuntime()) {
+      await invoke("copy_text", { text });
+      return;
     }
+    await navigator.clipboard.writeText(text);
   }
 
   function shortcutSaveText() {

@@ -2234,6 +2234,7 @@ pub struct ReleaseSmokeProgressReport {
     settings_page_opened: Option<bool>,
     plugin_page_opened: Option<bool>,
     agent_page_opened: Option<bool>,
+    clipboard_copy_tracked: Option<bool>,
     errors: Option<Vec<String>>,
     completed: Option<bool>,
 }
@@ -2268,13 +2269,14 @@ pub fn report_release_smoke_progress(
             .ok_or_else(|| "Release smoke is not enabled".to_string())?
     };
     tracing::debug!(
-        "Release smoke report received: token={} completed={} option_z={} settings={} plugin={} agent={}",
+        "Release smoke report received: token={} completed={} option_z={} settings={} plugin={} agent={} clipboard_copy={}",
         report.token,
         report.completed.unwrap_or(false),
         report.option_z_toggled.unwrap_or_default(),
         report.settings_page_opened.unwrap_or_default(),
         report.plugin_page_opened.unwrap_or_default(),
         report.agent_page_opened.unwrap_or_default(),
+        report.clipboard_copy_tracked.unwrap_or_default(),
     );
     if config.token != report.token {
         return Err("Invalid release smoke token".to_string());
@@ -2294,6 +2296,9 @@ pub fn report_release_smoke_progress(
     }
     if let Some(value) = report.agent_page_opened {
         progress.agent_page_opened = Some(value);
+    }
+    if let Some(value) = report.clipboard_copy_tracked {
+        progress.clipboard_copy_tracked = Some(value);
     }
     if let Some(errors) = report.errors {
         progress.errors = errors;
@@ -3868,9 +3873,67 @@ mod settings_command_tests {
 // --- Plugin utility commands (called from iframe via utools bridge) ---
 
 #[tauri::command]
-pub async fn copy_text(app: AppHandle, text: String) -> Result<(), String> {
+pub async fn copy_text(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    text: String,
+) -> Result<(), String> {
     use tauri_plugin_clipboard_manager::ClipboardExt;
-    app.clipboard().write_text(&text).map_err(|e| e.to_string())
+    let started = std::time::Instant::now();
+    let character_count = text.chars().count();
+    let byte_count = text.len();
+    let mut run = TaskRun::new(
+        "copy_text",
+        TaskRunInitiator::human(Some("atools-ui".to_string())),
+        serde_json::json!({
+            "contentRedacted": true,
+            "characterCount": character_count,
+            "byteCount": byte_count,
+        }),
+    );
+    run.transition(TaskRunStatus::Running)
+        .expect("human clipboard TaskRun can start");
+    state
+        .db
+        .upsert_task_run(&run)
+        .map_err(|error| error.to_string())?;
+
+    match app.clipboard().write_text(&text) {
+        Ok(()) => {
+            run.output = serde_json::json!({
+                "copied": true,
+                "characterCount": character_count,
+                "byteCount": byte_count,
+            });
+            run.summary = Some(format!(
+                "Copied {character_count} characters to the clipboard"
+            ));
+            run.validation.status = TaskValidationStatus::Passed;
+            run.validation.summary =
+                Some("Clipboard write completed; text content was not persisted".to_string());
+            run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
+            run.transition(TaskRunStatus::Succeeded)
+                .expect("running clipboard TaskRun can succeed");
+            state
+                .db
+                .upsert_task_run(&run)
+                .map_err(|error| error.to_string())?;
+            Ok(())
+        }
+        Err(error) => {
+            let message = error.to_string();
+            run.summary = Some("Failed to copy text to the clipboard".to_string());
+            run.errors
+                .push(TaskIssue::error("clipboard_write_failed", message.clone()));
+            run.validation.status = TaskValidationStatus::Failed;
+            run.validation.summary = Some("Clipboard write failed".to_string());
+            run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
+            run.transition(TaskRunStatus::Failed)
+                .expect("running clipboard TaskRun can fail");
+            let _ = state.db.upsert_task_run(&run);
+            Err(message)
+        }
+    }
 }
 
 #[tauri::command]
