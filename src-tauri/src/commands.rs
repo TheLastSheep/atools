@@ -10,6 +10,7 @@ use atools_core::agent::{
     AgentToolGrant, AuditLogEntry, AuditLogPage, AuditLogQuery, PendingAgentToolRequest,
     PermissionMode, ToolDefinition,
 };
+use atools_core::capability::{capability_catalog, Capability};
 use atools_core::config::AppConfig;
 use atools_core::db::Database;
 use atools_core::matcher;
@@ -4237,6 +4238,25 @@ pub fn get_plugin_data_attachment(
 #[tauri::command]
 pub fn list_agent_tools(state: tauri::State<AppState>) -> Result<Vec<ToolDefinition>, String> {
     state.db.list_agent_tools().map_err(|e| e.to_string())
+}
+
+pub(crate) fn capability_catalog_for_db(db: &Database) -> Result<Vec<Capability>, String> {
+    let tools = db.list_agent_tools().map_err(|error| error.to_string())?;
+    let plugins = db.list_plugins().map_err(|error| error.to_string())?;
+    let skills = db
+        .list_skills(true, 500)
+        .map_err(|error| error.to_string())?;
+    Ok(capability_catalog(
+        &tools,
+        &plugins,
+        &skills,
+        env!("CARGO_PKG_VERSION"),
+    ))
+}
+
+#[tauri::command]
+pub fn list_capabilities(state: tauri::State<AppState>) -> Result<Vec<Capability>, String> {
+    capability_catalog_for_db(&state.db)
 }
 
 #[tauri::command]

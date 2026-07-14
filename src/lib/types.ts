@@ -50,6 +50,35 @@ export type ToolDefinition = {
   plugin_id?: string | null;
 };
 
+export type Capability = {
+  id: string;
+  name: string;
+  description: string;
+  source: {
+    kind: "builtin_tool" | "plugin_tool" | "plugin_feature" | "skill" | "external_mcp";
+    id: string;
+    name: string;
+  };
+  inputSchema: unknown;
+  outputSchema?: unknown;
+  permissionScopes: string[];
+  humanInvocable: boolean;
+  agentInvocable: boolean;
+  executor: {
+    kind: "builtin" | "plugin" | "skill_recipe" | "external_mcp";
+    id: string;
+  };
+  availability: {
+    available: boolean;
+    reason?: string;
+  };
+  version: string;
+  compatibility: {
+    testedAtoolsVersion: string;
+    platforms: string[];
+  };
+};
+
 export type McpServerStatus = {
   enabled: boolean;
   bind: string;

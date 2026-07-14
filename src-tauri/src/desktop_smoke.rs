@@ -2752,11 +2752,17 @@ fn send_mcp_agent_tools_resource_request(bind: &str, token: &str) -> Result<(), 
             .and_then(|result| result.get("resources"))
             .and_then(serde_json::Value::as_array)
             .is_some_and(|resources| {
-                resources.iter().any(|resource| {
+                let has_agent_tools = resources.iter().any(|resource| {
                     resource.get("uri") == Some(&json!("atools://agent/tools"))
                         && resource.get("name") == Some(&json!("agent_tools"))
                         && resource.get("mimeType") == Some(&json!("application/json"))
-                })
+                });
+                let has_capabilities = resources.iter().any(|resource| {
+                    resource.get("uri") == Some(&json!("atools://capabilities"))
+                        && resource.get("name") == Some(&json!("capabilities"))
+                        && resource.get("mimeType") == Some(&json!("application/json"))
+                });
+                has_agent_tools && has_capabilities
             });
     if !resource_list_ok {
         return Err(format!(
@@ -2790,10 +2796,45 @@ fn send_mcp_agent_tools_resource_request(bind: &str, token: &str) -> Result<(), 
         && resource_text.contains("find_local_files")
         && resource_text.contains("search_clipboard")
         && resource_text.contains("inputSchema");
-    resource_read_ok.then_some(()).ok_or_else(|| {
-        format!(
+    if !resource_read_ok {
+        return Err(format!(
             "unexpected MCP resources/read response: {} {}",
             read_response.status, read_response.body
+        ));
+    }
+
+    let capability_response = send_mcp_http_request(
+        bind,
+        token,
+        json!({
+            "jsonrpc": "2.0",
+            "id": 7009,
+            "method": "resources/read",
+            "params": {
+                "uri": "atools://capabilities"
+            }
+        }),
+    )?;
+    let capability_payload = serde_json::from_str::<serde_json::Value>(&capability_response.body)
+        .map_err(|error| error.to_string())?;
+    let capability_text = capability_payload
+        .pointer("/result/contents/0/text")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default();
+    let capability_read_ok = capability_response.status == 200
+        && capability_payload.get("id") == Some(&json!(7009))
+        && capability_payload.pointer("/result/contents/0/uri")
+            == Some(&json!("atools://capabilities"))
+        && capability_payload.pointer("/result/contents/0/mimeType")
+            == Some(&json!("application/json"))
+        && capability_text.contains("atools_capabilities")
+        && capability_text.contains("find_local_files")
+        && capability_text.contains("permissionScopes")
+        && capability_text.contains("agentInvocable");
+    capability_read_ok.then_some(()).ok_or_else(|| {
+        format!(
+            "unexpected MCP capabilities resource response: {} {}",
+            capability_response.status, capability_response.body
         )
     })
 }

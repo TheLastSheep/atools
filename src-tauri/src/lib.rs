@@ -116,6 +116,7 @@ pub fn run() {
             commands::put_plugin_data_attachment,
             commands::get_plugin_data_attachment,
             commands::list_agent_tools,
+            commands::list_capabilities,
             commands::set_agent_tool_enabled,
             commands::grant_agent_tool,
             commands::revoke_agent_tool,

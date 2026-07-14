@@ -384,6 +384,28 @@ fn mcp_static_handler_exposes_builtin_agent_tools_resource_and_read() {
     assert!(text.contains("find_local_files"));
     assert!(text.contains("inputSchema"));
 
+    assert_eq!(
+        list["result"]["resources"][1]["uri"],
+        "atools://capabilities"
+    );
+    let capabilities = handle_static_mcp_request(
+        &registry,
+        json!({
+            "jsonrpc": "2.0",
+            "id": 24,
+            "method": "resources/read",
+            "params": { "uri": "atools://capabilities" }
+        }),
+        |_| panic!("resources/read must not call tools"),
+    );
+    let capability_text = capabilities["result"]["contents"][0]["text"]
+        .as_str()
+        .expect("capability resource text");
+    assert!(capability_text.contains("atools_capabilities"));
+    assert!(capability_text.contains("search_clipboard"));
+    assert!(capability_text.contains("permissionScopes"));
+    assert!(capability_text.contains("agentInvocable"));
+
     let missing = handle_static_mcp_request(
         &registry,
         json!({

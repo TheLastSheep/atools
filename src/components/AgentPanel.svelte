@@ -10,6 +10,7 @@
     AuditLogEntry,
     AuditLogPage,
     AuditLogQuery,
+    Capability,
     McpServerStatus,
     MemoryItem,
     PendingAgentToolRequest,
@@ -71,6 +72,7 @@
 
   let { onclose }: Props = $props();
   let tools: ToolDefinition[] = $state([]);
+  let capabilities: Capability[] = $state([]);
   let audits: AuditLogEntry[] = $state([]);
   let grants: AgentToolGrant[] = $state([]);
   let scopePolicies: AgentScopePolicy[] = $state([]);
@@ -167,8 +169,9 @@
 
   async function refresh() {
     try {
-      const [toolList, auditPage, mcpStatus, mode, grantList, scopePolicyList, pendingList, runList, memoryList, skillList] = await Promise.all([
+      const [toolList, capabilityList, auditPage, mcpStatus, mode, grantList, scopePolicyList, pendingList, runList, memoryList, skillList] = await Promise.all([
         invoke<ToolDefinition[]>("list_agent_tools"),
+        invoke<Capability[]>("list_capabilities"),
         invoke<AuditLogPage>("query_audit_entries_page", { query: auditBackendQuery(auditPageLimit, 0) }),
         invoke<McpServerStatus | null>("get_mcp_status"),
         invoke<string>("get_permission_mode"),
@@ -180,6 +183,7 @@
         invoke<SkillDefinition[]>("list_skills", { includeDisabled: true, limit: 500 }),
       ]);
       tools = toolList;
+      capabilities = capabilityList;
       applyAuditPage(auditPage);
       status = mcpStatus;
       permissionMode = mode;
@@ -875,6 +879,23 @@
     return [...new Set([...options, ...(selectedValue ? [selectedValue] : [])])].sort();
   }
 
+  function capabilitySourceLabel(capability: Capability) {
+    switch (capability.source.kind) {
+      case "builtin_tool": return "内置工具";
+      case "plugin_tool": return "插件工具";
+      case "plugin_feature": return "插件功能";
+      case "skill": return "Skill";
+      case "external_mcp": return "外部 MCP";
+    }
+  }
+
+  function capabilityInvocationLabel(capability: Capability) {
+    if (capability.humanInvocable && capability.agentInvocable) return "人 / Agent";
+    if (capability.humanInvocable) return "人工";
+    if (capability.agentInvocable) return "Agent";
+    return "仅目录";
+  }
+
   function hasActiveAuditFilters() {
     return Boolean(
       normalizedFilterValue(auditQuery)
@@ -1028,6 +1049,44 @@
                 disabled={busyKey === `pending:${request.id}`}
                 onclick={() => dismissRequest(request.id)}
               >拒绝</button>
+            </div>
+          </article>
+        {/each}
+      </div>
+    {/if}
+  </section>
+
+  <section class="agent-section skill-section">
+    <div class="section-title">
+      <div>
+        <h3>能力目录</h3>
+        <p>内置工具、插件工具、插件 Feature 与 Skill 共用稳定标识、schema、权限、执行器和可用性合同</p>
+      </div>
+      <button onclick={refresh}>刷新</button>
+    </div>
+    {#if capabilities.length === 0}
+      <div class="empty">暂无已注册能力</div>
+    {:else}
+      <div class="capability-list">
+        {#each capabilities as capability}
+          <article class="capability-row" class:disabled={!capability.availability.available}>
+            <div class="capability-row-head">
+              <div>
+                <strong>{capability.name}</strong>
+                <code>{capability.id} · v{capability.version}</code>
+              </div>
+              <div class="capability-tags">
+                <span>{capabilitySourceLabel(capability)}</span>
+                <span>{capabilityInvocationLabel(capability)}</span>
+                <span>{capability.availability.available ? "可用" : capability.availability.reason ?? "不可用"}</span>
+              </div>
+            </div>
+            <p>{capability.description}</p>
+            <div class="capability-meta">
+              <span>来源 · {capability.source.name} / {capability.source.id}</span>
+              <span>执行器 · {capability.executor.kind} / {capability.executor.id}</span>
+              <span>权限 · {capability.permissionScopes.join("、") || "无"}</span>
+              <span>兼容 · ATools {capability.compatibility.testedAtoolsVersion} / {capability.compatibility.platforms.join("、")}</span>
             </div>
           </article>
         {/each}
@@ -1759,7 +1818,8 @@
   }
 
   .skill-editor > p,
-  .skill-row > p {
+  .skill-row > p,
+  .capability-row > p {
     margin: 0;
     color: var(--text-tertiary);
     font-size: 11px;
@@ -1769,6 +1829,70 @@
     display: grid;
     gap: 7px;
     margin-top: 10px;
+  }
+
+  .capability-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    margin-top: 10px;
+  }
+
+  .capability-row {
+    display: grid;
+    gap: 7px;
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: var(--bg-secondary);
+  }
+
+  .capability-row.disabled {
+    opacity: 0.58;
+  }
+
+  .capability-row-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .capability-row-head > div:first-child {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .capability-row-head code,
+  .capability-meta span {
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    overflow-wrap: anywhere;
+  }
+
+  .capability-tags {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 4px;
+  }
+
+  .capability-tags span {
+    padding: 2px 6px;
+    border-radius: 999px;
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    font-size: 10px;
+    white-space: nowrap;
+  }
+
+  .capability-meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px 12px;
   }
 
   .skill-row {
@@ -2861,6 +2985,15 @@
 
     .skill-meta-grid {
       grid-template-columns: 1fr;
+    }
+
+    .capability-list,
+    .capability-meta {
+      grid-template-columns: 1fr;
+    }
+
+    .capability-row-head {
+      flex-direction: column;
     }
 
     .skill-row-head {

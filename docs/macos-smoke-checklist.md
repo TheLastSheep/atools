@@ -611,7 +611,7 @@ curl -s http://127.0.0.1:<PORT>/mcp \
   -d '{"jsonrpc":"2.0","id":23,"method":"prompts/list","params":{}}'
 ```
 
-期望 `resources/list` 至少包含 `uri:"atools://agent/tools"`、`name:"agent_tools"` 和 `mimeType:"application/json"`；`resources/templates/list` 返回 `result.resourceTemplates: []` 且不包含 `nextCursor`。`prompts/list` 应至少包含 `name:"atools_agent_tool_guide"`、`description:"Guide for choosing ATools local Agent tools"` 和可选参数 `task`。
+期望 `resources/list` 至少包含 `uri:"atools://agent/tools"`、`name:"agent_tools"`，以及统一目录 `uri:"atools://capabilities"`、`name:"capabilities"`，MIME type 均为 `application/json`；`resources/templates/list` 返回 `result.resourceTemplates: []` 且不包含 `nextCursor`。`prompts/list` 应至少包含 `name:"atools_agent_tool_guide"`、`description:"Guide for choosing ATools local Agent tools"` 和可选参数 `task`。
 
 资源读取：
 

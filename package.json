@@ -157,6 +157,7 @@
     "test:skill-contract": "node scripts/test-skill-contract.mjs",
     "test:database-benchmark": "node scripts/test-database-benchmark.mjs",
     "test:human-capability-pipeline": "node scripts/test-human-capability-pipeline.mjs",
+    "test:capability-contract": "node scripts/test-capability-contract.mjs",
     "test:macos-runtime-benchmark": "node scripts/test-macos-runtime-benchmark.mjs",
     "test:release-bundle-budget": "node scripts/test-release-bundle-budget.mjs",
     "test:macos-release-readiness": "node scripts/test-macos-release-readiness.mjs",

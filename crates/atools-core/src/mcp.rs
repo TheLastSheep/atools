@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::agent::{ToolDefinition, ToolRegistry};
+use crate::capability::{capability_catalog, Capability};
 use crate::skill::SkillDefinition;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,12 +56,25 @@ pub fn handle_mcp_message_with_skills(
     request: Value,
     mut call_tool: impl FnMut(McpToolCallRequest) -> McpToolCallResult,
 ) -> Option<Value> {
-    handle_static_mcp_message_inner(registry, skills, request, &mut call_tool)
+    let capabilities =
+        capability_catalog(&registry.list_all(), &[], skills, env!("CARGO_PKG_VERSION"));
+    handle_mcp_message_with_capabilities(registry, skills, &capabilities, request, &mut call_tool)
+}
+
+pub fn handle_mcp_message_with_capabilities(
+    registry: &ToolRegistry,
+    skills: &[SkillDefinition],
+    capabilities: &[Capability],
+    request: Value,
+    mut call_tool: impl FnMut(McpToolCallRequest) -> McpToolCallResult,
+) -> Option<Value> {
+    handle_static_mcp_message_inner(registry, skills, capabilities, request, &mut call_tool)
 }
 
 fn handle_static_mcp_message_inner(
     registry: &ToolRegistry,
     skills: &[SkillDefinition],
+    capabilities: &[Capability],
     request: Value,
     call_tool: &mut dyn FnMut(McpToolCallRequest) -> McpToolCallResult,
 ) -> Option<Value> {
@@ -76,7 +90,13 @@ fn handle_static_mcp_message_inner(
         let responses = batch
             .iter()
             .filter_map(|message| {
-                handle_static_mcp_message_inner(registry, skills, message.clone(), call_tool)
+                handle_static_mcp_message_inner(
+                    registry,
+                    skills,
+                    capabilities,
+                    message.clone(),
+                    call_tool,
+                )
             })
             .collect::<Vec<_>>();
 
@@ -129,11 +149,11 @@ fn handle_static_mcp_message_inner(
             "jsonrpc": "2.0",
             "id": id,
             "result": {
-                "resources": builtin_resources(skills)
+                "resources": builtin_resources(skills, capabilities)
             }
         }),
         "resources/read" => {
-            get_builtin_resource_response(id, registry, skills, request.get("params"))
+            get_builtin_resource_response(id, registry, skills, capabilities, request.get("params"))
         }
         "resources/templates/list" => json!({
             "jsonrpc": "2.0",
@@ -204,8 +224,9 @@ fn tool_to_mcp_json(tool: &ToolDefinition) -> Value {
 
 const AGENT_TOOLS_RESOURCE_URI: &str = "atools://agent/tools";
 const SKILLS_RESOURCE_URI: &str = "atools://skills";
+const CAPABILITIES_RESOURCE_URI: &str = "atools://capabilities";
 
-fn builtin_resources(skills: &[SkillDefinition]) -> Vec<Value> {
+fn builtin_resources(skills: &[SkillDefinition], capabilities: &[Capability]) -> Vec<Value> {
     let mut resources = vec![json!({
         "uri": AGENT_TOOLS_RESOURCE_URI,
         "name": "agent_tools",
@@ -222,6 +243,16 @@ fn builtin_resources(skills: &[SkillDefinition]) -> Vec<Value> {
             "mimeType": "application/json"
         }));
     }
+    resources.push(json!({
+        "uri": CAPABILITIES_RESOURCE_URI,
+        "name": "capabilities",
+        "title": "ATools Capability Directory",
+        "description": format!(
+            "Unified directory of {} built-in tool, plugin tool, plugin feature, and Skill capabilities.",
+            capabilities.len()
+        ),
+        "mimeType": "application/json"
+    }));
     resources
 }
 
@@ -229,6 +260,7 @@ fn get_builtin_resource_response(
     id: Value,
     registry: &ToolRegistry,
     skills: &[SkillDefinition],
+    capabilities: &[Capability],
     params: Option<&Value>,
 ) -> Value {
     let uri = params
@@ -237,6 +269,9 @@ fn get_builtin_resource_response(
         .unwrap_or_default();
     if uri == SKILLS_RESOURCE_URI {
         return skill_resource_response(id, uri, skills);
+    }
+    if uri == CAPABILITIES_RESOURCE_URI {
+        return capability_resource_response(id, uri, capabilities);
     }
     if let Some(skill_id) = uri.strip_prefix("atools://skills/") {
         let selected = skills
@@ -281,6 +316,25 @@ fn get_builtin_resource_response(
         "result": {
             "contents": [{
                 "uri": AGENT_TOOLS_RESOURCE_URI,
+                "mimeType": "application/json",
+                "text": text
+            }]
+        }
+    })
+}
+
+fn capability_resource_response(id: Value, uri: &str, capabilities: &[Capability]) -> Value {
+    let text = serde_json::to_string_pretty(&json!({
+        "kind": "atools_capabilities",
+        "capabilities": capabilities
+    }))
+    .unwrap_or_default();
+    json!({
+        "jsonrpc": "2.0",
+        "id": id,
+        "result": {
+            "contents": [{
+                "uri": uri,
                 "mimeType": "application/json",
                 "text": text
             }]

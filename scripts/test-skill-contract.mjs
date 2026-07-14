@@ -27,7 +27,7 @@ assert.match(database, /pub fn set_skill_enabled/);
 assert.match(mcp, /atools:\/\/skills/);
 assert.match(mcp, /atools_skill_/);
 assert.match(mcp, /Do not treat the skill as permission to bypass confirmation/);
-assert.match(server, /handle_mcp_message_with_skills/);
+assert.match(server, /handle_mcp_message_with_capabilities/);
 for (const command of ["list_skills", "create_skill", "update_skill", "set_skill_enabled", "delete_skill", "export_skills_json"]) {
   assert.match(commands, new RegExp(`pub fn ${command}`));
   assert.ok(appLib.includes(`commands::${command}`));
