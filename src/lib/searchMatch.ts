@@ -134,13 +134,43 @@ export function buildPreparedSearchTrigramSet(
   return trigrams;
 }
 
+export function buildPreparedSearchTrigramIndex(
+  candidates: PreparedSearchMatchCandidate[],
+): Map<string, number[]> {
+  const index = new Map<string, number[]>();
+  for (let position = 0; position < candidates.length; position += 1) {
+    const candidate = candidates[position];
+    const candidateTrigrams = new Set<string>();
+    addTrigrams(candidateTrigrams, candidate.haystack);
+    for (const alias of candidate.aliases) addTrigrams(candidateTrigrams, alias);
+    for (const trigram of candidateTrigrams) {
+      const positions = index.get(trigram);
+      if (positions) positions.push(position);
+      else index.set(trigram, [position]);
+    }
+  }
+  return index;
+}
+
+export function preparedSearchCandidateIndexes(
+  normalizedQuery: string,
+  trigramIndex: Map<string, number[]>,
+): number[] | null {
+  if (!canUseLexicalTrigrams(normalizedQuery)) return null;
+  let smallest: number[] | null = null;
+  for (const trigram of trigramsFor(normalizedQuery)) {
+    const positions = trigramIndex.get(trigram);
+    if (!positions) return [];
+    if (!smallest || positions.length < smallest.length) smallest = positions;
+  }
+  return smallest;
+}
+
 export function canSkipPreparedSearch(
   normalizedQuery: string,
   availableTrigrams: Set<string>,
 ): boolean {
-  if (normalizedQuery.length < 3) return false;
-  if (normalizedQuery.length <= 8 && !normalizedQuery.includes(" ")) return false;
-  if (searchPinyinResolver && /^[a-z0-9]+$/.test(normalizedQuery)) return false;
+  if (!canUseLexicalTrigrams(normalizedQuery)) return false;
   return trigramsFor(normalizedQuery).some((trigram) => !availableTrigrams.has(trigram));
 }
 
@@ -202,6 +232,13 @@ function normalizePinyinToken(value: string): string {
 
 function addTrigrams(target: Set<string>, value: string) {
   for (const trigram of trigramsFor(value)) target.add(trigram);
+}
+
+function canUseLexicalTrigrams(normalizedQuery: string): boolean {
+  if (normalizedQuery.length < 3) return false;
+  if (normalizedQuery.length <= 8 && !normalizedQuery.includes(" ")) return false;
+  if (searchPinyinResolver && /^[a-z0-9]+$/.test(normalizedQuery)) return false;
+  return true;
 }
 
 function trigramsFor(value: string): string[] {

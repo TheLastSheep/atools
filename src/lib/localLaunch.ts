@@ -1,11 +1,12 @@
 import type { SearchResult } from "./types";
 import {
-  buildPreparedSearchTrigramSet,
+  buildPreparedSearchTrigramIndex,
   canSkipPreparedSearch,
   insertBoundedSearchResult,
   MAX_SEARCH_MATCH_SCORE,
   normalizeSearchText,
   prepareSearchMatchCandidate,
+  preparedSearchCandidateIndexes,
   searchMatchForPreparedQuery,
   type PreparedSearchMatchCandidate,
 } from "./searchMatch";
@@ -44,6 +45,7 @@ type PreparedLocalSearch = {
     candidate: PreparedSearchMatchCandidate;
   }>;
   trigrams: Set<string>;
+  trigramIndex: Map<string, number[]>;
 };
 const localSearchCache = new WeakMap<LocalLaunchEntry[], PreparedLocalSearch>();
 
@@ -160,7 +162,10 @@ export function localLaunchResultsForQuery(value: string, entries: LocalLaunchEn
   const results: SearchResult[] = [];
   const prepared = preparedLocalSearchEntries(entries);
   if (canSkipPreparedSearch(normalized, prepared.trigrams)) return results;
-  for (const { entry, index, candidate } of prepared.entries) {
+  const candidateIndexes = preparedSearchCandidateIndexes(normalized, prepared.trigramIndex);
+  const positions: Iterable<number> = candidateIndexes ?? prepared.entries.keys();
+  for (const position of positions) {
+    const { entry, index, candidate } = prepared.entries[position];
     if (
       results.length === LOCAL_SEARCH_RESULT_LIMIT
       && MAX_SEARCH_MATCH_SCORE - index <= results[results.length - 1].score
@@ -190,9 +195,11 @@ function preparedLocalSearchEntries(entries: LocalLaunchEntry[]) {
         aliases: [entry.keyword],
       }),
     }));
+  const trigramIndex = buildPreparedSearchTrigramIndex(preparedEntries.map((entry) => entry.candidate));
   const prepared = {
     entries: preparedEntries,
-    trigrams: buildPreparedSearchTrigramSet(preparedEntries.map((entry) => entry.candidate)),
+    trigrams: new Set(trigramIndex.keys()),
+    trigramIndex,
   };
   localSearchCache.set(entries, prepared);
   return prepared;

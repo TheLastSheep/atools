@@ -48,6 +48,16 @@ try {
   for (const score of [10, 30, 20, 40]) mod.insertBoundedSearchResult(bounded, { score }, 3);
   assert.deepEqual(bounded.map((item) => item.score), [40, 30, 20]);
 
+  const preparedCandidates = [
+    mod.prepareSearchMatchCandidate({ text: "Project Workspace 100", extraText: "/tmp/workspace-100" }),
+    mod.prepareSearchMatchCandidate({ text: "Project Workspace 99999", extraText: "/tmp/workspace-99999" }),
+    mod.prepareSearchMatchCandidate({ text: "Downloads", extraText: "/tmp/downloads" }),
+  ];
+  const trigramIndex = mod.buildPreparedSearchTrigramIndex(preparedCandidates);
+  assert.deepEqual(mod.preparedSearchCandidateIndexes("workspace 99999", trigramIndex), [1]);
+  assert.deepEqual(mod.preparedSearchCandidateIndexes("never present", trigramIndex), []);
+  assert.equal(mod.preparedSearchCandidateIndexes("gub", trigramIndex), null);
+
   const sorted = mod.sortSearchMatches([
     { id: "contains", match: mod.searchMatchForQuery("hub", { text: "GitHub" }) },
     { id: "pinyin", match: mod.searchMatchForQuery("sz", { text: "设置" }) },
