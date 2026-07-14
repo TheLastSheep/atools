@@ -51,6 +51,10 @@ export async function runMacosRuntimeBenchmark(options = {}) {
         !Number.isFinite(launch.launch_to_smoke_complete_ms) ||
         !Number.isFinite(launch.rss_kib) ||
         !Number.isFinite(launch.cpu_percent) ||
+        !Number.isFinite(launch.release_smoke_progress?.plugin_activation_ms) ||
+        launch.release_smoke_progress?.plugin_activation_feature !== "calc" ||
+        !Array.isArray(launch.release_smoke_progress?.errors) ||
+        launch.release_smoke_progress.errors.length > 0 ||
         launch.release_smoke_progress?.completed !== true ||
         launch.terminated !== true
       ) {
@@ -63,6 +67,7 @@ export async function runMacosRuntimeBenchmark(options = {}) {
         launch_to_smoke_complete_ms: launch.launch_to_smoke_complete_ms,
         rss_kib: launch.rss_kib,
         cpu_percent: launch.cpu_percent,
+        plugin_activation_ms: launch.release_smoke_progress.plugin_activation_ms,
       });
     } finally {
       rmSync(reportDir, { recursive: true, force: true });
@@ -85,6 +90,10 @@ export async function runMacosRuntimeBenchmark(options = {}) {
       if (
         launch.open_status !== 0 ||
         launch.release_smoke_progress?.completed !== true ||
+        !Array.isArray(launch.release_smoke_progress?.errors) ||
+        launch.release_smoke_progress.errors.length > 0 ||
+        !Number.isFinite(launch.release_smoke_progress?.plugin_activation_ms) ||
+        launch.release_smoke_progress?.plugin_activation_feature !== "calc" ||
         launch.alive_after_resource_settle !== true ||
         launch.resource_settle_ms < idleSampleMs ||
         !Number.isFinite(launch.rss_kib) ||
@@ -121,6 +130,7 @@ export async function runMacosRuntimeBenchmark(options = {}) {
     launch_to_smoke_complete_ms: distribution(runs.map((run) => run.launch_to_smoke_complete_ms)),
     rss_mib: distribution(runs.map((run) => run.rss_kib / 1024)),
     cpu_percent: distribution(runs.map((run) => run.cpu_percent)),
+    plugin_activation_ms: distribution(runs.map((run) => run.plugin_activation_ms)),
   };
   const exceeded =
     metrics.launch_to_first_report_ms.p99 > thresholds.first_report_ms ||
@@ -128,7 +138,7 @@ export async function runMacosRuntimeBenchmark(options = {}) {
     (idleSample?.rss_mib ?? 0) > thresholds.rss_mib ||
     app.bundle_bytes / 1024 / 1024 > thresholds.bundle_mib;
   return {
-    schema_version: 2,
+    schema_version: 3,
     generated_at: new Date().toISOString(),
     commit: process.env.GITHUB_SHA ?? "local",
     machine: {
@@ -204,6 +214,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       `::${result.status === "pass" ? "notice" : "warning"} title=ATools macOS runtime benchmark::` +
       `first-report P99 ${result.metrics.launch_to_first_report_ms.p99}ms; ` +
       `RSS P99 ${result.metrics.rss_mib.p99}MiB; ` +
+      `plugin activation P99 ${result.metrics.plugin_activation_ms.p99}ms; ` +
       `idle RSS ${result.idle_sample?.rss_mib ?? "not sampled"}MiB; ` +
       `bundle ${(result.app.bundle_bytes / 1024 / 1024).toFixed(2)}MiB`,
     );

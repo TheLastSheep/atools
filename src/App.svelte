@@ -117,8 +117,18 @@
     plugin_page_opened?: boolean;
     agent_page_opened?: boolean;
     clipboard_copy_tracked?: boolean;
+    plugin_activation_feature?: string;
+    plugin_activation_ms?: number;
     errors?: string[];
     completed?: boolean;
+  };
+
+  type PluginActivationWaiter = {
+    featureCode: string;
+    startedAt: number;
+    timeoutId: ReturnType<typeof setTimeout>;
+    resolve: (durationMs: number) => void;
+    reject: (error: Error) => void;
   };
 
   let query = $state("");
@@ -144,6 +154,7 @@
   let remoteSearchStatus = $state<RemoteSearchStatus>("idle");
   let searchError = $state("");
   let searchRunId = 0;
+  let pluginActivationWaiter: PluginActivationWaiter | null = null;
   let autoClearTimer: ReturnType<typeof setTimeout> | null = null;
   let clipboardPollTimer: ReturnType<typeof setInterval> | null = null;
   let lastClipboardText = "";
@@ -220,6 +231,7 @@
     desktopSmokeExpectedSamples: number;
     desktopSmokeSampleIndex: number;
     desktopSmokeExternalPlanSample: boolean;
+    onready?: () => void | Promise<void>;
     ondesktopsmokerender?: () => void | Promise<void>;
   }>;
 
@@ -580,10 +592,14 @@
     await activateFeature(item.code);
   }
 
-  async function activateFeature(code: string, payload?: unknown) {
+  async function activateFeature(
+    code: string,
+    payload?: unknown,
+    options: { waitForPluginReady?: boolean; readyTimeoutMs?: number; throwOnError?: boolean } = {},
+  ): Promise<number | null> {
     if (code.startsWith("system:")) {
       await activateSystemPanel(code.replace("system:", "") as ShellPanel);
-      return;
+      return null;
     }
 
     if (code.startsWith("web:")) {
@@ -591,7 +607,7 @@
       if (entry) {
         await openUrl(buildWebQuickOpenUrl(entry, ""));
       }
-      return;
+      return null;
     }
 
     if (code.startsWith("local:")) {
@@ -599,12 +615,12 @@
       if (entry) {
         await openLocalLaunchEntry(entry);
       }
-      return;
+      return null;
     }
 
     if (code.startsWith("local-app:")) {
       await openLocalAppPath(code.slice("local-app:".length));
-      return;
+      return null;
     }
 
     if (code.startsWith("paste:")) {
@@ -612,7 +628,7 @@
       if (result) {
         await activatePastedResult(result);
       }
-      return;
+      return null;
     }
 
     if (code.startsWith("url:")) {
@@ -620,7 +636,7 @@
       if (url) {
         await openUrl(url);
       }
-      return;
+      return null;
     }
 
     if (code.startsWith("text:")) {
@@ -628,14 +644,18 @@
       if (result) {
         await activateTextQuickAction(result);
       }
-      return;
+      return null;
     }
 
+    const activationStartedAt = performance.now();
     try {
       const action = await invoke<FeatureAction>("activate_feature", {
         code,
         payload: payload || null,
       });
+      const ready = options.waitForPluginReady
+        ? waitForPluginActivation(action.feature_code, activationStartedAt, options.readyTimeoutMs ?? 10000)
+        : null;
       activePlugin = action;
       results = [];
       selectedIndex = 0;
@@ -644,9 +664,41 @@
       } catch (e) {
         console.warn("Failed to expand window:", e);
       }
+      return ready ? await ready : null;
     } catch (e) {
+      cancelPluginActivationWaiter(e instanceof Error ? e : new Error(String(e)));
+      if (options.throwOnError) throw e;
       console.error("Activate failed:", e);
+      return null;
     }
+  }
+
+  function waitForPluginActivation(featureCode: string, startedAt: number, timeoutMs: number) {
+    cancelPluginActivationWaiter(new Error("Plugin activation was superseded"));
+    return new Promise<number>((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        if (pluginActivationWaiter?.featureCode !== featureCode) return;
+        pluginActivationWaiter = null;
+        reject(new Error(`Plugin ${featureCode} did not report ready within ${timeoutMs}ms`));
+      }, timeoutMs);
+      pluginActivationWaiter = { featureCode, startedAt, timeoutId, resolve, reject };
+    });
+  }
+
+  function cancelPluginActivationWaiter(error: Error) {
+    const waiter = pluginActivationWaiter;
+    if (!waiter) return;
+    pluginActivationWaiter = null;
+    clearTimeout(waiter.timeoutId);
+    waiter.reject(error);
+  }
+
+  function handlePluginReady(featureCode: string) {
+    const waiter = pluginActivationWaiter;
+    if (!waiter || waiter.featureCode !== featureCode) return;
+    pluginActivationWaiter = null;
+    clearTimeout(waiter.timeoutId);
+    waiter.resolve(performance.now() - waiter.startedAt);
   }
 
   async function handlePluginRedirect(label: unknown, payload: unknown) {
@@ -687,6 +739,7 @@
       desktopSmokeExpectedSamples: queueActive ? desktopSmokePluginActions.length : 0,
       desktopSmokeSampleIndex: queueActive ? desktopSmokePluginIndex : 0,
       desktopSmokeExternalPlanSample: queueActive ? desktopSmokeActionExternalPlan(action) : false,
+      onready: () => handlePluginReady(action.feature_code),
       ondesktopsmokerender: queueActive ? handleDesktopSmokePluginPanelRender : undefined,
     };
   }
@@ -1066,6 +1119,8 @@
             plugin_page_opened: patch.plugin_page_opened,
             agent_page_opened: patch.agent_page_opened,
             clipboard_copy_tracked: patch.clipboard_copy_tracked,
+            plugin_activation_feature: patch.plugin_activation_feature,
+            plugin_activation_ms: patch.plugin_activation_ms,
             errors,
             completed: patch.completed ?? false,
           },
@@ -1085,6 +1140,8 @@
             plugin_page_opened: patch.plugin_page_opened,
             agent_page_opened: patch.agent_page_opened,
             clipboard_copy_tracked: patch.clipboard_copy_tracked,
+            plugin_activation_feature: patch.plugin_activation_feature,
+            plugin_activation_ms: patch.plugin_activation_ms,
             errors,
             completed: patch.completed ?? false,
           });
@@ -1126,6 +1183,36 @@
       errors.push(`Clipboard copy TaskRun smoke failed: ${String(error)}`);
     }
     await emitReport({ clipboard_copy_tracked: clipboardCopyTracked });
+
+    const pluginActivationFeature = "calc";
+    let pluginActivationMs: number | undefined;
+    try {
+      await invoke("show_main_window");
+      const measured = await activateFeature(pluginActivationFeature, null, {
+        waitForPluginReady: true,
+        readyTimeoutMs: 10000,
+        throwOnError: true,
+      });
+      if (!Number.isFinite(measured) || measured === null || measured <= 0) {
+        throw new Error(`Plugin activation returned an invalid duration: ${String(measured)}`);
+      }
+      pluginActivationMs = measured;
+    } catch (error) {
+      errors.push(`Plugin cold activation smoke failed: ${String(error)}`);
+    } finally {
+      if (activePlugin) {
+        await returnPluginToSearch();
+      }
+      try {
+        await invoke("hide_main_window");
+      } catch (error) {
+        errors.push(`Plugin cold activation cleanup failed: ${String(error)}`);
+      }
+    }
+    await emitReport({
+      plugin_activation_feature: pluginActivationFeature,
+      plugin_activation_ms: pluginActivationMs,
+    });
 
     let settingsOpened = false;
     try {

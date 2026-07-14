@@ -63,6 +63,7 @@
     "test:plugin-host-smoke-browser": "node scripts/test-plugin-host-smoke-browser.mjs",
     "test:plugin-host-view": "node scripts/test-plugin-host-view.mjs",
     "test:plugin-back-to-search": "node scripts/test-plugin-back-to-search.mjs",
+    "test:plugin-activation-metric": "node scripts/test-plugin-activation-metric.mjs",
     "test:desktop-plugin-runtime-smoke-binding": "node scripts/test-desktop-plugin-runtime-smoke-binding.mjs",
     "test:plugin-output-context-menu": "node scripts/test-plugin-output-context-menu.mjs",
     "test:plugin-iframe-context-menu": "node scripts/test-plugin-iframe-context-menu.mjs",

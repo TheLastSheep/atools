@@ -203,6 +203,14 @@ export function evaluateReleaseAppSmoke(input) {
         ? ok("release-smoke-clipboard-task-run", "Release smoke confirmed redacted clipboard TaskRun persistence")
         : error("release-smoke-clipboard-task-run", "Release smoke did not confirm the redacted clipboard TaskRun contract")
     );
+    const pluginActivationMs = Number(releaseSmoke.plugin_activation_ms);
+    checks.push(
+      releaseSmoke.plugin_activation_feature === "calc"
+        && Number.isFinite(pluginActivationMs)
+        && pluginActivationMs > 0
+        ? ok("release-smoke-plugin-activation", `Calculator plugin reported ready in ${pluginActivationMs.toFixed(3)}ms`)
+        : error("release-smoke-plugin-activation", "Release smoke did not report a valid calculator cold activation duration")
+    );
     if (!Array.isArray(releaseSmoke.errors)) {
       checks.push(
         warn(releaseSmokeErrorPrefix, `${releaseSmokeErrorPrefix}: missing errors field in report`)

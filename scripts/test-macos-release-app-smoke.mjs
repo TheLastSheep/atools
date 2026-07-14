@@ -158,6 +158,8 @@ const report = smoke.evaluateReleaseAppSmoke({
     plugin_page_opened: true,
     agent_page_opened: true,
     clipboard_copy_tracked: true,
+    plugin_activation_feature: "calc",
+    plugin_activation_ms: 143.25,
     errors: [],
     completed: true,
   },
@@ -171,6 +173,7 @@ assert.equal(report.checks.find((check) => check.id === "release-smoke-settings"
 assert.equal(report.checks.find((check) => check.id === "release-smoke-plugin")?.status, "ok");
 assert.equal(report.checks.find((check) => check.id === "release-smoke-agent")?.status, "ok");
 assert.equal(report.checks.find((check) => check.id === "release-smoke-clipboard-task-run")?.status, "ok");
+assert.equal(report.checks.find((check) => check.id === "release-smoke-plugin-activation")?.status, "ok");
 assert.equal(
   smoke.shouldFailStrictMode(report, {
     strict: true,

@@ -31,6 +31,7 @@ assert.match(workflow, /path: artifacts\/performance\/macos-runtime\.json/);
 assert.match(smoke, /launch_to_first_report_ms/);
 assert.match(smoke, /rss_kib/);
 assert.match(smoke, /alive_after_resource_settle/);
-assert.match(benchmark, /schema_version: 2/);
+assert.match(benchmark, /schema_version: 3/);
 assert.match(benchmark, /idle_sample: idleSample/);
 assert.match(benchmark, /release_smoke_completed: true/);
+assert.match(benchmark, /plugin_activation_ms/);

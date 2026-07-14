@@ -34,6 +34,8 @@ pub struct ReleaseSmokeProgress {
     pub plugin_page_opened: Option<bool>,
     pub agent_page_opened: Option<bool>,
     pub clipboard_copy_tracked: Option<bool>,
+    pub plugin_activation_feature: Option<String>,
+    pub plugin_activation_ms: Option<f64>,
     pub errors: Vec<String>,
     pub completed: bool,
 }

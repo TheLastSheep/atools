@@ -62,6 +62,7 @@
     desktopSmokeExpectedSamples?: number;
     desktopSmokeSampleIndex?: number;
     desktopSmokeExternalPlanSample?: boolean;
+    onready?: () => void | Promise<void>;
     ondesktopsmokerender?: () => void | Promise<void>;
   };
 
@@ -288,6 +289,7 @@
     desktopSmokeExpectedSamples = 0,
     desktopSmokeSampleIndex = 0,
     desktopSmokeExternalPlanSample = false,
+    onready,
     ondesktopsmokerender,
   }: Props = $props();
   const WEB_PREVIEW_PLUGIN_PATH = "__atools_plugin_host_preview__";
@@ -301,6 +303,7 @@
   const PLUGIN_BROWSER_WINDOW_MAX_POSITION = 2000;
   let iframeSrcDoc = $state("");
   let iframeSrc = $state("");
+  let pluginReadyReported = false;
   let loadError = $state<string | null>(null);
   let subInputOpts = $state<{ placeholder?: string; focus?: boolean }>({});
   let pluginItems = $state<PluginItem[]>([]);
@@ -3789,15 +3792,26 @@
   _installRuntimePreinsertResourcePatch();
   _installRuntimeResourceObserver();
 
+  function _dispatchPluginReady() {
+    window.dispatchEvent(new Event('atools-plugin-ready'));
+    try {
+      window.parent.postMessage({
+        __atools_plugin_ready__: true,
+        pluginId: __PLUGIN_ID__,
+        featureCode: __FEATURE_CODE__
+      }, '*');
+    } catch (err) {}
+  }
+
   // Fire lifecycle events after DOM is ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() {
       window.dispatchEvent(new Event('atools-plugin-enter'));
-      setTimeout(function() { window.dispatchEvent(new Event('atools-plugin-ready')); }, 50);
+      setTimeout(_dispatchPluginReady, 50);
     });
   } else {
     window.dispatchEvent(new Event('atools-plugin-enter'));
-    setTimeout(function() { window.dispatchEvent(new Event('atools-plugin-ready')); }, 50);
+    setTimeout(_dispatchPluginReady, 50);
   }
 })();
 <\/script>`;
@@ -6795,6 +6809,19 @@ end tell
     }
 
     if (sourceIdentity.kind !== "main") return;
+
+    if (data.__atools_plugin_ready__ === true) {
+      if (
+        !pluginReadyReported
+        && data.pluginId === action.plugin_id
+        && data.featureCode === action.feature_code
+      ) {
+        pluginReadyReported = true;
+        void Promise.resolve(onready?.())
+          .catch((error) => console.warn("[PluginPanel] plugin ready callback failed:", error));
+      }
+      return;
+    }
 
     if (data.__atools_desktop_smoke_bridge_probe__) {
       handleDesktopSmokeBridgeProbe(data as Record<string, unknown>);

@@ -2235,6 +2235,8 @@ pub struct ReleaseSmokeProgressReport {
     plugin_page_opened: Option<bool>,
     agent_page_opened: Option<bool>,
     clipboard_copy_tracked: Option<bool>,
+    plugin_activation_feature: Option<String>,
+    plugin_activation_ms: Option<f64>,
     errors: Option<Vec<String>>,
     completed: Option<bool>,
 }
@@ -2269,7 +2271,7 @@ pub fn report_release_smoke_progress(
             .ok_or_else(|| "Release smoke is not enabled".to_string())?
     };
     tracing::debug!(
-        "Release smoke report received: token={} completed={} option_z={} settings={} plugin={} agent={} clipboard_copy={}",
+        "Release smoke report received: token={} completed={} option_z={} settings={} plugin={} agent={} clipboard_copy={} plugin_activation_ms={:?}",
         report.token,
         report.completed.unwrap_or(false),
         report.option_z_toggled.unwrap_or_default(),
@@ -2277,9 +2279,16 @@ pub fn report_release_smoke_progress(
         report.plugin_page_opened.unwrap_or_default(),
         report.agent_page_opened.unwrap_or_default(),
         report.clipboard_copy_tracked.unwrap_or_default(),
+        report.plugin_activation_ms,
     );
     if config.token != report.token {
         return Err("Invalid release smoke token".to_string());
+    }
+    if report
+        .plugin_activation_ms
+        .is_some_and(|value| !value.is_finite() || value <= 0.0)
+    {
+        return Err("Plugin activation duration must be a positive finite number".to_string());
     }
 
     let mut progress = state.release_smoke_progress.lock();
@@ -2299,6 +2308,12 @@ pub fn report_release_smoke_progress(
     }
     if let Some(value) = report.clipboard_copy_tracked {
         progress.clipboard_copy_tracked = Some(value);
+    }
+    if let Some(value) = report.plugin_activation_feature {
+        progress.plugin_activation_feature = Some(value);
+    }
+    if let Some(value) = report.plugin_activation_ms {
+        progress.plugin_activation_ms = Some(value);
     }
     if let Some(errors) = report.errors {
         progress.errors = errors;
