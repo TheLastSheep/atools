@@ -232,7 +232,10 @@ fn valid_task_parameters(task: &Value) -> bool {
     let Some(task) = task.as_object() else {
         return false;
     };
-    task.get("ttl").map_or(true, Value::is_u64)
+    match task.get("ttl") {
+        None => true,
+        Some(ttl) => ttl.is_u64(),
+    }
 }
 
 fn augment_http_task_capabilities(mut response: Value, method: &str) -> Value {
