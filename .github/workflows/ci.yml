@@ -46,7 +46,18 @@ jobs:
             exit 1
           }
       - run: cargo test --workspace
-      - run: pnpm test:fast
+      - name: Run pnpm test:fast
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm test:fast 2>&1 | tee test-fast.log || {
+            diagnostic="$(tail -n 60 test-fast.log)"
+            diagnostic="${diagnostic//'%'/'%25'}"
+            diagnostic="${diagnostic//$'\r'/'%0D'}"
+            diagnostic="${diagnostic//$'\n'/'%0A'}"
+            echo "::error title=Fast-tier diagnostics::$diagnostic"
+            exit 1
+          }
       - run: pnpm check
 
   browser-and-desktop:
