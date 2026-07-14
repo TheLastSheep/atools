@@ -97,7 +97,7 @@ jobs:
         run: |
           set -o pipefail
           pnpm test:desktop 2>&1 | tee test-desktop.log || {
-            diagnostic="$(tail -n 60 test-desktop.log)"
+            diagnostic="$(tr '\r' '\n' < test-desktop.log | tail -n 80)"
             diagnostic="${diagnostic//'%'/'%25'}"
             diagnostic="${diagnostic//$'\r'/'%0D'}"
             diagnostic="${diagnostic//$'\n'/'%0A'}"
