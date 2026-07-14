@@ -22,6 +22,7 @@
     "test:version-consistency": "node scripts/test-version-consistency.mjs",
     "test:ci-workflow": "node scripts/test-ci-workflow.mjs",
     "test:publish-workflow": "node scripts/test-publish-workflow.mjs",
+    "test:github-release-updater": "node scripts/test-github-release-updater.mjs",
     "test:updater-contract": "node scripts/test-updater-contract.mjs",
     "test:web-quick-open": "node scripts/test-web-quick-open.mjs",
     "test:web-quick-open-settings": "node scripts/test-web-quick-open-settings.mjs",
