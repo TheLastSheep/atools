@@ -169,6 +169,11 @@ impl Database {
                 id TEXT PRIMARY KEY,
                 type TEXT NOT NULL,
                 scope TEXT NOT NULL,
+                scope_workspace TEXT,
+                scope_skill TEXT,
+                scope_tool TEXT,
+                scope_application TEXT,
+                scope_domain TEXT,
                 content TEXT NOT NULL,
                 source_run_id TEXT,
                 confidence REAL NOT NULL,
@@ -236,6 +241,17 @@ impl Database {
             CREATE INDEX IF NOT EXISTS idx_skills_enabled_updated_at ON skills(enabled, updated_at DESC);
             CREATE INDEX IF NOT EXISTS idx_agent_tool_grants_tool ON agent_tool_grants(tool_name);
             CREATE INDEX IF NOT EXISTS idx_clipboard_history_last_copied_at ON clipboard_history(last_copied_at DESC);
+            "#,
+        )?;
+        ensure_memory_scope_columns(&conn)?;
+        conn.execute_batch(
+            r#"
+            CREATE INDEX IF NOT EXISTS idx_memory_scope_tool_updated_at
+                ON memory_items(enabled, scope_tool, updated_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_memory_scope_workspace_updated_at
+                ON memory_items(enabled, scope_workspace, updated_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_memory_expiry
+                ON memory_items(enabled, expires_at);
             "#,
         )?;
         Ok(())
@@ -1112,6 +1128,13 @@ impl Database {
         )?)
     }
 
+    pub fn storage_size_bytes(&self) -> Result<u64> {
+        let conn = self.conn.lock();
+        let page_count = conn.query_row("PRAGMA page_count", [], |row| row.get::<_, i64>(0))?;
+        let page_size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))?;
+        Ok(page_count.max(0) as u64 * page_size.max(0) as u64)
+    }
+
     // ---- Execution memory ----
 
     pub fn upsert_memory_item(&self, item: &MemoryItem) -> Result<()> {
@@ -1125,14 +1148,21 @@ impl Database {
         conn.execute(
             r#"
             INSERT OR REPLACE INTO memory_items
-            (id, type, scope, content, source_run_id, confidence, approval, enabled,
-             use_count, success_count, last_used_at, expires_at, created_at, updated_at)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+            (id, type, scope, scope_workspace, scope_skill, scope_tool, scope_application,
+             scope_domain, content, source_run_id, confidence, approval, enabled, use_count,
+             success_count, last_used_at, expires_at, created_at, updated_at)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14,
+                    ?15, ?16, ?17, ?18, ?19)
             "#,
             params![
                 item.id,
                 memory_type_to_str(item.kind),
                 serde_json::to_string(&item.scope)?,
+                item.scope.workspace,
+                item.scope.skill,
+                item.scope.tool,
+                item.scope.application,
+                item.scope.domain,
                 serde_json::to_string(&item.content)?,
                 item.source_run_id,
                 item.confidence,
@@ -1197,25 +1227,44 @@ impl Database {
         limit: usize,
     ) -> Result<Vec<MemoryItem>> {
         let now = crate::utils::now_iso();
-        let mut matches = self
-            .list_memory_items(false, 1000)?
-            .into_iter()
-            .filter(|item| match item.expires_at.as_ref() {
-                Some(expiry) => expiry > &now,
-                None => true,
-            })
-            .filter(|item| memory_scope_matches(&item.scope, context))
-            .collect::<Vec<_>>();
-        matches.sort_by(|left, right| {
-            right
-                .scope
-                .specificity()
-                .cmp(&left.scope.specificity())
-                .then_with(|| right.confidence.total_cmp(&left.confidence))
-                .then_with(|| right.updated_at.cmp(&left.updated_at))
-        });
-        matches.truncate(limit.clamp(1, 100));
-        Ok(matches)
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            r#"
+            SELECT id, type, scope, content, source_run_id, confidence, approval, enabled,
+                   use_count, success_count, last_used_at, expires_at, created_at, updated_at
+            FROM memory_items
+            WHERE enabled = 1
+              AND (expires_at IS NULL OR expires_at > ?6)
+              AND (scope_workspace IS NULL OR (?1 IS NOT NULL AND scope_workspace = ?1))
+              AND (scope_skill IS NULL OR (?2 IS NOT NULL AND scope_skill = ?2))
+              AND (scope_tool IS NULL OR (?3 IS NOT NULL AND scope_tool = ?3))
+              AND (scope_application IS NULL OR (?4 IS NOT NULL AND scope_application = ?4))
+              AND (scope_domain IS NULL OR (?5 IS NOT NULL AND scope_domain = ?5))
+            ORDER BY
+              ((scope_workspace IS NOT NULL) + (scope_skill IS NOT NULL) +
+               (scope_tool IS NOT NULL) + (scope_application IS NOT NULL) +
+               (scope_domain IS NOT NULL)) DESC,
+              confidence DESC,
+              updated_at DESC,
+              id ASC
+            LIMIT ?7
+            "#,
+        )?;
+        let items = stmt
+            .query_map(
+                params![
+                    context.workspace.as_deref(),
+                    context.skill.as_deref(),
+                    context.tool.as_deref(),
+                    context.application.as_deref(),
+                    context.domain.as_deref(),
+                    now,
+                    limit.clamp(1, 100) as i64,
+                ],
+                memory_item_from_row,
+            )?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        Ok(items)
     }
 
     pub fn set_memory_item_enabled(&self, id: &str, enabled: bool) -> Result<bool> {
@@ -1424,6 +1473,47 @@ fn export_audit_entries_jsonl(entries: Vec<AuditLogEntry>) -> Result<String> {
     Ok(output)
 }
 
+fn ensure_memory_scope_columns(conn: &Connection) -> Result<()> {
+    let existing = {
+        let mut stmt = conn.prepare("PRAGMA table_info(memory_items)")?;
+        stmt.query_map([], |row| row.get::<_, String>(1))?
+            .collect::<std::result::Result<std::collections::BTreeSet<_>, _>>()?
+    };
+    for column in [
+        "scope_workspace",
+        "scope_skill",
+        "scope_tool",
+        "scope_application",
+        "scope_domain",
+    ] {
+        if !existing.contains(column) {
+            conn.execute(
+                &format!("ALTER TABLE memory_items ADD COLUMN {column} TEXT"),
+                [],
+            )?;
+        }
+    }
+
+    // Backfill databases created before structured scope columns were introduced.
+    conn.execute_batch(
+        r#"
+        UPDATE memory_items SET
+            scope_workspace = json_extract(scope, '$.workspace'),
+            scope_skill = json_extract(scope, '$.skill'),
+            scope_tool = json_extract(scope, '$.tool'),
+            scope_application = json_extract(scope, '$.application'),
+            scope_domain = json_extract(scope, '$.domain')
+        WHERE scope_workspace IS NULL
+          AND scope_skill IS NULL
+          AND scope_tool IS NULL
+          AND scope_application IS NULL
+          AND scope_domain IS NULL
+          AND scope <> '{}';
+        "#,
+    )?;
+    Ok(())
+}
+
 fn task_run_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TaskRun> {
     let initiator_type: String = row.get(2)?;
     let status: String = row.get(4)?;
@@ -1500,20 +1590,6 @@ fn memory_item_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<MemoryItem>
         created_at: row.get(12)?,
         updated_at: row.get(13)?,
     })
-}
-
-fn memory_scope_matches(scope: &MemoryScope, context: &MemoryScope) -> bool {
-    fn matches(expected: &Option<String>, actual: &Option<String>) -> bool {
-        expected
-            .as_ref()
-            .map(|expected| actual.as_ref() == Some(expected))
-            .unwrap_or(true)
-    }
-    matches(&scope.workspace, &context.workspace)
-        && matches(&scope.skill, &context.skill)
-        && matches(&scope.tool, &context.tool)
-        && matches(&scope.application, &context.application)
-        && matches(&scope.domain, &context.domain)
 }
 
 fn memory_type_to_str(value: MemoryType) -> &'static str {

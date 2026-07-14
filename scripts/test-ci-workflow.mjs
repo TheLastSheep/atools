@@ -16,7 +16,7 @@ assert.match(workflow, /permissions:\s*\n\s+contents:\s*read/);
 assert.match(workflow, /pull_request:/);
 assert.match(workflow, /push:/);
 assert.match(workflow, /runs-on:\s*macos-latest/g);
-assert.equal(workflow.match(/dtolnay\/rust-toolchain@1\.97\.0/g)?.length, 2);
+assert.equal(workflow.match(/dtolnay\/rust-toolchain@1\.97\.0/g)?.length, 3);
 assert.doesNotMatch(workflow, /dtolnay\/rust-toolchain@stable/);
 assert.match(workflow, /pnpm install --frozen-lockfile/);
 assert.match(workflow, /cargo fmt --all -- --check/);
@@ -38,6 +38,8 @@ assert.match(workflow, /pnpm test:browser/);
 assert.match(workflow, /pnpm test:desktop/);
 assert.match(workflow, /ATOOLS_DESKTOP_SMOKE_TIMEOUT_MS: 600000/);
 assert.match(workflow, /pnpm release:check:macos:unsigned/);
+assert.match(workflow, /pnpm benchmark:database:ci/);
+assert.match(workflow, /database-performance-\$\{\{ github\.sha \}\}/);
 assert.ok(
   workflow.indexOf("- run: pnpm build") < workflow.indexOf("cargo clippy --workspace --all-targets -- -D warnings"),
   "quality CI should create frontendDist before Tauri macros run under Clippy",

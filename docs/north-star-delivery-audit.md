@@ -53,7 +53,7 @@
 | MemoryItem 模型、作用域与持久化 | 已证明 | `crates/atools-core/src/memory.rs`、SQLite `memory_items`、`memory_tests.rs` | 无 |
 | 显式/确认/临时写入，不自动永久推断 | 已证明 | `MemoryApproval`、临时过期校验及 UI 文案/写入路径 | 暂不生成自动候选，符合“从显式偏好和修正开始” |
 | 敏感数据边界 | 已证明 | 核心层拒绝密码、Token、API Key、Cookie、私钥和常见凭据格式 | 独立 Secret Vault 尚未实现；当前策略是拒绝而非保存凭据引用 |
-| 结构化作用域检索 | 已证明 | workspace/skill/tool/application/domain 精确匹配、具体作用域优先，无 embedding 依赖 | 需要数据库增长基准验证规模边界 |
+| 结构化作用域检索 | 验证中 | workspace/skill/tool/application/domain 已下推 SQLite 精确匹配，增加作用域索引与旧库回填；回归覆盖目标记忆位于 1000 条近期无关记录之后 | 等待完整远程 Rust tests 和 10万级增长基准 |
 | 查看、编辑、停用、删除、导出、清空 | 已证明 | Agent 面板与 Tauri commands 完整覆盖 | 危险清空操作后续宜加入二次确认 |
 | 结果页显示来源与影响 | 已证明 | TaskRun `memoryIds`、内容展示与“显式输入优先”说明 | 无 |
 | 成功任务保存为配方 | 已证明 | 结果中心显式“保存为配方”，保存 `sourceRunId` 并复用敏感内容检查 | 无 |
@@ -71,7 +71,7 @@
 | 轻/重插件内存增量 | 未完成 | 无稳定采样报告 |
 | 插件冷启动 | 未完成 | smoke 证明激活与渲染，未记录分位数 |
 | 多次唤起与长时间稳定性 | 未完成 | 无持续时间、RSS/CPU 漂移报告 |
-| TaskRun/Memory 数据库增长 | 未完成 | 有 CRUD 正确性测试，没有 1万/10万级 P50/P95/P99 |
+| TaskRun/Memory 数据库增长 | 验证中 | `benchmark_database.rs` 已建立 1万/10万级 TaskRun + 同量 Memory 写入、存储字节数和 P50/P95/P99 合同 | 等待远程 macOS `database-performance-evidence` 首次报告 |
 | 与 uTools/ZTools 同机对比 | 未完成 | `docs/performance-benchmark.md` 已定义方法，但尚无同机受控数据；不得宣传竞品优势 |
 
 ## Phase 3 与长期路线

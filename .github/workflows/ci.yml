@@ -160,3 +160,30 @@ jobs:
           path: artifacts/performance/search-index.json
           if-no-files-found: error
           retention-days: 30
+
+  database-performance-evidence:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@1.97.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: database-performance
+      - run: pnpm install --frozen-lockfile
+      - name: Record TaskRun and Memory growth evidence
+        run: pnpm benchmark:database:ci
+      - name: Upload reproducible database report
+        uses: actions/upload-artifact@v7
+        with:
+          name: database-performance-${{ github.sha }}
+          path: artifacts/performance/database-growth.json
+          if-no-files-found: error
+          retention-days: 30
