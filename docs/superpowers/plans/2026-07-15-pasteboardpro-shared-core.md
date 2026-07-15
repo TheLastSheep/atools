@@ -14,7 +14,7 @@
 
 **Create under `/Users/harris/.codex/worktrees/ztools-pasteboardpro/plugins/pasteboard-pro/`:**
 
-- `package.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, `vitest.config.ts`
+- `package.json`, `pnpm-workspace.yaml`, `tsconfig.json`, `tsconfig.base.json`, `vitest.config.ts`
 - `packages/core/src/types.ts`
 - `packages/core/src/query.ts`
 - `packages/core/src/selection.ts`
@@ -26,10 +26,12 @@
 - `packages/core/tests/selection.test.ts`
 - `packages/core/tests/pinboards.test.ts`
 - `packages/core/tests/paste-stack.test.ts`
+- `packages/design-tokens/tsconfig.json`
 - `packages/design-tokens/src/tokens.ts`
 - `packages/design-tokens/src/geometry.ts`
 - `packages/design-tokens/src/index.ts`
 - `packages/design-tokens/tests/geometry.test.ts`
+- `packages/sync-protocol/tsconfig.json`
 - `packages/sync-protocol/src/types.ts`
 - `packages/sync-protocol/src/clock.ts`
 - `packages/sync-protocol/src/merge.ts`
@@ -37,6 +39,7 @@
 - `packages/sync-protocol/tests/clock.test.ts`
 - `packages/sync-protocol/tests/merge.test.ts`
 - `packages/sync-protocol/tests/fixtures.test.ts`
+- `packages/contract-fixtures/tsconfig.json`
 - `packages/contract-fixtures/src/history.ts`
 - `packages/contract-fixtures/src/keyboard.ts`
 - `packages/contract-fixtures/src/sync.ts`
@@ -48,6 +51,7 @@
 **Files:**
 - Create: `plugins/pasteboard-pro/package.json`
 - Create: `plugins/pasteboard-pro/pnpm-workspace.yaml`
+- Create: `plugins/pasteboard-pro/tsconfig.json`
 - Create: `plugins/pasteboard-pro/tsconfig.base.json`
 - Create: `plugins/pasteboard-pro/vitest.config.ts`
 - Create: `plugins/pasteboard-pro/.gitignore`
@@ -62,13 +66,16 @@ import { readFile } from "node:fs/promises";
 
 const root = new URL("../", import.meta.url);
 const pkg = JSON.parse(await readFile(new URL("package.json", root), "utf8"));
+const tsconfig = JSON.parse(await readFile(new URL("tsconfig.json", root), "utf8"));
 const workspace = await readFile(new URL("pnpm-workspace.yaml", root), "utf8");
+const normalizedWorkspace = workspace.replace(/\r\n/g, "\n");
 
 assert.equal(pkg.private, true);
 assert.equal(pkg.packageManager, "pnpm@11.7.0");
 assert.equal(pkg.scripts.test, "vitest run");
-assert.match(workspace, /packages\/\*/);
-assert.match(workspace, /apps\/\*/);
+assert.deepEqual(tsconfig.files, []);
+assert.equal(Array.isArray(tsconfig.references), true);
+assert.equal(normalizedWorkspace, "packages:\n  - packages/*\n  - apps/*\n");
 ```
 
 - [ ] **Step 2: Run the test and verify it fails**
@@ -109,6 +116,17 @@ packages:
   - apps/*
 ```
 
+`tsconfig.json`:
+
+```json
+{
+  "files": [],
+  "references": []
+}
+```
+
+This root config is the `tsc -b` solution entry point. Later tasks add package references incrementally as each composite project is introduced.
+
 `tsconfig.base.json`:
 
 ```json
@@ -147,6 +165,7 @@ git commit -m "chore: 初始化 PasteboardPro 双插件工作区" \
 **Files:**
 - Create: `packages/core/package.json`
 - Create: `packages/core/tsconfig.json`
+- Modify: `plugins/pasteboard-pro/tsconfig.json`
 - Create: `packages/core/src/types.ts`
 - Create: `packages/core/src/index.ts`
 - Create: `packages/core/tests/types.test.ts`
@@ -200,6 +219,31 @@ Create `packages/core/package.json`:
 }
 ```
 
+Create `packages/core/tsconfig.json`:
+
+```json
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": ".",
+    "outDir": "dist"
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts"]
+}
+```
+
+Update the root `plugins/pasteboard-pro/tsconfig.json` so its references contain only the core project:
+
+```json
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/core" }
+  ]
+}
+```
+
 ```ts
 import { z } from "zod";
 
@@ -234,7 +278,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add plugins/pasteboard-pro/packages/core
+git add plugins/pasteboard-pro/packages/core plugins/pasteboard-pro/tsconfig.json
 git commit -m "feat: 定义 PasteboardPro 共享数据契约" \
   -m "AI-Co-Authored-By: Codex"
 ```
@@ -346,6 +390,8 @@ git commit -m "feat: 增加选择看板与 Paste Stack 状态机" \
 
 **Files:**
 - Create: `packages/design-tokens/package.json`
+- Create: `packages/design-tokens/tsconfig.json`
+- Modify: `plugins/pasteboard-pro/tsconfig.json`
 - Create: `packages/design-tokens/src/tokens.ts`
 - Create: `packages/design-tokens/src/geometry.ts`
 - Create: `packages/design-tokens/tests/geometry.test.ts`
@@ -366,6 +412,32 @@ Expected: geometry exports do not exist.
 
 Create `packages/design-tokens/package.json` with name `@pasteboard-pro/design-tokens`, version `1.0.0`, type `module`, and export `./src/index.ts`.
 
+Create `packages/design-tokens/tsconfig.json` as an independent composite project:
+
+```json
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": ".",
+    "outDir": "dist"
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts"]
+}
+```
+
+Update the root `plugins/pasteboard-pro/tsconfig.json` to retain core and add design tokens:
+
+```json
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/design-tokens" }
+  ]
+}
+```
+
 ```ts
 export const pasteboardTokens = {
   radius: 28, snapZone: 12, dockTransitionMs: 160,
@@ -383,7 +455,7 @@ Expected: PASS for all four radius states, snap threshold, and multi-display wor
 - [ ] **Step 5: Commit**
 
 ```bash
-git add plugins/pasteboard-pro/packages/design-tokens
+git add plugins/pasteboard-pro/packages/design-tokens plugins/pasteboard-pro/tsconfig.json
 git commit -m "feat: 固化 PasteboardPro 视觉与停靠 token" \
   -m "AI-Co-Authored-By: Codex"
 ```
@@ -392,8 +464,10 @@ git commit -m "feat: 固化 PasteboardPro 视觉与停靠 token" \
 
 **Files:**
 - Create: `packages/sync-protocol/package.json`
+- Create: `packages/sync-protocol/tsconfig.json`
 - Create: `packages/sync-protocol/src/clock.ts`
 - Create: `packages/sync-protocol/src/merge.ts`
+- Create: `packages/contract-fixtures/tsconfig.json`
 - Create: `packages/contract-fixtures/src/history.ts`
 - Create: `packages/contract-fixtures/src/keyboard.ts`
 - Create: `packages/contract-fixtures/src/sync.ts`
@@ -401,6 +475,7 @@ git commit -m "feat: 固化 PasteboardPro 视觉与停靠 token" \
 - Create: `packages/sync-protocol/tests/clock.test.ts`
 - Create: `packages/sync-protocol/tests/merge.test.ts`
 - Create: `packages/sync-protocol/tests/fixtures.test.ts`
+- Modify: `plugins/pasteboard-pro/tsconfig.json`
 
 - [ ] **Step 1: Write failing merge tests**
 
@@ -418,6 +493,23 @@ Expected: missing clock and merge modules.
 
 Create `packages/sync-protocol/package.json` with name `@pasteboard-pro/sync-protocol`, version `1.0.0`, type `module`, dependency `@pasteboard-pro/core: workspace:*`, and export `./src/index.ts`.
 
+Create `packages/sync-protocol/tsconfig.json` with a project reference to core:
+
+```json
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": ".",
+    "outDir": "dist"
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts"],
+  "references": [
+    { "path": "../core" }
+  ]
+}
+```
+
 ```ts
 export function compareClock(a: HybridClock, b: HybridClock): number {
   return a.wallMs - b.wallMs || a.counter - b.counter || a.deviceId.localeCompare(b.deviceId);
@@ -434,6 +526,38 @@ export function pickNewer<T>(left: T, leftClock: HybridClock, right: T, rightClo
 
 Create `packages/contract-fixtures/package.json` with name `@pasteboard-pro/contract-fixtures`, version `1.0.0`, type `module`, dependencies on the core and sync packages, and export `./src/index.ts`. Export fixed history, keyboard event sequences, concurrent edits, tombstones, and encrypted byte fixtures. Do not generate fixture timestamps or IDs at runtime.
 
+Create `packages/contract-fixtures/tsconfig.json` with project references to core and sync protocol:
+
+```json
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": ".",
+    "outDir": "dist"
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts"],
+  "references": [
+    { "path": "../core" },
+    { "path": "../sync-protocol" }
+  ]
+}
+```
+
+Update the root `plugins/pasteboard-pro/tsconfig.json` to contain the final shared-core project graph:
+
+```json
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/design-tokens" },
+    { "path": "./packages/sync-protocol" },
+    { "path": "./packages/contract-fixtures" }
+  ]
+}
+```
+
 - [ ] **Step 5: Run all shared tests and typecheck**
 
 ```bash
@@ -446,7 +570,7 @@ Expected: PASS after dependency installation is authorized.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add plugins/pasteboard-pro/packages
+git add plugins/pasteboard-pro/packages plugins/pasteboard-pro/tsconfig.json
 git commit -m "feat: 增加跨宿主合并与契约夹具" \
   -m "AI-Co-Authored-By: Codex"
 ```
