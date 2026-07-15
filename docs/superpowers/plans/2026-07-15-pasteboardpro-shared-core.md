@@ -15,6 +15,7 @@
 **Create under `/Users/harris/.codex/worktrees/ztools-pasteboardpro/plugins/pasteboard-pro/`:**
 
 - `package.json`, `pnpm-workspace.yaml`, `tsconfig.json`, `tsconfig.base.json`, `vitest.config.ts`
+- `packages/core/tsconfig.json`
 - `packages/core/src/types.ts`
 - `packages/core/src/query.ts`
 - `packages/core/src/selection.ts`
