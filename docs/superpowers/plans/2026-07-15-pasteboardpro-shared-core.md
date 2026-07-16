@@ -10,11 +10,36 @@
 
 ---
 
+## Implemented status (2026-07-16)
+
+Shared Core Tasks 1-6B are implemented in the isolated ZTools worktree on
+`codex/pasteboardpro-ztools`. The checked-in workspace is the source of truth
+for host consumers; this plan records the verified contract rather than an
+unexecuted proposal.
+
+Fresh verification used Node 24.8.0 and pnpm 11.7.0:
+
+```bash
+export PATH=/Users/harris/.nvm/versions/node/v24.8.0/bin:$PATH
+corepack pnpm@11.7.0 test
+corepack pnpm@11.7.0 test:contract
+corepack pnpm@11.7.0 typecheck
+```
+
+Result: 9 test files and 142 tests passed, the workspace contract passed, and
+the four-project TypeScript build graph passed. A separate exhaustive probe
+also checked 3,905 adjacent base62 order-key pairs plus open bounds.
+
+The only observed warning is Vite's non-blocking CJS Node API deprecation.
+
+---
+
 ## File map
 
 **Create under `/Users/harris/.codex/worktrees/ztools-pasteboardpro/plugins/pasteboard-pro/`:**
 
-- `package.json`, `pnpm-workspace.yaml`, `tsconfig.json`, `tsconfig.base.json`, `vitest.config.ts`
+- `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `tsconfig.json`, `tsconfig.base.json`, `vitest.config.ts`
+- `scripts/test-workspace-contract.mjs`
 - `packages/core/tsconfig.json`
 - `packages/core/src/types.ts`
 - `packages/core/src/query.ts`
@@ -33,19 +58,20 @@
 - `packages/design-tokens/src/index.ts`
 - `packages/design-tokens/tests/geometry.test.ts`
 - `packages/sync-protocol/tsconfig.json`
-- `packages/sync-protocol/src/types.ts`
 - `packages/sync-protocol/src/clock.ts`
 - `packages/sync-protocol/src/merge.ts`
 - `packages/sync-protocol/src/index.ts`
 - `packages/sync-protocol/tests/clock.test.ts`
 - `packages/sync-protocol/tests/merge.test.ts`
-- `packages/sync-protocol/tests/fixtures.test.ts`
+- `packages/contract-fixtures/package.json`
 - `packages/contract-fixtures/tsconfig.json`
+- `packages/contract-fixtures/src/freeze.ts`
 - `packages/contract-fixtures/src/history.ts`
 - `packages/contract-fixtures/src/keyboard.ts`
 - `packages/contract-fixtures/src/sync.ts`
 - `packages/contract-fixtures/src/index.ts`
-- `README.md`, `.gitignore`
+- `packages/contract-fixtures/tests/fixtures.test.ts`
+- `.gitignore`
 
 ### Task 1: Scaffold the isolated workspace
 
@@ -461,24 +487,18 @@ git commit -m "feat: 固化 PasteboardPro 视觉与停靠 token" \
   -m "AI-Co-Authored-By: Codex"
 ```
 
-### Task 6: Implement clocks, merge rules, and shared fixtures
+### Task 6A: Implement clocks and deterministic merge rules
 
 **Files:**
 - Create: `packages/sync-protocol/package.json`
 - Create: `packages/sync-protocol/tsconfig.json`
 - Create: `packages/sync-protocol/src/clock.ts`
 - Create: `packages/sync-protocol/src/merge.ts`
-- Create: `packages/contract-fixtures/tsconfig.json`
-- Create: `packages/contract-fixtures/src/history.ts`
-- Create: `packages/contract-fixtures/src/keyboard.ts`
-- Create: `packages/contract-fixtures/src/sync.ts`
-- Create: `packages/contract-fixtures/src/index.ts`
 - Create: `packages/sync-protocol/tests/clock.test.ts`
 - Create: `packages/sync-protocol/tests/merge.test.ts`
-- Create: `packages/sync-protocol/tests/fixtures.test.ts`
 - Modify: `plugins/pasteboard-pro/tsconfig.json`
 
-- [ ] **Step 1: Write failing merge tests**
+- [x] **Step 1: Write failing merge tests**
 
 ```ts
 expect(compareClock({ wallMs: 10, counter: 0, deviceId: "a" }, { wallMs: 10, counter: 0, deviceId: "b" })).toBeLessThan(0);
@@ -486,11 +506,11 @@ expect(mergePasteItem(localTitleEdit, remotePinboardEdit)).toMatchObject({ title
 expect(mergeEntity(oldEdit, newerTombstone).deleted).toBe(true);
 ```
 
-- [ ] **Step 2: Verify failures**
+- [x] **Step 2: Verify failures**
 
 Expected: missing clock and merge modules.
 
-- [ ] **Step 3: Implement deterministic clocks and field merge**
+- [x] **Step 3: Implement deterministic clocks and field merge**
 
 Create `packages/sync-protocol/package.json` with name `@pasteboard-pro/sync-protocol`, version `1.0.0`, type `module`, dependency `@pasteboard-pro/core: workspace:*`, and export `./src/index.ts`.
 
@@ -512,20 +532,62 @@ Create `packages/sync-protocol/tsconfig.json` with a project reference to core:
 ```
 
 ```ts
-export function compareClock(a: HybridClock, b: HybridClock): number {
-  return a.wallMs - b.wallMs || a.counter - b.counter || a.deviceId.localeCompare(b.deviceId);
+export function compareClock(a: HybridClock, b: HybridClock): -1 | 0 | 1 {
+  // Compare each component explicitly so extreme wall times cannot overflow.
 }
 
 export function pickNewer<T>(left: T, leftClock: HybridClock, right: T, rightClock: HybridClock): T {
-  return compareClock(leftClock, rightClock) >= 0 ? left : right;
+  // Return the newer value. Equal clocks accept only Object.is-equal values;
+  // conflicting values throw RangeError in both merge orders.
 }
 ```
 
-`mergePasteItem()` must merge mutable fields independently and keep payload revisions immutable.
+`mergePasteItem()` merges title, payload, OCR text, Pinboard membership/order,
+and pinned state independently. A payload revision is immutable: identical
+revision IDs with different payload content are rejected. All winning paths
+deep-clone payloads, file path arrays, field clocks, live entities, and
+tombstones. Equal clocks with different values are rejected to preserve
+commutativity, and a tombstone wins an exact live-clock tie to prevent silent
+resurrection.
 
-- [ ] **Step 4: Add shared fixtures**
+- [x] **Step 4: Run focused merge tests**
 
-Create `packages/contract-fixtures/package.json` with name `@pasteboard-pro/contract-fixtures`, version `1.0.0`, type `module`, dependencies on the core and sync packages, and export `./src/index.ts`. Export fixed history, keyboard event sequences, concurrent edits, tombstones, and encrypted byte fixtures. Do not generate fixture timestamps or IDs at runtime.
+Expected and verified: clock ordering, field-level merge, payload revision
+invariants, tombstone anti-resurrection, prototype-safe field clocks,
+commutativity, and input isolation all pass.
+
+- [x] **Step 5: Commit**
+
+The implementation was committed in focused RED/GREEN/review increments rather
+than one combined commit.
+
+### Task 6B: Add fixed cross-host contract fixtures
+
+**Files:**
+- Create: `packages/contract-fixtures/package.json`
+- Create: `packages/contract-fixtures/tsconfig.json`
+- Create: `packages/contract-fixtures/src/freeze.ts`
+- Create: `packages/contract-fixtures/src/history.ts`
+- Create: `packages/contract-fixtures/src/keyboard.ts`
+- Create: `packages/contract-fixtures/src/sync.ts`
+- Create: `packages/contract-fixtures/src/index.ts`
+- Create: `packages/contract-fixtures/tests/fixtures.test.ts`
+- Modify: `plugins/pasteboard-pro/package.json`
+- Modify: `plugins/pasteboard-pro/pnpm-lock.yaml`
+- Modify: `plugins/pasteboard-pro/tsconfig.json`
+
+- [x] **Step 1: Add shared fixtures**
+
+Create `packages/contract-fixtures/package.json` with name
+`@pasteboard-pro/contract-fixtures`, version `1.0.0`, `private: true`, type
+`module`, dependencies on the core and sync packages, and native Node 24 source
+exports for `.`, `./history`, `./keyboard`, and `./sync`. Export fixed history,
+Pinboards, keyboard event sequences, concurrent edits, tombstones, and the
+AES-256-GCM zero vector. Do not generate fixture timestamps or IDs at runtime.
+
+Use recursive `deepFreeze()` plus `ReadonlyDeep<T>` so every exported fixture
+is deeply read-only at runtime and in TypeScript. Keep the private `#freeze`
+package import unexported.
 
 Create `packages/contract-fixtures/tsconfig.json` with project references to core and sync protocol:
 
@@ -559,19 +621,20 @@ Update the root `plugins/pasteboard-pro/tsconfig.json` to contain the final shar
 }
 ```
 
-- [ ] **Step 5: Run all shared tests and typecheck**
+- [x] **Step 2: Run all shared tests, package-contract checks, and typecheck**
 
 ```bash
-pnpm --dir plugins/pasteboard-pro test
-pnpm --dir plugins/pasteboard-pro typecheck
+export PATH=/Users/harris/.nvm/versions/node/v24.8.0/bin:$PATH
+corepack pnpm@11.7.0 test
+corepack pnpm@11.7.0 test:contract
+corepack pnpm@11.7.0 typecheck
 ```
 
-Expected: PASS after dependency installation is authorized.
+Expected and verified: 9 files / 142 tests pass, the package root and all three
+fixture subpaths load through Node 24 native ESM, and the four referenced
+composite projects typecheck.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 3: Commit**
 
-```bash
-git add plugins/pasteboard-pro/packages plugins/pasteboard-pro/tsconfig.json
-git commit -m "feat: 增加跨宿主合并与契约夹具" \
-  -m "AI-Co-Authored-By: Codex"
-```
+The fixtures, public exports, and boundary hardening were committed separately
+so each review fix remains auditable.
