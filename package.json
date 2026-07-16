@@ -122,6 +122,7 @@
     "test:ai-settings-overview": "node scripts/test-ai-settings-overview.mjs",
     "test:webdav-sync-view": "node scripts/test-webdav-sync-view.mjs",
     "test:webdav-settings-overview": "node scripts/test-webdav-settings-overview.mjs",
+    "test:pasteboard-sync-source": "node scripts/test-pasteboard-sync-source.mjs",
     "test:settings-native-save": "node scripts/test-settings-native-save.mjs",
     "test:app-shortcuts": "node scripts/test-app-shortcuts.mjs",
     "test:settings-pages": "node scripts/test-settings-pages.mjs",

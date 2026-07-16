@@ -5,6 +5,8 @@ pub mod crash;
 mod desktop_smoke;
 mod hotkey;
 pub mod mcp_server;
+pub mod pasteboard_keychain;
+pub mod pasteboard_sync;
 mod state;
 mod tray;
 mod updater;
