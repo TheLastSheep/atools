@@ -10,6 +10,49 @@
 
 ---
 
+## Implemented status (2026-07-16)
+
+Implemented on `codex/pasteboardpro-ztools`:
+
+- Vue/Vite plugin manifest, renderer/preload build graph, source package verifier,
+  and repository category mapping.
+- Canonical ZTools history mirror with cursor restart, privacy pre-filtering,
+  PouchDB-style persistence, real `search_history`, and direct-paste fallback.
+- Floating shelf geometry, multi-display fallback, edge-aware corners, content
+  protection, duplicate-window reuse, and same-preload child-window bridge.
+- Capture pause, ignored apps, secret detection, bounded regex rules, 90-day / 1
+  GiB retention execution, failure reporting, and owned-blob cleanup contract.
+- Pinboard create/rename/fractional ordering, canonical card assignment, and
+  multi-selection drag/drop.
+- Vue timeline, search, preview, Quick Paste 1-9, selection, Compact mode, and
+  Paste Stack state using the shared reducers and tokens.
+- Swift Vision helper source plus constrained JSON-line Node caller. The helper
+  is not compiled locally; release and PR workflows build it on macOS, while
+  release requires Developer ID signing and notarization secrets.
+- ZTools release assembly verifier and `build-plugin.sh` integration so the
+  repository packages only `plugins/pasteboard-pro/dist/ztools`.
+
+Fresh lightweight verification:
+
+```bash
+export PATH=/Users/harris/.nvm/versions/node/v24.8.0/bin:$PATH
+corepack pnpm@11.7.0 test
+corepack pnpm@11.7.0 test:contract
+corepack pnpm@11.7.0 typecheck
+corepack pnpm@11.7.0 --filter @pasteboard-pro/ztools typecheck
+node apps/ztools/scripts/verify-package.mjs
+```
+
+Result: 18 test files / 184 tests passed, TypeScript and Vue template checks
+passed, both workflow YAML files parsed, and the source package contract passed.
+
+Still unverified or incomplete: real ZTools activation, compiled helper runtime,
+Developer ID/notarization secrets, assembled ZIP verification, real capture and
+paste permissions, image rotation/editing, Pinboard deletion, encrypted WebDAV,
+visual screenshot parity, and performance evidence.
+
+---
+
 ## File map
 
 **Create under `plugins/pasteboard-pro/apps/ztools/`:**
