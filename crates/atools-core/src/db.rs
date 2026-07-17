@@ -1353,10 +1353,11 @@ impl Database {
                 ORDER BY copied_at ASC, id ASC
                 "#,
             )?;
-            stmt.query_map([], |row| {
+            let rows = stmt.query_map([], |row| {
                 Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-            })?
-            .collect::<std::result::Result<Vec<_>, _>>()?
+            })?;
+            let candidates = rows.collect::<std::result::Result<Vec<_>, _>>()?;
+            candidates
         };
         let mut retained_blob_bytes = pasteboard_blob_bytes(&tx)?;
         let mut result = PasteboardPruneResult::default();
