@@ -94,10 +94,11 @@ fn pasteboard_batch_upsert_is_atomic_and_searchable() {
     let db = Database::in_memory().unwrap();
     let first = text_item("batch-1", "first batch needle", "2026-04-01T00:00:00Z");
     let second = text_item("batch-2", "second batch needle", "2026-04-01T00:00:01Z");
-    db.upsert_pasteboard_items_batch(&[first, second])
-        .unwrap();
+    db.upsert_pasteboard_items_batch(&[first, second]).unwrap();
 
-    let results = db.search_pasteboard_items("batch needle", None, 20).unwrap();
+    let results = db
+        .search_pasteboard_items("batch needle", None, 20)
+        .unwrap();
     assert_eq!(results.len(), 2);
     assert_eq!(db.count_pasteboard_items().unwrap(), 2);
 }

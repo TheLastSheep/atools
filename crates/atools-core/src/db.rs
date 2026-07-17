@@ -1332,9 +1332,9 @@ impl Database {
             FROM pasteboard_blobs ORDER BY created_at ASC
             "#,
         )?;
-        stmt.query_map([], pasteboard_blob_from_row)?
-            .collect::<std::result::Result<Vec<_>, _>>()
-            .map_err(Into::into)
+        let rows = stmt.query_map([], pasteboard_blob_from_row)?;
+        let blobs = rows.collect::<std::result::Result<Vec<_>, _>>()?;
+        Ok(blobs)
     }
 
     pub fn prune_pasteboard_history(
