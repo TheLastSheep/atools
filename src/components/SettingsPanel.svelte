@@ -157,6 +157,12 @@
     webdavSyncRows,
   } from "../lib/webdavSyncView";
   import {
+    DEFAULT_PASTEBOARD_SYNC_SETTINGS,
+    derivePasteboardVaultUrl,
+    pasteboardSyncPresentation,
+    type PasteboardSyncSettings,
+  } from "../lib/pasteboardSyncView";
+  import {
     aboutOverviewCards,
     aboutProductFacts,
     aiOverviewCards,
@@ -492,6 +498,18 @@
   let webdavLastClipboardRestore = $state<WebdavClipboardRestoreResult | null>(null);
   let webdavLastPluginDataRestore = $state<WebdavPluginDataRestoreResult | null>(null);
   let webdavSelectedPluginConflictKeys = $state<string[]>([]);
+  let pasteboardSyncSettings = $state<PasteboardSyncSettings>({
+    ...DEFAULT_PASTEBOARD_SYNC_SETTINGS,
+  });
+  let pasteboardSyncEnabled = $state(false);
+  let pasteboardVaultUrl = $state("");
+  let pasteboardSyncUsername = $state("");
+  let pasteboardWebdavPassword = $state("");
+  let pasteboardSyncPassword = $state("");
+  let pasteboardSyncFileContents = $state(false);
+  let pasteboardSyncSaving = $state(false);
+  let pasteboardSyncing = $state(false);
+  let pasteboardSyncStatus = $state("");
   let mcpStatus = $state<McpServerStatus | null>(null);
   let agentTools = $state<ToolDefinition[]>([]);
   let agentScopePolicies = $state<AgentScopePolicy[]>([]);
@@ -584,6 +602,7 @@
       saveState = "error";
     });
     loadMcpInstallHomePath();
+    loadPasteboardSyncSettings();
     const onCommandHistoryUpdated = (event: Event) => {
       commandHistory = (event as CustomEvent<CommandHistoryEntry[]>).detail ?? loadCommandHistory();
     };
@@ -924,6 +943,94 @@
     if (!webdavEnabled) return "未启用";
     if (!webdavConfigReady()) return "配置不完整";
     return "配置已保存";
+  }
+
+  async function loadPasteboardSyncSettings() {
+    if (!hasTauriRuntime()) return;
+    try {
+      const settings = await invoke<PasteboardSyncSettings>("get_pasteboard_sync_settings");
+      pasteboardSyncSettings = settings;
+      pasteboardSyncEnabled = settings.enabled;
+      pasteboardVaultUrl = settings.vaultUrl || derivePasteboardVaultUrl(webdavUrl, webdavRemotePath);
+      pasteboardSyncUsername = settings.username || webdavUsername;
+      pasteboardSyncFileContents = settings.syncFileContents;
+    } catch (error) {
+      pasteboardSyncStatus = error instanceof Error ? error.message : String(error);
+    }
+  }
+
+  function useCurrentWebdavForPasteboard() {
+    pasteboardVaultUrl = derivePasteboardVaultUrl(webdavUrl, webdavRemotePath);
+    pasteboardSyncUsername = webdavUsername;
+    if (!pasteboardVaultUrl) {
+      pasteboardSyncStatus = "PasteboardPro 加密同步只接受不含凭据的 HTTPS WebDAV 地址";
+    }
+  }
+
+  function pasteboardSyncView() {
+    return pasteboardSyncPresentation(pasteboardSyncSettings);
+  }
+
+  async function configurePasteboardSync() {
+    if (!hasTauriRuntime()) {
+      pasteboardSyncStatus = "需在 macOS 桌面应用中配置";
+      return;
+    }
+    const webdavPasswordCandidate = pasteboardWebdavPassword;
+    const syncPasswordCandidate = pasteboardSyncPassword;
+    // Password fields are one-shot IPC inputs and are cleared before any await.
+    pasteboardWebdavPassword = "";
+    pasteboardSyncPassword = "";
+    pasteboardSyncSaving = true;
+    pasteboardSyncStatus = "正在验证远端 vault 与加密密钥…";
+    try {
+      const settings = await invoke<PasteboardSyncSettings>("configure_pasteboard_sync", {
+        input: {
+          enabled: pasteboardSyncEnabled,
+          vaultUrl: pasteboardVaultUrl.trim(),
+          username: pasteboardSyncUsername.trim(),
+          webdavPassword: webdavPasswordCandidate || null,
+          syncPassword: syncPasswordCandidate || null,
+          proxyUrl: proxyEnabled ? proxyUrl.trim() || null : null,
+          syncFileContents: pasteboardSyncFileContents,
+        },
+      });
+      pasteboardSyncSettings = settings;
+      pasteboardSyncStatus = settings.enabled
+        ? "凭据与派生密钥已验证并保存到 macOS 钥匙串"
+        : "PasteboardPro 加密同步已关闭";
+    } catch (error) {
+      pasteboardSyncStatus = error instanceof Error ? error.message : String(error);
+    } finally {
+      pasteboardSyncSaving = false;
+    }
+  }
+
+  async function syncPasteboardNow() {
+    if (!hasTauriRuntime()) {
+      pasteboardSyncStatus = "需在 macOS 桌面应用中同步";
+      return;
+    }
+    pasteboardSyncing = true;
+    pasteboardSyncStatus = "正在拉取、合并并提交加密对象…";
+    try {
+      const result = await invoke<{
+        status: string;
+        pulledObjects: number;
+        pushedObjects: number;
+        failedObjectIds: string[];
+        retries: number;
+      }>("sync_pasteboard_vault");
+      await loadPasteboardSyncSettings();
+      pasteboardSyncStatus = result.status === "success"
+        ? `同步完成：拉取 ${result.pulledObjects} 项，上传 ${result.pushedObjects} 项`
+        : `同步为 ${result.status}：${result.failedObjectIds.length} 项等待重试`;
+    } catch (error) {
+      await loadPasteboardSyncSettings();
+      pasteboardSyncStatus = error instanceof Error ? error.message : String(error);
+    } finally {
+      pasteboardSyncing = false;
+    }
   }
 
   function updateWebdavEnabled(value: boolean, input?: HTMLInputElement) {
@@ -5876,6 +5983,124 @@
       </div>
     {:else if activeMenu === "sync"}
       <div class="content-panel">
+        <section class="setting-group">
+          <div class="section-heading">
+            <div>
+              <h3>PasteboardPro 端到端同步</h3>
+              <small>与 ZTools 使用同一 PasteboardPro/v1 加密 vault；本地历史仍是主数据源</small>
+            </div>
+            <span
+              class="state-pill"
+              class:enabled={pasteboardSyncSettings.state === "success" || pasteboardSyncSettings.state === "idle"}
+              class:error={["auth_required", "wrong_password", "corrupted", "schema_too_new"].includes(pasteboardSyncSettings.state)}
+            >
+              {pasteboardSyncView().label}
+            </span>
+          </div>
+          <div class="inline-status">
+            <strong>{pasteboardSyncView().detail}</strong><br />
+            WebDAV 密码与 256-bit 派生密钥只保存在 macOS 钥匙串；设置和诊断中仅保留固定引用。
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-label">
+              <span>启用加密同步</span>
+              <small>文本、富文本、链接、颜色、OCR、Pinboards、图片和 PDF 默认同步</small>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" bind:checked={pasteboardSyncEnabled} />
+              <span></span>
+            </label>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-label">
+              <span>加密 vault 地址</span>
+              <small>必须为 HTTPS，建议使用当前 WebDAV 下的 PasteboardPro/v1 独立目录</small>
+            </div>
+            <div class="row-actions">
+              <input
+                class="text-input wide"
+                bind:value={pasteboardVaultUrl}
+                placeholder="https://dav.example.com/ATools/PasteboardPro/v1/"
+                aria-label="PasteboardPro 加密 vault 地址"
+              />
+              <button class="plain-button" type="button" onclick={useCurrentWebdavForPasteboard}>
+                使用当前 WebDAV
+              </button>
+            </div>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-label">
+              <span>WebDAV 用户名</span>
+              <small>用户名可保存在非敏感设置中</small>
+            </div>
+            <input class="text-input wide" bind:value={pasteboardSyncUsername} autocomplete="username" />
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-label">
+              <span>WebDAV 密码 / Token</span>
+              <small>留空表示继续使用钥匙串中的凭据</small>
+            </div>
+            <input
+              class="text-input wide"
+              type="password"
+              bind:value={pasteboardWebdavPassword}
+              placeholder="未修改"
+              autocomplete="current-password"
+            />
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-label">
+              <span>剪贴板同步密码</span>
+              <small>用于端到端加密；已有 vault 会先验证候选密钥，错误输入不会替换旧密钥</small>
+            </div>
+            <input
+              class="text-input wide"
+              type="password"
+              bind:value={pasteboardSyncPassword}
+              placeholder="首次启用或重新验证时填写"
+              autocomplete="new-password"
+            />
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-label">
+              <span>同步任意文件内容</span>
+              <small>默认只同步文件元数据；图片与 PDF 不受此开关影响，单项最大 100 MiB</small>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" bind:checked={pasteboardSyncFileContents} />
+              <span></span>
+            </label>
+          </div>
+
+          <div class="section-heading">
+            <div class="inline-status">{pasteboardSyncStatus || "保存时会验证 HTTPS、远端 salt、加密 index 和候选密钥。"}</div>
+            <div class="row-actions">
+              <button
+                class="plain-button"
+                type="button"
+                onclick={syncPasteboardNow}
+                disabled={pasteboardSyncing || pasteboardSyncSaving || !pasteboardSyncSettings.enabled}
+              >
+                {pasteboardSyncing ? "正在同步…" : "立即同步"}
+              </button>
+              <button
+                class="plain-button"
+                type="button"
+                onclick={configurePasteboardSync}
+                disabled={pasteboardSyncSaving || pasteboardSyncing}
+              >
+                {pasteboardSyncSaving ? "正在验证…" : "验证并保存"}
+              </button>
+            </div>
+          </div>
+        </section>
+
         <section class="setting-group">
           <div class="section-heading">
             <h3>WebDAV 概览</h3>

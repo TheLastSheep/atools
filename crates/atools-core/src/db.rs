@@ -7,7 +7,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use parking_lot::Mutex;
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::{self, Value};
 
 use crate::agent::{
@@ -18,6 +18,10 @@ use crate::error::{AToolsError, Result};
 use crate::memory::{validate_memory_content, MemoryApproval, MemoryItem, MemoryScope, MemoryType};
 use crate::models::{
     ClipboardHistoryEntry, Document, Feature, FeatureEntry, Plugin, PluginManifest,
+};
+use crate::pasteboard::{
+    HybridLogicalClock, PasteboardBlob, PasteboardEntityType, PasteboardItem,
+    PasteboardPruneResult, PasteboardTombstone, Pinboard,
 };
 use crate::skill::SkillDefinition;
 use crate::task_run::{
@@ -227,6 +231,54 @@ impl Database {
                 used_count INTEGER NOT NULL DEFAULT 1
             );
 
+            CREATE TABLE IF NOT EXISTS pasteboard_items (
+                id TEXT PRIMARY KEY,
+                kind TEXT NOT NULL,
+                title TEXT,
+                source_device_id TEXT NOT NULL,
+                copied_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                content_fingerprint TEXT NOT NULL,
+                pinboard_id TEXT,
+                pinboard_order_key TEXT,
+                pinned BOOLEAN NOT NULL DEFAULT 0,
+                payload_blob_id TEXT,
+                entity_json TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS pasteboard_pinboards (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                color TEXT NOT NULL,
+                order_key TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                entity_json TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS pasteboard_tombstones (
+                entity_type TEXT NOT NULL,
+                id TEXT NOT NULL,
+                deleted_at TEXT NOT NULL,
+                source_device_id TEXT NOT NULL,
+                clock_wall_ms INTEGER NOT NULL,
+                tombstone_json TEXT NOT NULL,
+                PRIMARY KEY (entity_type, id)
+            );
+
+            CREATE TABLE IF NOT EXISTS pasteboard_blobs (
+                id TEXT PRIMARY KEY,
+                keyed_fingerprint TEXT NOT NULL UNIQUE,
+                relative_path TEXT NOT NULL,
+                media_type TEXT NOT NULL,
+                byte_length INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                last_accessed_at TEXT NOT NULL,
+                remote_available BOOLEAN NOT NULL DEFAULT 0,
+                sync_state TEXT NOT NULL DEFAULT 'local',
+                metadata_json TEXT NOT NULL DEFAULT 'null'
+            );
+
             CREATE INDEX IF NOT EXISTS idx_features_plugin ON features(plugin_id);
             CREATE INDEX IF NOT EXISTS idx_plugin_data_plugin ON plugin_data(plugin_id);
             CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp ON audit_log(timestamp DESC);
@@ -241,6 +293,12 @@ impl Database {
             CREATE INDEX IF NOT EXISTS idx_skills_enabled_updated_at ON skills(enabled, updated_at DESC);
             CREATE INDEX IF NOT EXISTS idx_agent_tool_grants_tool ON agent_tool_grants(tool_name);
             CREATE INDEX IF NOT EXISTS idx_clipboard_history_last_copied_at ON clipboard_history(last_copied_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_pasteboard_items_copied_at ON pasteboard_items(copied_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_pasteboard_items_fingerprint ON pasteboard_items(content_fingerprint);
+            CREATE INDEX IF NOT EXISTS idx_pasteboard_items_pinboard_order ON pasteboard_items(pinboard_id, pinboard_order_key);
+            CREATE INDEX IF NOT EXISTS idx_pasteboard_pinboards_order ON pasteboard_pinboards(order_key);
+            CREATE INDEX IF NOT EXISTS idx_pasteboard_tombstones_deleted_at ON pasteboard_tombstones(deleted_at);
+            CREATE INDEX IF NOT EXISTS idx_pasteboard_blobs_last_accessed ON pasteboard_blobs(last_accessed_at);
             "#,
         )?;
         ensure_memory_scope_columns(&conn)?;
@@ -803,6 +861,546 @@ impl Database {
             "count": entries.len(),
             "entries": entries,
         }))?)
+    }
+
+    // ---- PasteboardPro canonical store ----
+
+    pub fn upsert_pasteboard_item(&self, item: &PasteboardItem) -> Result<()> {
+        validate_pasteboard_item(item)?;
+        let entity_json = serde_json::to_string(item)?;
+        let mut conn = self.conn.lock();
+        let tx = conn.transaction()?;
+        tx.execute(
+            r#"
+            INSERT INTO pasteboard_items
+            (id, kind, title, source_device_id, copied_at, updated_at, content_fingerprint,
+             pinboard_id, pinboard_order_key, pinned, payload_blob_id, entity_json)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+            ON CONFLICT(id) DO UPDATE SET
+                kind = excluded.kind,
+                title = excluded.title,
+                source_device_id = excluded.source_device_id,
+                copied_at = excluded.copied_at,
+                updated_at = excluded.updated_at,
+                content_fingerprint = excluded.content_fingerprint,
+                pinboard_id = excluded.pinboard_id,
+                pinboard_order_key = excluded.pinboard_order_key,
+                pinned = excluded.pinned,
+                payload_blob_id = excluded.payload_blob_id,
+                entity_json = excluded.entity_json
+            "#,
+            params![
+                item.id,
+                item.kind.as_str(),
+                item.title,
+                item.source_device_id,
+                item.copied_at,
+                item.updated_at,
+                item.content_fingerprint,
+                item.pinboard_id,
+                item.pinboard_order_key,
+                item.pinned,
+                item.payload.blob_id,
+                entity_json,
+            ],
+        )?;
+        tx.execute(
+            "DELETE FROM pasteboard_tombstones WHERE entity_type = 'paste_item' AND id = ?1",
+            params![item.id],
+        )?;
+        tx.commit()?;
+        Ok(())
+    }
+
+    pub fn upsert_pasteboard_items_batch(&self, items: &[PasteboardItem]) -> Result<()> {
+        for item in items {
+            validate_pasteboard_item(item)?;
+        }
+        let mut conn = self.conn.lock();
+        let tx = conn.transaction()?;
+        {
+            let mut upsert = tx.prepare_cached(
+                r#"
+                INSERT INTO pasteboard_items
+                (id, kind, title, source_device_id, copied_at, updated_at, content_fingerprint,
+                 pinboard_id, pinboard_order_key, pinned, payload_blob_id, entity_json)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+                ON CONFLICT(id) DO UPDATE SET
+                    kind = excluded.kind,
+                    title = excluded.title,
+                    source_device_id = excluded.source_device_id,
+                    copied_at = excluded.copied_at,
+                    updated_at = excluded.updated_at,
+                    content_fingerprint = excluded.content_fingerprint,
+                    pinboard_id = excluded.pinboard_id,
+                    pinboard_order_key = excluded.pinboard_order_key,
+                    pinned = excluded.pinned,
+                    payload_blob_id = excluded.payload_blob_id,
+                    entity_json = excluded.entity_json
+                "#,
+            )?;
+            let mut remove_tombstone = tx.prepare_cached(
+                "DELETE FROM pasteboard_tombstones WHERE entity_type = 'paste_item' AND id = ?1",
+            )?;
+            for item in items {
+                let entity_json = serde_json::to_string(item)?;
+                upsert.execute(params![
+                    item.id,
+                    item.kind.as_str(),
+                    item.title,
+                    item.source_device_id,
+                    item.copied_at,
+                    item.updated_at,
+                    item.content_fingerprint,
+                    item.pinboard_id,
+                    item.pinboard_order_key,
+                    item.pinned,
+                    item.payload.blob_id,
+                    entity_json,
+                ])?;
+                remove_tombstone.execute(params![item.id])?;
+            }
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
+    pub fn get_pasteboard_item(&self, id: &str) -> Result<Option<PasteboardItem>> {
+        let conn = self.conn.lock();
+        let json = conn
+            .query_row(
+                "SELECT entity_json FROM pasteboard_items WHERE id = ?1",
+                params![id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        json.map(|value| serde_json::from_str(&value))
+            .transpose()
+            .map_err(Into::into)
+    }
+
+    pub fn find_pasteboard_item_by_fingerprint(
+        &self,
+        fingerprint: &str,
+    ) -> Result<Option<PasteboardItem>> {
+        let conn = self.conn.lock();
+        let json = conn
+            .query_row(
+                r#"
+                SELECT entity_json
+                FROM pasteboard_items
+                WHERE content_fingerprint = ?1
+                ORDER BY copied_at DESC
+                LIMIT 1
+                "#,
+                params![fingerprint],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        json.map(|value| serde_json::from_str(&value))
+            .transpose()
+            .map_err(Into::into)
+    }
+
+    pub fn search_pasteboard_items(
+        &self,
+        query: &str,
+        pinboard_id: Option<&str>,
+        limit: usize,
+    ) -> Result<Vec<PasteboardItem>> {
+        let conn = self.conn.lock();
+        let query = query.trim().to_lowercase();
+        let like = format!("%{query}%");
+        let limit = limit.clamp(1, 100_000) as i64;
+        let mut stmt = conn.prepare(
+            r#"
+            SELECT entity_json
+            FROM pasteboard_items
+            WHERE (?1 = '' OR LOWER(entity_json) LIKE ?2)
+              AND (?3 IS NULL OR pinboard_id = ?3)
+            ORDER BY
+                CASE WHEN ?3 IS NULL THEN copied_at END DESC,
+                CASE WHEN ?3 IS NOT NULL THEN pinboard_order_key END ASC,
+                copied_at DESC
+            LIMIT ?4
+            "#,
+        )?;
+        let json = stmt
+            .query_map(params![query, like, pinboard_id, limit], |row| {
+                row.get::<_, String>(0)
+            })?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        json.into_iter()
+            .map(|value| serde_json::from_str(&value).map_err(Into::into))
+            .collect()
+    }
+
+    pub fn count_pasteboard_items(&self) -> Result<usize> {
+        let conn = self.conn.lock();
+        let count: i64 = conn.query_row("SELECT COUNT(*) FROM pasteboard_items", [], |row| {
+            row.get(0)
+        })?;
+        Ok(count.max(0) as usize)
+    }
+
+    pub fn list_pasteboard_items_for_sync(&self) -> Result<Vec<PasteboardItem>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn
+            .prepare("SELECT entity_json FROM pasteboard_items ORDER BY copied_at DESC, id ASC")?;
+        let json = stmt
+            .query_map([], |row| row.get::<_, String>(0))?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        json.into_iter()
+            .map(|value| serde_json::from_str(&value).map_err(Into::into))
+            .collect()
+    }
+
+    pub fn assign_pasteboard_item(
+        &self,
+        id: &str,
+        pinboard_id: Option<&str>,
+        order_key: Option<&str>,
+    ) -> Result<PasteboardItem> {
+        let device_id = self
+            .get_pasteboard_item(id)?
+            .ok_or_else(|| AToolsError::Config(format!("PasteboardPro item does not exist: {id}")))?
+            .source_device_id;
+        self.assign_pasteboard_item_from_device(id, pinboard_id, order_key, &device_id)
+    }
+
+    pub fn assign_pasteboard_item_from_device(
+        &self,
+        id: &str,
+        pinboard_id: Option<&str>,
+        order_key: Option<&str>,
+        device_id: &str,
+    ) -> Result<PasteboardItem> {
+        if pinboard_id.is_some() != order_key.is_some() {
+            return Err(AToolsError::Config(
+                "PasteboardPro Pinboard assignment requires both board and order key".to_string(),
+            ));
+        }
+        validate_non_empty(device_id, "assignment device id")?;
+        if let Some(pinboard_id) = pinboard_id {
+            if self.get_pinboard(pinboard_id)?.is_none() {
+                return Err(AToolsError::Config(format!(
+                    "PasteboardPro Pinboard does not exist: {pinboard_id}"
+                )));
+            }
+        }
+        let mut item = self.get_pasteboard_item(id)?.ok_or_else(|| {
+            AToolsError::Config(format!("PasteboardPro item does not exist: {id}"))
+        })?;
+        let wall_ms = current_wall_ms()?;
+        item.pinboard_id = pinboard_id.map(ToString::to_string);
+        item.pinboard_order_key = order_key.map(ToString::to_string);
+        item.updated_at = crate::utils::now_iso();
+        item.field_clocks.insert(
+            "pinboardId".to_string(),
+            HybridLogicalClock {
+                wall_ms,
+                counter: 0,
+                device_id: device_id.to_string(),
+            },
+        );
+        item.field_clocks.insert(
+            "pinboardOrderKey".to_string(),
+            HybridLogicalClock {
+                wall_ms,
+                counter: 1,
+                device_id: device_id.to_string(),
+            },
+        );
+        self.upsert_pasteboard_item(&item)?;
+        Ok(item)
+    }
+
+    pub fn update_pasteboard_item_ocr_from_device(
+        &self,
+        id: &str,
+        ocr_text: Option<&str>,
+        device_id: &str,
+    ) -> Result<PasteboardItem> {
+        validate_non_empty(device_id, "OCR device id")?;
+        let mut item = self.get_pasteboard_item(id)?.ok_or_else(|| {
+            AToolsError::Config(format!("PasteboardPro item does not exist: {id}"))
+        })?;
+        let wall_ms = current_wall_ms()?;
+        item.ocr_text = ocr_text
+            .map(str::trim)
+            .filter(|text| !text.is_empty())
+            .map(ToString::to_string);
+        item.updated_at = crate::utils::now_iso();
+        item.field_clocks.insert(
+            "ocrText".to_string(),
+            HybridLogicalClock {
+                wall_ms,
+                counter: 0,
+                device_id: device_id.to_string(),
+            },
+        );
+        self.upsert_pasteboard_item(&item)?;
+        Ok(item)
+    }
+
+    pub fn upsert_pinboard(&self, pinboard: &Pinboard) -> Result<()> {
+        validate_pinboard(pinboard)?;
+        let entity_json = serde_json::to_string(pinboard)?;
+        let mut conn = self.conn.lock();
+        let tx = conn.transaction()?;
+        tx.execute(
+            r#"
+            INSERT INTO pasteboard_pinboards
+            (id, name, color, order_key, created_at, updated_at, entity_json)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+            ON CONFLICT(id) DO UPDATE SET
+                name = excluded.name,
+                color = excluded.color,
+                order_key = excluded.order_key,
+                created_at = excluded.created_at,
+                updated_at = excluded.updated_at,
+                entity_json = excluded.entity_json
+            "#,
+            params![
+                pinboard.id,
+                pinboard.name,
+                pinboard.color,
+                pinboard.order_key,
+                pinboard.created_at,
+                pinboard.updated_at,
+                entity_json,
+            ],
+        )?;
+        tx.execute(
+            "DELETE FROM pasteboard_tombstones WHERE entity_type = 'pinboard' AND id = ?1",
+            params![pinboard.id],
+        )?;
+        tx.commit()?;
+        Ok(())
+    }
+
+    pub fn get_pinboard(&self, id: &str) -> Result<Option<Pinboard>> {
+        let conn = self.conn.lock();
+        let json = conn
+            .query_row(
+                "SELECT entity_json FROM pasteboard_pinboards WHERE id = ?1",
+                params![id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        json.map(|value| serde_json::from_str(&value))
+            .transpose()
+            .map_err(Into::into)
+    }
+
+    pub fn list_pinboards(&self) -> Result<Vec<Pinboard>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT entity_json FROM pasteboard_pinboards ORDER BY order_key ASC, id ASC",
+        )?;
+        let json = stmt
+            .query_map([], |row| row.get::<_, String>(0))?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        json.into_iter()
+            .map(|value| serde_json::from_str(&value).map_err(Into::into))
+            .collect()
+    }
+
+    pub fn upsert_pasteboard_tombstone(&self, tombstone: &PasteboardTombstone) -> Result<()> {
+        validate_tombstone(tombstone)?;
+        let json = serde_json::to_string(tombstone)?;
+        let mut conn = self.conn.lock();
+        let tx = conn.transaction()?;
+        match tombstone.entity_type {
+            PasteboardEntityType::PasteItem => {
+                tx.execute(
+                    "DELETE FROM pasteboard_items WHERE id = ?1",
+                    params![tombstone.id],
+                )?;
+            }
+            PasteboardEntityType::Pinboard => {
+                tx.execute(
+                    "DELETE FROM pasteboard_pinboards WHERE id = ?1",
+                    params![tombstone.id],
+                )?;
+            }
+        }
+        tx.execute(
+            r#"
+            INSERT INTO pasteboard_tombstones
+            (entity_type, id, deleted_at, source_device_id, clock_wall_ms, tombstone_json)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+            ON CONFLICT(entity_type, id) DO UPDATE SET
+                deleted_at = excluded.deleted_at,
+                source_device_id = excluded.source_device_id,
+                clock_wall_ms = excluded.clock_wall_ms,
+                tombstone_json = excluded.tombstone_json
+            "#,
+            params![
+                tombstone.entity_type.as_str(),
+                tombstone.id,
+                tombstone.deleted_at,
+                tombstone.source_device_id,
+                tombstone.clock.wall_ms,
+                json,
+            ],
+        )?;
+        tx.commit()?;
+        Ok(())
+    }
+
+    pub fn list_pasteboard_tombstones(&self) -> Result<Vec<PasteboardTombstone>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT tombstone_json FROM pasteboard_tombstones ORDER BY clock_wall_ms ASC",
+        )?;
+        let json = stmt
+            .query_map([], |row| row.get::<_, String>(0))?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        json.into_iter()
+            .map(|value| serde_json::from_str(&value).map_err(Into::into))
+            .collect()
+    }
+
+    pub fn prune_pasteboard_tombstones(&self, deleted_before: &str) -> Result<usize> {
+        let conn = self.conn.lock();
+        Ok(conn.execute(
+            "DELETE FROM pasteboard_tombstones WHERE deleted_at < ?1",
+            params![deleted_before],
+        )?)
+    }
+
+    pub fn upsert_pasteboard_blob(&self, blob: &PasteboardBlob) -> Result<()> {
+        validate_pasteboard_blob(blob)?;
+        let byte_length = i64::try_from(blob.byte_length).map_err(|_| {
+            AToolsError::Config("PasteboardPro blob exceeds SQLite integer range".to_string())
+        })?;
+        let conn = self.conn.lock();
+        conn.execute(
+            r#"
+            INSERT INTO pasteboard_blobs
+            (id, keyed_fingerprint, relative_path, media_type, byte_length, created_at,
+             last_accessed_at, remote_available, sync_state, metadata_json)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+            ON CONFLICT(id) DO UPDATE SET
+                keyed_fingerprint = excluded.keyed_fingerprint,
+                relative_path = excluded.relative_path,
+                media_type = excluded.media_type,
+                byte_length = excluded.byte_length,
+                last_accessed_at = excluded.last_accessed_at,
+                remote_available = excluded.remote_available,
+                sync_state = excluded.sync_state,
+                metadata_json = excluded.metadata_json
+            "#,
+            params![
+                blob.id,
+                blob.keyed_fingerprint,
+                blob.relative_path,
+                blob.media_type,
+                byte_length,
+                blob.created_at,
+                blob.last_accessed_at,
+                blob.remote_available,
+                blob.sync_state,
+                serde_json::to_string(&blob.metadata)?,
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_pasteboard_blob(&self, id: &str) -> Result<Option<PasteboardBlob>> {
+        let conn = self.conn.lock();
+        conn.query_row(
+            r#"
+            SELECT id, keyed_fingerprint, relative_path, media_type, byte_length,
+                   created_at, last_accessed_at, remote_available, sync_state, metadata_json
+            FROM pasteboard_blobs WHERE id = ?1
+            "#,
+            params![id],
+            pasteboard_blob_from_row,
+        )
+        .optional()
+        .map_err(Into::into)
+    }
+
+    pub fn list_pasteboard_blobs(&self) -> Result<Vec<PasteboardBlob>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            r#"
+            SELECT id, keyed_fingerprint, relative_path, media_type, byte_length,
+                   created_at, last_accessed_at, remote_available, sync_state, metadata_json
+            FROM pasteboard_blobs ORDER BY created_at ASC
+            "#,
+        )?;
+        stmt.query_map([], pasteboard_blob_from_row)?
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(Into::into)
+    }
+
+    pub fn prune_pasteboard_history(
+        &self,
+        copied_before: &str,
+        max_blob_bytes: u64,
+    ) -> Result<PasteboardPruneResult> {
+        let mut conn = self.conn.lock();
+        let tx = conn.transaction()?;
+        let candidates = {
+            let mut stmt = tx.prepare(
+                r#"
+                SELECT id, copied_at
+                FROM pasteboard_items
+                WHERE pinned = 0 AND pinboard_id IS NULL
+                ORDER BY copied_at ASC, id ASC
+                "#,
+            )?;
+            stmt.query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })?
+            .collect::<std::result::Result<Vec<_>, _>>()?
+        };
+        let mut retained_blob_bytes = pasteboard_blob_bytes(&tx)?;
+        let mut result = PasteboardPruneResult::default();
+        let mut deleted_ids = std::collections::HashSet::new();
+
+        for (id, copied_at) in &candidates {
+            if copied_at.as_str() < copied_before {
+                let reclaimed = delete_pasteboard_item_and_orphan_blob(&tx, id)?;
+                deleted_ids.insert(id.clone());
+                result.deleted_items += 1;
+                result.deleted_item_ids.push(id.clone());
+                if let Some((blob_id, bytes)) = reclaimed {
+                    result.deleted_blob_ids.push(blob_id);
+                    result.deleted_blob_bytes += bytes;
+                    retained_blob_bytes = retained_blob_bytes.saturating_sub(bytes);
+                }
+            }
+        }
+
+        for (id, _) in &candidates {
+            if retained_blob_bytes <= max_blob_bytes {
+                break;
+            }
+            if deleted_ids.contains(id) {
+                continue;
+            }
+            let reclaimed = delete_pasteboard_item_and_orphan_blob(&tx, id)?;
+            result.deleted_items += 1;
+            result.deleted_item_ids.push(id.clone());
+            if let Some((blob_id, bytes)) = reclaimed {
+                result.deleted_blob_ids.push(blob_id);
+                result.deleted_blob_bytes += bytes;
+                retained_blob_bytes = retained_blob_bytes.saturating_sub(bytes);
+            }
+        }
+
+        result.deleted_blob_ids.sort();
+        result.deleted_blob_ids.dedup();
+        result.deleted_item_ids.sort();
+        result.deleted_item_ids.dedup();
+        result.retained_blob_bytes = retained_blob_bytes;
+        result.budget_satisfied = retained_blob_bytes <= max_blob_bytes;
+        tx.commit()?;
+        Ok(result)
     }
 
     // ---- Agent tool registry and grants ----
@@ -1778,6 +2376,176 @@ fn agent_tool_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ToolDefiniti
         source: row.get(7)?,
         plugin_id: row.get(8)?,
     })
+}
+
+fn validate_non_empty(value: &str, field: &str) -> Result<()> {
+    if value.trim().is_empty() {
+        return Err(AToolsError::Config(format!(
+            "PasteboardPro {field} cannot be empty"
+        )));
+    }
+    Ok(())
+}
+
+fn validate_clock(clock: &HybridLogicalClock) -> Result<()> {
+    validate_non_empty(&clock.device_id, "clock device id")
+}
+
+fn validate_pasteboard_item(item: &PasteboardItem) -> Result<()> {
+    validate_non_empty(&item.id, "item id")?;
+    validate_non_empty(&item.source_device_id, "source device id")?;
+    validate_non_empty(&item.copied_at, "copied timestamp")?;
+    validate_non_empty(&item.updated_at, "updated timestamp")?;
+    validate_non_empty(&item.content_fingerprint, "content fingerprint")?;
+    validate_non_empty(&item.payload.revision, "payload revision")?;
+    if item.pinboard_id.is_some() != item.pinboard_order_key.is_some() {
+        return Err(AToolsError::Config(
+            "PasteboardPro item Pinboard id and order key must be set together".to_string(),
+        ));
+    }
+    for clock in item.field_clocks.values() {
+        validate_clock(clock)?;
+    }
+    Ok(())
+}
+
+fn validate_pinboard(pinboard: &Pinboard) -> Result<()> {
+    validate_non_empty(&pinboard.id, "Pinboard id")?;
+    let name = pinboard.name.trim();
+    if name.is_empty() || name.chars().count() > 80 {
+        return Err(AToolsError::Config(
+            "PasteboardPro Pinboard name must contain 1 to 80 characters".to_string(),
+        ));
+    }
+    let color = pinboard.color.as_bytes();
+    if color.len() != 7 || color[0] != b'#' || !color[1..].iter().all(u8::is_ascii_hexdigit) {
+        return Err(AToolsError::Config(
+            "PasteboardPro Pinboard color must be a six-digit hex color".to_string(),
+        ));
+    }
+    validate_non_empty(&pinboard.order_key, "Pinboard order key")?;
+    validate_non_empty(&pinboard.created_at, "Pinboard creation timestamp")?;
+    validate_non_empty(&pinboard.updated_at, "Pinboard update timestamp")?;
+    for clock in pinboard.field_clocks.values() {
+        validate_clock(clock)?;
+    }
+    Ok(())
+}
+
+fn validate_tombstone(tombstone: &PasteboardTombstone) -> Result<()> {
+    validate_non_empty(&tombstone.id, "tombstone id")?;
+    if !tombstone.deleted {
+        return Err(AToolsError::Config(
+            "PasteboardPro tombstone must have deleted=true".to_string(),
+        ));
+    }
+    validate_non_empty(&tombstone.deleted_at, "tombstone deletion timestamp")?;
+    validate_non_empty(&tombstone.source_device_id, "tombstone source device id")?;
+    validate_clock(&tombstone.clock)
+}
+
+fn validate_pasteboard_blob(blob: &PasteboardBlob) -> Result<()> {
+    validate_non_empty(&blob.id, "blob id")?;
+    validate_non_empty(&blob.keyed_fingerprint, "blob keyed fingerprint")?;
+    validate_non_empty(&blob.media_type, "blob media type")?;
+    validate_non_empty(&blob.sync_state, "blob sync state")?;
+    let path = blob.relative_path.trim();
+    if path.is_empty()
+        || path.starts_with('/')
+        || path.contains('\\')
+        || path
+            .split('/')
+            .any(|segment| matches!(segment, "" | "." | ".."))
+    {
+        return Err(AToolsError::Config(
+            "PasteboardPro blob path must remain inside the managed directory".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+fn current_wall_ms() -> Result<i64> {
+    let duration = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|error| AToolsError::Config(format!("System clock is invalid: {error}")))?;
+    i64::try_from(duration.as_millis())
+        .map_err(|_| AToolsError::Config("System clock exceeds HLC range".to_string()))
+}
+
+fn pasteboard_blob_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<PasteboardBlob> {
+    let byte_length: i64 = row.get(4)?;
+    if byte_length < 0 {
+        return Err(rusqlite::Error::IntegralValueOutOfRange(4, byte_length));
+    }
+    let metadata_json: String = row.get(9)?;
+    let metadata = serde_json::from_str(&metadata_json).map_err(|error| {
+        rusqlite::Error::FromSqlConversionFailure(9, rusqlite::types::Type::Text, Box::new(error))
+    })?;
+    Ok(PasteboardBlob {
+        id: row.get(0)?,
+        keyed_fingerprint: row.get(1)?,
+        relative_path: row.get(2)?,
+        media_type: row.get(3)?,
+        byte_length: byte_length as u64,
+        created_at: row.get(5)?,
+        last_accessed_at: row.get(6)?,
+        remote_available: row.get(7)?,
+        sync_state: row.get(8)?,
+        metadata,
+    })
+}
+
+fn pasteboard_blob_bytes(conn: &Connection) -> Result<u64> {
+    let bytes: i64 = conn.query_row(
+        "SELECT COALESCE(SUM(byte_length), 0) FROM pasteboard_blobs",
+        [],
+        |row| row.get(0),
+    )?;
+    Ok(bytes.max(0) as u64)
+}
+
+fn delete_pasteboard_item_and_orphan_blob(
+    conn: &Connection,
+    item_id: &str,
+) -> Result<Option<(String, u64)>> {
+    let blob_id = conn
+        .query_row(
+            "SELECT payload_blob_id FROM pasteboard_items WHERE id = ?1",
+            params![item_id],
+            |row| row.get::<_, Option<String>>(0),
+        )
+        .optional()?
+        .flatten();
+    conn.execute(
+        "DELETE FROM pasteboard_items WHERE id = ?1",
+        params![item_id],
+    )?;
+    let Some(blob_id) = blob_id else {
+        return Ok(None);
+    };
+    let references: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM pasteboard_items WHERE payload_blob_id = ?1",
+        params![blob_id],
+        |row| row.get(0),
+    )?;
+    if references > 0 {
+        return Ok(None);
+    }
+    let bytes = conn
+        .query_row(
+            "SELECT byte_length FROM pasteboard_blobs WHERE id = ?1",
+            params![blob_id],
+            |row| row.get::<_, i64>(0),
+        )
+        .optional()?;
+    let Some(bytes) = bytes else {
+        return Ok(None);
+    };
+    conn.execute(
+        "DELETE FROM pasteboard_blobs WHERE id = ?1",
+        params![blob_id],
+    )?;
+    Ok(Some((blob_id, bytes.max(0) as u64)))
 }
 
 fn clipboard_history_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ClipboardHistoryEntry> {

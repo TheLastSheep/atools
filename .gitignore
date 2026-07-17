@@ -11,3 +11,4 @@ src-tauri/gen/
 .playwright-cli/
 .worktrees/
 .superpowers/
+artifacts/

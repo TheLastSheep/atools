@@ -183,6 +183,8 @@
   const isFloatingBallWindow = typeof window !== "undefined" && window.location.hash === "#/floating-ball";
   const isSuperPanelWindow = typeof window !== "undefined" && window.location.hash === "#/super-panel";
   const isPluginDetachWindow = typeof window !== "undefined" && window.location.hash.startsWith("#/plugin-detach");
+  const isPasteboardShelfWindow = typeof window !== "undefined" && window.location.hash.startsWith("#/pasteboard-shelf");
+  const isExternalPluginWindow = isPluginDetachWindow || isPasteboardShelfWindow;
   const isMainWindow = typeof window !== "undefined" && window.location.hash === "";
   let superPanelClipboardText = $state("");
   let superPanelStatus = $state("");
@@ -290,7 +292,7 @@
     let settingsCancelled = false;
     let pinyinCancelled = false;
     const onPluginDetach = () => {
-      if (isPluginDetachWindow || !activePlugin) return;
+      if (isExternalPluginWindow || !activePlugin) return;
       void onPluginDetachAction();
     };
     if (isFloatingBallWindow || isSuperPanelWindow) {
@@ -311,7 +313,7 @@
         window.removeEventListener("atools-plugin-detach", onPluginDetach);
       };
     }
-    if (isPluginDetachWindow) {
+    if (isExternalPluginWindow) {
       window.addEventListener("atools-plugin-detach", onPluginDetach);
       void initializeDetachedPluginWindow();
       return () => {
@@ -520,7 +522,7 @@
   }
 
   function detachedPluginFeatureCodeFromHash() {
-    if (!isPluginDetachWindow || typeof window === "undefined") return null;
+    if (!isExternalPluginWindow || typeof window === "undefined") return null;
     const query = window.location.hash.split("?")[1];
     if (!query) return null;
     const params = new URLSearchParams(query);
@@ -531,7 +533,7 @@
   }
 
   async function initializeDetachedPluginWindow() {
-    if (!isPluginDetachWindow || activePlugin !== null) return;
+    if (!isExternalPluginWindow || activePlugin !== null) return;
     if (!hasTauriRuntime()) return;
     const featureCode = detachedPluginFeatureCodeFromHash();
     if (!featureCode) return;
@@ -646,6 +648,19 @@
       const result = results.find((item) => item.code === code);
       if (result) {
         await activateTextQuickAction(result);
+      }
+      return null;
+    }
+
+    if (code === "pasteboard-pro-atools" && hasTauriRuntime()) {
+      try {
+        await invoke("show_pasteboard_shelf");
+        await invoke("hide_main_window");
+        results = [];
+        selectedIndex = 0;
+      } catch (error) {
+        if (options.throwOnError) throw error;
+        console.warn("Failed to open PasteboardPro shelf:", error);
       }
       return null;
     }
@@ -2122,6 +2137,10 @@
       <ZMark size="small" label="打开 ATools" />
     </button>
   </main>
+{:else if isPasteboardShelfWindow}
+  <main class="pasteboard-shelf-shell">
+    <div class="pasteboard-shelf-plugin-host" bind:this={pluginPanelHost}></div>
+  </main>
 {:else}
   <ShellFrame
     activePanel={activePanel}
@@ -2205,7 +2224,7 @@
     />
   {/if}
 
-  {#if !isPluginDetachWindow && $appUpdaterState.promptVisible}
+  {#if !isExternalPluginWindow && $appUpdaterState.promptVisible}
     <AppUpdatePrompt
       state={$appUpdaterState}
       ondismiss={() => appUpdater.dismiss()}
@@ -2215,6 +2234,15 @@
 {/if}
 
 <style>
+  .pasteboard-shelf-shell,
+  .pasteboard-shelf-plugin-host {
+    width: 100vw;
+    height: 100vh;
+    min-width: 0;
+    overflow: hidden;
+    background: transparent;
+  }
+
   .super-panel-shell {
     width: 100vw;
     height: 100vh;

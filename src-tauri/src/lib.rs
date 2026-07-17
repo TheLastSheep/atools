@@ -5,8 +5,14 @@ pub mod crash;
 mod desktop_smoke;
 mod hotkey;
 pub mod mcp_server;
+mod pasteboard_actions;
 pub mod pasteboard_keychain;
+#[cfg(target_os = "macos")]
+mod pasteboard_macos;
+pub mod pasteboard_runtime;
 pub mod pasteboard_sync;
+#[cfg(target_os = "macos")]
+mod pasteboard_vision;
 mod state;
 mod tray;
 mod updater;
@@ -99,6 +105,11 @@ pub fn run() {
             commands::set_floating_ball_visible,
             commands::set_super_panel_visible,
             commands::open_plugin_detach_window,
+            commands::show_pasteboard_shelf,
+            commands::hide_pasteboard_shelf,
+            commands::toggle_pasteboard_shelf,
+            commands::start_pasteboard_shelf_drag,
+            commands::get_pasteboard_shelf_window_state,
             commands::open_devtools_for_window,
             commands::update_global_hotkey,
             commands::set_tray_icon_visible,
@@ -167,6 +178,30 @@ pub fn run() {
             commands::restore_webdav_settings,
             commands::restore_webdav_clipboard_history,
             commands::restore_webdav_plugin_data,
+            commands::get_pasteboard_sync_settings,
+            commands::configure_pasteboard_sync,
+            commands::sync_pasteboard_vault,
+            commands::pasteboard_list_items,
+            commands::pasteboard_list_pinboards,
+            commands::pasteboard_create_pinboard,
+            commands::pasteboard_rename_pinboard,
+            commands::pasteboard_update_pinboard,
+            commands::pasteboard_move_pinboard,
+            commands::pasteboard_delete_pinboard,
+            commands::pasteboard_assign_items,
+            commands::pasteboard_create_text_item,
+            commands::pasteboard_update_text_item,
+            commands::pasteboard_update_item_title,
+            commands::get_pasteboard_capture_status,
+            commands::set_pasteboard_capture_paused,
+            commands::get_pasteboard_preferences,
+            commands::set_pasteboard_preferences,
+            commands::pasteboard_get_item_preview,
+            commands::pasteboard_recognize_item,
+            commands::pasteboard_rotate_image,
+            commands::pasteboard_quick_look_item,
+            commands::pasteboard_paste_item,
+            commands::pasteboard_copy_item,
             commands::test_ai_connection,
             commands::release_smoke_info,
             commands::report_release_smoke_progress,
@@ -322,6 +357,79 @@ pub fn run() {
                 }
             });
 
+            #[cfg(not(target_os = "macos"))]
+            let app_for_pasteboard = handle.clone();
+            let pasteboard_runtime = app_state.inner().pasteboard_runtime.clone();
+            tauri::async_runtime::spawn(async move {
+                #[cfg(not(target_os = "macos"))]
+                use sha2::{Digest, Sha256};
+                #[cfg(not(target_os = "macos"))]
+                use tauri_plugin_clipboard_manager::ClipboardExt;
+
+                let mut interval = tokio::time::interval(std::time::Duration::from_millis(250));
+                interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+                #[cfg(target_os = "macos")]
+                let mut last_change_count: Option<isize> = None;
+                #[cfg(not(target_os = "macos"))]
+                let mut last_digest: Option<[u8; 32]> = None;
+                loop {
+                    interval.tick().await;
+                    #[cfg(target_os = "macos")]
+                    {
+                        if pasteboard_runtime
+                            .status()
+                            .is_ok_and(|status| status.paused)
+                        {
+                            last_change_count =
+                                Some(crate::pasteboard_macos::general_pasteboard_change_count());
+                            continue;
+                        }
+                        let captured = match crate::pasteboard_macos::read_general_pasteboard(
+                            last_change_count,
+                        ) {
+                            Ok(value) => value,
+                            Err(error) => {
+                                tracing::warn!(
+                                    "PasteboardPro native read failed without logging content: {}",
+                                    error
+                                );
+                                continue;
+                            }
+                        };
+                        let Some((change_count, snapshot)) = captured else {
+                            continue;
+                        };
+                        last_change_count = Some(change_count);
+                        if let Err(error) = pasteboard_runtime.capture_snapshot(snapshot) {
+                            tracing::warn!(
+                                "PasteboardPro capture failed without logging content: {}",
+                                error
+                            );
+                        }
+                        continue;
+                    }
+                    #[cfg(not(target_os = "macos"))]
+                    {
+                        let Ok(text) = app_for_pasteboard.clipboard().read_text() else {
+                            continue;
+                        };
+                        let digest: [u8; 32] = Sha256::digest(text.as_bytes()).into();
+                        if last_digest.as_ref() == Some(&digest) {
+                            continue;
+                        }
+                        match pasteboard_runtime.capture_text(&text) {
+                            Ok(_) => last_digest = Some(digest),
+                            Err(error) => {
+                                tracing::warn!(
+                                    "PasteboardPro capture failed without logging content: {}",
+                                    error
+                                );
+                            }
+                        }
+                    }
+                }
+            });
+
             if desktop_smoke::desktop_smoke_enabled() {
                 desktop_smoke::spawn_desktop_smoke_reporter(handle.clone());
             }
@@ -334,6 +442,11 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| match event {
+            tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_)
+                if window.label() == window::PASTEBOARD_SHELF_LABEL =>
+            {
+                window::schedule_pasteboard_shelf_reconcile(window);
+            }
             tauri::WindowEvent::CloseRequested { api, .. } => {
                 if window.label() == "main" {
                     window.hide().ok();

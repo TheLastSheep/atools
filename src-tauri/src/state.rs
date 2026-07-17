@@ -1,5 +1,6 @@
 use crate::desktop_smoke::PluginPanelRenderSmokeSummary;
 use crate::mcp_server::McpServerStatus;
+use crate::pasteboard_runtime::PasteboardRuntime;
 use atools_core::agent::PendingAgentToolRequest;
 use atools_core::config::AppConfig;
 use atools_core::db::Database;
@@ -53,6 +54,8 @@ pub struct AppState {
     pub mcp_status: Mutex<Option<McpServerStatus>>,
     pub pending_agent_requests: Mutex<BTreeMap<String, PendingAgentToolRequest>>,
     pub active_task_runs: Mutex<BTreeMap<String, tokio::task::AbortHandle>>,
+    pub pasteboard_sync_lock: tokio::sync::Mutex<()>,
+    pub pasteboard_runtime: Arc<PasteboardRuntime>,
     pub runtime_events: Mutex<Vec<RuntimeEvent>>,
     pub plugin_panel_render_smoke: Mutex<Option<PluginPanelRenderSmokeSummary>>,
     pub release_smoke: Mutex<Option<ReleaseSmokeConfig>>,
@@ -65,6 +68,7 @@ impl AppState {
         db: Arc<Database>,
         release_smoke: Option<ReleaseSmokeConfig>,
     ) -> Self {
+        let pasteboard_runtime = Arc::new(PasteboardRuntime::new(db.clone(), config.clone()));
         Self {
             config,
             db,
@@ -72,6 +76,8 @@ impl AppState {
             mcp_status: Mutex::new(None),
             pending_agent_requests: Mutex::new(BTreeMap::new()),
             active_task_runs: Mutex::new(BTreeMap::new()),
+            pasteboard_sync_lock: tokio::sync::Mutex::new(()),
+            pasteboard_runtime,
             runtime_events: Mutex::new(Vec::new()),
             plugin_panel_render_smoke: Mutex::new(None),
             release_smoke: Mutex::new(release_smoke),

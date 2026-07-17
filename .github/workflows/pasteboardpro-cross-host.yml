@@ -1,0 +1,79 @@
+name: PasteboardPro Cross-Host Acceptance
+
+on:
+  push:
+    branches:
+      - codex/pasteboardpro-atools
+  workflow_dispatch:
+    inputs:
+      ztools_ref:
+        description: ZTools-plugins ref containing the matching PasteboardPro implementation
+        required: true
+        default: codex/pasteboardpro-ztools
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pasteboardpro-cross-host-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust-node-webdav:
+    runs-on: macos-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout ATools
+        uses: actions/checkout@v5
+
+      - name: Checkout matching ZTools plugins
+        uses: actions/checkout@v5
+        with:
+          repository: TheLastSheep/ZTools-plugins
+          ref: ${{ inputs.ztools_ref || 'codex/pasteboardpro-ztools' }}
+          path: .cross-host/ztools
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.7.0
+          run_install: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - uses: dtolnay/rust-toolchain@1.97.0
+        with:
+          components: rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: pasteboardpro-cross-host
+
+      - name: Install ZTools PasteboardPro workspace
+        working-directory: .cross-host/ztools/plugins/pasteboard-pro
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify fixture and cross-host source contracts
+        run: |
+          set -euo pipefail
+          node scripts/test-pasteboardpro-webdav-fixture-server.mjs
+          node scripts/test-pasteboardpro-cross-host-source.mjs
+          ATOOLS_PASTEBOARDPRO_NODE_LOAD_ONLY=1 \
+            PASTEBOARDPRO_ZTOOLS_ROOT="$GITHUB_WORKSPACE/.cross-host/ztools/plugins/pasteboard-pro" \
+            node scripts/verify-pasteboardpro-cross-host.mjs
+          cargo fmt --all -- --check
+
+      - name: Run Rust to Node to Rust encrypted WebDAV acceptance
+        env:
+          ATOOLS_PASTEBOARDPRO_NATIVE: "1"
+          PASTEBOARDPRO_ZTOOLS_ROOT: ${{ github.workspace }}/.cross-host/ztools/plugins/pasteboard-pro
+        run: node scripts/verify-pasteboardpro-cross-host.mjs
+
+      - name: Upload cross-host acceptance report
+        uses: actions/upload-artifact@v7
+        with:
+          name: pasteboardpro-cross-host-${{ github.sha }}
+          path: artifacts/pasteboardpro/cross-host-sync.json
+          if-no-files-found: error
+          retention-days: 30

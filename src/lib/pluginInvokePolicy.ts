@@ -18,7 +18,33 @@ export type PluginInvokeCommand =
   | "copy_text"
   | "show_notification"
   | "system_get_path"
-  | "shell_open";
+  | "shell_open"
+  | "pasteboard_list_items"
+  | "pasteboard_list_pinboards"
+  | "pasteboard_create_pinboard"
+  | "pasteboard_rename_pinboard"
+  | "pasteboard_update_pinboard"
+  | "pasteboard_move_pinboard"
+  | "pasteboard_delete_pinboard"
+  | "pasteboard_assign_items"
+  | "pasteboard_create_text_item"
+  | "pasteboard_update_text_item"
+  | "pasteboard_update_item_title"
+  | "get_pasteboard_capture_status"
+  | "set_pasteboard_capture_paused"
+  | "get_pasteboard_preferences"
+  | "set_pasteboard_preferences"
+  | "get_pasteboard_shelf_window_state"
+  | "start_pasteboard_shelf_drag"
+  | "hide_pasteboard_shelf"
+  | "pasteboard_get_item_preview"
+  | "pasteboard_recognize_item"
+  | "pasteboard_rotate_image"
+  | "pasteboard_quick_look_item"
+  | "pasteboard_paste_item"
+  | "pasteboard_copy_item"
+  | "get_pasteboard_sync_settings"
+  | "sync_pasteboard_vault";
 
 export type ResolvedPluginInvokeRequest = {
   reqId: number;
@@ -137,6 +163,10 @@ const KNOWN_PLUGIN_PERMISSIONS = new Set<string>([
   "shell.openPath",
   "system.path",
   "notification",
+  "pasteboard.read",
+  "pasteboard.write",
+  "pasteboard.sync",
+  "pasteboard.paste",
   ...Object.values(NATIVE_PLUGIN_PERMISSIONS),
 ]);
 
@@ -202,6 +232,13 @@ function requiredString(
     invalidInvokeArgs(command, `${key} must be a non-empty string`);
   }
   return trim ? value.trim() : value;
+}
+
+function optionalString(args: Record<string, unknown>, key: string, command: string) {
+  const value = args[key];
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "string") invalidInvokeArgs(command, `${key} must be a string or null`);
+  return value.trim();
 }
 
 function sanitizeJsonValue(
@@ -299,6 +336,200 @@ function sanitizeInvokeArgs(
       const url = requiredString(args, "url", command, true);
       return { args: { url }, permission: shellPermission(url) };
     }
+    case "pasteboard_list_items": {
+      const query = optionalString(args, "query", command);
+      const pinboardId = optionalString(args, "pinboardId", command);
+      const limit = args.limit === undefined ? 200 : args.limit;
+      if (typeof limit !== "number" || !Number.isSafeInteger(limit) || limit < 1 || limit > 10_000) {
+        invalidInvokeArgs(command, "limit must be an integer from 1 to 10000");
+      }
+      return {
+        args: { query, pinboardId, limit },
+        permission: "pasteboard.read",
+      };
+    }
+    case "pasteboard_list_pinboards":
+    case "get_pasteboard_capture_status":
+    case "get_pasteboard_preferences":
+    case "get_pasteboard_shelf_window_state":
+    case "start_pasteboard_shelf_drag":
+    case "hide_pasteboard_shelf":
+    case "get_pasteboard_sync_settings":
+      return {
+        args: {},
+        permission: command === "get_pasteboard_sync_settings" ? "pasteboard.sync" : "pasteboard.read",
+      };
+    case "pasteboard_create_pinboard": {
+      const name = requiredString(args, "name", command, true);
+      const color = requiredString(args, "color", command, true).toUpperCase();
+      if ([...name].length > 80) invalidInvokeArgs(command, "name must not exceed 80 characters");
+      if (!/^#[0-9A-F]{6}$/.test(color)) invalidInvokeArgs(command, "color must be a six-digit hex color");
+      return { args: { name, color }, permission: "pasteboard.write" };
+    }
+    case "pasteboard_rename_pinboard": {
+      const id = requiredString(args, "id", command, true);
+      const name = requiredString(args, "name", command, true);
+      if ([...name].length > 80) invalidInvokeArgs(command, "name must not exceed 80 characters");
+      return { args: { id, name }, permission: "pasteboard.write" };
+    }
+    case "pasteboard_update_pinboard": {
+      const id = requiredString(args, "id", command, true);
+      const name = optionalString(args, "name", command);
+      const rawColor = optionalString(args, "color", command);
+      const color = rawColor === null ? null : rawColor.toUpperCase();
+      if (name === null && color === null) {
+        invalidInvokeArgs(command, "name or color is required");
+      }
+      if (name !== null && (name.length === 0 || [...name].length > 80)) {
+        invalidInvokeArgs(command, "name must contain 1 to 80 characters");
+      }
+      if (color !== null && !/^#[0-9A-F]{6}$/.test(color)) {
+        invalidInvokeArgs(command, "color must be a six-digit hex color");
+      }
+      return { args: { id, name, color }, permission: "pasteboard.write" };
+    }
+    case "pasteboard_move_pinboard":
+      return {
+        args: {
+          id: requiredString(args, "id", command, true),
+          beforeId: optionalString(args, "beforeId", command),
+          afterId: optionalString(args, "afterId", command),
+        },
+        permission: "pasteboard.write",
+      };
+    case "pasteboard_delete_pinboard":
+      return {
+        args: { id: requiredString(args, "id", command, true) },
+        permission: "pasteboard.write",
+      };
+    case "pasteboard_assign_items": {
+      if (!Array.isArray(args.itemIds) || args.itemIds.length === 0 || args.itemIds.length > 500) {
+        invalidInvokeArgs(command, "itemIds must contain 1 to 500 ids");
+      }
+      const itemIds = args.itemIds.map((value, index) => {
+        if (typeof value !== "string" || !value.trim()) {
+          invalidInvokeArgs(command, `itemIds[${index}] must be a non-empty string`);
+        }
+        return value.trim();
+      });
+      return {
+        args: { itemIds, pinboardId: optionalString(args, "pinboardId", command) },
+        permission: "pasteboard.write",
+      };
+    }
+    case "pasteboard_create_text_item": {
+      const text = requiredString(args, "text", command, true);
+      const title = optionalString(args, "title", command);
+      if (text.length > 10 * 1024 * 1024) invalidInvokeArgs(command, "text must not exceed 10 MiB");
+      if (title !== null && [...title].length > 160) invalidInvokeArgs(command, "title must not exceed 160 characters");
+      return { args: { text, title }, permission: "pasteboard.write" };
+    }
+    case "pasteboard_update_text_item": {
+      const itemId = requiredString(args, "itemId", command, true);
+      const text = requiredString(args, "text", command, true);
+      const title = optionalString(args, "title", command);
+      if (text.length > 10 * 1024 * 1024) invalidInvokeArgs(command, "text must not exceed 10 MiB");
+      if (title !== null && [...title].length > 160) invalidInvokeArgs(command, "title must not exceed 160 characters");
+      return { args: { itemId, text, title }, permission: "pasteboard.write" };
+    }
+    case "pasteboard_update_item_title": {
+      const itemId = requiredString(args, "itemId", command, true);
+      const title = requiredString(args, "title", command, true);
+      if ([...title].length > 160) invalidInvokeArgs(command, "title must not exceed 160 characters");
+      return { args: { itemId, title }, permission: "pasteboard.write" };
+    }
+    case "set_pasteboard_capture_paused":
+      if (typeof args.paused !== "boolean") invalidInvokeArgs(command, "paused must be a boolean");
+      return { args: { paused: args.paused }, permission: "pasteboard.write" };
+    case "set_pasteboard_preferences": {
+      const preferences = args.preferences;
+      if (!isPlainRecord(preferences)) invalidInvokeArgs(command, "preferences must be an object");
+      const retentionDays = preferences.retentionDays;
+      const blobBudgetBytes = preferences.blobBudgetBytes;
+      const privacyLiterals = preferences.privacyLiterals;
+      const screenShareProtection = preferences.screenShareProtection;
+      if (
+        typeof retentionDays !== "number" ||
+        !Number.isSafeInteger(retentionDays) ||
+        retentionDays < 1 ||
+        retentionDays > 3_650
+      ) {
+        invalidInvokeArgs(command, "retentionDays must be an integer from 1 to 3650");
+      }
+      if (
+        typeof blobBudgetBytes !== "number" ||
+        !Number.isSafeInteger(blobBudgetBytes) ||
+        blobBudgetBytes < 64 * 1024 * 1024 ||
+        blobBudgetBytes > 100 * 1024 * 1024 * 1024
+      ) {
+        invalidInvokeArgs(command, "blobBudgetBytes must be between 64 MiB and 100 GiB");
+      }
+      if (
+        !Array.isArray(privacyLiterals) ||
+        privacyLiterals.length > 200 ||
+        privacyLiterals.some(
+          (value) => typeof value !== "string" || !value.trim() || [...value].length > 256,
+        )
+      ) {
+        invalidInvokeArgs(command, "privacyLiterals must contain at most 200 non-empty strings");
+      }
+      if (typeof screenShareProtection !== "boolean") {
+        invalidInvokeArgs(command, "screenShareProtection must be a boolean");
+      }
+      return {
+        args: {
+          preferences: {
+            retentionDays,
+            blobBudgetBytes,
+            privacyLiterals: privacyLiterals.map((value) => value.trim()),
+            screenShareProtection,
+          },
+        },
+        permission: "pasteboard.write",
+      };
+    }
+    case "pasteboard_get_item_preview":
+      return {
+        args: { itemId: requiredString(args, "itemId", command, true) },
+        permission: "pasteboard.read",
+      };
+    case "pasteboard_recognize_item":
+      return {
+        args: { itemId: requiredString(args, "itemId", command, true) },
+        permission: "pasteboard.write",
+      };
+    case "pasteboard_rotate_image": {
+      const quarterTurns = args.quarterTurns;
+      if (quarterTurns !== -1 && quarterTurns !== 1) {
+        invalidInvokeArgs(command, "quarterTurns must be -1 or 1");
+      }
+      return {
+        args: {
+          itemId: requiredString(args, "itemId", command, true),
+          quarterTurns,
+        },
+        permission: "pasteboard.write",
+      };
+    }
+    case "pasteboard_quick_look_item":
+      return {
+        args: { itemId: requiredString(args, "itemId", command, true) },
+        permission: "pasteboard.read",
+      };
+    case "pasteboard_paste_item": {
+      const itemId = requiredString(args, "itemId", command, true);
+      const plainText = args.plainText === undefined ? false : args.plainText;
+      if (typeof plainText !== "boolean") invalidInvokeArgs(command, "plainText must be a boolean");
+      return { args: { itemId, plainText }, permission: "pasteboard.paste" };
+    }
+    case "pasteboard_copy_item": {
+      const itemId = requiredString(args, "itemId", command, true);
+      const plainText = args.plainText === undefined ? false : args.plainText;
+      if (typeof plainText !== "boolean") invalidInvokeArgs(command, "plainText must be a boolean");
+      return { args: { itemId, plainText }, permission: "pasteboard.write" };
+    }
+    case "sync_pasteboard_vault":
+      return { args: {}, permission: "pasteboard.sync" };
   }
 }
 
@@ -313,6 +544,32 @@ function pluginInvokeCommand(value: unknown): PluginInvokeCommand {
     case "show_notification":
     case "system_get_path":
     case "shell_open":
+    case "pasteboard_list_items":
+    case "pasteboard_list_pinboards":
+    case "pasteboard_create_pinboard":
+    case "pasteboard_rename_pinboard":
+    case "pasteboard_update_pinboard":
+    case "pasteboard_move_pinboard":
+    case "pasteboard_delete_pinboard":
+    case "pasteboard_assign_items":
+    case "pasteboard_create_text_item":
+    case "pasteboard_update_text_item":
+    case "pasteboard_update_item_title":
+    case "get_pasteboard_capture_status":
+    case "set_pasteboard_capture_paused":
+    case "get_pasteboard_preferences":
+    case "set_pasteboard_preferences":
+    case "get_pasteboard_shelf_window_state":
+    case "start_pasteboard_shelf_drag":
+    case "hide_pasteboard_shelf":
+    case "pasteboard_get_item_preview":
+    case "pasteboard_recognize_item":
+    case "pasteboard_rotate_image":
+    case "pasteboard_quick_look_item":
+    case "pasteboard_paste_item":
+    case "pasteboard_copy_item":
+    case "get_pasteboard_sync_settings":
+    case "sync_pasteboard_vault":
       return value;
     default:
       throw new Error(`Unsupported plugin invoke command: ${String(value ?? "") || "(empty)"}`);

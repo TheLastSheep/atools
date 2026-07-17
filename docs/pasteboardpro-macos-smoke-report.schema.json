@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atools.dev/schemas/pasteboardpro-macos-smoke-report.schema.json",
+  "title": "PasteboardPro macOS host smoke report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "fixtureVersion",
+    "host",
+    "pass",
+    "platform",
+    "architecture",
+    "appVersion",
+    "commitSha",
+    "packageSha256",
+    "recordedAt",
+    "cases"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "fixtureVersion": { "const": "pasteboardpro-macos-smoke-v1" },
+    "host": { "enum": ["atools", "ztools"] },
+    "pass": { "const": true },
+    "platform": { "const": "darwin" },
+    "architecture": { "enum": ["arm64", "x86_64"] },
+    "appVersion": { "type": "string", "minLength": 1 },
+    "commitSha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "packageSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "recordedAt": { "type": "string", "format": "date-time" },
+    "cases": {
+      "type": "array",
+      "minItems": 23,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "status", "evidence"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "status": { "const": "pass" },
+          "evidence": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "path", "sha256"],
+              "properties": {
+                "kind": { "enum": ["screenshot", "video", "log", "measurement"] },
+                "path": { "type": "string", "minLength": 1 },
+                "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

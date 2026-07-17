@@ -45,6 +45,16 @@ impl AppConfig {
         self.base_dir.join("plugins")
     }
 
+    /// Returns the managed PasteboardPro data directory.
+    pub fn pasteboard_dir(&self) -> PathBuf {
+        self.base_dir.join("pasteboard")
+    }
+
+    /// Returns the content-addressed PasteboardPro blob directory.
+    pub fn pasteboard_blobs_dir(&self) -> PathBuf {
+        self.pasteboard_dir().join("blobs")
+    }
+
     /// Returns the path to the settings JSON file.
     pub fn settings_path(&self) -> PathBuf {
         self.base_dir.join("settings.json")
@@ -67,6 +77,7 @@ impl AppConfig {
     pub fn ensure_dirs(&self) -> crate::error::Result<()> {
         std::fs::create_dir_all(&self.base_dir)?;
         std::fs::create_dir_all(self.plugins_dir())?;
+        std::fs::create_dir_all(self.pasteboard_blobs_dir())?;
         tracing::debug!("Ensured config directories at {:?}", self.base_dir);
         Ok(())
     }
@@ -119,6 +130,10 @@ mod tests {
         assert_eq!(cfg.db_path(), PathBuf::from("/tmp/atools-test/data.db"));
         assert_eq!(cfg.plugins_dir(), PathBuf::from("/tmp/atools-test/plugins"));
         assert_eq!(
+            cfg.pasteboard_blobs_dir(),
+            PathBuf::from("/tmp/atools-test/pasteboard/blobs")
+        );
+        assert_eq!(
             cfg.settings_path(),
             PathBuf::from("/tmp/atools-test/settings.json")
         );
@@ -140,6 +155,7 @@ mod tests {
         let cfg = AppConfig::with_base_dir(base.clone());
         cfg.ensure_dirs().unwrap();
         assert!(base.join("plugins").is_dir());
+        assert!(base.join("pasteboard/blobs").is_dir());
         let _ = std::fs::remove_dir_all(&base);
     }
 

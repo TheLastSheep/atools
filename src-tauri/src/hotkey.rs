@@ -3,7 +3,11 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
 pub fn setup_hotkey(app: &AppHandle) -> tauri::Result<()> {
     let shortcut = configured_hotkey(app);
-    register_hotkey(app, &shortcut)
+    register_hotkey(app, &shortcut)?;
+    if let Err(error) = register_pasteboard_hotkey(app) {
+        tracing::warn!("Failed to register PasteboardPro shortcut: {error}");
+    }
+    Ok(())
 }
 
 pub fn update_hotkey(app: &AppHandle, shortcut: &str) -> tauri::Result<()> {
@@ -45,6 +49,29 @@ fn register_hotkey(app: &AppHandle, shortcut: &str) -> tauri::Result<()> {
             }
         })
         .map_err(|e| tauri::Error::Anyhow(e.into()))?;
+    Ok(())
+}
+
+fn register_pasteboard_hotkey(app: &AppHandle) -> tauri::Result<()> {
+    let handle = app.clone();
+    let shortcut = if cfg!(target_os = "macos") {
+        "Cmd+Shift+V"
+    } else {
+        "Ctrl+Shift+V"
+    };
+    app.global_shortcut()
+        .on_shortcut(shortcut, move |_app, _shortcut, event| {
+            if event.state == ShortcutState::Pressed {
+                let visible = handle
+                    .get_webview_window(crate::window::PASTEBOARD_SHELF_LABEL)
+                    .and_then(|window| window.is_visible().ok())
+                    .unwrap_or(false);
+                if let Err(error) = crate::window::set_pasteboard_shelf_visible(&handle, !visible) {
+                    tracing::warn!("Failed to toggle PasteboardPro shelf: {error}");
+                }
+            }
+        })
+        .map_err(|error| tauri::Error::Anyhow(error.into()))?;
     Ok(())
 }
 

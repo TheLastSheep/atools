@@ -198,9 +198,11 @@ jobs:
           - target: aarch64-apple-darwin
             runner: macos-15
             dmgPattern: "*aarch64*.dmg"
+            helperArchitecture: arm64
           - target: x86_64-apple-darwin
             runner: macos-15-intel
             dmgPattern: "*x64*.dmg"
+            helperArchitecture: x86_64
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v6
@@ -231,6 +233,11 @@ jobs:
           test -n "$app_path"
           test "$(plutil -extract CFBundleIdentifier raw "$app_path/Contents/Info.plist")" = "dev.atools.desktop"
           test "$(plutil -extract CFBundleShortVersionString raw "$app_path/Contents/Info.plist")" = "${GITHUB_REF_NAME#v}"
+          helper_path="$(find "$app_path/Contents" -type f -name 'pasteboard-vision' -print -quit)"
+          test -n "$helper_path"
+          test -x "$helper_path"
+          file "$helper_path" | grep -F "${{ matrix.helperArchitecture }}"
+          codesign --verify --strict "$helper_path"
           codesign --verify --deep --strict "$app_path"
           spctl --assess --type execute "$app_path"
           xcrun stapler validate "$app_path"

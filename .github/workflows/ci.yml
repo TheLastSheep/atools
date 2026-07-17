@@ -188,6 +188,25 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  pasteboardpro-search-performance:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@1.97.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: pasteboardpro-search-performance
+      - name: Record PasteboardPro SQLite 10k and 100k search evidence
+        run: cargo run -p atools-core --example benchmark_pasteboard_search --release -- artifacts/pasteboardpro/atools-search-performance.json
+      - name: Upload PasteboardPro SQLite search report
+        uses: actions/upload-artifact@v7
+        with:
+          name: pasteboardpro-atools-search-${{ github.sha }}
+          path: artifacts/pasteboardpro/atools-search-performance.json
+          if-no-files-found: error
+          retention-days: 30
+
   runtime-performance-evidence:
     needs: quality
     runs-on: macos-latest

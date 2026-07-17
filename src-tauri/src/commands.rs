@@ -1,3 +1,12 @@
+use crate::pasteboard_keychain::{
+    MacOsPasteboardKeychain, PasteboardSecretStore, VAULT_KEY_ACCOUNT, WEBDAV_ACCOUNT,
+};
+use crate::pasteboard_runtime::{PasteboardCaptureStatus, PasteboardPreferences};
+use crate::pasteboard_sync::{
+    derive_vault_key, ensure_vault_metadata, read_vault_metadata,
+    sync_pasteboard_vault as run_pasteboard_vault_sync, verify_remote_vault_key,
+    PasteboardSyncResult, PasteboardWebDavConfig, ReqwestPasteboardWebDavTransport, KEY_BYTES,
+};
 pub use crate::state::RuntimeEvent;
 use crate::state::{AppState, ReleaseSmokeConfig, ReleaseSmokeProgress};
 use crate::webdav::{
@@ -23,10 +32,13 @@ use atools_core::task_run::{
     Artifact, ArtifactKind, TaskIssue, TaskRun, TaskRunInitiator, TaskRunStatus,
     TaskValidationStatus,
 };
+use atools_core::{PasteboardItem, Pinboard};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::Deserialize;
 use std::fs;
 use tauri::{AppHandle, Emitter, Manager};
+
+const PASTEBOARD_SYNC_SETTING_KEY: &str = "pasteboard-sync";
 
 const LOCAL_APP_PLUGIN_ID: &str = "local-apps";
 const LOCAL_APP_SEARCH_MAX_DEPTH: usize = 4;
@@ -2380,6 +2392,58 @@ pub fn open_plugin_detach_window(
     window.show().map_err(|e| e.to_string())?;
     window.set_focus().map_err(|e| e.to_string())?;
     Ok(())
+}
+
+#[derive(Debug, Clone, serde::Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct PasteboardShelfWindowState {
+    pub edge: String,
+    pub monitor_name: Option<String>,
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+}
+
+#[tauri::command]
+pub fn show_pasteboard_shelf(app: AppHandle) -> Result<(), String> {
+    crate::window::set_pasteboard_shelf_visible(&app, true).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn hide_pasteboard_shelf(app: AppHandle) -> Result<(), String> {
+    crate::window::set_pasteboard_shelf_visible(&app, false).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn toggle_pasteboard_shelf(app: AppHandle) -> Result<(), String> {
+    let visible = app
+        .get_webview_window(crate::window::PASTEBOARD_SHELF_LABEL)
+        .and_then(|window| window.is_visible().ok())
+        .unwrap_or(false);
+    crate::window::set_pasteboard_shelf_visible(&app, !visible).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn start_pasteboard_shelf_drag(window: tauri::WebviewWindow) -> Result<(), String> {
+    crate::window::start_pasteboard_shelf_drag(&window)
+}
+
+#[tauri::command]
+pub fn get_pasteboard_shelf_window_state(
+    app: AppHandle,
+) -> Result<PasteboardShelfWindowState, String> {
+    let window =
+        crate::window::ensure_pasteboard_shelf_window(&app).map_err(|error| error.to_string())?;
+    let snapshot = crate::window::pasteboard_shelf_window_snapshot(&window)?;
+    Ok(PasteboardShelfWindowState {
+        edge: snapshot.edge,
+        monitor_name: snapshot.monitor_name,
+        x: snapshot.x,
+        y: snapshot.y,
+        width: snapshot.width,
+        height: snapshot.height,
+    })
 }
 
 #[derive(Debug, Clone, serde::Serialize, PartialEq, Eq)]
@@ -5449,6 +5513,1244 @@ pub async fn restore_webdav_settings(
         ),
     );
     Ok(result)
+}
+
+#[derive(Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfigurePasteboardSyncInput {
+    pub enabled: bool,
+    pub vault_url: String,
+    pub username: String,
+    pub webdav_password: Option<String>,
+    pub sync_password: Option<String>,
+    pub proxy_url: Option<String>,
+    pub sync_file_contents: bool,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct PasteboardSyncSettings {
+    pub enabled: bool,
+    pub vault_url: String,
+    pub username: String,
+    pub webdav_credential_ref: String,
+    pub pasteboard_sync_key_ref: String,
+    pub vault_salt_hex: Option<String>,
+    #[serde(default)]
+    pub proxy_url: Option<String>,
+    pub sync_file_contents: bool,
+    pub state: String,
+    pub pending_objects: usize,
+    pub last_synced_at: Option<String>,
+}
+
+impl Default for PasteboardSyncSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            vault_url: String::new(),
+            username: String::new(),
+            webdav_credential_ref: WEBDAV_ACCOUNT.to_string(),
+            pasteboard_sync_key_ref: VAULT_KEY_ACCOUNT.to_string(),
+            vault_salt_hex: None,
+            proxy_url: None,
+            sync_file_contents: false,
+            state: "disabled".to_string(),
+            pending_objects: 0,
+            last_synced_at: None,
+        }
+    }
+}
+
+fn stored_pasteboard_sync_settings(db: &Database) -> Result<PasteboardSyncSettings, String> {
+    db.get_setting(PASTEBOARD_SYNC_SETTING_KEY)
+        .map_err(|error| error.to_string())?
+        .map(|value| {
+            serde_json::from_str(&value)
+                .map_err(|error| format!("Stored PasteboardPro sync settings are invalid: {error}"))
+        })
+        .transpose()
+        .map(|settings| settings.unwrap_or_default())
+}
+
+pub(crate) fn pasteboard_sync_settings_inner(
+    state: &AppState,
+) -> Result<PasteboardSyncSettings, String> {
+    stored_pasteboard_sync_settings(&state.db)
+}
+
+#[tauri::command]
+pub fn pasteboard_list_items(
+    state: tauri::State<'_, AppState>,
+    query: Option<String>,
+    pinboard_id: Option<String>,
+    limit: Option<usize>,
+) -> Result<Vec<PasteboardItem>, String> {
+    state
+        .db
+        .search_pasteboard_items(
+            query.as_deref().unwrap_or_default(),
+            pinboard_id.as_deref(),
+            limit.unwrap_or(200),
+        )
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn pasteboard_list_pinboards(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<Pinboard>, String> {
+    state.db.list_pinboards().map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn pasteboard_create_pinboard(
+    state: tauri::State<'_, AppState>,
+    name: String,
+    color: String,
+) -> Result<Pinboard, String> {
+    crate::pasteboard_actions::create_pinboard(&state.db, &name, &color)
+}
+
+#[tauri::command]
+pub fn pasteboard_rename_pinboard(
+    state: tauri::State<'_, AppState>,
+    id: String,
+    name: String,
+) -> Result<Pinboard, String> {
+    crate::pasteboard_actions::update_pinboard(&state.db, &id, Some(&name), None)
+}
+
+#[tauri::command]
+pub fn pasteboard_update_pinboard(
+    state: tauri::State<'_, AppState>,
+    id: String,
+    name: Option<String>,
+    color: Option<String>,
+) -> Result<Pinboard, String> {
+    crate::pasteboard_actions::update_pinboard(&state.db, &id, name.as_deref(), color.as_deref())
+}
+
+#[tauri::command]
+pub fn pasteboard_move_pinboard(
+    state: tauri::State<'_, AppState>,
+    id: String,
+    before_id: Option<String>,
+    after_id: Option<String>,
+) -> Result<Pinboard, String> {
+    crate::pasteboard_actions::move_pinboard(
+        &state.db,
+        &id,
+        before_id.as_deref(),
+        after_id.as_deref(),
+    )
+}
+
+#[derive(Debug, Clone, serde::Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct PasteboardDeletePinboardResult {
+    pub id: String,
+    pub unassigned_items: usize,
+}
+
+#[tauri::command]
+pub fn pasteboard_delete_pinboard(
+    state: tauri::State<'_, AppState>,
+    id: String,
+) -> Result<PasteboardDeletePinboardResult, String> {
+    let result = crate::pasteboard_actions::delete_pinboard(&state.db, &id)?;
+    Ok(PasteboardDeletePinboardResult {
+        id: result.id,
+        unassigned_items: result.unassigned_items,
+    })
+}
+
+#[tauri::command]
+pub fn pasteboard_assign_items(
+    state: tauri::State<'_, AppState>,
+    item_ids: Vec<String>,
+    pinboard_id: Option<String>,
+) -> Result<Vec<PasteboardItem>, String> {
+    crate::pasteboard_actions::assign_items(&state.db, item_ids, pinboard_id.as_deref())
+}
+
+fn run_human_pasteboard_item_mutation(
+    state: &AppState,
+    capability: &str,
+    input: serde_json::Value,
+    summary: &str,
+    action: impl FnOnce() -> Result<PasteboardItem, String>,
+) -> Result<PasteboardItem, String> {
+    let mut run = TaskRun::new(
+        capability,
+        TaskRunInitiator::human(Some("pasteboard-pro-atools".to_string())),
+        input,
+    );
+    run.transition(TaskRunStatus::Running)
+        .expect("PasteboardPro item mutation TaskRun can start");
+    state
+        .db
+        .upsert_task_run(&run)
+        .map_err(|error| error.to_string())?;
+    match action() {
+        Ok(item) => {
+            run.output = serde_json::json!({
+                "status": "saved",
+                "itemId": item.id.clone(),
+                "kind": item.kind.clone(),
+                "contentRedacted": true,
+            });
+            run.summary = Some(summary.to_string());
+            run.validation.status = TaskValidationStatus::Passed;
+            run.validation.summary = Some("Local PasteboardPro history was updated".to_string());
+            run.transition(TaskRunStatus::Succeeded)
+                .expect("running PasteboardPro item mutation TaskRun can succeed");
+            state
+                .db
+                .upsert_task_run(&run)
+                .map_err(|error| error.to_string())?;
+            Ok(item)
+        }
+        Err(error) => {
+            run.errors.push(TaskIssue::error(
+                "pasteboard_item_update_failed",
+                error.clone(),
+            ));
+            run.validation.status = TaskValidationStatus::Failed;
+            run.validation.summary = Some("PasteboardPro history was not changed".to_string());
+            run.transition(TaskRunStatus::Failed)
+                .expect("running PasteboardPro item mutation TaskRun can fail");
+            let _ = state.db.upsert_task_run(&run);
+            Err(error)
+        }
+    }
+}
+
+#[tauri::command]
+pub fn pasteboard_create_text_item(
+    state: tauri::State<'_, AppState>,
+    text: String,
+    title: Option<String>,
+) -> Result<PasteboardItem, String> {
+    run_human_pasteboard_item_mutation(
+        state.inner(),
+        "pasteboard.create_text",
+        serde_json::json!({
+            "characters": text.chars().count(),
+            "titleCharacters": title.as_deref().map(|value| value.chars().count()).unwrap_or(0),
+            "contentRedacted": true,
+        }),
+        "Created a PasteboardPro text item",
+        || {
+            state
+                .pasteboard_runtime
+                .create_text_item(&text, title.as_deref())
+        },
+    )
+}
+
+#[tauri::command]
+pub fn pasteboard_update_text_item(
+    state: tauri::State<'_, AppState>,
+    item_id: String,
+    text: String,
+    title: Option<String>,
+) -> Result<PasteboardItem, String> {
+    run_human_pasteboard_item_mutation(
+        state.inner(),
+        "pasteboard.edit_text",
+        serde_json::json!({
+            "itemId": item_id.clone(),
+            "characters": text.chars().count(),
+            "titleCharacters": title.as_deref().map(|value| value.chars().count()).unwrap_or(0),
+            "contentRedacted": true,
+        }),
+        "Edited a PasteboardPro text item",
+        || {
+            state
+                .pasteboard_runtime
+                .update_text_item(&item_id, &text, title.as_deref())
+        },
+    )
+}
+
+#[tauri::command]
+pub fn pasteboard_update_item_title(
+    state: tauri::State<'_, AppState>,
+    item_id: String,
+    title: String,
+) -> Result<PasteboardItem, String> {
+    run_human_pasteboard_item_mutation(
+        state.inner(),
+        "pasteboard.rename_item",
+        serde_json::json!({
+            "itemId": item_id.clone(),
+            "titleCharacters": title.chars().count(),
+            "contentRedacted": true,
+        }),
+        "Renamed a PasteboardPro history item",
+        || state.pasteboard_runtime.update_item_title(&item_id, &title),
+    )
+}
+
+#[tauri::command]
+pub fn get_pasteboard_capture_status(
+    state: tauri::State<'_, AppState>,
+) -> Result<PasteboardCaptureStatus, String> {
+    state.pasteboard_runtime.status()
+}
+
+#[tauri::command]
+pub fn set_pasteboard_capture_paused(
+    state: tauri::State<'_, AppState>,
+    paused: bool,
+) -> Result<PasteboardCaptureStatus, String> {
+    state.pasteboard_runtime.set_paused(paused)
+}
+
+#[tauri::command]
+pub fn get_pasteboard_preferences(
+    state: tauri::State<'_, AppState>,
+) -> Result<PasteboardPreferences, String> {
+    state.pasteboard_runtime.preferences()
+}
+
+#[tauri::command]
+pub fn set_pasteboard_preferences(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    preferences: PasteboardPreferences,
+) -> Result<PasteboardPreferences, String> {
+    let saved = state.pasteboard_runtime.update_preferences(preferences)?;
+    if let Some(window) = app.get_webview_window(crate::window::PASTEBOARD_SHELF_LABEL) {
+        window
+            .set_content_protected(saved.screen_share_protection)
+            .map_err(|error| error.to_string())?;
+    }
+    Ok(saved)
+}
+
+#[derive(Debug, Clone, serde::Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct PasteboardBlobPreview {
+    pub media_type: String,
+    pub data_base64: String,
+}
+
+#[tauri::command]
+pub fn pasteboard_get_item_preview(
+    state: tauri::State<'_, AppState>,
+    item_id: String,
+) -> Result<Option<PasteboardBlobPreview>, String> {
+    const MAX_PREVIEW_BYTES: u64 = 25 * 1024 * 1024;
+    let item = state
+        .db
+        .get_pasteboard_item(&item_id)
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| format!("PasteboardPro item does not exist: {item_id}"))?;
+    let Some(blob_id) = item.payload.blob_id.as_deref() else {
+        return Ok(None);
+    };
+    let blob = state
+        .db
+        .get_pasteboard_blob(blob_id)
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| format!("PasteboardPro blob is unavailable: {blob_id}"))?;
+    if blob.byte_length > MAX_PREVIEW_BYTES {
+        return Err("PasteboardPro preview is limited to 25 MiB".to_string());
+    }
+    if !matches!(
+        blob.media_type.as_str(),
+        "image/png" | "image/jpeg" | "image/webp" | "image/tiff" | "application/pdf"
+    ) {
+        return Ok(None);
+    }
+    let bytes = std::fs::read(state.config.pasteboard_dir().join(&blob.relative_path))
+        .map_err(|error| format!("Failed to read PasteboardPro preview: {error}"))?;
+    if bytes.len() as u64 != blob.byte_length {
+        return Err("PasteboardPro preview length does not match metadata".to_string());
+    }
+    Ok(Some(PasteboardBlobPreview {
+        media_type: blob.media_type,
+        data_base64: STANDARD.encode(bytes),
+    }))
+}
+
+pub(crate) async fn pasteboard_recognize_item_inner(
+    app: &AppHandle,
+    state: &AppState,
+    item_id: &str,
+) -> Result<String, String> {
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (app, state, item_id);
+        return Err("PasteboardPro Vision OCR is only available on macOS".to_string());
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let item = state
+            .db
+            .get_pasteboard_item(&item_id)
+            .map_err(|error| error.to_string())?
+            .ok_or_else(|| format!("PasteboardPro item does not exist: {item_id}"))?;
+        if item.kind != atools_core::PasteboardItemKind::Image {
+            return Err("PasteboardPro OCR requires an image item".to_string());
+        }
+        let blob_id = item
+            .payload
+            .blob_id
+            .as_deref()
+            .ok_or_else(|| "PasteboardPro image is not available on this device".to_string())?;
+        let blob = state
+            .db
+            .get_pasteboard_blob(blob_id)
+            .map_err(|error| error.to_string())?
+            .ok_or_else(|| format!("PasteboardPro blob is unavailable: {blob_id}"))?;
+        if !blob.media_type.starts_with("image/") {
+            return Err("PasteboardPro OCR blob is not an image".to_string());
+        }
+        let pasteboard_dir = state
+            .config
+            .pasteboard_dir()
+            .canonicalize()
+            .map_err(|error| format!("Failed to resolve PasteboardPro data directory: {error}"))?;
+        let image_path = state
+            .config
+            .pasteboard_dir()
+            .join(&blob.relative_path)
+            .canonicalize()
+            .map_err(|error| format!("Failed to resolve PasteboardPro image: {error}"))?;
+        if !image_path.starts_with(&pasteboard_dir) || !image_path.is_file() {
+            return Err(
+                "PasteboardPro OCR image is outside the managed blob directory".to_string(),
+            );
+        }
+        let metadata = image_path
+            .metadata()
+            .map_err(|error| format!("Failed to inspect PasteboardPro image: {error}"))?;
+        if metadata.len() != blob.byte_length {
+            return Err("PasteboardPro OCR image length does not match metadata".to_string());
+        }
+
+        let text = crate::pasteboard_vision::recognize_image(app, &image_path).await?;
+        let device_id = crate::pasteboard_actions::device_id(&state.db)?;
+        state
+            .db
+            .update_pasteboard_item_ocr_from_device(
+                &item.id,
+                (!text.is_empty()).then_some(text.as_str()),
+                &device_id,
+            )
+            .map_err(|error| error.to_string())?;
+        Ok(text)
+    }
+}
+
+#[tauri::command]
+pub async fn pasteboard_recognize_item(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    item_id: String,
+) -> Result<String, String> {
+    let mut run = TaskRun::new(
+        "pasteboard.ocr",
+        TaskRunInitiator::human(Some("pasteboard-pro-atools".to_string())),
+        serde_json::json!({
+            "itemId": item_id.clone(),
+            "contentRedacted": true,
+        }),
+    );
+    run.transition(TaskRunStatus::Running)
+        .expect("PasteboardPro OCR TaskRun can start");
+    state
+        .db
+        .upsert_task_run(&run)
+        .map_err(|error| error.to_string())?;
+
+    match pasteboard_recognize_item_inner(&app, state.inner(), &item_id).await {
+        Ok(text) => {
+            run.output = serde_json::json!({
+                "status": "recognized",
+                "characters": text.chars().count(),
+                "contentRedacted": true,
+            });
+            run.summary = Some("Recognized text in a PasteboardPro image".to_string());
+            run.validation.status = TaskValidationStatus::Passed;
+            run.validation.summary =
+                Some("Vision OCR completed and local history was updated".to_string());
+            run.transition(TaskRunStatus::Succeeded)
+                .expect("running PasteboardPro OCR TaskRun can succeed");
+            state
+                .db
+                .upsert_task_run(&run)
+                .map_err(|error| error.to_string())?;
+            Ok(text)
+        }
+        Err(error) => {
+            run.errors
+                .push(TaskIssue::error("vision_ocr_failed", error.clone()));
+            run.validation.status = TaskValidationStatus::Failed;
+            run.validation.summary = Some("PasteboardPro Vision OCR failed".to_string());
+            run.transition(TaskRunStatus::Failed)
+                .expect("running PasteboardPro OCR TaskRun can fail");
+            let _ = state.db.upsert_task_run(&run);
+            Err(error)
+        }
+    }
+}
+
+#[tauri::command]
+pub fn pasteboard_rotate_image(
+    state: tauri::State<'_, AppState>,
+    item_id: String,
+    quarter_turns: i8,
+) -> Result<PasteboardItem, String> {
+    if !matches!(quarter_turns, -1 | 1) {
+        return Err("PasteboardPro rotation must be -1 or 1 quarter turn".to_string());
+    }
+    let mut run = TaskRun::new(
+        "pasteboard.rotate_image",
+        TaskRunInitiator::human(Some("pasteboard-pro-atools".to_string())),
+        serde_json::json!({
+            "itemId": item_id.clone(),
+            "quarterTurns": quarter_turns,
+            "contentRedacted": true,
+        }),
+    );
+    run.transition(TaskRunStatus::Running)
+        .expect("PasteboardPro rotation TaskRun can start");
+    state
+        .db
+        .upsert_task_run(&run)
+        .map_err(|error| error.to_string())?;
+
+    match state
+        .pasteboard_runtime
+        .rotate_image_item(&item_id, quarter_turns)
+    {
+        Ok(item) => {
+            run.output = serde_json::json!({
+                "status": "rotated",
+                "itemId": item.id.clone(),
+                "mediaType": item.payload.media_type.clone(),
+                "contentRedacted": true,
+            });
+            run.summary = Some("Rotated a PasteboardPro image".to_string());
+            run.validation.status = TaskValidationStatus::Passed;
+            run.validation.summary =
+                Some("A new content-addressed image blob was stored".to_string());
+            run.transition(TaskRunStatus::Succeeded)
+                .expect("running PasteboardPro rotation TaskRun can succeed");
+            state
+                .db
+                .upsert_task_run(&run)
+                .map_err(|error| error.to_string())?;
+            Ok(item)
+        }
+        Err(error) => {
+            run.errors
+                .push(TaskIssue::error("image_rotation_failed", error.clone()));
+            run.validation.status = TaskValidationStatus::Failed;
+            run.validation.summary = Some("PasteboardPro image rotation failed".to_string());
+            run.transition(TaskRunStatus::Failed)
+                .expect("running PasteboardPro rotation TaskRun can fail");
+            let _ = state.db.upsert_task_run(&run);
+            Err(error)
+        }
+    }
+}
+
+#[tauri::command]
+pub fn pasteboard_quick_look_item(
+    state: tauri::State<'_, AppState>,
+    item_id: String,
+) -> Result<(), String> {
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (state, item_id);
+        return Err("PasteboardPro Quick Look is only available on macOS".to_string());
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        use std::process::Stdio;
+
+        let item = state
+            .db
+            .get_pasteboard_item(&item_id)
+            .map_err(|error| error.to_string())?
+            .ok_or_else(|| format!("PasteboardPro item does not exist: {item_id}"))?;
+        let blob_id = item
+            .payload
+            .blob_id
+            .as_deref()
+            .ok_or_else(|| "PasteboardPro item has no local preview file".to_string())?;
+        let blob = state
+            .db
+            .get_pasteboard_blob(blob_id)
+            .map_err(|error| error.to_string())?
+            .ok_or_else(|| format!("PasteboardPro blob is unavailable: {blob_id}"))?;
+        if !blob.media_type.starts_with("image/") && blob.media_type != "application/pdf" {
+            return Err("PasteboardPro Quick Look supports images and PDF files".to_string());
+        }
+        let pasteboard_dir = state
+            .config
+            .pasteboard_dir()
+            .canonicalize()
+            .map_err(|error| format!("Failed to resolve PasteboardPro data directory: {error}"))?;
+        let path = state
+            .config
+            .pasteboard_dir()
+            .join(&blob.relative_path)
+            .canonicalize()
+            .map_err(|error| format!("Failed to resolve PasteboardPro preview file: {error}"))?;
+        if !path.starts_with(&pasteboard_dir) || !path.is_file() {
+            return Err(
+                "PasteboardPro preview file is outside the managed blob directory".to_string(),
+            );
+        }
+
+        let mut run = TaskRun::new(
+            "pasteboard.quick_look",
+            TaskRunInitiator::human(Some("pasteboard-pro-atools".to_string())),
+            serde_json::json!({
+                "itemId": item_id,
+                "contentRedacted": true,
+            }),
+        );
+        run.transition(TaskRunStatus::Running)
+            .expect("PasteboardPro Quick Look TaskRun can start");
+        state
+            .db
+            .upsert_task_run(&run)
+            .map_err(|error| error.to_string())?;
+
+        match std::process::Command::new("/usr/bin/qlmanage")
+            .arg("-p")
+            .arg(&path)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+        {
+            Ok(mut child) => {
+                std::thread::spawn(move || {
+                    let _ = child.wait();
+                });
+                run.output = serde_json::json!({
+                    "status": "opened",
+                    "contentRedacted": true,
+                });
+                run.summary = Some("Opened PasteboardPro content in Quick Look".to_string());
+                run.validation.status = TaskValidationStatus::Passed;
+                run.validation.summary = Some("The macOS Quick Look process started".to_string());
+                run.transition(TaskRunStatus::Succeeded)
+                    .expect("running PasteboardPro Quick Look TaskRun can succeed");
+                state
+                    .db
+                    .upsert_task_run(&run)
+                    .map_err(|error| error.to_string())?;
+                Ok(())
+            }
+            Err(error) => {
+                let error = format!("Failed to open PasteboardPro Quick Look: {error}");
+                run.errors
+                    .push(TaskIssue::error("quick_look_failed", error.clone()));
+                run.validation.status = TaskValidationStatus::Failed;
+                run.validation.summary = Some("macOS Quick Look did not start".to_string());
+                run.transition(TaskRunStatus::Failed)
+                    .expect("running PasteboardPro Quick Look TaskRun can fail");
+                let _ = state.db.upsert_task_run(&run);
+                Err(error)
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct PasteboardPasteResult {
+    pub status: String,
+    pub warning: Option<String>,
+}
+
+pub(crate) async fn pasteboard_paste_item_inner(
+    app: &AppHandle,
+    state: &AppState,
+    item_id: &str,
+    plain_text: bool,
+    direct_paste: bool,
+) -> Result<PasteboardPasteResult, String> {
+    use tauri_plugin_clipboard_manager::ClipboardExt;
+
+    let item = state
+        .db
+        .get_pasteboard_item(&item_id)
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| format!("PasteboardPro item does not exist: {item_id}"))?;
+    let clipboard_result = if plain_text {
+        item.payload
+            .text
+            .as_deref()
+            .or(item.ocr_text.as_deref())
+            .ok_or_else(|| "PasteboardPro item does not contain plain text".to_string())
+            .and_then(|text| {
+                app.clipboard()
+                    .write_text(text)
+                    .map_err(|error| error.to_string())
+            })
+    } else if item.kind == atools_core::PasteboardItemKind::Files {
+        #[cfg(target_os = "macos")]
+        {
+            let paths = item.payload.file_paths.as_ref().ok_or_else(|| {
+                "PasteboardPro file item does not contain local paths".to_string()
+            })?;
+            if paths.is_empty() {
+                Err("PasteboardPro file item is empty".to_string())
+            } else if let Some(path) = paths
+                .iter()
+                .find(|path| !std::path::Path::new(path).exists())
+            {
+                Err(format!("PasteboardPro file is unavailable: {path}"))
+            } else {
+                let mut script = String::from("set clipboardItems to {}\n");
+                for path in paths {
+                    script.push_str(&format!(
+                        "set end of clipboardItems to (POSIX file {})\n",
+                        applescript_string(path)
+                    ));
+                }
+                script.push_str("set the clipboard to clipboardItems");
+                run_native_command("osascript", &["-e".to_string(), script]).map(|_| ())
+            }
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            Err("PasteboardPro direct file paste is only available on macOS".to_string())
+        }
+    } else if let Some(blob_id) = item.payload.blob_id.as_deref() {
+        #[cfg(target_os = "macos")]
+        {
+            state
+                .db
+                .get_pasteboard_blob(blob_id)
+                .map_err(|error| error.to_string())
+                .and_then(|blob| {
+                    blob.ok_or_else(|| format!("PasteboardPro blob is unavailable: {blob_id}"))
+                })
+                .and_then(|blob| {
+                    let path = state.config.pasteboard_dir().join(&blob.relative_path);
+                    let bytes = std::fs::read(&path).map_err(|error| {
+                        format!("Failed to read PasteboardPro blob {}: {error}", blob.id)
+                    })?;
+                    if bytes.len() as u64 != blob.byte_length {
+                        return Err(format!(
+                            "PasteboardPro blob length does not match metadata: {}",
+                            blob.id
+                        ));
+                    }
+                    crate::pasteboard_macos::write_general_pasteboard_blob(&blob.media_type, &bytes)
+                })
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            Err("PasteboardPro binary paste is only available on macOS".to_string())
+        }
+    } else if let Some(html) = item.payload.html.as_deref() {
+        #[cfg(target_os = "macos")]
+        {
+            crate::pasteboard_macos::write_general_pasteboard_html(
+                html,
+                item.payload.text.as_deref(),
+            )
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            app.clipboard()
+                .write_text(item.payload.text.as_deref().unwrap_or(html))
+                .map_err(|error| error.to_string())
+        }
+    } else if let Some(text) = item.payload.text.as_deref().or(item.ocr_text.as_deref()) {
+        app.clipboard()
+            .write_text(text)
+            .map_err(|error| error.to_string())
+    } else {
+        Err("PasteboardPro item payload is not available on this device".to_string())
+    };
+
+    clipboard_result?;
+
+    if !direct_paste {
+        return Ok(PasteboardPasteResult {
+            status: "copied".to_string(),
+            warning: None,
+        });
+    }
+
+    let hide_result =
+        crate::window::set_pasteboard_shelf_visible(app, false).map_err(|error| error.to_string());
+    #[cfg(target_os = "macos")]
+    let paste_result = hide_result.and_then(|_| {
+        run_native_command(
+            "osascript",
+            &[
+                "-e".to_string(),
+                "tell application \"System Events\" to keystroke \"v\" using command down"
+                    .to_string(),
+            ],
+        )
+        .map(|_| ())
+    });
+    #[cfg(not(target_os = "macos"))]
+    let paste_result: Result<(), String> = hide_result
+        .and_then(|_| Err("PasteboardPro direct paste is only available on macOS".to_string()));
+
+    Ok(match paste_result {
+        Ok(()) => PasteboardPasteResult {
+            status: "pasted".to_string(),
+            warning: None,
+        },
+        Err(error) => PasteboardPasteResult {
+            status: "copied".to_string(),
+            warning: Some(error),
+        },
+    })
+}
+
+#[tauri::command]
+pub async fn pasteboard_paste_item(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    item_id: String,
+    plain_text: Option<bool>,
+) -> Result<PasteboardPasteResult, String> {
+    let plain_text = plain_text.unwrap_or(false);
+    let mut run = TaskRun::new(
+        "pasteboard.paste",
+        TaskRunInitiator::human(Some("pasteboard-pro-atools".to_string())),
+        serde_json::json!({
+            "itemId": item_id.clone(),
+            "plainText": plain_text,
+            "contentRedacted": true,
+        }),
+    );
+    run.transition(TaskRunStatus::Running)
+        .expect("PasteboardPro paste TaskRun can start");
+    state
+        .db
+        .upsert_task_run(&run)
+        .map_err(|error| error.to_string())?;
+
+    match pasteboard_paste_item_inner(&app, state.inner(), &item_id, plain_text, true).await {
+        Ok(result) => {
+            run.output = serde_json::json!({
+                "status": result.status.clone(),
+                "warning": result.warning.clone(),
+                "contentRedacted": true,
+            });
+            if result.status == "pasted" {
+                run.summary = Some("Pasted a PasteboardPro item".to_string());
+                run.validation.status = TaskValidationStatus::Passed;
+                run.validation.summary =
+                    Some("Clipboard write and Command-V completed".to_string());
+                run.transition(TaskRunStatus::Succeeded)
+                    .expect("running PasteboardPro paste TaskRun can succeed");
+            } else {
+                run.summary = Some(
+                    "Copied a PasteboardPro item; direct paste needs Accessibility permission"
+                        .to_string(),
+                );
+                run.warnings.push(TaskIssue {
+                    code: "accessibility_required".to_string(),
+                    message: result
+                        .warning
+                        .clone()
+                        .unwrap_or_else(|| "PasteboardPro could not send Command-V".to_string()),
+                    details: serde_json::Value::Null,
+                    retryable: true,
+                });
+                run.validation.status = TaskValidationStatus::Passed;
+                run.validation.summary =
+                    Some("Clipboard write succeeded but Command-V failed".to_string());
+                run.transition(TaskRunStatus::Partial)
+                    .expect("running PasteboardPro paste TaskRun can be partial");
+            }
+            state
+                .db
+                .upsert_task_run(&run)
+                .map_err(|error| error.to_string())?;
+            Ok(result)
+        }
+        Err(error) => {
+            run.errors
+                .push(TaskIssue::error("clipboard_write_failed", error.clone()));
+            run.validation.status = TaskValidationStatus::Failed;
+            run.validation.summary =
+                Some("PasteboardPro could not prepare the clipboard".to_string());
+            run.transition(TaskRunStatus::Failed)
+                .expect("running PasteboardPro paste TaskRun can fail");
+            let _ = state.db.upsert_task_run(&run);
+            Err(error)
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn pasteboard_copy_item(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    item_id: String,
+    plain_text: Option<bool>,
+) -> Result<PasteboardPasteResult, String> {
+    let plain_text = plain_text.unwrap_or(false);
+    let mut run = TaskRun::new(
+        "pasteboard.copy",
+        TaskRunInitiator::human(Some("pasteboard-pro-atools".to_string())),
+        serde_json::json!({
+            "itemId": item_id.clone(),
+            "plainText": plain_text,
+            "contentRedacted": true,
+        }),
+    );
+    run.transition(TaskRunStatus::Running)
+        .expect("PasteboardPro copy TaskRun can start");
+    state
+        .db
+        .upsert_task_run(&run)
+        .map_err(|error| error.to_string())?;
+    match pasteboard_paste_item_inner(&app, state.inner(), &item_id, plain_text, false).await {
+        Ok(result) => {
+            run.output = serde_json::json!({
+                "status": "copied",
+                "contentRedacted": true,
+            });
+            run.summary = Some("Copied a PasteboardPro item".to_string());
+            run.validation.status = TaskValidationStatus::Passed;
+            run.validation.summary = Some("The local system clipboard was updated".to_string());
+            run.transition(TaskRunStatus::Succeeded)
+                .expect("running PasteboardPro copy TaskRun can succeed");
+            state
+                .db
+                .upsert_task_run(&run)
+                .map_err(|error| error.to_string())?;
+            Ok(result)
+        }
+        Err(error) => {
+            run.errors
+                .push(TaskIssue::error("clipboard_write_failed", error.clone()));
+            run.validation.status = TaskValidationStatus::Failed;
+            run.validation.summary =
+                Some("PasteboardPro could not update the clipboard".to_string());
+            run.transition(TaskRunStatus::Failed)
+                .expect("running PasteboardPro copy TaskRun can fail");
+            let _ = state.db.upsert_task_run(&run);
+            Err(error)
+        }
+    }
+}
+
+fn save_pasteboard_sync_settings(
+    db: &Database,
+    settings: &PasteboardSyncSettings,
+) -> Result<(), String> {
+    db.set_setting(
+        PASTEBOARD_SYNC_SETTING_KEY,
+        &serde_json::to_string(settings)
+            .map_err(|error| format!("Failed to serialize PasteboardPro settings: {error}"))?,
+    )
+    .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn get_pasteboard_sync_settings(
+    state: tauri::State<'_, AppState>,
+) -> Result<PasteboardSyncSettings, String> {
+    pasteboard_sync_settings_inner(state.inner())
+}
+
+#[tauri::command]
+pub async fn configure_pasteboard_sync(
+    state: tauri::State<'_, AppState>,
+    input: ConfigurePasteboardSyncInput,
+) -> Result<PasteboardSyncSettings, String> {
+    let current = stored_pasteboard_sync_settings(&state.db)?;
+    let vault_url = input.vault_url.trim().to_string();
+    let username = input.username.trim().to_string();
+    if input.enabled && (vault_url.is_empty() || username.is_empty()) {
+        return Err("PasteboardPro sync requires WebDAV URL and username".to_string());
+    }
+    if username.contains(':') || username.contains('\0') {
+        return Err("PasteboardPro WebDAV username is invalid".to_string());
+    }
+
+    let keychain = MacOsPasteboardKeychain;
+    let supplied_webdav_password = input
+        .webdav_password
+        .as_deref()
+        .filter(|value| !value.is_empty())
+        .map(ToString::to_string);
+    let mut vault_salt_hex = current.vault_salt_hex.clone();
+    let mut candidate_key: Option<[u8; KEY_BYTES]> = None;
+
+    if input.enabled {
+        let candidate_webdav_password = match supplied_webdav_password.clone() {
+            Some(password) => password,
+            None => keychain
+                .load(WEBDAV_ACCOUNT)?
+                .ok_or_else(|| "PasteboardPro WebDAV password is missing".to_string())
+                .and_then(|bytes| {
+                    String::from_utf8(bytes)
+                        .map_err(|_| "Stored PasteboardPro WebDAV password is invalid".to_string())
+                })?,
+        };
+        let transport = ReqwestPasteboardWebDavTransport::new(PasteboardWebDavConfig {
+            vault_url: vault_url.clone(),
+            username: username.clone(),
+            password: candidate_webdav_password,
+            proxy_url: input.proxy_url.clone(),
+        })?;
+        let has_sync_password = input
+            .sync_password
+            .as_deref()
+            .is_some_and(|value| !value.is_empty());
+        let metadata = if has_sync_password {
+            ensure_vault_metadata(&transport).await?
+        } else {
+            read_vault_metadata(&transport)
+                .await?
+                .ok_or_else(|| "Remote vault is missing; enter a sync password".to_string())?
+        };
+        let salt = metadata.validate()?;
+        vault_salt_hex = Some(hex::encode(&salt));
+        let key = if let Some(password) = input
+            .sync_password
+            .as_deref()
+            .filter(|value| !value.is_empty())
+        {
+            derive_vault_key(password, &salt)?
+        } else {
+            if current
+                .vault_salt_hex
+                .as_ref()
+                .is_some_and(|existing| existing != vault_salt_hex.as_ref().unwrap())
+            {
+                return Err("Remote vault changed; enter the sync password again".to_string());
+            }
+            keychain
+                .load(VAULT_KEY_ACCOUNT)?
+                .ok_or_else(|| "PasteboardPro sync key is missing".to_string())?
+                .try_into()
+                .map_err(|_| "Stored PasteboardPro sync key must contain 32 bytes".to_string())?
+        };
+        // Verification precedes every Keychain write so wrong candidate
+        // credentials cannot destroy a previously working local setup.
+        verify_remote_vault_key(&transport, &key).await?;
+        candidate_key = Some(key);
+    }
+
+    if input.enabled {
+        if let Some(password) = supplied_webdav_password {
+            keychain.save(WEBDAV_ACCOUNT, password.as_bytes())?;
+        }
+    }
+    if let Some(key) = candidate_key {
+        keychain.save(VAULT_KEY_ACCOUNT, &key)?;
+    }
+    let settings = PasteboardSyncSettings {
+        enabled: input.enabled,
+        vault_url,
+        username,
+        webdav_credential_ref: WEBDAV_ACCOUNT.to_string(),
+        pasteboard_sync_key_ref: VAULT_KEY_ACCOUNT.to_string(),
+        vault_salt_hex,
+        proxy_url: input.proxy_url,
+        sync_file_contents: input.sync_file_contents,
+        state: if input.enabled { "idle" } else { "disabled" }.to_string(),
+        pending_objects: current.pending_objects,
+        last_synced_at: current.last_synced_at,
+    };
+    save_pasteboard_sync_settings(&state.db, &settings)?;
+    state.record_runtime_event(
+        "info",
+        if settings.enabled {
+            "PasteboardPro encrypted sync configured"
+        } else {
+            "PasteboardPro encrypted sync disabled"
+        },
+    );
+    Ok(settings)
+}
+
+fn pasteboard_sync_error_state(message: &str) -> &'static str {
+    let normalized = message.to_lowercase();
+    if normalized.contains("password") || normalized.contains("decrypt") {
+        "wrong_password"
+    } else if normalized.contains("webdav authentication failed") {
+        "auth_required"
+    } else if normalized.contains("unsupported") && normalized.contains("version") {
+        "schema_too_new"
+    } else if normalized.contains("invalid")
+        || normalized.contains("corrupt")
+        || normalized.contains("descriptor mismatch")
+    {
+        "corrupted"
+    } else {
+        "offline"
+    }
+}
+
+pub(crate) async fn sync_pasteboard_vault_inner(
+    state: &AppState,
+) -> Result<PasteboardSyncResult, String> {
+    let _sync_guard = state
+        .pasteboard_sync_lock
+        .try_lock()
+        .map_err(|_| "PasteboardPro sync is already running".to_string())?;
+    let mut settings = stored_pasteboard_sync_settings(&state.db)?;
+    if !settings.enabled {
+        return Err("PasteboardPro encrypted sync is disabled".to_string());
+    }
+    let keychain = MacOsPasteboardKeychain;
+    let password = keychain
+        .load(WEBDAV_ACCOUNT)?
+        .ok_or_else(|| "PasteboardPro WebDAV password is missing".to_string())
+        .and_then(|bytes| {
+            String::from_utf8(bytes)
+                .map_err(|_| "Stored PasteboardPro WebDAV password is invalid".to_string())
+        })?;
+    let key: [u8; KEY_BYTES] = keychain
+        .load(VAULT_KEY_ACCOUNT)?
+        .ok_or_else(|| "PasteboardPro sync key is missing".to_string())?
+        .try_into()
+        .map_err(|_| "Stored PasteboardPro sync key must contain 32 bytes".to_string())?;
+    let transport = ReqwestPasteboardWebDavTransport::new(PasteboardWebDavConfig {
+        vault_url: settings.vault_url.clone(),
+        username: settings.username.clone(),
+        password,
+        proxy_url: settings.proxy_url.clone(),
+    })?;
+    settings.state = "syncing".to_string();
+    settings.pending_objects = state
+        .db
+        .count_pasteboard_items()
+        .map_err(|error| error.to_string())?
+        + state
+            .db
+            .list_pinboards()
+            .map_err(|error| error.to_string())?
+            .len()
+        + state
+            .db
+            .list_pasteboard_tombstones()
+            .map_err(|error| error.to_string())?
+            .len()
+        + state
+            .db
+            .list_pasteboard_blobs()
+            .map_err(|error| error.to_string())?
+            .len();
+    save_pasteboard_sync_settings(&state.db, &settings)?;
+
+    match run_pasteboard_vault_sync(&state.db, &state.config.pasteboard_dir(), &transport, &key)
+        .await
+    {
+        Ok(result) => {
+            settings.state = result.status.clone();
+            settings.pending_objects = result.failed_object_ids.len();
+            if result.synced_at.is_some() {
+                settings.last_synced_at = result.synced_at.clone();
+            }
+            save_pasteboard_sync_settings(&state.db, &settings)?;
+            state.record_runtime_event(
+                if result.status == "success" {
+                    "info"
+                } else {
+                    "warn"
+                },
+                format!(
+                    "PasteboardPro sync {}: pulled={}, pushed={}, pending={}",
+                    result.status,
+                    result.pulled_objects,
+                    result.pushed_objects,
+                    result.failed_object_ids.len()
+                ),
+            );
+            Ok(result)
+        }
+        Err(error) => {
+            settings.state = pasteboard_sync_error_state(&error).to_string();
+            save_pasteboard_sync_settings(&state.db, &settings)?;
+            state.record_runtime_event("error", format!("PasteboardPro sync failed: {error}"));
+            Err(error)
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn sync_pasteboard_vault(
+    state: tauri::State<'_, AppState>,
+) -> Result<PasteboardSyncResult, String> {
+    let mut run = TaskRun::new(
+        "pasteboard.sync",
+        TaskRunInitiator::human(Some("pasteboard-pro-atools".to_string())),
+        serde_json::json!({ "contentRedacted": true }),
+    );
+    run.transition(TaskRunStatus::Running)
+        .expect("PasteboardPro sync TaskRun can start");
+    state
+        .db
+        .upsert_task_run(&run)
+        .map_err(|error| error.to_string())?;
+    match sync_pasteboard_vault_inner(&state).await {
+        Ok(result) => {
+            run.output = serde_json::json!({
+                "status": result.status.clone(),
+                "pulledObjects": result.pulled_objects,
+                "pushedObjects": result.pushed_objects,
+                "failedObjectIds": result.failed_object_ids.clone(),
+                "contentRedacted": true,
+            });
+            run.summary = Some("Synchronized the encrypted PasteboardPro vault".to_string());
+            if result.status == "success" {
+                run.validation.status = TaskValidationStatus::Passed;
+                run.validation.summary =
+                    Some("All requested vault objects synchronized".to_string());
+                run.transition(TaskRunStatus::Succeeded)
+                    .expect("running PasteboardPro sync TaskRun can succeed");
+            } else {
+                run.warnings.push(TaskIssue {
+                    code: "pasteboard_sync_partial".to_string(),
+                    message: format!(
+                        "{} PasteboardPro objects remain pending",
+                        result.failed_object_ids.len()
+                    ),
+                    details: serde_json::Value::Null,
+                    retryable: true,
+                });
+                run.validation.status = TaskValidationStatus::Passed;
+                run.validation.summary =
+                    Some("Vault sync completed with pending objects".to_string());
+                run.transition(TaskRunStatus::Partial)
+                    .expect("running PasteboardPro sync TaskRun can be partial");
+            }
+            state
+                .db
+                .upsert_task_run(&run)
+                .map_err(|error| error.to_string())?;
+            Ok(result)
+        }
+        Err(error) => {
+            run.errors
+                .push(TaskIssue::error("pasteboard_sync_failed", error.clone()));
+            run.validation.status = TaskValidationStatus::Failed;
+            run.validation.summary = Some("Encrypted PasteboardPro sync failed".to_string());
+            run.transition(TaskRunStatus::Failed)
+                .expect("running PasteboardPro sync TaskRun can fail");
+            let _ = state.db.upsert_task_run(&run);
+            Err(error)
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, PartialEq, Eq)]

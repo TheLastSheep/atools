@@ -47,6 +47,19 @@ pub fn builtin_tool_registry() -> ToolRegistry {
         open_or_reveal_path_tool(),
         open_url_tool(),
         rename_files_tool(),
+        pasteboard_assign_items_tool(),
+        pasteboard_copy_item_tool(),
+        pasteboard_create_pinboard_tool(),
+        pasteboard_delete_pinboard_tool(),
+        pasteboard_get_item_tool(),
+        pasteboard_list_pinboards_tool(),
+        pasteboard_move_pinboard_tool(),
+        pasteboard_paste_item_tool(),
+        pasteboard_recognize_item_tool(),
+        pasteboard_search_history_tool(),
+        pasteboard_sync_vault_tool(),
+        pasteboard_sync_status_tool(),
+        pasteboard_update_pinboard_tool(),
         search_clipboard_tool(),
     ] {
         registry.register(tool);
@@ -1102,6 +1115,19 @@ pub async fn execute_builtin_tool(
     match tool_name {
         "ask_ai_model" => ask_ai_model(db, arguments).await,
         "search_clipboard" => search_clipboard(app, db, arguments).await,
+        "pasteboard_search_history" => search_pasteboard_history(app, db, arguments).await,
+        "pasteboard_list_pinboards" => list_pasteboard_pinboards(db),
+        "pasteboard_get_item" => get_pasteboard_item(db, arguments),
+        "pasteboard_create_pinboard" => create_pasteboard_pinboard(db, arguments),
+        "pasteboard_update_pinboard" => update_pasteboard_pinboard(db, arguments),
+        "pasteboard_move_pinboard" => move_pasteboard_pinboard(db, arguments),
+        "pasteboard_delete_pinboard" => delete_pasteboard_pinboard(db, arguments),
+        "pasteboard_assign_items" => assign_pasteboard_items(db, arguments),
+        "pasteboard_copy_item" => copy_pasteboard_item(app, arguments).await,
+        "pasteboard_paste_item" => paste_pasteboard_item(app, arguments).await,
+        "pasteboard_recognize_item" => recognize_pasteboard_item(app, arguments).await,
+        "pasteboard_sync_vault" => sync_pasteboard_vault(app).await,
+        "pasteboard_sync_status" => pasteboard_sync_status(app),
         "find_local_files" => find_local_files_tool_call(arguments),
         "get_current_context" => get_current_context(),
         "open_or_reveal_path" => open_or_reveal_path(arguments),
@@ -1436,15 +1462,240 @@ async fn search_clipboard(
     arguments: Value,
 ) -> Result<Value, String> {
     let text = app.clipboard().read_text().ok();
-    if text
-        .as_deref()
-        .map(str::trim)
-        .is_some_and(|text| !text.is_empty())
-    {
-        let cutoff = atools_core::utils::iso_days_ago(clipboard_retention_days(db));
-        let _ = db.prune_clipboard_history(&cutoff);
+    if let Some(state) = app.try_state::<crate::state::AppState>() {
+        if let Some(text) = text.as_deref() {
+            let _ = state.pasteboard_runtime.capture_text(text);
+        }
     }
-    search_clipboard_history(db, text.as_deref(), arguments)
+    search_canonical_pasteboard_history(db, arguments)
+}
+
+async fn search_pasteboard_history(
+    app: &AppHandle,
+    db: &Database,
+    arguments: Value,
+) -> Result<Value, String> {
+    search_clipboard(app, db, arguments).await
+}
+
+fn search_canonical_pasteboard_history(db: &Database, arguments: Value) -> Result<Value, String> {
+    let query = arguments
+        .get("query")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let pinboard_id = arguments.get("pinboard_id").and_then(Value::as_str);
+    let limit = arguments
+        .get("limit")
+        .and_then(Value::as_u64)
+        .unwrap_or(50)
+        .clamp(1, 500) as usize;
+    let items = db
+        .search_pasteboard_items(query, pinboard_id, limit)
+        .map_err(|error| error.to_string())?;
+    let total = items.len();
+    Ok(json!({ "items": items, "total": total }))
+}
+
+fn list_pasteboard_pinboards(db: &Database) -> Result<Value, String> {
+    let pinboards = db.list_pinboards().map_err(|error| error.to_string())?;
+    let total = pinboards.len();
+    Ok(json!({ "pinboards": pinboards, "total": total }))
+}
+
+fn get_pasteboard_item(db: &Database, arguments: Value) -> Result<Value, String> {
+    let item_id = pasteboard_string_argument(&arguments, "item_id", true)?
+        .expect("required PasteboardPro item id is present");
+    let item = db
+        .get_pasteboard_item(&item_id)
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| format!("PasteboardPro item does not exist: {item_id}"))?;
+    let blob_bytes = item
+        .payload
+        .blob_id
+        .as_deref()
+        .map(|blob_id| {
+            db.get_pasteboard_blob(blob_id)
+                .map_err(|error| error.to_string())
+                .map(|blob| blob.map(|value| value.byte_length))
+        })
+        .transpose()?
+        .flatten();
+    Ok(json!({
+        "id": item.id,
+        "kind": item.kind,
+        "sourceDeviceId": item.source_device_id,
+        "copiedAt": item.copied_at,
+        "updatedAt": item.updated_at,
+        "pinboardId": item.pinboard_id,
+        "pinned": item.pinned,
+        "hasText": item.payload.text.is_some() || item.ocr_text.is_some(),
+        "hasHtml": item.payload.html.is_some(),
+        "hasLocalBlob": item.payload.blob_id.is_some() && blob_bytes.is_some(),
+        "blobBytes": blob_bytes,
+        "fileCount": item.payload.file_paths.as_ref().map(Vec::len).unwrap_or(0),
+        "contentRedacted": true,
+    }))
+}
+
+fn pasteboard_string_argument<'a>(
+    arguments: &'a Value,
+    key: &str,
+    required: bool,
+) -> Result<Option<&'a str>, String> {
+    let value = arguments.get(key);
+    if value.is_none() || value == Some(&Value::Null) {
+        return if required {
+            Err(format!("{key} is required"))
+        } else {
+            Ok(None)
+        };
+    }
+    let value = value
+        .and_then(Value::as_str)
+        .ok_or_else(|| format!("{key} must be a string"))?
+        .trim();
+    if value.is_empty() {
+        return Err(format!("{key} must not be empty"));
+    }
+    Ok(Some(value))
+}
+
+fn create_pasteboard_pinboard(db: &Database, arguments: Value) -> Result<Value, String> {
+    let name = pasteboard_string_argument(&arguments, "name", true)?
+        .expect("required Pinboard name is present");
+    let color = pasteboard_string_argument(&arguments, "color", false)?.unwrap_or("#6F61EA");
+    let pinboard = crate::pasteboard_actions::create_pinboard(db, name, color)?;
+    Ok(json!({ "pinboard": pinboard }))
+}
+
+fn update_pasteboard_pinboard(db: &Database, arguments: Value) -> Result<Value, String> {
+    let id = pasteboard_string_argument(&arguments, "id", true)?
+        .expect("required Pinboard id is present");
+    let name = pasteboard_string_argument(&arguments, "name", false)?;
+    let color = pasteboard_string_argument(&arguments, "color", false)?;
+    let pinboard = crate::pasteboard_actions::update_pinboard(db, id, name, color)?;
+    Ok(json!({ "pinboard": pinboard }))
+}
+
+fn move_pasteboard_pinboard(db: &Database, arguments: Value) -> Result<Value, String> {
+    let id = pasteboard_string_argument(&arguments, "id", true)?
+        .expect("required Pinboard id is present");
+    let before_id = pasteboard_string_argument(&arguments, "before_id", false)?;
+    let after_id = pasteboard_string_argument(&arguments, "after_id", false)?;
+    let pinboard = crate::pasteboard_actions::move_pinboard(db, id, before_id, after_id)?;
+    Ok(json!({ "pinboard": pinboard }))
+}
+
+fn delete_pasteboard_pinboard(db: &Database, arguments: Value) -> Result<Value, String> {
+    let id = pasteboard_string_argument(&arguments, "id", true)?
+        .expect("required Pinboard id is present");
+    let result = crate::pasteboard_actions::delete_pinboard(db, id)?;
+    serde_json::to_value(result).map_err(|error| error.to_string())
+}
+
+fn assign_pasteboard_items(db: &Database, arguments: Value) -> Result<Value, String> {
+    let item_ids = arguments
+        .get("item_ids")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "item_ids must be an array".to_string())?
+        .iter()
+        .map(|value| {
+            value
+                .as_str()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(ToString::to_string)
+                .ok_or_else(|| "item_ids must contain non-empty strings".to_string())
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    if item_ids.is_empty() || item_ids.len() > 500 {
+        return Err("item_ids must contain 1 to 500 ids".to_string());
+    }
+    let pinboard_id = pasteboard_string_argument(&arguments, "pinboard_id", false)?;
+    let items = crate::pasteboard_actions::assign_items(db, item_ids, pinboard_id)?;
+    let total = items.len();
+    Ok(json!({ "items": items, "total": total }))
+}
+
+async fn paste_pasteboard_item(app: &AppHandle, arguments: Value) -> Result<Value, String> {
+    let item_id = pasteboard_string_argument(&arguments, "item_id", true)?
+        .expect("required PasteboardPro item id is present");
+    let plain_text = arguments
+        .get("plain_text")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let state = app
+        .try_state::<crate::state::AppState>()
+        .ok_or_else(|| "PasteboardPro application state is unavailable".to_string())?;
+    let result = crate::commands::pasteboard_paste_item_inner(
+        app,
+        state.inner(),
+        &item_id,
+        plain_text,
+        true,
+    )
+    .await?;
+    serde_json::to_value(result).map_err(|error| error.to_string())
+}
+
+async fn copy_pasteboard_item(app: &AppHandle, arguments: Value) -> Result<Value, String> {
+    let item_id = pasteboard_string_argument(&arguments, "item_id", true)?
+        .expect("required PasteboardPro item id is present");
+    let plain_text = arguments
+        .get("plain_text")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let state = app
+        .try_state::<crate::state::AppState>()
+        .ok_or_else(|| "PasteboardPro application state is unavailable".to_string())?;
+    let result = crate::commands::pasteboard_paste_item_inner(
+        app,
+        state.inner(),
+        &item_id,
+        plain_text,
+        false,
+    )
+    .await?;
+    serde_json::to_value(result).map_err(|error| error.to_string())
+}
+
+async fn recognize_pasteboard_item(app: &AppHandle, arguments: Value) -> Result<Value, String> {
+    let item_id = pasteboard_string_argument(&arguments, "item_id", true)?
+        .expect("required PasteboardPro item id is present");
+    let state = app
+        .try_state::<crate::state::AppState>()
+        .ok_or_else(|| "PasteboardPro application state is unavailable".to_string())?;
+    let text =
+        crate::commands::pasteboard_recognize_item_inner(app, state.inner(), &item_id).await?;
+    Ok(json!({
+        "status": "recognized",
+        "itemId": item_id,
+        "characters": text.chars().count(),
+        "contentRedacted": true,
+    }))
+}
+
+async fn sync_pasteboard_vault(app: &AppHandle) -> Result<Value, String> {
+    let state = app
+        .try_state::<crate::state::AppState>()
+        .ok_or_else(|| "PasteboardPro application state is unavailable".to_string())?;
+    let result = crate::commands::sync_pasteboard_vault_inner(state.inner()).await?;
+    serde_json::to_value(result).map_err(|error| error.to_string())
+}
+
+fn pasteboard_sync_status(app: &AppHandle) -> Result<Value, String> {
+    let state = app
+        .try_state::<crate::state::AppState>()
+        .ok_or_else(|| "PasteboardPro application state is unavailable".to_string())?;
+    let settings = crate::commands::pasteboard_sync_settings_inner(state.inner())?;
+    Ok(json!({
+        "enabled": settings.enabled,
+        "state": settings.state,
+        "pendingObjects": settings.pending_objects,
+        "lastSyncedAt": settings.last_synced_at,
+        "syncFileContents": settings.sync_file_contents,
+        "contentRedacted": true,
+    }))
 }
 
 pub fn search_clipboard_history(
@@ -2375,7 +2626,7 @@ fn tool(
 fn search_clipboard_tool() -> ToolDefinition {
     tool(
         "search_clipboard",
-        "Search local clipboard history without uploading it. The current clipboard text is captured locally before searching.",
+        "Search the local PasteboardPro history without uploading it. Capture privacy rules run before the current clipboard is added.",
         json!({
             "type": "object",
             "additionalProperties": false,
@@ -2386,6 +2637,335 @@ fn search_clipboard_tool() -> ToolDefinition {
         }),
         json!({ "type": "object", "properties": { "items": { "type": "array" }, "total": { "type": "integer" } } }),
         vec![PermissionScope::ClipboardRead],
+    )
+}
+
+fn pasteboard_search_history_tool() -> ToolDefinition {
+    tool(
+        "pasteboard_search_history",
+        "Search PasteboardPro local history, OCR text, source metadata, and an optional Pinboard.",
+        json!({
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "query": { "type": "string" },
+                "pinboard_id": { "type": "string" },
+                "limit": { "type": "integer", "minimum": 1, "maximum": 500 }
+            }
+        }),
+        json!({
+            "type": "object",
+            "properties": {
+                "items": { "type": "array" },
+                "total": { "type": "integer" }
+            },
+            "required": ["items", "total"]
+        }),
+        vec![PermissionScope::ClipboardRead],
+    )
+}
+
+fn pasteboard_list_pinboards_tool() -> ToolDefinition {
+    tool(
+        "pasteboard_list_pinboards",
+        "List PasteboardPro Pinboards in stable display order.",
+        json!({ "type": "object", "additionalProperties": false }),
+        json!({
+            "type": "object",
+            "properties": {
+                "pinboards": { "type": "array" },
+                "total": { "type": "integer" }
+            },
+            "required": ["pinboards", "total"]
+        }),
+        vec![PermissionScope::ClipboardRead],
+    )
+}
+
+fn pasteboard_get_item_tool() -> ToolDefinition {
+    tool(
+        "pasteboard_get_item",
+        "Read redacted structural metadata for one local PasteboardPro history item without returning clipboard text, OCR text, titles, or paths.",
+        json!({
+            "type": "object",
+            "additionalProperties": false,
+            "properties": { "item_id": { "type": "string", "minLength": 1 } },
+            "required": ["item_id"]
+        }),
+        json!({
+            "type": "object",
+            "properties": {
+                "id": { "type": "string" },
+                "kind": { "type": "string" },
+                "sourceDeviceId": { "type": "string" },
+                "copiedAt": { "type": "string" },
+                "updatedAt": { "type": "string" },
+                "pinboardId": { "type": ["string", "null"] },
+                "pinned": { "type": "boolean" },
+                "hasText": { "type": "boolean" },
+                "hasHtml": { "type": "boolean" },
+                "hasLocalBlob": { "type": "boolean" },
+                "blobBytes": { "type": ["integer", "null"] },
+                "fileCount": { "type": "integer" },
+                "contentRedacted": { "type": "boolean", "const": true }
+            },
+            "required": ["id", "kind", "sourceDeviceId", "copiedAt", "updatedAt", "pinned", "hasText", "hasHtml", "hasLocalBlob", "fileCount", "contentRedacted"]
+        }),
+        vec![PermissionScope::ClipboardRead],
+    )
+}
+
+fn pasteboard_create_pinboard_tool() -> ToolDefinition {
+    tool(
+        "pasteboard_create_pinboard",
+        "Create a PasteboardPro Pinboard through the same local capability used by the shelf UI.",
+        json!({
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+                "color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$", "default": "#6F61EA" }
+            },
+            "required": ["name"]
+        }),
+        json!({
+            "type": "object",
+            "properties": { "pinboard": { "type": "object" } },
+            "required": ["pinboard"]
+        }),
+        vec![PermissionScope::ClipboardWrite],
+    )
+}
+
+fn pasteboard_update_pinboard_tool() -> ToolDefinition {
+    tool(
+        "pasteboard_update_pinboard",
+        "Rename or recolor an existing PasteboardPro Pinboard.",
+        json!({
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "id": { "type": "string", "minLength": 1 },
+                "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+                "color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" }
+            },
+            "required": ["id"],
+            "anyOf": [
+                { "required": ["name"] },
+                { "required": ["color"] }
+            ]
+        }),
+        json!({
+            "type": "object",
+            "properties": { "pinboard": { "type": "object" } },
+            "required": ["pinboard"]
+        }),
+        vec![PermissionScope::ClipboardWrite],
+    )
+}
+
+fn pasteboard_move_pinboard_tool() -> ToolDefinition {
+    tool(
+        "pasteboard_move_pinboard",
+        "Move a PasteboardPro Pinboard between optional stable-order anchors; omit both anchors to move it last.",
+        json!({
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "id": { "type": "string", "minLength": 1 },
+                "before_id": { "type": "string", "minLength": 1 },
+                "after_id": { "type": "string", "minLength": 1 }
+            },
+            "required": ["id"]
+        }),
+        json!({
+            "type": "object",
+            "properties": { "pinboard": { "type": "object" } },
+            "required": ["pinboard"]
+        }),
+        vec![PermissionScope::ClipboardWrite],
+    )
+}
+
+fn pasteboard_delete_pinboard_tool() -> ToolDefinition {
+    tool(
+        "pasteboard_delete_pinboard",
+        "Delete a PasteboardPro Pinboard while preserving its items in all history and creating a sync tombstone.",
+        json!({
+            "type": "object",
+            "additionalProperties": false,
+            "properties": { "id": { "type": "string", "minLength": 1 } },
+            "required": ["id"]
+        }),
+        json!({
+            "type": "object",
+            "properties": {
+                "id": { "type": "string" },
+                "unassignedItems": { "type": "integer" }
+            },
+            "required": ["id", "unassignedItems"]
+        }),
+        vec![PermissionScope::ClipboardWrite],
+    )
+}
+
+fn pasteboard_assign_items_tool() -> ToolDefinition {
+    tool(
+        "pasteboard_assign_items",
+        "Assign PasteboardPro history items to a Pinboard, or omit pinboard_id to move them back to all history.",
+        json!({
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "item_ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 500,
+                    "items": { "type": "string", "minLength": 1 }
+                },
+                "pinboard_id": { "type": "string", "minLength": 1 }
+            },
+            "required": ["item_ids"]
+        }),
+        json!({
+            "type": "object",
+            "properties": {
+                "items": { "type": "array" },
+                "total": { "type": "integer" }
+            },
+            "required": ["items", "total"]
+        }),
+        vec![PermissionScope::ClipboardWrite],
+    )
+}
+
+fn pasteboard_sync_vault_tool() -> ToolDefinition {
+    tool(
+        "pasteboard_sync_vault",
+        "Synchronize the configured encrypted PasteboardPro WebDAV vault through the same Rust sync engine used by the shelf UI.",
+        json!({ "type": "object", "additionalProperties": false }),
+        json!({
+            "type": "object",
+            "properties": {
+                "status": { "type": "string" },
+                "pulledObjects": { "type": "integer" },
+                "pushedObjects": { "type": "integer" },
+                "failedObjectIds": { "type": "array", "items": { "type": "string" } }
+            },
+            "required": ["status", "pulledObjects", "pushedObjects", "failedObjectIds"]
+        }),
+        vec![
+            PermissionScope::ClipboardRead,
+            PermissionScope::ClipboardWrite,
+            PermissionScope::Network,
+        ],
+    )
+}
+
+fn pasteboard_sync_status_tool() -> ToolDefinition {
+    tool(
+        "pasteboard_sync_status",
+        "Read the local PasteboardPro encrypted-vault status without returning WebDAV credentials, vault keys, URLs, or clipboard content.",
+        json!({ "type": "object", "additionalProperties": false }),
+        json!({
+            "type": "object",
+            "properties": {
+                "enabled": { "type": "boolean" },
+                "state": { "type": "string" },
+                "pendingObjects": { "type": "integer" },
+                "lastSyncedAt": { "type": ["string", "null"] },
+                "syncFileContents": { "type": "boolean" },
+                "contentRedacted": { "type": "boolean", "const": true }
+            },
+            "required": ["enabled", "state", "pendingObjects", "syncFileContents", "contentRedacted"]
+        }),
+        vec![PermissionScope::ClipboardRead],
+    )
+}
+
+fn pasteboard_paste_item_tool() -> ToolDefinition {
+    tool(
+        "pasteboard_paste_item",
+        "Prepare a PasteboardPro history item on the local clipboard and send Command-V to the previously focused macOS app. If Accessibility permission is unavailable, the item remains copied and the result status is copied.",
+        json!({
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "item_id": { "type": "string", "minLength": 1 },
+                "plain_text": { "type": "boolean", "default": false }
+            },
+            "required": ["item_id"]
+        }),
+        json!({
+            "type": "object",
+            "properties": {
+                "status": { "type": "string", "enum": ["pasted", "copied"] },
+                "warning": { "type": ["string", "null"] }
+            },
+            "required": ["status", "warning"]
+        }),
+        vec![
+            PermissionScope::ClipboardRead,
+            PermissionScope::ClipboardWrite,
+            PermissionScope::Shell,
+        ],
+    )
+}
+
+fn pasteboard_copy_item_tool() -> ToolDefinition {
+    tool(
+        "pasteboard_copy_item",
+        "Copy a local PasteboardPro history item to the system clipboard without sending Command-V. Supports text, HTML, images, PDF payloads, and local file lists.",
+        json!({
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "item_id": { "type": "string", "minLength": 1 },
+                "plain_text": { "type": "boolean", "default": false }
+            },
+            "required": ["item_id"]
+        }),
+        json!({
+            "type": "object",
+            "properties": {
+                "status": { "type": "string", "const": "copied" },
+                "warning": { "type": ["string", "null"] }
+            },
+            "required": ["status", "warning"]
+        }),
+        vec![
+            PermissionScope::ClipboardRead,
+            PermissionScope::ClipboardWrite,
+        ],
+    )
+}
+
+fn pasteboard_recognize_item_tool() -> ToolDefinition {
+    tool(
+        "pasteboard_recognize_item",
+        "Run local macOS Vision OCR for a managed PasteboardPro image item. The recognized body is saved locally for search but omitted from Agent audit and TaskRun output.",
+        json!({
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "item_id": { "type": "string", "minLength": 1 }
+            },
+            "required": ["item_id"]
+        }),
+        json!({
+            "type": "object",
+            "properties": {
+                "status": { "type": "string", "const": "recognized" },
+                "itemId": { "type": "string" },
+                "characters": { "type": "integer" },
+                "contentRedacted": { "type": "boolean", "const": true }
+            },
+            "required": ["status", "itemId", "characters", "contentRedacted"]
+        }),
+        vec![
+            PermissionScope::ClipboardRead,
+            PermissionScope::Screenshot,
+        ],
     )
 }
 
@@ -2612,9 +3192,12 @@ fn get_current_context_tool() -> ToolDefinition {
 #[cfg(test)]
 mod artifact_tests {
     use super::{
-        structured_failed_items, structured_result_artifacts, structured_result_task_status,
-        validated_open_url,
+        builtin_tool_registry, create_pasteboard_pinboard, delete_pasteboard_pinboard,
+        move_pasteboard_pinboard, structured_failed_items, structured_result_artifacts,
+        structured_result_task_status, update_pasteboard_pinboard, validated_open_url,
     };
+    use atools_core::agent::PermissionScope;
+    use atools_core::db::Database;
     use atools_core::task_run::{ArtifactKind, TaskRun, TaskRunInitiator, TaskRunStatus};
     use serde_json::json;
 
@@ -2684,5 +3267,41 @@ mod artifact_tests {
         assert!(validated_open_url(&json!({ "url": "file:///tmp/secret" })).is_err());
         assert!(validated_open_url(&json!({ "url": "javascript:alert(1)" })).is_err());
         assert!(validated_open_url(&json!({ "url": "https://" })).is_err());
+    }
+
+    #[test]
+    fn agent_pinboard_tools_share_local_actions_and_write_scope() {
+        let registry = builtin_tool_registry();
+        for name in [
+            "pasteboard_create_pinboard",
+            "pasteboard_update_pinboard",
+            "pasteboard_move_pinboard",
+            "pasteboard_delete_pinboard",
+            "pasteboard_assign_items",
+        ] {
+            let tool = registry.get(name).expect("Pinboard tool is registered");
+            assert_eq!(tool.scopes, vec![PermissionScope::ClipboardWrite]);
+        }
+
+        let db = Database::in_memory().unwrap();
+        let first =
+            create_pasteboard_pinboard(&db, json!({ "name": "Design", "color": "#6f61ea" }))
+                .unwrap();
+        let first_id = first["pinboard"]["id"].as_str().unwrap().to_string();
+        update_pasteboard_pinboard(
+            &db,
+            json!({ "id": first_id.clone(), "name": "Work", "color": "#112233" }),
+        )
+        .unwrap();
+        let second = create_pasteboard_pinboard(&db, json!({ "name": "Later" })).unwrap();
+        let second_id = second["pinboard"]["id"].as_str().unwrap().to_string();
+        move_pasteboard_pinboard(
+            &db,
+            json!({ "id": second_id, "after_id": first_id.clone() }),
+        )
+        .unwrap();
+        let deleted = delete_pasteboard_pinboard(&db, json!({ "id": first_id })).unwrap();
+        assert_eq!(deleted["unassignedItems"], 0);
+        assert_eq!(db.list_pinboards().unwrap().len(), 1);
     }
 }

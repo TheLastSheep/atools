@@ -1095,6 +1095,37 @@
         return 'system.path';
       case 'show_notification':
         return 'notification';
+      case 'pasteboard_list_items':
+      case 'pasteboard_list_pinboards':
+      case 'get_pasteboard_capture_status':
+      case 'get_pasteboard_preferences':
+      case 'get_pasteboard_shelf_window_state':
+      case 'start_pasteboard_shelf_drag':
+      case 'hide_pasteboard_shelf':
+      case 'pasteboard_get_item_preview':
+      case 'pasteboard_quick_look_item':
+        return 'pasteboard.read';
+      case 'pasteboard_create_pinboard':
+      case 'pasteboard_rename_pinboard':
+      case 'pasteboard_update_pinboard':
+      case 'pasteboard_move_pinboard':
+      case 'pasteboard_delete_pinboard':
+      case 'pasteboard_assign_items':
+      case 'pasteboard_create_text_item':
+      case 'pasteboard_update_text_item':
+      case 'pasteboard_update_item_title':
+      case 'pasteboard_recognize_item':
+      case 'pasteboard_rotate_image':
+      case 'set_pasteboard_capture_paused':
+      case 'set_pasteboard_preferences':
+        return 'pasteboard.write';
+      case 'get_pasteboard_sync_settings':
+      case 'sync_pasteboard_vault':
+        return 'pasteboard.sync';
+      case 'pasteboard_paste_item':
+        return 'pasteboard.paste';
+      case 'pasteboard_copy_item':
+        return 'pasteboard.write';
       default:
         return null;
     }
@@ -3788,6 +3819,116 @@
   };
   window.utools.db.promises = window.utools.db;
   window.ztools = window.utools;
+  window.atools = {
+    pasteboard: {
+      listItems: function(options) {
+        var input = options || {};
+        return _invokeFn('pasteboard_list_items', {
+          query: typeof input.query === 'string' ? input.query : null,
+          pinboardId: typeof input.pinboardId === 'string' ? input.pinboardId : null,
+          limit: Number.isSafeInteger(input.limit) ? input.limit : 200
+        });
+      },
+      listPinboards: function() { return _invokeFn('pasteboard_list_pinboards', {}); },
+      createPinboard: function(name, color) {
+        return _invokeFn('pasteboard_create_pinboard', { name: name, color: color });
+      },
+      renamePinboard: function(id, name) {
+        return _invokeFn('pasteboard_rename_pinboard', { id: id, name: name });
+      },
+      updatePinboard: function(id, options) {
+        var input = options || {};
+        return _invokeFn('pasteboard_update_pinboard', {
+          id: id,
+          name: typeof input.name === 'string' ? input.name : null,
+          color: typeof input.color === 'string' ? input.color : null
+        });
+      },
+      movePinboard: function(id, beforeId, afterId) {
+        return _invokeFn('pasteboard_move_pinboard', {
+          id: id,
+          beforeId: typeof beforeId === 'string' ? beforeId : null,
+          afterId: typeof afterId === 'string' ? afterId : null
+        });
+      },
+      deletePinboard: function(id) {
+        return _invokeFn('pasteboard_delete_pinboard', { id: id });
+      },
+      assignItems: function(itemIds, pinboardId) {
+        return _invokeFn('pasteboard_assign_items', {
+          itemIds: Array.isArray(itemIds) ? itemIds : [],
+          pinboardId: typeof pinboardId === 'string' ? pinboardId : null
+        });
+      },
+      createTextItem: function(text, title) {
+        return _invokeFn('pasteboard_create_text_item', {
+          text: String(text || ''),
+          title: typeof title === 'string' ? title : null
+        });
+      },
+      updateTextItem: function(itemId, text, title) {
+        return _invokeFn('pasteboard_update_text_item', {
+          itemId: String(itemId || ''),
+          text: String(text || ''),
+          title: typeof title === 'string' ? title : null
+        });
+      },
+      updateItemTitle: function(itemId, title) {
+        return _invokeFn('pasteboard_update_item_title', {
+          itemId: String(itemId || ''),
+          title: String(title || '')
+        });
+      },
+      captureStatus: function() { return _invokeFn('get_pasteboard_capture_status', {}); },
+      setCapturePaused: function(paused) {
+        return _invokeFn('set_pasteboard_capture_paused', { paused: paused === true });
+      },
+      preferences: function() { return _invokeFn('get_pasteboard_preferences', {}); },
+      savePreferences: function(preferences) {
+        var input = preferences || {};
+        return _invokeFn('set_pasteboard_preferences', {
+          preferences: {
+            retentionDays: input.retentionDays,
+            blobBudgetBytes: input.blobBudgetBytes,
+            privacyLiterals: Array.isArray(input.privacyLiterals) ? input.privacyLiterals : [],
+            screenShareProtection: input.screenShareProtection === true
+          }
+        });
+      },
+      windowState: function() { return _invokeFn('get_pasteboard_shelf_window_state', {}); },
+      startShelfDrag: function() { return _invokeFn('start_pasteboard_shelf_drag', {}); },
+      hideShelf: function() { return _invokeFn('hide_pasteboard_shelf', {}); },
+      itemPreview: function(itemId) {
+        return _invokeFn('pasteboard_get_item_preview', { itemId: String(itemId || '') });
+      },
+      recognizeItem: function(itemId) {
+        return _invokeFn('pasteboard_recognize_item', { itemId: String(itemId || '') });
+      },
+      rotateImage: function(itemId, quarterTurns) {
+        return _invokeFn('pasteboard_rotate_image', {
+          itemId: String(itemId || ''),
+          quarterTurns: quarterTurns
+        });
+      },
+      quickLookItem: function(itemId) {
+        return _invokeFn('pasteboard_quick_look_item', { itemId: String(itemId || '') });
+      },
+      pasteItem: function(itemId, plainText) {
+        return _invokeFn('pasteboard_paste_item', {
+          itemId: String(itemId || ''),
+          plainText: plainText === true
+        });
+      },
+      copyItem: function(itemId, plainText) {
+        return _invokeFn('pasteboard_copy_item', {
+          itemId: String(itemId || ''),
+          plainText: plainText === true
+        });
+      },
+      syncSettings: function() { return _invokeFn('get_pasteboard_sync_settings', {}); },
+      syncNow: function() { return _invokeFn('sync_pasteboard_vault', {}); }
+    }
+  };
   _installRuntimeCssStyleSheetPatch();
   _installRuntimePreinsertResourcePatch();
   _installRuntimeResourceObserver();

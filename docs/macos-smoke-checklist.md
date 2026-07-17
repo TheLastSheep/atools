@@ -152,6 +152,22 @@ http://127.0.0.1:1420/?parity=1
 
 - 当前 Codex 内置浏览器自动化可能无法 `fill` 输入框，报 virtual clipboard 未安装；搜索框提示文字输入需要人工验证或换 Playwright/CDP 验证。
 
+## PasteboardPro 双宿主验收补充
+
+完整发布状态与确定性证据见 [PasteboardPro 双插件交付审计](./pasteboardpro-delivery-audit.md)。以下项目必须在当前 ATools/ZTools 分支的真实 macOS 安装包上重新执行；旧版 ATools smoke 不能替代。
+
+- [ ] ATools 与 ZTools 均可从全局快捷键打开 PasteboardPro，并在退出、重启、睡眠/唤醒后保持历史一致。
+- [ ] 文本、富文本、HTML、URL、图片、PDF、颜色和文件均能捕获、预览、复制与粘贴。
+- [ ] Quick Paste `Command+1…9`、纯文本 Quick Paste `Shift+Command+1…9`、Paste Stack 加入/顺序消费和多选顺序粘贴行为一致。
+- [ ] Pinboards 创建、重命名、排序、分配、删除和搜索过滤在两个宿主中结果一致。
+- [ ] OCR 与 Quick Look 在合法文件上成功；权限拒绝、文件丢失、helper 超时和不支持平台均安全降级。
+- [ ] floating/bottom/left/right 四种停靠正确，贴边一侧取消圆角；多屏移动、显示器断开和缩放变化后窗口仍在可见区域。
+- [ ] Expanded/Compact、light/dark、reduced motion、搜索、Preview、Paste Stack 截图矩阵已生成并审核。
+- [ ] 屏幕共享保护开启后窗口内容保护立即生效，关闭后恢复；隐私 Bundle ID 与内容规则不会把排除内容写入历史。
+- [ ] Rust 写 → Node 读写 → Rust 读的 WebDAV 编排通过，并覆盖并发字段合并、墓碑、ETag 412、断网恢复、损坏对象和明文泄漏扫描。
+- [ ] ATools SQLite/Rust 与 ZTools/shared query 的 10k/100k P95 均达到 50ms/150ms 门槛。
+- [ ] ATools app、ZTools Vision helper 与最终 ZIP 均完成 Developer ID 签名、公证、Gatekeeper 和内容完整性验证。
+
 ## 3. Tauri Dev Smoke
 
 启动：
