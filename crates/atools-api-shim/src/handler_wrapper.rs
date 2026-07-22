@@ -4,14 +4,21 @@ use crate::handler::ApiHandler;
 use async_trait::async_trait;
 use atools_plugin::ipc_handler::{IpcError, IpcHandler, IpcResult};
 use serde_json::Value;
+use std::sync::Arc;
 
 /// Wrapper that adapts `ApiHandler` to the `IpcHandler` trait.
 pub struct ApiHandlerWrapper {
-    handler: ApiHandler,
+    handler: Arc<ApiHandler>,
 }
 
 impl ApiHandlerWrapper {
     pub fn new(handler: ApiHandler) -> Self {
+        Self {
+            handler: Arc::new(handler),
+        }
+    }
+
+    pub fn from_shared(handler: Arc<ApiHandler>) -> Self {
         Self { handler }
     }
 }

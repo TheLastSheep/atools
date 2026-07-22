@@ -262,6 +262,38 @@ pub const SHIM_JS: &str = r#"(function() {
         return result === undefined ? null : result;
     };
 
+    globalThis.__atools_registered_providers__ = globalThis.__atools_registered_providers__ || {};
+    globalThis.____callProvider____ = function(callArgs) {
+        var payload = Array.isArray(callArgs) ? (callArgs[0] || {}) : (callArgs || {});
+        var key = String(payload.key || '');
+        var handler = globalThis.__atools_registered_providers__[key];
+        if (typeof handler !== 'function') {
+            throw new Error('Provider handler not registered: ' + key);
+        }
+        var result = handler(payload.input || {});
+        if (result && typeof result.then === 'function') {
+            return trackAsyncAgentToolResult(result);
+        }
+        return result === undefined ? null : result;
+    };
+
+    if (typeof globalThis.fetch !== 'function') {
+        globalThis.fetch = function(url, options) {
+            return ipc('network.fetch', toJson([String(url || ''), options || {}])).then(function(response) {
+                var body = String(response && response.body || '');
+                return {
+                    ok: response && response.ok === true,
+                    status: Number(response && response.status || 0),
+                    statusText: String(response && response.statusText || ''),
+                    url: String(response && response.url || url || ''),
+                    headers: response && response.headers || {},
+                    text: function() { return Promise.resolve(body); },
+                    json: function() { return Promise.resolve(JSON.parse(body)); }
+                };
+            });
+        };
+    }
+
     // ---- utools global API ----
     globalThis.utools = {
         // Lifecycle hooks
@@ -385,6 +417,38 @@ pub const SHIM_JS: &str = r#"(function() {
             return true;
         },
 
+        registerProvider: function(key, handler) {
+            key = String(key || '').trim();
+            if (!key || typeof handler !== 'function') {
+                throw new Error('registerProvider requires a declared key and handler');
+            }
+            var declaredKeys = globalThis.__atools_declared_provider_keys__;
+            if (Array.isArray(declaredKeys) && declaredKeys.indexOf(key) < 0) {
+                throw new Error('Provider is not declared in plugin.json: ' + key);
+            }
+            if (globalThis.__atools_registered_providers__[key]) {
+                throw new Error('Provider already registered: ' + key);
+            }
+            globalThis.__atools_registered_providers__[key] = handler;
+            return true;
+        },
+        providers: {
+            getProviders: function(type) { return ipc('providers.getProviders', toJson([type])); },
+            getDefaultProvider: function(type) { return ipc('providers.getDefault', toJson([type])); },
+            setDefaultProvider: function(type, providerId) { return ipc('providers.setDefault', toJson([type, providerId])); },
+            invokeProvider: function(type, input, providerId) { return ipc('providers.invoke', toJson([type, input || {}, providerId])); }
+        },
+        translate: function(text, options) {
+            options = options && typeof options === 'object' ? options : {};
+            var input = { text: String(text || ''), from: options.from, to: options.to };
+            return ipc('providers.invoke', toJson(['translation', input, options.providerId || null]));
+        },
+        ocr: function(image, options) {
+            options = options && typeof options === 'object' ? options : {};
+            var input = { image: String(image || ''), lang: options.lang };
+            return ipc('providers.invoke', toJson(['ocr', input, options.providerId || null]));
+        },
+
         // Context helpers used by macOS ZTools plugins. Native support is
         // intentionally routed through IPC when implemented by the host.
         readCurrentBrowserUrl: function() { return ipc('context.currentBrowserUrl', '[]'); },
@@ -435,6 +499,18 @@ mod tests {
         assert!(SHIM_JS.contains("input.pasteImage"));
         assert!(SHIM_JS.contains("input.pasteFile"));
         assert!(SHIM_JS.contains("input.typeString"));
+    }
+
+    #[test]
+    fn shim_exposes_ztools_provider_api_surface() {
+        assert!(SHIM_JS.contains("registerProvider: function(key, handler)"));
+        assert!(SHIM_JS.contains("getProviders: function(type)"));
+        assert!(SHIM_JS.contains("getDefaultProvider: function(type)"));
+        assert!(SHIM_JS.contains("invokeProvider: function(type, input, providerId)"));
+        assert!(SHIM_JS.contains("translate: function(text, options)"));
+        assert!(SHIM_JS.contains("ocr: function(image, options)"));
+        assert!(SHIM_JS.contains("globalThis.____callProvider____"));
+        assert!(SHIM_JS.contains("ipc('network.fetch'"));
     }
 
     #[test]

@@ -311,6 +311,7 @@ fn worker_main(
 
     // Map plugin_id -> Context.
     let mut contexts: HashMap<String, Context> = HashMap::new();
+    let mut shutdown_requested = false;
 
     loop {
         // Block until some event is ready: either a new command from the
@@ -332,11 +333,15 @@ fn worker_main(
                     }
                     Ok(WorkerCommand::CallFunction { plugin_id, fn_name, args, response }) => {
                         let r = call_function_impl(
+                            &runtime,
                             &mut contexts,
                             &plugin_id,
                             &fn_name,
                             &args,
+                            &command_rx,
+                            &ipc_tx,
                             &callback_rx,
+                            &mut shutdown_requested,
                         );
                         let _ = response.send(r);
                     }
@@ -358,6 +363,10 @@ fn worker_main(
                     }
                 }
             }
+        }
+
+        if shutdown_requested {
+            break;
         }
 
         // After handling a command, opportunistically drain any pending
@@ -617,11 +626,15 @@ fn emit_event_impl(
 
 /// Call a function in a plugin's context and return its result as a JSON string.
 fn call_function_impl(
+    runtime: &Runtime,
     contexts: &mut HashMap<String, Context>,
     plugin_id: &str,
     fn_name: &str,
     args: &str,
+    command_rx: &cbc::Receiver<WorkerCommand>,
+    ipc_tx: &cbc::Sender<IpcCall>,
     callback_rx: &cbc::Receiver<IpcCallback>,
+    shutdown_requested: &mut bool,
 ) -> Result<String> {
     debug!(
         "Calling function {} in plugin {} with args {}",
@@ -661,7 +674,16 @@ fn call_function_impl(
     })?;
 
     if let Some(result_id) = async_agent_tool_result_id(&result_json) {
-        wait_for_async_agent_tool_result(contexts, plugin_id, &result_id, callback_rx)
+        wait_for_async_agent_tool_result(
+            runtime,
+            contexts,
+            plugin_id,
+            &result_id,
+            command_rx,
+            ipc_tx,
+            callback_rx,
+            shutdown_requested,
+        )
     } else {
         Ok(result_json)
     }
@@ -677,10 +699,14 @@ fn async_agent_tool_result_id(result_json: &str) -> Option<String> {
 }
 
 fn wait_for_async_agent_tool_result(
+    runtime: &Runtime,
     contexts: &mut HashMap<String, Context>,
     plugin_id: &str,
     result_id: &str,
+    command_rx: &cbc::Receiver<WorkerCommand>,
+    ipc_tx: &cbc::Sender<IpcCall>,
     callback_rx: &cbc::Receiver<IpcCallback>,
+    shutdown_requested: &mut bool,
 ) -> Result<String> {
     let deadline = Instant::now() + Duration::from_secs(10);
 
@@ -729,14 +755,55 @@ fn wait_for_async_agent_tool_result(
             ));
         }
 
-        match callback_rx.recv_timeout(Duration::from_millis(10)) {
-            Ok(callback) => drain_one_callback(contexts, callback),
-            Err(cbc::RecvTimeoutError::Timeout) => {}
-            Err(cbc::RecvTimeoutError::Disconnected) => {
-                return Err(anyhow::anyhow!(
-                    "IPC callback channel disconnected while waiting for async plugin Agent tool"
-                ));
+        crossbeam_channel::select! {
+            recv(callback_rx) -> callback => {
+                match callback {
+                    Ok(callback) => drain_one_callback(contexts, callback),
+                    Err(_) => {
+                        return Err(anyhow::anyhow!(
+                            "IPC callback channel disconnected while waiting for async plugin result"
+                        ));
+                    }
+                }
             }
+            recv(command_rx) -> command => {
+                match command {
+                    Ok(WorkerCommand::CreateContext { plugin_id, response }) => {
+                        let result = create_context_impl(runtime, contexts, &plugin_id, ipc_tx);
+                        let _ = response.send(result);
+                    }
+                    Ok(WorkerCommand::ExecutePreload { plugin_id, preload_code, response }) => {
+                        let result = execute_preload_impl(runtime, contexts, &plugin_id, &preload_code, ipc_tx);
+                        let _ = response.send(result);
+                    }
+                    Ok(WorkerCommand::EmitEvent { plugin_id, event, payload, response }) => {
+                        let result = emit_event_impl(contexts, &plugin_id, &event, &payload);
+                        let _ = response.send(result);
+                    }
+                    Ok(WorkerCommand::CallFunction { plugin_id, fn_name, args, response }) => {
+                        let result = call_function_impl(
+                            runtime,
+                            contexts,
+                            &plugin_id,
+                            &fn_name,
+                            &args,
+                            command_rx,
+                            ipc_tx,
+                            callback_rx,
+                            shutdown_requested,
+                        );
+                        let _ = response.send(result);
+                    }
+                    Ok(WorkerCommand::Shutdown) => {
+                        *shutdown_requested = true;
+                        return Err(anyhow::anyhow!("Plugin runtime shut down while waiting for async plugin result"));
+                    }
+                    Err(_) => {
+                        return Err(anyhow::anyhow!("Plugin runtime command channel disconnected"));
+                    }
+                }
+            }
+            default(Duration::from_millis(10)) => {}
         }
     }
 }

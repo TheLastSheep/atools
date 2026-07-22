@@ -42,9 +42,145 @@ pub struct PluginManifest {
     /// Agent/MCP tool declarations from `plugin.json`.
     #[serde(default)]
     pub tools: HashMap<String, ToolManifest>,
+    /// ZTools 3.x translation/OCR provider declarations keyed by plugin-local id.
+    #[serde(default)]
+    pub providers: HashMap<String, ProviderManifest>,
     /// Runtime bridge permissions declared by the plugin manifest.
     #[serde(default)]
     pub permissions: Vec<String>,
+    /// Optional ATools runtime declaration. Legacy manifests without this field
+    /// are treated as ZTools-compatible Web plugins.
+    #[serde(default)]
+    pub runtime: Option<PluginRuntimeManifest>,
+}
+
+impl PluginManifest {
+    pub fn effective_runtime_kind(&self) -> PluginRuntimeKind {
+        self.runtime
+            .as_ref()
+            .map(|runtime| runtime.kind)
+            .unwrap_or(PluginRuntimeKind::Web)
+    }
+
+    pub fn effective_compatibility(&self) -> PluginCompatibilityKind {
+        self.runtime
+            .as_ref()
+            .map(|runtime| runtime.compatibility)
+            .unwrap_or(PluginCompatibilityKind::Ztools)
+    }
+
+    pub fn effective_runtime_transport(&self) -> PluginRuntimeTransport {
+        self.runtime
+            .as_ref()
+            .map(|runtime| runtime.transport)
+            .unwrap_or(PluginRuntimeTransport::HostBridge)
+    }
+
+    pub fn effective_runtime_entry(&self) -> Option<&str> {
+        self.runtime
+            .as_ref()
+            .and_then(|runtime| runtime.entry.as_deref())
+            .or(self.main.as_deref())
+            .or(self.preload.as_deref())
+    }
+
+    pub fn validate_runtime_contract(&self) -> Result<(), String> {
+        let Some(runtime) = &self.runtime else {
+            return Ok(());
+        };
+        let entry = self
+            .effective_runtime_entry()
+            .map(str::trim)
+            .filter(|entry| !entry.is_empty());
+        if entry.is_none() {
+            return Err("Plugin runtime requires a non-empty entry".to_string());
+        }
+        match runtime.kind {
+            PluginRuntimeKind::Web => {
+                if runtime.transport != PluginRuntimeTransport::HostBridge {
+                    return Err("Web plugins must use host_bridge transport".to_string());
+                }
+            }
+            PluginRuntimeKind::Rust | PluginRuntimeKind::Node => {
+                if runtime.transport == PluginRuntimeTransport::HostBridge {
+                    return Err(
+                        "Rust and Node plugins must use json_rpc_stdio or mcp_stdio transport"
+                            .to_string(),
+                    );
+                }
+            }
+        }
+        if runtime.compatibility == PluginCompatibilityKind::Ztools
+            && (runtime.kind != PluginRuntimeKind::Web
+                || runtime.transport != PluginRuntimeTransport::HostBridge)
+        {
+            return Err(
+                "ZTools compatibility requires a Web plugin using host_bridge transport"
+                    .to_string(),
+            );
+        }
+        Ok(())
+    }
+}
+
+/// Execution technology used by a plugin.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PluginRuntimeKind {
+    Rust,
+    Node,
+    Web,
+}
+
+/// Compatibility contract implemented by a plugin.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PluginCompatibilityKind {
+    Native,
+    Ztools,
+}
+
+/// Process/host transport used to invoke a plugin runtime.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PluginRuntimeTransport {
+    HostBridge,
+    JsonRpcStdio,
+    McpStdio,
+}
+
+/// Explicit runtime declaration for new ATools plugins.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PluginRuntimeManifest {
+    pub kind: PluginRuntimeKind,
+    #[serde(default = "default_plugin_compatibility")]
+    pub compatibility: PluginCompatibilityKind,
+    #[serde(default = "default_plugin_runtime_transport")]
+    pub transport: PluginRuntimeTransport,
+    #[serde(default)]
+    pub entry: Option<String>,
+}
+
+fn default_plugin_compatibility() -> PluginCompatibilityKind {
+    PluginCompatibilityKind::Native
+}
+
+fn default_plugin_runtime_transport() -> PluginRuntimeTransport {
+    PluginRuntimeTransport::HostBridge
+}
+
+/// ZTools 3.x provider declaration exposed by a plugin.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProviderManifest {
+    /// Provider capability type (`translation` or `ocr`).
+    #[serde(rename = "type")]
+    pub type_: String,
+    /// Human-readable provider name.
+    #[serde(default)]
+    pub label: Option<String>,
+    /// Optional provider description shown by host settings UIs.
+    #[serde(default)]
+    pub description: Option<String>,
 }
 
 /// Tool declaration exposed by a plugin.
@@ -96,6 +232,7 @@ pub struct Feature {
     #[serde(default)]
     pub label: Option<String>,
     /// Human-readable explanation shown in the UI.
+    #[serde(default)]
     pub explain: String,
     /// Optional icon path (relative to plugin directory).
     #[serde(default)]
@@ -107,6 +244,7 @@ pub struct Feature {
     #[serde(default, rename = "mainHide")]
     pub main_hide: bool,
     /// Command match rules that activate this feature.
+    #[serde(default)]
     pub cmds: Vec<Cmd>,
 }
 

@@ -2,7 +2,10 @@
 
 use std::collections::HashMap;
 
-use atools_core::models::{Cmd, CmdType, Document, Feature, Plugin, PluginManifest, PluginSetting};
+use atools_core::models::{
+    Cmd, CmdType, Document, Feature, Plugin, PluginCompatibilityKind, PluginManifest,
+    PluginRuntimeKind, PluginRuntimeTransport, PluginSetting, ProviderManifest,
+};
 use serde_json::json;
 
 #[test]
@@ -23,7 +26,16 @@ fn test_plugin_manifest_roundtrip() {
         features: vec![],
         development: None,
         tools: HashMap::new(),
+        providers: HashMap::from([(
+            "cloud".to_string(),
+            ProviderManifest {
+                type_: "translation".to_string(),
+                label: Some("Cloud".to_string()),
+                description: Some("Fixture".to_string()),
+            },
+        )]),
         permissions: vec!["clipboard".to_string(), "shell".to_string()],
+        runtime: None,
     };
 
     let serialized = serde_json::to_string(&manifest).unwrap();
@@ -37,6 +49,7 @@ fn test_plugin_manifest_roundtrip() {
         deserialized.permissions,
         vec!["clipboard".to_string(), "shell".to_string()]
     );
+    assert_eq!(deserialized.providers["cloud"].type_, "translation");
     let settings = deserialized.plugin_setting.unwrap();
     assert!(settings.single);
     assert_eq!(settings.height, 600);
@@ -90,6 +103,66 @@ fn test_plugin_manifest_minimal() {
     assert_eq!(manifest.version, "");
     assert!(manifest.features.is_empty());
     assert!(manifest.permissions.is_empty());
+    assert_eq!(manifest.effective_runtime_kind(), PluginRuntimeKind::Web);
+    assert_eq!(
+        manifest.effective_compatibility(),
+        PluginCompatibilityKind::Ztools
+    );
+    assert_eq!(
+        manifest.effective_runtime_transport(),
+        PluginRuntimeTransport::HostBridge
+    );
+}
+
+#[test]
+fn test_native_node_and_rust_runtime_manifests() {
+    let node: PluginManifest = serde_json::from_value(json!({
+        "name": "node-worker",
+        "runtime": {
+            "kind": "node",
+            "transport": "json_rpc_stdio",
+            "entry": "dist/index.mjs"
+        }
+    }))
+    .unwrap();
+    assert_eq!(node.effective_runtime_kind(), PluginRuntimeKind::Node);
+    assert_eq!(
+        node.effective_compatibility(),
+        PluginCompatibilityKind::Native
+    );
+    assert_eq!(
+        node.effective_runtime_transport(),
+        PluginRuntimeTransport::JsonRpcStdio
+    );
+    assert_eq!(node.effective_runtime_entry(), Some("dist/index.mjs"));
+    assert!(node.validate_runtime_contract().is_ok());
+
+    let rust: PluginManifest = serde_json::from_value(json!({
+        "name": "rust-worker",
+        "runtime": {
+            "kind": "rust",
+            "transport": "mcp_stdio",
+            "entry": "bin/rust-worker"
+        }
+    }))
+    .unwrap();
+    assert_eq!(rust.effective_runtime_kind(), PluginRuntimeKind::Rust);
+    assert_eq!(
+        rust.effective_runtime_transport(),
+        PluginRuntimeTransport::McpStdio
+    );
+    assert!(rust.validate_runtime_contract().is_ok());
+
+    let unsafe_node: PluginManifest = serde_json::from_value(json!({
+        "name": "unsafe-node",
+        "main": "index.js",
+        "runtime": {
+            "kind": "node",
+            "transport": "host_bridge"
+        }
+    }))
+    .unwrap();
+    assert!(unsafe_node.validate_runtime_contract().is_err());
 }
 
 #[test]
@@ -172,7 +245,9 @@ fn test_plugin_record_roundtrip() {
         features: vec![],
         development: None,
         tools: HashMap::new(),
+        providers: HashMap::new(),
         permissions: vec![],
+        runtime: None,
     };
 
     let plugin = Plugin {

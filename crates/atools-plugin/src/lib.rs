@@ -19,8 +19,13 @@ pub mod context;
 pub mod ipc_handler;
 pub mod loader;
 pub mod runtime;
+pub mod sidecar;
 
 // Re-export the most commonly used types at crate root for convenience.
 pub use context::PluginContext;
 pub use ipc_handler::{IpcError, IpcHandler, IpcResult};
 pub use runtime::JsRuntime;
+pub use sidecar::{
+    JsonRpcSidecar, McpSidecar, SidecarError, SidecarLaunchSpec, SidecarSupervisor,
+    SidecarToolResult,
+};

@@ -1,8 +1,11 @@
 //! Integration tests for the API handler IPC dispatch.
 
 use atools_api_shim::handler::ApiHandler;
+use atools_api_shim::handler_wrapper::ApiHandlerWrapper;
 use atools_core::db::Database;
-use atools_core::models::{Plugin, PluginManifest};
+use atools_core::models::{Plugin, PluginManifest, ProviderManifest};
+use atools_plugin::ipc_handler::IpcHandler;
+use atools_plugin::runtime::JsRuntime;
 use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -32,7 +35,9 @@ fn setup() -> (ApiHandler, TempDir) {
             features: vec![],
             development: None,
             tools: HashMap::new(),
+            providers: HashMap::new(),
             permissions: vec![],
+            runtime: None,
         },
         created_at: "2026-01-01T00:00:00Z".to_string(),
         updated_at: "2026-01-01T00:00:00Z".to_string(),
@@ -490,4 +495,78 @@ async fn test_plugin_get_path() {
         .unwrap();
     let path = result.as_str().unwrap();
     assert!(path.ends_with("my-plugin"));
+}
+
+#[tokio::test]
+async fn test_ztools_provider_manifest_default_and_invocation() {
+    let temp = TempDir::new().unwrap();
+    let plugin_dir = temp.path().join("provider-plugin");
+    std::fs::create_dir_all(&plugin_dir).unwrap();
+    std::fs::write(
+        plugin_dir.join("preload.js"),
+        r#"
+          ztools.registerProvider('cloud', async function(input) {
+            return { text: String(input.text || '') + ' translated', detectedFrom: 'en' };
+          });
+        "#,
+    )
+    .unwrap();
+
+    let db = Arc::new(Database::in_memory().unwrap());
+    let mut providers = HashMap::new();
+    providers.insert(
+        "cloud".to_string(),
+        ProviderManifest {
+            type_: "translation".to_string(),
+            label: Some("Cloud Translator".to_string()),
+            description: Some("Provider fixture".to_string()),
+        },
+    );
+    db.save_plugin(&Plugin {
+        id: "provider-plugin".to_string(),
+        name: "Provider Plugin".to_string(),
+        version: "3.0.1".to_string(),
+        path: plugin_dir.to_string_lossy().to_string(),
+        enabled: true,
+        manifest: PluginManifest {
+            name: "provider-plugin".to_string(),
+            version: "3.0.1".to_string(),
+            main: None,
+            logo: None,
+            preload: Some("preload.js".to_string()),
+            description: None,
+            author: None,
+            homepage: None,
+            plugin_setting: None,
+            features: vec![],
+            development: None,
+            tools: HashMap::new(),
+            providers,
+            permissions: vec![],
+            runtime: None,
+        },
+        created_at: "2026-07-22T00:00:00Z".to_string(),
+        updated_at: "2026-07-22T00:00:00Z".to_string(),
+    })
+    .unwrap();
+
+    let handler = Arc::new(ApiHandler::new(db, temp.path().join("plugins")));
+    let ipc: Arc<dyn IpcHandler + Send + Sync> =
+        Arc::new(ApiHandlerWrapper::from_shared(handler.clone()));
+    let runtime = Arc::new(JsRuntime::new(ipc).unwrap());
+    handler.attach_runtime(&runtime);
+
+    let providers = handler.list_providers(Some("translation")).unwrap();
+    assert_eq!(providers.len(), 1);
+    assert_eq!(providers[0].id, "plugin:provider-plugin:cloud");
+    assert_eq!(providers[0].source, "plugin");
+    assert_eq!(providers[0].plugin_name, "Provider Plugin");
+    assert!(providers[0].is_default);
+
+    let output = handler
+        .invoke_provider("translation", json!({ "text": "hello" }), None)
+        .await
+        .unwrap();
+    assert_eq!(output["text"], "hello translated");
+    assert_eq!(output["detectedFrom"], "en");
 }

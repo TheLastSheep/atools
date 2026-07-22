@@ -4,7 +4,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::agent::{PermissionScope, ToolDefinition};
-use crate::models::{Feature, Plugin};
+use crate::models::{
+    Feature, Plugin, PluginCompatibilityKind, PluginRuntimeKind, PluginRuntimeTransport,
+};
 use crate::skill::SkillDefinition;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -39,6 +41,12 @@ pub struct CapabilitySource {
 pub struct CapabilityExecutor {
     pub kind: CapabilityExecutorKind,
     pub id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plugin_runtime: Option<PluginRuntimeKind>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plugin_compatibility: Option<PluginCompatibilityKind>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plugin_transport: Option<PluginRuntimeTransport>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -110,6 +118,9 @@ impl Capability {
             executor: CapabilityExecutor {
                 kind: CapabilityExecutorKind::Builtin,
                 id: "copy_text".to_string(),
+                plugin_runtime: None,
+                plugin_compatibility: None,
+                plugin_transport: None,
             },
             availability: CapabilityAvailability {
                 available: true,
@@ -124,6 +135,9 @@ impl Capability {
         tool: &ToolDefinition,
         source_name: impl Into<String>,
         version: impl Into<String>,
+        plugin_runtime: Option<PluginRuntimeKind>,
+        plugin_compatibility: Option<PluginCompatibilityKind>,
+        plugin_transport: Option<PluginRuntimeTransport>,
         atools_version: &str,
     ) -> Self {
         let plugin_id = tool.plugin_id.clone();
@@ -154,6 +168,13 @@ impl Capability {
                     CapabilityExecutorKind::Builtin
                 },
                 id: tool.name.clone(),
+                plugin_runtime: if is_plugin { plugin_runtime } else { None },
+                plugin_compatibility: if is_plugin {
+                    plugin_compatibility
+                } else {
+                    None
+                },
+                plugin_transport: if is_plugin { plugin_transport } else { None },
             },
             availability: CapabilityAvailability {
                 available,
@@ -210,6 +231,9 @@ impl Capability {
             executor: CapabilityExecutor {
                 kind: CapabilityExecutorKind::Plugin,
                 id: capability_id,
+                plugin_runtime: Some(plugin.manifest.effective_runtime_kind()),
+                plugin_compatibility: Some(plugin.manifest.effective_compatibility()),
+                plugin_transport: Some(plugin.manifest.effective_runtime_transport()),
             },
             availability: CapabilityAvailability {
                 available: plugin.enabled,
@@ -252,6 +276,9 @@ impl Capability {
             executor: CapabilityExecutor {
                 kind: CapabilityExecutorKind::SkillRecipe,
                 id: capability_id,
+                plugin_runtime: None,
+                plugin_compatibility: None,
+                plugin_transport: None,
             },
             availability: CapabilityAvailability {
                 available: skill.enabled,
@@ -301,22 +328,40 @@ pub fn capability_catalog(
         .map(|plugin| {
             (
                 plugin.id.as_str(),
-                (plugin.name.as_str(), plugin.version.as_str()),
+                (
+                    plugin.name.as_str(),
+                    plugin.version.as_str(),
+                    plugin.manifest.effective_runtime_kind(),
+                    plugin.manifest.effective_compatibility(),
+                    plugin.manifest.effective_runtime_transport(),
+                ),
             )
         })
         .collect::<BTreeMap<_, _>>();
     let mut registry = CapabilityRegistry::default();
     registry.register(Capability::redacted_text_copy(atools_version));
     for tool in tools {
-        let (source_name, version) = tool
+        let (source_name, version, plugin_runtime, plugin_compatibility, plugin_transport) = tool
             .plugin_id
             .as_deref()
             .and_then(|plugin_id| plugin_context.get(plugin_id).copied())
-            .unwrap_or(("ATools", atools_version));
+            .map(|(name, version, runtime, compatibility, transport)| {
+                (
+                    name,
+                    version,
+                    Some(runtime),
+                    Some(compatibility),
+                    Some(transport),
+                )
+            })
+            .unwrap_or(("ATools", atools_version, None, None, None));
         registry.register(Capability::from_tool(
             tool,
             source_name,
             version,
+            plugin_runtime,
+            plugin_compatibility,
+            plugin_transport,
             atools_version,
         ));
     }

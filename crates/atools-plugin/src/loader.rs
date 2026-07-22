@@ -34,6 +34,10 @@ pub fn load_manifest(plugin_dir: &Path) -> Result<PluginManifest> {
 
     let manifest: PluginManifest = serde_json::from_str(&manifest_content)
         .with_context(|| format!("Failed to parse manifest at {:?}", manifest_path))?;
+    manifest
+        .validate_runtime_contract()
+        .map_err(anyhow::Error::msg)
+        .with_context(|| format!("Invalid runtime contract at {:?}", manifest_path))?;
 
     Ok(manifest)
 }

@@ -1,11 +1,14 @@
 //! API handler implementation for IPC calls from plugin JavaScript.
 
-use std::path::PathBuf;
-use std::sync::Arc;
+use std::path::{Component, Path, PathBuf};
+use std::sync::{Arc, Weak};
 
 use anyhow::{Context, Result};
 use atools_core::db::Database;
-use atools_core::models::{Document, Feature};
+use atools_core::models::{Document, Feature, Plugin};
+use atools_plugin::runtime::JsRuntime;
+use parking_lot::RwLock;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tracing::{debug, warn};
 
@@ -21,7 +24,30 @@ use tracing::{debug, warn};
 pub struct ApiHandler {
     db: Arc<Database>,
     plugins_dir: PathBuf,
+    runtime: RwLock<Option<Weak<JsRuntime>>>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderDescriptor {
+    pub id: String,
+    pub plugin_id: String,
+    pub key: String,
+    #[serde(rename = "type")]
+    pub provider_type: String,
+    pub label: String,
+    pub description: Option<String>,
+    pub source: String,
+    pub plugin_name: String,
+    pub plugin_path: String,
+    pub plugin_logo: Option<String>,
+    pub enabled: bool,
+    pub is_default: bool,
+}
+
+const PROVIDER_TYPES: [&str; 2] = ["translation", "ocr"];
+const PROVIDER_INPUT_MAX_BYTES: usize = 16 * 1024 * 1024;
+const PROVIDER_FETCH_MAX_BYTES: usize = 8 * 1024 * 1024;
 
 impl ApiHandler {
     /// Creates a new API handler.
@@ -31,7 +57,15 @@ impl ApiHandler {
     /// * `db` - Shared reference to the application database.
     /// * `plugins_dir` - Root directory where plugins are installed.
     pub fn new(db: Arc<Database>, plugins_dir: PathBuf) -> Self {
-        Self { db, plugins_dir }
+        Self {
+            db,
+            plugins_dir,
+            runtime: RwLock::new(None),
+        }
+    }
+
+    pub fn attach_runtime(&self, runtime: &Arc<JsRuntime>) {
+        *self.runtime.write() = Some(Arc::downgrade(runtime));
     }
 
     /// Dispatches an IPC call from a plugin's JavaScript context.
@@ -74,6 +108,13 @@ impl ApiHandler {
             "features.get" => self.feature_get(plugin_id).await,
             "settings.redirectHotKey" => unsupported_native(method),
             "settings.redirectAiModels" => unsupported_native(method),
+
+            // ZTools 3.x provider compatibility.
+            "providers.getProviders" => self.provider_get_providers(args).await,
+            "providers.getDefault" => self.provider_get_default(args).await,
+            "providers.setDefault" => self.provider_set_default(args).await,
+            "providers.invoke" => self.provider_invoke(args).await,
+            "network.fetch" => self.network_fetch(args).await,
 
             // Plugin info
             "plugin.getPath" => self.plugin_get_path(plugin_id).await,
@@ -139,6 +180,310 @@ impl ApiHandler {
                 Err(anyhow::anyhow!("Unsupported IPC method: {}", method))
             }
         }
+    }
+
+    pub fn list_providers(&self, provider_type: Option<&str>) -> Result<Vec<ProviderDescriptor>> {
+        let provider_type = provider_type.map(normalize_provider_type).transpose()?;
+        let plugins = self
+            .db
+            .list_plugins()
+            .context("Failed to list provider plugins")?;
+        let mut providers = Vec::new();
+        for plugin in plugins {
+            for (key, declaration) in &plugin.manifest.providers {
+                if key.trim().is_empty() {
+                    continue;
+                }
+                let declared_type = match normalize_provider_type(&declaration.type_) {
+                    Ok(value) => value,
+                    Err(_) => continue,
+                };
+                if provider_type.is_some_and(|filter| filter != declared_type) {
+                    continue;
+                }
+                providers.push(ProviderDescriptor {
+                    id: provider_id(&plugin.manifest.name, key),
+                    plugin_id: plugin.id.clone(),
+                    key: key.clone(),
+                    provider_type: declared_type.to_string(),
+                    label: declaration
+                        .label
+                        .as_deref()
+                        .filter(|value| !value.trim().is_empty())
+                        .unwrap_or(&plugin.name)
+                        .to_string(),
+                    description: declaration.description.clone(),
+                    source: "plugin".to_string(),
+                    plugin_name: plugin.name.clone(),
+                    plugin_path: plugin.path.clone(),
+                    plugin_logo: plugin.manifest.logo.clone(),
+                    enabled: plugin.enabled,
+                    is_default: false,
+                });
+            }
+        }
+        providers.sort_by(|left, right| {
+            left.provider_type
+                .cmp(&right.provider_type)
+                .then_with(|| left.label.cmp(&right.label))
+                .then_with(|| left.id.cmp(&right.id))
+        });
+        for provider_type in PROVIDER_TYPES {
+            let configured = self
+                .db
+                .get_setting(&provider_default_setting_key(provider_type))
+                .context("Failed to read default provider")?;
+            let fallback = providers
+                .iter()
+                .find(|provider| provider.provider_type == provider_type && provider.enabled)
+                .map(|provider| provider.id.clone());
+            let selected = configured
+                .filter(|configured| {
+                    providers.iter().any(|provider| {
+                        provider.provider_type == provider_type
+                            && provider.enabled
+                            && provider.id == *configured
+                    })
+                })
+                .or(fallback);
+            if let Some(selected) = selected {
+                if let Some(provider) = providers
+                    .iter_mut()
+                    .find(|provider| provider.id == selected)
+                {
+                    provider.is_default = true;
+                }
+            }
+        }
+        Ok(providers)
+    }
+
+    pub fn default_provider(&self, provider_type: &str) -> Result<Option<ProviderDescriptor>> {
+        let provider_type = normalize_provider_type(provider_type)?;
+        Ok(self
+            .list_providers(Some(provider_type))?
+            .into_iter()
+            .find(|provider| provider.enabled && provider.is_default))
+    }
+
+    pub fn set_default_provider(
+        &self,
+        provider_type: &str,
+        provider_id: &str,
+    ) -> Result<ProviderDescriptor> {
+        let provider_type = normalize_provider_type(provider_type)?;
+        let provider = self
+            .list_providers(Some(provider_type))?
+            .into_iter()
+            .find(|provider| provider.enabled && provider.id == provider_id)
+            .context("Provider is not installed or enabled")?;
+        self.db
+            .set_setting(&provider_default_setting_key(provider_type), &provider.id)
+            .context("Failed to save default provider")?;
+        Ok(ProviderDescriptor {
+            is_default: true,
+            ..provider
+        })
+    }
+
+    pub async fn invoke_provider(
+        &self,
+        provider_type: &str,
+        input: Value,
+        requested_provider_id: Option<&str>,
+    ) -> Result<Value> {
+        let provider_type = normalize_provider_type(provider_type)?;
+        validate_provider_input(provider_type, &input)?;
+        let provider = match requested_provider_id.filter(|value| !value.trim().is_empty()) {
+            Some(provider_id) => self
+                .list_providers(Some(provider_type))?
+                .into_iter()
+                .find(|provider| provider.enabled && provider.id == provider_id)
+                .context("Requested provider is not installed or enabled")?,
+            None => self
+                .default_provider(provider_type)?
+                .context("No enabled provider is available")?,
+        };
+        let plugin = self
+            .db
+            .get_plugin(&provider.plugin_id)
+            .context("Provider plugin no longer exists")?;
+        let runtime = self
+            .runtime
+            .read()
+            .as_ref()
+            .and_then(Weak::upgrade)
+            .context("Plugin runtime is not available for provider invocation")?;
+        let payload = vec![json!({ "key": provider.key, "input": input })];
+        match runtime
+            .call_function(&plugin.id, "____callProvider____", payload.clone())
+            .await
+        {
+            Ok(output) => Ok(output),
+            Err(error) if error.to_string().contains("Context not found") => {
+                self.load_plugin_preload(&runtime, &plugin).await?;
+                runtime
+                    .call_function(&plugin.id, "____callProvider____", payload)
+                    .await
+                    .with_context(|| format!("Provider {} failed", provider.id))
+            }
+            Err(error) => Err(error).with_context(|| format!("Provider {} failed", provider.id)),
+        }
+    }
+
+    async fn load_plugin_preload(&self, runtime: &JsRuntime, plugin: &Plugin) -> Result<()> {
+        let preload = plugin
+            .manifest
+            .preload
+            .as_deref()
+            .context("Provider plugin does not declare a preload script")?;
+        let relative = Path::new(preload);
+        if relative.is_absolute()
+            || relative.components().any(|component| {
+                matches!(
+                    component,
+                    Component::ParentDir | Component::RootDir | Component::Prefix(_)
+                )
+            })
+        {
+            anyhow::bail!("Provider preload path is outside the plugin directory");
+        }
+        let path = PathBuf::from(&plugin.path).join(relative);
+        let preload_code = tokio::fs::read_to_string(&path)
+            .await
+            .with_context(|| format!("Failed to read provider preload at {}", path.display()))?;
+        let declared_provider_keys = serde_json::to_string(
+            &plugin
+                .manifest
+                .providers
+                .keys()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+        )
+        .context("Failed to serialize provider declarations")?;
+        let provider_preload = format!(
+            "globalThis.__atools_declared_provider_keys__ = {declared_provider_keys};\n{preload_code}"
+        );
+        runtime
+            .execute_preload(&plugin.id, &provider_preload)
+            .await
+            .with_context(|| format!("Failed to execute provider preload for {}", plugin.id))
+    }
+
+    async fn provider_get_providers(&self, args: Vec<Value>) -> Result<Value> {
+        let provider_type = args.first().and_then(Value::as_str);
+        Ok(serde_json::to_value(self.list_providers(provider_type)?)?)
+    }
+
+    async fn provider_get_default(&self, args: Vec<Value>) -> Result<Value> {
+        let provider_type = args
+            .first()
+            .and_then(Value::as_str)
+            .context("Provider type is required")?;
+        Ok(serde_json::to_value(self.default_provider(provider_type)?)?)
+    }
+
+    async fn provider_set_default(&self, args: Vec<Value>) -> Result<Value> {
+        let provider_type = args
+            .first()
+            .and_then(Value::as_str)
+            .context("Provider type is required")?;
+        let provider_id = args
+            .get(1)
+            .and_then(Value::as_str)
+            .context("Provider id is required")?;
+        Ok(serde_json::to_value(
+            self.set_default_provider(provider_type, provider_id)?,
+        )?)
+    }
+
+    async fn provider_invoke(&self, args: Vec<Value>) -> Result<Value> {
+        let provider_type = args
+            .first()
+            .and_then(Value::as_str)
+            .context("Provider type is required")?;
+        let input = args.get(1).cloned().unwrap_or(Value::Null);
+        let provider_id = args.get(2).and_then(Value::as_str);
+        self.invoke_provider(provider_type, input, provider_id)
+            .await
+    }
+
+    async fn network_fetch(&self, args: Vec<Value>) -> Result<Value> {
+        let url = args
+            .first()
+            .and_then(Value::as_str)
+            .context("fetch URL is required")?;
+        let parsed = reqwest::Url::parse(url).context("Invalid fetch URL")?;
+        if !matches!(parsed.scheme(), "http" | "https") {
+            anyhow::bail!("fetch only supports http and https URLs");
+        }
+        let options = args.get(1).and_then(Value::as_object);
+        let method = options
+            .and_then(|options| options.get("method"))
+            .and_then(Value::as_str)
+            .unwrap_or("GET")
+            .parse::<reqwest::Method>()
+            .context("Invalid fetch method")?;
+        let client = reqwest::Client::builder()
+            .redirect(reqwest::redirect::Policy::limited(5))
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .context("Failed to initialize provider HTTP client")?;
+        let mut request = client.request(method, parsed);
+        if let Some(headers) = options
+            .and_then(|options| options.get("headers"))
+            .and_then(Value::as_object)
+        {
+            for (name, value) in headers {
+                if let Some(value) = value.as_str() {
+                    request = request.header(name.as_str(), value);
+                }
+            }
+        }
+        if let Some(body) = options
+            .and_then(|options| options.get("body"))
+            .and_then(Value::as_str)
+        {
+            request = request.body(body.to_string());
+        }
+        let mut response = request.send().await.context("Provider fetch failed")?;
+        if response
+            .content_length()
+            .is_some_and(|length| length > PROVIDER_FETCH_MAX_BYTES as u64)
+        {
+            anyhow::bail!("Provider fetch response exceeds 8 MiB");
+        }
+        let status = response.status();
+        let final_url = response.url().to_string();
+        let headers = response
+            .headers()
+            .iter()
+            .filter_map(|(name, value)| {
+                value
+                    .to_str()
+                    .ok()
+                    .map(|value| (name.to_string(), value.to_string()))
+            })
+            .collect::<std::collections::BTreeMap<_, _>>();
+        let mut body = Vec::new();
+        while let Some(chunk) = response
+            .chunk()
+            .await
+            .context("Provider fetch body failed")?
+        {
+            if body.len().saturating_add(chunk.len()) > PROVIDER_FETCH_MAX_BYTES {
+                anyhow::bail!("Provider fetch response exceeds 8 MiB");
+            }
+            body.extend_from_slice(&chunk);
+        }
+        Ok(json!({
+            "ok": status.is_success(),
+            "status": status.as_u16(),
+            "statusText": status.canonical_reason().unwrap_or(""),
+            "url": final_url,
+            "headers": headers,
+            "body": String::from_utf8_lossy(&body),
+        }))
     }
 
     // --- Database methods ---
@@ -444,6 +789,46 @@ impl ApiHandler {
             base64_encode(svg.as_bytes())
         )))
     }
+}
+
+fn normalize_provider_type(value: &str) -> Result<&str> {
+    let value = value.trim();
+    if PROVIDER_TYPES.contains(&value) {
+        Ok(value)
+    } else {
+        anyhow::bail!("Unsupported provider type: {value}")
+    }
+}
+
+fn provider_id(plugin_name: &str, key: &str) -> String {
+    format!("plugin:{plugin_name}:{key}")
+}
+
+fn provider_default_setting_key(provider_type: &str) -> String {
+    format!("providers.default.{provider_type}")
+}
+
+fn validate_provider_input(provider_type: &str, input: &Value) -> Result<()> {
+    let serialized = serde_json::to_vec(input).context("Failed to serialize provider input")?;
+    if serialized.len() > PROVIDER_INPUT_MAX_BYTES {
+        anyhow::bail!("Provider input exceeds 16 MiB");
+    }
+    let object = input
+        .as_object()
+        .context("Provider input must be an object")?;
+    let required = if provider_type == "translation" {
+        "text"
+    } else {
+        "image"
+    };
+    if !object
+        .get(required)
+        .and_then(Value::as_str)
+        .is_some_and(|value| !value.is_empty())
+    {
+        anyhow::bail!("Provider input requires a non-empty {required} string");
+    }
+    Ok(())
 }
 
 fn file_icon_label(raw: &str) -> String {

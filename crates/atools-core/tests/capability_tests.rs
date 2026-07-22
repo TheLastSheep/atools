@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use atools_core::agent::{PermissionScope, ToolDefinition};
 use atools_core::capability::{capability_catalog, CapabilityExecutorKind, CapabilitySourceKind};
 use atools_core::models::{Cmd, Feature, Plugin, PluginManifest};
+use atools_core::models::{PluginCompatibilityKind, PluginRuntimeKind, PluginRuntimeTransport};
 use atools_core::skill::{SkillDefinition, SkillResultSuggestion, SkillStep, SkillValidationRule};
 use serde_json::json;
 
@@ -48,6 +49,18 @@ fn catalog_normalizes_tools_plugin_features_and_skills() {
     );
     assert!(feature.human_invocable);
     assert!(!feature.agent_invocable);
+    assert_eq!(
+        feature.executor.plugin_runtime,
+        Some(PluginRuntimeKind::Web)
+    );
+    assert_eq!(
+        feature.executor.plugin_compatibility,
+        Some(PluginCompatibilityKind::Ztools)
+    );
+    assert_eq!(
+        feature.executor.plugin_transport,
+        Some(PluginRuntimeTransport::HostBridge)
+    );
 
     let skill = catalog
         .iter()
@@ -128,11 +141,13 @@ fn sample_plugin() -> Plugin {
             }],
             development: None,
             tools: HashMap::new(),
+            providers: HashMap::new(),
             permissions: vec![
                 "shell.open".to_string(),
                 "clipboard.read".to_string(),
                 "shell.open".to_string(),
             ],
+            runtime: None,
         },
         created_at: "2026-07-14T00:00:00Z".to_string(),
         updated_at: "2026-07-14T00:00:00Z".to_string(),

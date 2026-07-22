@@ -150,6 +150,22 @@ fn test_load_manifest_missing_required_name() {
 }
 
 #[test]
+fn test_load_manifest_rejects_in_process_node_contract() {
+    let dir = make_plugin_dir(
+        r#"{
+          "name": "unsafe-node",
+          "main": "index.js",
+          "runtime": {
+            "kind": "node",
+            "transport": "host_bridge"
+          }
+        }"#,
+    );
+    let error = load_manifest(dir.path()).unwrap_err().to_string();
+    assert!(error.contains("Invalid runtime contract"));
+}
+
+#[test]
 fn test_load_manifest_empty_directory() {
     let dir = TempDir::new().unwrap();
     let result = load_manifest(dir.path());
