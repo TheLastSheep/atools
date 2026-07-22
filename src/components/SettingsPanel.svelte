@@ -18,8 +18,10 @@
     type AToolsSettings,
     type AiProvider,
     type PrimaryColor,
+    type WindowPositionStrategy,
   } from "../lib/settings";
   import { registerSettingsSaveFlushOnDestroy } from "../lib/settingsLifecycle";
+  import { dispatchPluginOpenRequest, firstOpenablePluginFeature } from "../lib/pluginOpen";
   import type {
     AgentScopePolicy,
     AgentToolGrant,
@@ -33,6 +35,8 @@
     PendingAgentToolRequest,
     PluginMarketCatalog,
     PluginMarketCatalogPlugin,
+    PluginMarketResolvedDownload,
+    PluginProviderDescriptor,
     RuntimeDiagnostics,
     ToolDefinition,
     WebdavBackupPreview,
@@ -193,6 +197,7 @@
   import { appUpdater, appUpdaterState, type AppUpdaterState } from "../lib/appUpdater";
 
   type MenuId = SettingsMenuId;
+  const DEFAULT_ZTOOLS_MARKET_URL = "https://z-tools.top/api/market";
   type IconName = SettingsIconName;
   type MarketCatalogDetailPlugin = PluginMarketCatalogPlugin & {
     checksum?: string | null;
@@ -233,6 +238,12 @@
   type Option<T extends string | number> = {
     label: string;
     value: T;
+  };
+
+  type AccessibilityPermissionStatus = {
+    supported: boolean;
+    trusted: boolean;
+    settingsUrl?: string | null;
   };
 
   type SettingsConfirmRequest = {
@@ -305,6 +316,13 @@
     { label: "5分钟", value: "5m" },
     { label: "10分钟", value: "10m" },
     { label: "从不", value: "never" },
+  ];
+
+  const windowPositionStrategyOptions: Option<WindowPositionStrategy>[] = [
+    { label: "记住各屏位置", value: "remember" },
+    { label: "鼠标屏居中", value: "cursor" },
+    { label: "主屏居中", value: "primary" },
+    { label: "上次使用屏居中", value: "lastActive" },
   ];
 
   const rowOptions: Option<number>[] = [
@@ -426,6 +444,9 @@
   let appShortcuts = $state<AppShortcutSetting[]>([...initialSettings.appShortcuts]);
   let appShortcutStatus = $state("已保存");
   let showTrayIcon = $state(initialSettings.showTrayIcon);
+  let accessibilityPermission = $state<AccessibilityPermissionStatus | null>(null);
+  let accessibilityPermissionBusy = $state(false);
+  let accessibilityPermissionMessage = $state("");
   let wakeupBlacklist = $state<string[]>([...initialSettings.wakeupBlacklist]);
   let wakeupBlacklistDraft = $state("");
   let wakeupBlacklistStatus = $state("");
@@ -447,7 +468,9 @@
   let autoPaste = $state(initialSettings.autoPaste);
   let autoClear = $state(initialSettings.autoClear);
   let autoBackToSearch = $state(initialSettings.autoBackToSearch);
+  let pluginEscapeToSearch = $state(initialSettings.pluginEscapeToSearch);
   let windowDefaultHeight = $state(initialSettings.windowDefaultHeight);
+  let windowPositionStrategy = $state<WindowPositionStrategy>(initialSettings.windowPositionStrategy);
   let clipboardRetentionDays = $state(initialSettings.clipboardRetentionDays);
   let superPanelEnabled = $state(initialSettings.superPanelEnabled);
   let superPanelStatus = $state("");
@@ -509,6 +532,7 @@
   let auditArchiveBusy = $state(false);
   let auditPruneBusy = $state(false);
   let installedPlugins = $state<InstalledPlugin[]>([]);
+  let recentlyInstalledPlugin = $state<InstalledPlugin | null>(null);
   let pluginDataSummary = $state<PluginDataSummary[]>([]);
   let pluginsLoading = $state(false);
   let pluginsStatus = $state("");
@@ -527,6 +551,10 @@
   let pluginMarketProgress = $state<PluginMarketProgressEvent | null>(null);
   let pluginMarketOperationId = $state("");
   let pluginMarketRetryAction = $state<PluginMarketActionState | null>(null);
+  let pluginProviders = $state<PluginProviderDescriptor[]>([]);
+  let pluginProvidersLoading = $state(false);
+  let pluginProvidersStatus = $state("");
+  let busyProviderId = $state("");
   let recentAudits = $state<AuditLogEntry[]>([]);
   let dataAuditOverview = $derived(auditDataOverview(recentAudits));
   let clipboardHistory = $state<ClipboardHistoryEntry[]>([]);
@@ -619,12 +647,16 @@
   });
 
   $effect(() => {
-    if (activeMenu === "mcp") {
+    if (activeMenu === "general") {
+      void refreshAccessibilityPermission();
+    } else if (activeMenu === "mcp") {
       refreshMcpPage();
     } else if (activeMenu === "plugins") {
       refreshPluginsPage();
     } else if (activeMenu === "market") {
       refreshPluginMarketPage();
+    } else if (activeMenu === "providers") {
+      void refreshPluginProviders();
     } else if (activeMenu === "data") {
       refreshDataPage();
     } else if (activeMenu === "debug") {
@@ -635,6 +667,80 @@
       refreshAboutPage();
     }
   });
+
+  async function refreshAccessibilityPermission() {
+    accessibilityPermissionMessage = "";
+    if (!hasTauriRuntime()) {
+      accessibilityPermission = null;
+      accessibilityPermissionMessage = "桌面应用中可检测辅助功能权限";
+      return;
+    }
+    accessibilityPermissionBusy = true;
+    try {
+      accessibilityPermission = await invoke<AccessibilityPermissionStatus>("get_accessibility_permission_status");
+    } catch (error) {
+      accessibilityPermissionMessage = String(error);
+    } finally {
+      accessibilityPermissionBusy = false;
+    }
+  }
+
+  async function openAccessibilityPermissionSettings() {
+    if (!hasTauriRuntime()) {
+      accessibilityPermissionMessage = "桌面应用中可打开系统设置";
+      return;
+    }
+    accessibilityPermissionBusy = true;
+    accessibilityPermissionMessage = "";
+    try {
+      accessibilityPermission = await invoke<AccessibilityPermissionStatus>("open_accessibility_settings");
+      accessibilityPermissionMessage = "已打开系统辅助功能设置，授权后请重新检测";
+    } catch (error) {
+      accessibilityPermissionMessage = String(error);
+    } finally {
+      accessibilityPermissionBusy = false;
+    }
+  }
+
+  async function refreshPluginProviders() {
+    pluginProvidersStatus = "";
+    if (!hasTauriRuntime()) {
+      pluginProviders = [];
+      pluginProvidersStatus = "桌面应用中可管理翻译与 OCR 提供商";
+      return;
+    }
+    pluginProvidersLoading = true;
+    try {
+      pluginProviders = await invoke<PluginProviderDescriptor[]>("list_plugin_providers", { providerType: null });
+      pluginProvidersStatus = `已读取 ${pluginProviders.length} 个提供商`;
+    } catch (error) {
+      pluginProvidersStatus = String(error);
+    } finally {
+      pluginProvidersLoading = false;
+    }
+  }
+
+  async function setDefaultPluginProvider(provider: PluginProviderDescriptor) {
+    if (!hasTauriRuntime() || !provider.enabled) return;
+    busyProviderId = provider.id;
+    pluginProvidersStatus = "";
+    try {
+      await invoke<PluginProviderDescriptor>("set_default_plugin_provider", {
+        providerType: provider.type,
+        providerId: provider.id,
+      });
+      await refreshPluginProviders();
+      pluginProvidersStatus = `已将 ${provider.label} 设为默认${provider.type === "translation" ? "翻译" : " OCR"}提供商`;
+    } catch (error) {
+      pluginProvidersStatus = String(error);
+    } finally {
+      busyProviderId = "";
+    }
+  }
+
+  function providersForType(providerType: PluginProviderDescriptor["type"]) {
+    return pluginProviders.filter((provider) => provider.type === providerType);
+  }
 
   function confirmSettingsAction(options: {
     title: string;
@@ -707,7 +813,9 @@
       autoPaste,
       autoClear,
       autoBackToSearch,
+      pluginEscapeToSearch,
       windowDefaultHeight,
+      windowPositionStrategy,
       clipboardRetentionDays,
       superPanelEnabled,
       floatingBallEnabled,
@@ -764,7 +872,9 @@
     autoPaste = settings.autoPaste;
     autoClear = settings.autoClear;
     autoBackToSearch = settings.autoBackToSearch;
+    pluginEscapeToSearch = settings.pluginEscapeToSearch;
     windowDefaultHeight = settings.windowDefaultHeight;
+    windowPositionStrategy = settings.windowPositionStrategy;
     clipboardRetentionDays = settings.clipboardRetentionDays;
     superPanelEnabled = settings.superPanelEnabled;
     superPanelStatus = "";
@@ -1902,6 +2012,17 @@
       .includes(publicKey);
   }
 
+  function pluginMarketInstallAllowed(plugin: PluginMarketCatalogPlugin) {
+    return plugin.trust_policy === "official_ztools_confirm"
+      || Boolean(plugin.signature && plugin.public_key && pluginMarketPublicKeyTrusted(plugin));
+  }
+
+  function effectivePluginMarketUrl() {
+    return pluginMarketCustom && pluginMarketUrl.trim()
+      ? pluginMarketUrl.trim()
+      : DEFAULT_ZTOOLS_MARKET_URL;
+  }
+
   function handlePluginMarketProgress(event: PluginMarketProgressEvent) {
     if (pluginMarketOperationId && event.operation_id && event.operation_id !== pluginMarketOperationId) return;
     pluginMarketProgress = event;
@@ -2010,6 +2131,7 @@
       pluginsStatus = "正在安装插件";
       const plugin = await invoke("install_plugin", { path: selectedPath }) as InstalledPlugin;
       selectedPluginId = plugin.id;
+      recentlyInstalledPlugin = plugin;
       pluginPermissionPanelOpen = false;
       await refreshPluginsPage();
       pluginsStatus = `已安装 ${plugin.name || plugin.id}`;
@@ -2017,6 +2139,16 @@
       pluginsStatus = String(error);
     } finally {
       pluginsLoading = false;
+    }
+  }
+
+  function openRecentlyInstalledPlugin() {
+    if (!recentlyInstalledPlugin) return;
+    if (dispatchPluginOpenRequest(recentlyInstalledPlugin)) {
+      pluginsStatus = `正在打开 ${recentlyInstalledPlugin.name || recentlyInstalledPlugin.id}`;
+      recentlyInstalledPlugin = null;
+    } else {
+      pluginsStatus = "插件未启用或没有可打开的指令";
     }
   }
 
@@ -2185,14 +2317,10 @@
     pluginMarketLoading = true;
     try {
       installedPlugins = await invoke<InstalledPlugin[]>("list_plugins");
-      if (pluginMarketCustom && pluginMarketUrl.trim()) {
-        const catalog = await invoke<PluginMarketCatalog>("fetch_plugin_market_catalog", { url: pluginMarketUrl.trim() });
-        pluginMarketCatalog = catalog;
-        selectedMarketPluginId = catalog.plugins[0]?.id ?? null;
-        pluginMarketStatusText = `已读取 ${installedPlugins.length} 个已安装插件；远程目录 ${pluginMarketCatalog.plugins.length} 个插件`;
-      } else {
-        pluginMarketStatusText = `已读取 ${installedPlugins.length} 个已安装插件`;
-      }
+      const catalog = await invoke<PluginMarketCatalog>("fetch_plugin_market_catalog", { url: effectivePluginMarketUrl() });
+      pluginMarketCatalog = catalog;
+      selectedMarketPluginId = catalog.plugins[0]?.id ?? null;
+      pluginMarketStatusText = `已读取 ${installedPlugins.length} 个已安装插件；远程目录 ${pluginMarketCatalog.plugins.length} 个插件`;
     } catch (error) {
       pluginMarketStatusText = String(error);
     } finally {
@@ -2202,11 +2330,7 @@
 
   async function openPluginMarketUrl() {
     pluginMarketStatusText = "";
-    const trimmedUrl = pluginMarketUrl.trim();
-    if (!trimmedUrl) {
-      pluginMarketStatusText = "请先填写插件市场地址";
-      return;
-    }
+    const trimmedUrl = effectivePluginMarketUrl();
     try {
       const url = new URL(trimmedUrl);
       if (url.protocol !== "http:" && url.protocol !== "https:") {
@@ -2222,7 +2346,7 @@
       return;
     }
     try {
-      await callHumanCapability("open_url", { url: pluginMarketUrl.trim() });
+      await callHumanCapability("open_url", { url: trimmedUrl });
       pluginMarketStatusText = "已打开插件市场地址";
     } catch (error) {
       pluginMarketStatusText = String(error);
@@ -2251,15 +2375,25 @@
       pluginMarketStatusText = `浏览器预览模式无法安装：${plugin.name}`;
       return;
     }
-    if (!plugin.signature || !plugin.public_key || !pluginMarketPublicKeyTrusted(plugin)) {
-      pluginMarketStatusText = `${plugin.name} 的 Ed25519 公钥尚未在本机 pin，已拒绝安装`;
+    if (!pluginMarketInstallAllowed(plugin)) {
+      pluginMarketStatusText = `${plugin.name} 未提供受信签名，且不属于官方 ZTools 市场，已拒绝安装`;
       return;
     }
     const installedPlugin = marketCatalogInstalledPlugin(plugin);
     const actionLabel = marketCatalogActionLabel(plugin);
+    let resolved: PluginMarketResolvedDownload;
+    try {
+      resolved = await invoke<PluginMarketResolvedDownload>("resolve_plugin_market_download", { plugin });
+    } catch (error) {
+      pluginMarketStatusText = String(error);
+      return;
+    }
+    const officialUnsigned = plugin.trust_policy === "official_ztools_confirm";
     if (!options.skipConfirm && !(await confirmSettingsAction({
       title: `${actionLabel}插件`,
-      message: `${plugin.name} v${plugin.version} 将从 ${plugin.download_url} ${actionLabel}。远程插件会下载 ZIP 并写入本地插件目录；${plugin.checksum ? "目录 SHA-256 会在解包前校验。" : "目录未提供 SHA-256，将以 Ed25519 签名校验完整性。"}目录 Ed25519 签名会使用本机已 pin 的公钥校验。确认继续？`,
+      message: officialUnsigned
+        ? `${plugin.name} v${plugin.version} 将从 ZTools 官方包服务器 ${actionLabel}。该上游包未提供可验证的 SHA-256 或 Ed25519 签名；ATools 会限制为官方 HTTPS 域名、执行压缩包配额与路径穿越检查，但无法证明发布者签名。确认继续？`
+        : `${plugin.name} v${plugin.version} 将从 ${resolved.download_url} ${actionLabel}。远程插件会下载 ${resolved.package_format.toUpperCase()} 并写入本地插件目录；${plugin.checksum ? "目录 SHA-256 会在解包前校验。" : "目录未提供 SHA-256，将以 Ed25519 签名校验完整性。"}目录 Ed25519 签名会使用本机已 pin 的公钥校验。确认继续？`,
       confirmLabel: actionLabel,
       tone: "danger",
     }))) {
@@ -2285,9 +2419,10 @@
     pluginMarketStatusText = `正在下载并${actionLabel} ${plugin.name}`;
     try {
       const updated = installedPlugin
-        ? await invoke("update_plugin_from_market", { pluginId: plugin.id, downloadUrl: plugin.download_url, checksum: plugin.checksum ?? null, signature: plugin.signature ?? null, publicKey: plugin.public_key ?? null, operationId }) as InstalledPlugin
-        : await invoke("install_plugin_from_market", { pluginId: plugin.id, downloadUrl: plugin.download_url, checksum: plugin.checksum ?? null, signature: plugin.signature ?? null, publicKey: plugin.public_key ?? null, operationId }) as InstalledPlugin;
+        ? await invoke("update_plugin_from_market", { pluginId: plugin.id, downloadUrl: resolved.download_url, checksum: plugin.checksum ?? null, signature: plugin.signature ?? null, publicKey: plugin.public_key ?? null, operationId, sourceKind: pluginMarketCatalog?.source_kind ?? null, sourceUrl: pluginMarketCatalog?.source_url ?? null, confirmedUnsigned: officialUnsigned }) as InstalledPlugin
+        : await invoke("install_plugin_from_market", { pluginId: plugin.id, downloadUrl: resolved.download_url, checksum: plugin.checksum ?? null, signature: plugin.signature ?? null, publicKey: plugin.public_key ?? null, operationId, sourceKind: pluginMarketCatalog?.source_kind ?? null, sourceUrl: pluginMarketCatalog?.source_url ?? null, confirmedUnsigned: officialUnsigned }) as InstalledPlugin;
       selectedPluginId = updated.id;
+      recentlyInstalledPlugin = installedPlugin ? null : updated;
       pluginPermissionPanelOpen = false;
       installedPlugins = await invoke<InstalledPlugin[]>("list_plugins");
       pluginMarketStatusText = `已${actionLabel} ${updated.name || updated.id}`;
@@ -3563,6 +3698,49 @@
             </label>
           </div>
 
+          <div class="setting-item">
+            <div class="setting-label">
+              <span>辅助功能权限</span>
+              <small>仅快捷粘贴和模拟按键需要；未授权不会影响搜索、插件和剪贴板历史</small>
+              {#if accessibilityPermissionMessage}
+                <small>{accessibilityPermissionMessage}</small>
+              {/if}
+            </div>
+            <div class="row-actions">
+              <span
+                class="state-pill"
+                class:enabled={accessibilityPermission?.trusted === true}
+                class:error={accessibilityPermission?.supported === true && accessibilityPermission?.trusted === false}
+              >
+                {accessibilityPermissionBusy
+                  ? "检测中"
+                  : accessibilityPermission?.supported === false
+                    ? "当前系统无需授权"
+                    : accessibilityPermission?.trusted
+                      ? "已授权"
+                      : accessibilityPermission
+                        ? "未授权"
+                        : "待检测"}
+              </span>
+              {#if accessibilityPermission?.supported !== false}
+                <button
+                  class="plain-button"
+                  onclick={openAccessibilityPermissionSettings}
+                  disabled={accessibilityPermissionBusy || !hasTauriRuntime()}
+                >
+                  打开系统设置
+                </button>
+                <button
+                  class="plain-button"
+                  onclick={refreshAccessibilityPermission}
+                  disabled={accessibilityPermissionBusy || !hasTauriRuntime()}
+                >
+                  重新检测
+                </button>
+              {/if}
+            </div>
+          </div>
+
           <div class="setting-item blocked-row">
             <div class="blocked-main">
               <div class="blocked-head">
@@ -3843,10 +4021,33 @@
 
           <div class="setting-item">
             <div class="setting-label">
+              <span>ESC 退出插件</span>
+              <small>关闭后 ESC 交给插件处理，适合插件内弹窗、编辑器和队列操作</small>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" bind:checked={pluginEscapeToSearch} />
+              <span></span>
+            </label>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-label">
               <span>插件默认高度</span>
               <small>设置进入插件时的默认高度（像素）</small>
             </div>
             <input class="number-input" type="number" min="200" bind:value={windowDefaultHeight} aria-label="插件默认高度" />
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-label">
+              <span>窗口呼出位置</span>
+              <small>多屏切换时决定主窗口出现在哪块屏幕以及是否恢复上次位置</small>
+            </div>
+            <select class="select-control" bind:value={windowPositionStrategy} aria-label="窗口呼出位置">
+              {#each windowPositionStrategyOptions as option}
+                <option value={option.value}>{option.label}</option>
+              {/each}
+            </select>
           </div>
 
           <div class="setting-item">
@@ -3923,7 +4124,7 @@
           <div class="setting-item">
             <div class="setting-label">
               <span>自定义插件市场</span>
-              <small>{pluginMarketCustom ? "插件市场页将使用该地址作为外部市场入口" : "填写地址后可在插件市场页作为外部入口"}</small>
+              <small>{pluginMarketCustom ? "插件市场页将使用该地址" : "默认使用 ZTools 官方市场；填写地址后可切换兼容目录"}</small>
             </div>
             <label class="toggle">
               <input
@@ -3939,7 +4140,7 @@
           <div class="setting-item">
             <div class="setting-label">
               <span>插件市场地址</span>
-              <small>支持 http/https 目录地址；远程 ZIP 必须同时通过 SHA-256、Ed25519 签名和本地公钥 pin 校验</small>
+              <small>支持 ATools 扁平目录、ZTools 3 市场 API 与 legacy plugins.json；自定义无签名来源始终拒绝安装</small>
             </div>
             <input
               class="input-control"
@@ -4231,7 +4432,12 @@
             本地目录安装、启用状态、卸载和本地清单只保存在本机；远程 ZIP 安装/更新从插件市场目录触发，目录 SHA-256 会校验，签名信任仍未接入。
           </div>
           {#if pluginsStatus}
-            <div class="inline-status">{pluginsStatus}</div>
+            <div class="inline-status action-status">
+              <span>{pluginsStatus}</span>
+              {#if firstOpenablePluginFeature(recentlyInstalledPlugin)}
+                <button class="plain-button" onclick={openRecentlyInstalledPlugin}>立即打开</button>
+              {/if}
+            </div>
           {/if}
           <div class="plugin-inventory-overview-grid" aria-label="插件库存概览：插件库存、启用状态、Feature 指令、安装入口">
             {#each pluginInventoryOverview(inventory) as card}
@@ -4457,8 +4663,11 @@
             </div>
           {/if}
           {#if pluginMarketStatusText}
-            <div class="inline-status">
-              {pluginMarketStatusText}
+            <div class="inline-status action-status">
+              <span>{pluginMarketStatusText}</span>
+              {#if firstOpenablePluginFeature(recentlyInstalledPlugin)}
+                <button class="plain-button" onclick={openRecentlyInstalledPlugin}>立即打开</button>
+              {/if}
             </div>
           {/if}
           {#if pluginMarketProgress}
@@ -4496,7 +4705,7 @@
             <h3>本地替代入口</h3>
             <div class="row-actions">
               <button class="plain-button" onclick={refreshPluginMarketPage} disabled={pluginMarketLoading}>刷新插件</button>
-              <button class="plain-button" onclick={openPluginMarketUrl} disabled={!hasTauriRuntime() || !pluginMarketUrl.trim()}>
+              <button class="plain-button" onclick={openPluginMarketUrl} disabled={!hasTauriRuntime()}>
                 打开市场地址
               </button>
             </div>
@@ -4523,14 +4732,14 @@
               <span class="state-pill enabled">{pluginMarketCatalog.plugins.length} 个插件</span>
             </div>
             <div class="inline-status">
-              来源：{pluginMarketCatalog.source_url}{pluginMarketCatalog.updated_at ? ` · 更新 ${pluginMarketCatalog.updated_at}` : ""}
+              来源：{pluginMarketCatalog.source_kind === "ztools" ? "ZTools 官方市场" : pluginMarketCatalog.source_kind === "legacy" ? "兼容目录" : "ATools 目录"} · {pluginMarketCatalog.source_url}{pluginMarketCatalog.updated_at ? ` · 更新 ${pluginMarketCatalog.updated_at}` : ""}
             </div>
             <div class="plugin-market-catalog-list">
               {#each pluginMarketCatalog.plugins as plugin}
                 <div class="data-row">
                   <div class="setting-label">
                     <span>{plugin.name}</span>
-                    <small>{plugin.description || plugin.download_url}</small>
+                    <small>{plugin.description || plugin.download_url || "安装时从市场解析下载地址"}</small>
                   </div>
                   <div class="row-actions">
                     <span class="meta-pill">v{plugin.version}</span>
@@ -4547,6 +4756,9 @@
                     {#if plugin.publisher}
                       <span class="meta-pill">{plugin.publisher}</span>
                     {/if}
+                    {#if plugin.category}
+                      <span class="meta-pill">{plugin.category}</span>
+                    {/if}
                     {#if plugin.checksum}
                       <span class="meta-pill">{marketCatalogChecksumLabel(plugin)}</span>
                     {/if}
@@ -4555,6 +4767,9 @@
                         {pluginMarketPublicKeyTrusted(plugin) ? "公钥已 pin" : "签名未信任"}
                       </span>
                     {/if}
+                    {#if plugin.trust_policy === "official_ztools_confirm"}
+                      <span class="meta-pill">官方源 · 未签名</span>
+                    {/if}
                     {#if installingMarketPluginId === plugin.id && pluginMarketProgress}
                       <span class="meta-pill">{marketProgressLabel()}</span>
                     {/if}
@@ -4562,8 +4777,8 @@
                     <button
                       class="plain-button"
                       onclick={() => installPluginFromMarketCatalog(plugin)}
-                      disabled={pluginMarketLoading || Boolean(installingMarketPluginId) || !plugin.signature || !plugin.public_key || !pluginMarketPublicKeyTrusted(plugin)}
-                      title={pluginMarketPublicKeyTrusted(plugin) ? `${marketCatalogActionLabel(plugin)} ${plugin.name}` : "先在通用设置 pin 该插件的 Ed25519 公钥"}
+                      disabled={pluginMarketLoading || Boolean(installingMarketPluginId) || !pluginMarketInstallAllowed(plugin)}
+                      title={pluginMarketInstallAllowed(plugin) ? `${marketCatalogActionLabel(plugin)} ${plugin.name}` : "该来源没有受信签名，不能安装"}
                     >
                       {installingMarketPluginId === plugin.id ? marketCatalogBusyLabel(plugin) : marketCatalogActionLabel(plugin)}
                     </button>
@@ -4615,7 +4830,7 @@
                   <div class="data-row compact">
                     <div class="setting-label">
                       <span>下载地址</span>
-                      <small>{selectedMarketPlugin.download_url}</small>
+                      <small>{selectedMarketPlugin.download_url ?? selectedMarketPlugin.download_resolver_url ?? "安装时解析"}</small>
                     </div>
                   </div>
                   {#if selectedMarketPlugin.homepage}
@@ -4670,6 +4885,63 @@
             {/each}
           </div>
         </section>
+      </div>
+    {:else if activeMenu === "providers"}
+      <div class="content-panel">
+        <section class="setting-group">
+          <div class="section-heading">
+            <h3>能力提供商</h3>
+            <button class="plain-button" onclick={refreshPluginProviders} disabled={pluginProvidersLoading}>刷新</button>
+          </div>
+          <div class="inline-status">
+            插件可通过 ZTools Provider 契约提供翻译和 OCR 能力；默认项保存在本机，调用方也可显式指定其他渠道。
+          </div>
+          {#if pluginProvidersStatus}
+            <div class="inline-status">{pluginProvidersStatus}</div>
+          {/if}
+        </section>
+
+        {#each (["translation", "ocr"] as const) as providerType}
+          {@const rows = providersForType(providerType)}
+          <section class="setting-group">
+            <div class="section-heading">
+              <h3>{providerType === "translation" ? "翻译" : "OCR"}</h3>
+              <span class="state-pill" class:enabled={rows.some((provider) => provider.isDefault)}>
+                {rows.length} 个渠道
+              </span>
+            </div>
+            {#if pluginProvidersLoading && rows.length === 0}
+              <div class="empty-box">正在读取提供商</div>
+            {:else if rows.length === 0}
+              <div class="empty-box">暂无可用的{providerType === "translation" ? "翻译" : " OCR"}提供商，可安装声明 providers 的插件。</div>
+            {:else}
+              <div class="compact-list">
+                {#each rows as provider}
+                  <div class="data-row">
+                    <div class="setting-label">
+                      <span>{provider.label}</span>
+                      <small>{provider.description || `${provider.pluginName} · ${provider.key}`}</small>
+                      <code class="mono-value">{provider.id}</code>
+                    </div>
+                    <div class="row-actions">
+                      <span class="meta-pill" class:enabled={provider.enabled}>
+                        {provider.enabled ? "插件已启用" : "插件已停用"}
+                      </span>
+                      <button
+                        class="plain-button"
+                        class:enabled={provider.isDefault}
+                        disabled={!provider.enabled || provider.isDefault || busyProviderId === provider.id}
+                        onclick={() => setDefaultPluginProvider(provider)}
+                      >
+                        {provider.isDefault ? "当前默认" : "设为默认"}
+                      </button>
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+          </section>
+        {/each}
       </div>
     {:else if activeMenu === "ai"}
       <div class="content-panel">
@@ -7464,6 +7736,13 @@
     background: rgba(220, 38, 38, 0.09);
   }
 
+  .inline-status.action-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
   .mono-value,
   .debug-row code {
     max-width: 360px;
@@ -8999,7 +9278,7 @@
     }
   }
 
-  @media (max-width: 720px) {
+  @media (max-width: 1000px) {
     .settings-sidebar {
       width: 184px;
       padding: 12px 8px 14px;

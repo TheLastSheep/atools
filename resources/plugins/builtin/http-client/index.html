@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HTTP 请求</title>
+  <style>
+    :root { color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: CanvasText; background: Canvas; font-size: 13px; }
+    button, input, select, textarea { font: inherit; }
+    .request-line { display: grid; grid-template-columns: 92px minmax(0, 1fr) 76px; gap: 8px; padding: 12px 12px 10px; border-bottom: 1px solid color-mix(in srgb, CanvasText 10%, transparent); }
+    select, input, textarea { border: 1px solid color-mix(in srgb, CanvasText 15%, transparent); border-radius: 8px; color: CanvasText; background: color-mix(in srgb, CanvasText 3%, Canvas); outline: none; }
+    select:focus, input:focus, textarea:focus { border-color: #5671e8; box-shadow: 0 0 0 2px color-mix(in srgb, #5671e8 16%, transparent); }
+    select, input { height: 36px; padding: 0 10px; }
+    .send { height: 36px; border: 0; border-radius: 8px; color: white; background: #536de5; cursor: pointer; font-weight: 650; }
+    .send:disabled { cursor: wait; opacity: .58; }
+    .options { display: flex; align-items: center; gap: 14px; min-height: 38px; padding: 0 13px; border-bottom: 1px solid color-mix(in srgb, CanvasText 9%, transparent); color: GrayText; font-size: 11px; }
+    .options label { display: flex; align-items: center; gap: 5px; }
+    .options input[type="number"] { width: 68px; height: 26px; padding: 0 7px; }
+    .options input[type="checkbox"] { accent-color: #536de5; }
+    .workspace { display: grid; grid-template-columns: minmax(0, 44%) minmax(0, 56%); height: 386px; }
+    .pane { min-width: 0; min-height: 0; display: grid; grid-template-rows: 34px minmax(0, 1fr); }
+    .pane + .pane { border-left: 1px solid color-mix(in srgb, CanvasText 10%, transparent); }
+    .tabs { display: flex; align-items: end; gap: 12px; padding: 0 12px; border-bottom: 1px solid color-mix(in srgb, CanvasText 9%, transparent); }
+    .tab { height: 34px; padding: 0 2px; border: 0; border-bottom: 2px solid transparent; color: GrayText; background: transparent; cursor: pointer; font-size: 12px; }
+    .tab.active { border-bottom-color: #536de5; color: #536de5; }
+    .editor, .response { min-height: 0; padding: 10px 12px 12px; }
+    textarea { width: 100%; height: 100%; padding: 10px; resize: none; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .response { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 8px; }
+    .response-meta { min-height: 22px; display: flex; align-items: center; gap: 9px; color: GrayText; font-size: 11px; }
+    .status-code { padding: 3px 7px; border-radius: 999px; color: #15803d; background: color-mix(in srgb, #22c55e 13%, Canvas); font-weight: 700; }
+    .status-code.error { color: #b91c1c; background: color-mix(in srgb, #ef4444 12%, Canvas); }
+    .output { margin: 0; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid color-mix(in srgb, CanvasText 10%, transparent); border-radius: 8px; padding: 10px; background: color-mix(in srgb, CanvasText 3%, Canvas); font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .placeholder { color: GrayText; }
+    @media (max-width: 650px) { .workspace { grid-template-columns: 1fr; height: auto; } .pane { height: 190px; } .pane + .pane { border-left: 0; border-top: 1px solid color-mix(in srgb, CanvasText 10%, transparent); } }
+  </style>
+</head>
+<body>
+  <div class="request-line">
+    <select id="method" aria-label="请求方法">
+      <option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>HEAD</option><option>OPTIONS</option>
+    </select>
+    <input id="url" type="url" spellcheck="false" value="https://httpbin.org/get" placeholder="https://api.example.com/path">
+    <button id="send" class="send" type="button">发送</button>
+  </div>
+  <div class="options">
+    <label>超时 <input id="timeout" type="number" min="1" max="30" value="15"> 秒</label>
+    <label>响应上限 <input id="limit" type="number" min="1" max="5120" value="1024"> KB</label>
+    <label><input id="redirects" type="checkbox"> 跟随重定向</label>
+  </div>
+  <div class="workspace">
+    <section class="pane">
+      <div class="tabs">
+        <button class="tab active" data-request-tab="headers" type="button">Headers</button>
+        <button class="tab" data-request-tab="body" type="button">Body</button>
+      </div>
+      <div class="editor"><textarea id="request-editor" spellcheck="false" placeholder="Content-Type: application/json&#10;Authorization: Bearer …"></textarea></div>
+    </section>
+    <section class="pane">
+      <div class="tabs">
+        <button class="tab active" data-response-tab="body" type="button">响应正文</button>
+        <button class="tab" data-response-tab="headers" type="button">响应头</button>
+      </div>
+      <div class="response">
+        <div id="meta" class="response-meta">尚未发送请求</div>
+        <pre id="output" class="output placeholder">结果将在这里显示</pre>
+      </div>
+    </section>
+  </div>
+  <script>
+    const method = document.getElementById('method');
+    const url = document.getElementById('url');
+    const send = document.getElementById('send');
+    const timeout = document.getElementById('timeout');
+    const limit = document.getElementById('limit');
+    const redirects = document.getElementById('redirects');
+    const editor = document.getElementById('request-editor');
+    const meta = document.getElementById('meta');
+    const output = document.getElementById('output');
+    let requestTab = 'headers';
+    let responseTab = 'body';
+    let headerDraft = '';
+    let bodyDraft = '';
+    let lastResponse = null;
+
+    function parseHeaders(value) {
+      return value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((line, index) => {
+        const separator = line.indexOf(':');
+        if (separator < 1) throw new Error(`第 ${index + 1} 行 Header 缺少冒号`);
+        return { name: line.slice(0, separator).trim(), value: line.slice(separator + 1).trim() };
+      });
+    }
+
+    function setRequestTab(next) {
+      if (requestTab === 'headers') headerDraft = editor.value; else bodyDraft = editor.value;
+      requestTab = next;
+      editor.value = next === 'headers' ? headerDraft : bodyDraft;
+      editor.placeholder = next === 'headers' ? 'Content-Type: application/json\nAuthorization: Bearer …' : '{\n  "key": "value"\n}';
+      document.querySelectorAll('[data-request-tab]').forEach((button) => button.classList.toggle('active', button.dataset.requestTab === next));
+    }
+
+    function renderResponse() {
+      if (!lastResponse) return;
+      output.classList.remove('placeholder');
+      if (responseTab === 'headers') {
+        output.textContent = lastResponse.headers.map((header) => `${header.name}: ${header.value}`).join('\n') || '无响应头';
+      } else if (lastResponse.body_encoding === 'base64') {
+        output.textContent = `[二进制响应，Base64 编码]\n${lastResponse.body}`;
+      } else {
+        output.textContent = lastResponse.body || '(空响应正文)';
+      }
+    }
+
+    function setResponseTab(next) {
+      responseTab = next;
+      document.querySelectorAll('[data-response-tab]').forEach((button) => button.classList.toggle('active', button.dataset.responseTab === next));
+      renderResponse();
+    }
+
+    async function performRequest() {
+      if (requestTab === 'headers') headerDraft = editor.value; else bodyDraft = editor.value;
+      send.disabled = true;
+      send.textContent = '请求中';
+      meta.textContent = 'Rust 正在发送请求…';
+      output.classList.add('placeholder');
+      output.textContent = '等待响应';
+      try {
+        const started = performance.now();
+        lastResponse = await window.utools.network.request({
+          method: method.value,
+          url: url.value.trim(),
+          headers: parseHeaders(headerDraft),
+          body: bodyDraft || null,
+          timeout_ms: Math.round(Number(timeout.value || 15) * 1000),
+          max_response_bytes: Math.round(Number(limit.value || 1024) * 1024),
+          follow_redirects: redirects.checked
+        });
+        const ok = lastResponse.status >= 200 && lastResponse.status < 400;
+        meta.replaceChildren();
+        const badge = document.createElement('span');
+        badge.className = `status-code${ok ? '' : ' error'}`;
+        badge.textContent = `${lastResponse.status} ${lastResponse.status_text || ''}`.trim();
+        meta.append(badge, document.createTextNode(`${lastResponse.body_bytes} bytes · ${lastResponse.duration_ms || Math.round(performance.now() - started)} ms · ${lastResponse.final_url}`));
+        renderResponse();
+      } catch (error) {
+        lastResponse = null;
+        meta.textContent = '请求失败';
+        output.classList.remove('placeholder');
+        output.textContent = error && error.message ? error.message : String(error);
+      } finally {
+        send.disabled = false;
+        send.textContent = '发送';
+      }
+    }
+
+    document.querySelectorAll('[data-request-tab]').forEach((button) => button.addEventListener('click', () => setRequestTab(button.dataset.requestTab)));
+    document.querySelectorAll('[data-response-tab]').forEach((button) => button.addEventListener('click', () => setResponseTab(button.dataset.responseTab)));
+    send.addEventListener('click', performRequest);
+    url.addEventListener('keydown', (event) => { if (event.key === 'Enter') performRequest(); });
+  </script>
+</body>
+</html>

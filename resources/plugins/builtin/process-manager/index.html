@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>结束进程</title>
+  <style>
+    :root { color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: CanvasText; background: Canvas; }
+    button, input { font: inherit; }
+    .toolbar { position: sticky; top: 0; z-index: 3; display: flex; gap: 10px; padding: 12px; border-bottom: 1px solid color-mix(in srgb, CanvasText 12%, transparent); background: color-mix(in srgb, Canvas 94%, transparent); backdrop-filter: blur(18px); }
+    .search { min-width: 0; flex: 1; height: 38px; padding: 0 12px; border: 1px solid color-mix(in srgb, CanvasText 16%, transparent); border-radius: 9px; color: CanvasText; background: color-mix(in srgb, CanvasText 4%, Canvas); outline: none; }
+    .refresh { min-width: 66px; height: 38px; border: 0; border-radius: 9px; color: #2563eb; background: color-mix(in srgb, #2563eb 12%, Canvas); cursor: pointer; }
+    .status { min-height: 28px; padding: 7px 14px 4px; color: GrayText; font-size: 12px; }
+    .list { padding: 0 10px 12px; }
+    .row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 12px; min-height: 58px; padding: 8px 8px 8px 12px; border-bottom: 1px solid color-mix(in srgb, CanvasText 9%, transparent); }
+    .name { overflow: hidden; font-size: 14px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+    .meta { margin-top: 3px; overflow: hidden; color: GrayText; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+    .usage { color: GrayText; font-size: 11px; text-align: right; white-space: nowrap; }
+    .end { min-width: 58px; height: 32px; border: 0; border-radius: 8px; color: #dc2626; background: color-mix(in srgb, #dc2626 11%, Canvas); cursor: pointer; }
+    .end:disabled { color: GrayText; background: color-mix(in srgb, CanvasText 5%, Canvas); cursor: not-allowed; opacity: .7; }
+    .empty { padding: 60px 16px; color: GrayText; text-align: center; }
+    .modal-backdrop { position: fixed; inset: 0; z-index: 20; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(0, 0, 0, .36); }
+    .modal-backdrop.open { display: flex; }
+    .modal { width: min(390px, 100%); padding: 18px; border: 1px solid color-mix(in srgb, CanvasText 13%, transparent); border-radius: 14px; background: Canvas; box-shadow: 0 20px 60px rgba(0, 0, 0, .25); }
+    .modal h2 { margin: 0 0 8px; font-size: 17px; }
+    .modal p { margin: 0; color: GrayText; font-size: 13px; line-height: 1.55; }
+    .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+    .actions button { min-width: 72px; height: 34px; border: 0; border-radius: 8px; cursor: pointer; }
+    .cancel { color: CanvasText; background: color-mix(in srgb, CanvasText 7%, Canvas); }
+    .confirm { color: white; background: #dc2626; }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <input id="search" class="search" type="search" placeholder="搜索进程名称、路径或 PID">
+    <button id="refresh" class="refresh" type="button">刷新</button>
+  </div>
+  <div id="status" class="status">正在读取本机进程…</div>
+  <div id="list" class="list"></div>
+
+  <div id="modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal">
+      <h2 id="modal-title">确认结束进程</h2>
+      <p id="modal-message"></p>
+      <div class="actions">
+        <button id="cancel" class="cancel" type="button">取消</button>
+        <button id="confirm" class="confirm" type="button">结束进程</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const search = document.getElementById('search');
+    const list = document.getElementById('list');
+    const status = document.getElementById('status');
+    const modal = document.getElementById('modal');
+    const modalMessage = document.getElementById('modal-message');
+    let processes = [];
+    let pendingProcess = null;
+    let searchTimer = null;
+
+    function formatBytes(bytes) {
+      const value = Number(bytes) || 0;
+      if (value < 1024 * 1024) return `${Math.round(value / 1024)} KB`;
+      if (value < 1024 * 1024 * 1024) return `${(value / 1024 / 1024).toFixed(1)} MB`;
+      return `${(value / 1024 / 1024 / 1024).toFixed(1)} GB`;
+    }
+
+    function render() {
+      list.replaceChildren();
+      if (!processes.length) {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = '没有匹配的进程';
+        list.appendChild(empty);
+        return;
+      }
+      for (const process of processes) {
+        const row = document.createElement('div');
+        row.className = 'row';
+        const main = document.createElement('div');
+        const name = document.createElement('div');
+        name.className = 'name';
+        name.textContent = process.name || `PID ${process.pid}`;
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        meta.textContent = `PID ${process.pid} · ${process.executable || process.command || '路径不可用'}`;
+        main.append(name, meta);
+        const usage = document.createElement('div');
+        usage.className = 'usage';
+        usage.textContent = `${Number(process.cpu_percent || 0).toFixed(1)}% CPU\n${formatBytes(process.memory_bytes)}`;
+        const button = document.createElement('button');
+        button.className = 'end';
+        button.type = 'button';
+        button.disabled = process.protected === true;
+        button.textContent = process.protected ? '受保护' : '结束';
+        button.title = process.protected_reason || '结束此进程';
+        button.addEventListener('click', () => openConfirmation(process));
+        row.append(main, usage, button);
+        list.appendChild(row);
+      }
+    }
+
+    async function loadProcesses() {
+      status.textContent = '正在读取本机进程…';
+      try {
+        processes = await window.utools.processes.list(search.value.trim(), 500);
+        status.textContent = `${processes.length} 个进程 · 系统与其他用户进程已保护`;
+        render();
+      } catch (error) {
+        status.textContent = error && error.message ? error.message : String(error);
+        processes = [];
+        render();
+      }
+    }
+
+    function openConfirmation(process) {
+      if (process.protected) return;
+      pendingProcess = process;
+      modalMessage.textContent = `确定结束“${process.name}”（PID ${process.pid}）吗？未保存的数据可能丢失。`;
+      modal.classList.add('open');
+    }
+
+    function closeConfirmation() {
+      pendingProcess = null;
+      modal.classList.remove('open');
+    }
+
+    async function terminatePendingProcess() {
+      const process = pendingProcess;
+      if (!process) return;
+      closeConfirmation();
+      status.textContent = `正在结束 ${process.name}…`;
+      try {
+        await window.utools.processes.terminate(process.pid, true);
+        status.textContent = `已向 ${process.name} 发送结束信号`;
+        setTimeout(loadProcesses, 250);
+      } catch (error) {
+        status.textContent = error && error.message ? error.message : String(error);
+      }
+    }
+
+    search.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(loadProcesses, 120);
+    });
+    document.getElementById('refresh').addEventListener('click', loadProcesses);
+    document.getElementById('cancel').addEventListener('click', closeConfirmation);
+    document.getElementById('confirm').addEventListener('click', terminatePendingProcess);
+    modal.addEventListener('click', (event) => { if (event.target === modal) closeConfirmation(); });
+    document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeConfirmation(); });
+    loadProcesses();
+  </script>
+</body>
+</html>

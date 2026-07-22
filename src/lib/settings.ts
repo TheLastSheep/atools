@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 export type PrimaryColor = "blue" | "purple" | "green" | "orange" | "red" | "pink" | "custom";
 export type AiProvider = "disabled" | "openai" | "compatible" | "local";
 export type DevToolsMode = "detach" | "right" | "bottom" | "undocked";
+export type WindowPositionStrategy = "remember" | "cursor" | "primary" | "lastActive";
 
 export type AppShortcutSetting = {
   id: string;
@@ -35,7 +36,9 @@ export type AToolsSettings = {
   autoPaste: string;
   autoClear: string;
   autoBackToSearch: string;
+  pluginEscapeToSearch: boolean;
   windowDefaultHeight: number;
+  windowPositionStrategy: WindowPositionStrategy;
   clipboardRetentionDays: number;
   superPanelEnabled: boolean;
   floatingBallEnabled: boolean;
@@ -163,12 +166,14 @@ export const DEFAULT_ATOOLS_SETTINGS: AToolsSettings = {
   localLaunchSearch: true,
   spaceOpenCommand: false,
   recentRows: 2,
-  pinnedRows: 2,
+  pinnedRows: 1,
   tabKeyFunction: "navigate",
   autoPaste: "3s",
   autoClear: "immediately",
   autoBackToSearch: "never",
+  pluginEscapeToSearch: true,
   windowDefaultHeight: 541,
+  windowPositionStrategy: "remember",
   clipboardRetentionDays: 180,
   superPanelEnabled: false,
   floatingBallEnabled: false,
@@ -231,6 +236,8 @@ export function normalizeSettings(value: Partial<AToolsSettings> | null | undefi
     recentRows: numberValue(raw.recentRows, DEFAULT_ATOOLS_SETTINGS.recentRows, 1, 4),
     pinnedRows: numberValue(raw.pinnedRows, DEFAULT_ATOOLS_SETTINGS.pinnedRows, 1, 4),
     windowDefaultHeight: numberValue(raw.windowDefaultHeight, DEFAULT_ATOOLS_SETTINGS.windowDefaultHeight, 200, 1200),
+    windowPositionStrategy: windowPositionStrategyValue(raw.windowPositionStrategy),
+    pluginEscapeToSearch: raw.pluginEscapeToSearch !== false,
     clipboardRetentionDays: numberValue(raw.clipboardRetentionDays, DEFAULT_ATOOLS_SETTINGS.clipboardRetentionDays, 1, 3650),
     superPanelEnabled: raw.superPanelEnabled === true,
     floatingBallEnabled: raw.floatingBallEnabled === true,
@@ -474,6 +481,12 @@ function primaryColorValue(value: unknown): PrimaryColor {
   return ["blue", "purple", "green", "orange", "red", "pink", "custom"].includes(String(value))
     ? value as PrimaryColor
     : DEFAULT_ATOOLS_SETTINGS.primaryColor;
+}
+
+function windowPositionStrategyValue(value: unknown): WindowPositionStrategy {
+  return ["remember", "cursor", "primary", "lastActive"].includes(String(value))
+    ? value as WindowPositionStrategy
+    : DEFAULT_ATOOLS_SETTINGS.windowPositionStrategy;
 }
 
 function devToolsModeValue(value: unknown): DevToolsMode {

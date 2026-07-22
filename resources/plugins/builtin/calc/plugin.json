@@ -1,16 +1,18 @@
 {
-  "name": "计算器",
-  "description": "快速数学表达式计算",
-  "author": "ATools",
+  "name": "calculation-paper",
+  "description": "Rust 原生多行计算稿纸与 SQLite 历史",
+  "author": "ATools Team",
   "version": "1.0.0",
   "main": "index.html",
-  "features": [
-    {
-      "code": "计算器",
-      "label": "计算器",
-      "icon": "logo.png",
-      "explain": "输入数学表达式快速计算",
-      "cmds": ["计算器", "计算", "算", "calc", "jisu"]
-    }
-  ]
+  "logo": "logo.svg",
+  "permissions": ["calculation.read", "calculation.write", "calculation.delete"],
+  "pluginSetting": { "height": 500 },
+  "features": [{
+    "code": "calc",
+    "label": "计算稿纸",
+    "icon": "logo.svg",
+    "explain": "多行数学表达式计算与本地历史",
+    "mainPush": true,
+    "cmds": ["计算稿纸", "计算器", "计算", "calc", "calculator"]
+  }]
 }

@@ -249,6 +249,72 @@
     line-height: 1.3;
   }
 
+  @media (max-width: 1000px) {
+    .settings-header {
+      height: 58px;
+      align-items: flex-start;
+      padding: 8px 12px 0;
+    }
+
+    .tab {
+      height: 44px;
+      gap: 8px;
+      padding: 0 14px;
+      font-size: 16px;
+    }
+
+    .active-tab {
+      min-width: 126px;
+      border-radius: 22px 0 0 22px;
+      clip-path: polygon(0 0, 100% 0, calc(100% - 18px) 100%, 0 100%);
+    }
+
+    .secondary-tab {
+      min-width: 100px;
+      margin-left: -18px;
+      padding-left: 26px;
+      border-radius: 0 22px 22px 0;
+    }
+
+    .tab-close {
+      width: 22px;
+      height: 22px;
+      font-size: 22px;
+    }
+
+    .more-wrapper,
+    .more-btn {
+      height: 44px;
+    }
+
+    .more-wrapper {
+      margin-right: 6px;
+    }
+
+    .more-btn span {
+      width: 4px;
+      height: 4px;
+    }
+
+    .more-menu {
+      top: 42px;
+      right: 4px;
+    }
+
+    .settings-header :global(.z-mark.small),
+    .settings-header :global(.z-mark.large) {
+      --mark-size: 42px;
+      --stroke-height: 5px;
+      --stroke-width: 24px;
+      --stroke-left: 9px;
+      --stroke-top: 12px;
+      --stroke-bottom: 12px;
+      --diagonal-width: 29px;
+      --diagonal-left: 7px;
+      --diagonal-top: 19px;
+    }
+  }
+
   @media (prefers-color-scheme: dark) {
     .tab {
       color: #f2f3f5;

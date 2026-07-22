@@ -1,44 +1,24 @@
 {
-  "name": "剪贴板",
-  "description": "管理和搜索剪贴板历史记录，支持文本剪贴与快速粘贴",
-  "author": "ATools",
-  "version": "1.0.0",
-  "logo": "logo.png",
+  "name": "Paste剪切板",
+  "version": "2.0.0",
   "main": "index.html",
+  "logo": "logo.png",
   "preload": "preload.js",
+  "description": "原生高性能剪贴板历史、分组、预览与快捷粘贴",
+  "author": "ATools Team",
+  "permissions": ["clipboard.read", "clipboard.write"],
   "pluginSetting": {
-    "single": false,
-    "height": 544
+    "single": true,
+    "height": 356
   },
   "features": [
     {
-      "code": "剪切",
-      "label": "剪贴板历史",
-      "explain": "搜索剪贴板历史记录",
+      "code": "paste-clipboard",
+      "label": "Paste剪切板",
       "icon": "logo.png",
+      "explain": "打开原生 Paste 风格剪贴板",
       "mainPush": true,
-      "mainHide": false,
-      "cmds": [
-        "剪切",
-        {
-          "type": "regex",
-          "label": "剪贴板",
-          "match": "^.*剪贴.*$"
-        }
-      ]
-    },
-    {
-      "code": "全部剪切",
-      "label": "查看全部剪贴板记录",
-      "explain": "查看所有剪贴板记录",
-      "icon": "logo.png",
-      "cmds": ["全部剪切"]
-    },
-    {
-      "code": "清空剪贴板",
-      "label": "清空剪贴板历史",
-      "explain": "清空剪贴板历史",
-      "cmds": ["清空剪贴板"]
+      "cmds": ["Paste剪切板", "剪贴板", "clipboard", "paste", "粘贴历史", "剪贴板历史"]
     }
   ]
 }

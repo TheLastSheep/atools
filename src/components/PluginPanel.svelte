@@ -53,6 +53,7 @@
   type Props = {
     action: FeatureAction;
     onclose: () => void;
+    onescape?: () => void | Promise<void>;
     onoutput?: (output: PluginOutput) => void;
     onredirect?: (label: unknown, payload: unknown) => boolean | Promise<boolean>;
     onsettingsredirect?: (
@@ -63,6 +64,7 @@
     desktopSmokeSampleIndex?: number;
     desktopSmokeExternalPlanSample?: boolean;
     onready?: () => void | Promise<void>;
+    onloaderror?: (error: unknown) => void | Promise<void>;
     ondesktopsmokerender?: () => void | Promise<void>;
   };
 
@@ -283,6 +285,7 @@
   let {
     action,
     onclose,
+    onescape,
     onoutput,
     onredirect,
     onsettingsredirect,
@@ -290,6 +293,7 @@
     desktopSmokeSampleIndex = 0,
     desktopSmokeExternalPlanSample = false,
     onready,
+    onloaderror,
     ondesktopsmokerender,
   }: Props = $props();
   const WEB_PREVIEW_PLUGIN_PATH = "__atools_plugin_host_preview__";
@@ -564,9 +568,11 @@
       .replace(/__PLUGIN_ID__/g, pluginBridgeJson(action.plugin_id))
       .replace(/__FEATURE_CODE__/g, pluginBridgeJson(action.feature_code))
       .replace(/__ACTION_PAYLOAD__/g, pluginBridgeJson(action.payload ?? null))
+      .replace(/__PLUGIN_PATH__/g, pluginBridgeJson(action.plugin_path || ""))
       .replace(/__APP_NAME__/g, pluginBridgeJson(packageInfo.productName || packageInfo.name || "ATools"))
       .replace(/__APP_VERSION__/g, pluginBridgeJson(packageInfo.version || "0.0.0"))
       .replace("var _atoolsPluginPermissions = null;", `var _atoolsPluginPermissions = ${pluginBridgeJson(action.plugin_permissions ?? [])};`)
+      .replace("var _atoolsDeclaredProviders = null;", `var _atoolsDeclaredProviders = ${pluginBridgeJson(action.plugin_providers ?? {})};`)
       .replace("var _atoolsWindowType = 'main';", `var _atoolsWindowType = ${JSON.stringify(safeWindowType)};`)
       .replace("var _atoolsBrowserWindowId = '';", `var _atoolsBrowserWindowId = ${JSON.stringify(browserWindowId)};`);
   }
@@ -574,16 +580,21 @@
   function injectPluginBridge(
     html: string,
     windowType: PluginBrowserWindowType = "main",
-    browserWindowId = ""
+    browserWindowId = "",
+    preloadScript = ""
   ) {
-    const bridge = pluginBridgeHtml(windowType, browserWindowId);
-    if (html.includes("</head>")) return html.replace("</head>", `${bridge}</head>`);
+    const injection = `${pluginBridgeHtml(windowType, browserWindowId)}${preloadScript}`;
+    const headOpenMatch = html.match(/<head\b[^>]*>/i);
+    if (headOpenMatch?.index != null) {
+      const insertAt = headOpenMatch.index + headOpenMatch[0].length;
+      return `${html.slice(0, insertAt)}${injection}${html.slice(insertAt)}`;
+    }
     const bodyOpenMatch = html.match(/<body\b[^>]*>/i);
     if (bodyOpenMatch?.index != null) {
       const insertAt = bodyOpenMatch.index + bodyOpenMatch[0].length;
-      return `${html.slice(0, insertAt)}${bridge}${html.slice(insertAt)}`;
+      return `${html.slice(0, insertAt)}${injection}${html.slice(insertAt)}`;
     }
-    return bridge + html;
+    return injection + html;
   }
 
   function desktopSmokeBridgeProbeHtml() {
@@ -984,6 +995,7 @@
   // mediated by the host-side source registry and deny-by-default policy.
   var _reqId = 0;
   var _pending = {};
+  var _atoolsPluginPath = typeof __PLUGIN_PATH__ === 'undefined' ? '' : __PLUGIN_PATH__;
   window.addEventListener('message', function(e) {
     if (e.data && e.data.__ipc_response__) {
       var p = _pending[e.data.reqId];
@@ -1003,6 +1015,7 @@
   };
 
   var _atoolsPluginPermissions = null;
+  var _atoolsDeclaredProviders = null;
   var _atoolsRuntimeGrantedPermissions = {};
   var _permissionReqId = 0;
   var _permissionPending = {};
@@ -1112,7 +1125,52 @@
       case 'hideMainWindowPasteFile':
         return 'clipboard.write';
       case 'getCopyedFiles':
+      case 'readClipboardText':
+      case 'listClipboardHistory':
         return 'clipboard.read';
+      case 'getNativeIpSnapshot':
+        return 'network.read';
+      case 'performNativeHttpRequest':
+        return 'network.http';
+      case 'translateNativeText':
+        return 'translation.request';
+      case 'providersGetProviders':
+      case 'providersGetDefault':
+      case 'providersSetDefault':
+      case 'providersInvoke':
+        return 'provider';
+      case 'readNativeHosts':
+        return 'system.hosts.read';
+      case 'writeNativeHosts':
+        return 'system.hosts.write';
+      case 'listNativeTodos':
+        return 'todo.read';
+      case 'saveNativeTodo':
+        return 'todo.write';
+      case 'deleteNativeTodo':
+        return 'todo.delete';
+      case 'calculateNativeSheet':
+        return 'calculation.write';
+      case 'listNativeCalculationHistory':
+        return 'calculation.read';
+      case 'clearNativeCalculationHistory':
+        return 'calculation.delete';
+      case 'nativeCodecTransform':
+        return 'codec.transform';
+      case 'nativeTimeSnapshot':
+        return 'time.read';
+      case 'convertNativeTime':
+        return 'time.convert';
+      case 'generateNativeQr':
+        return 'qr.generate';
+      case 'nativeJsonTransform':
+        return 'json.transform';
+      case 'convertNativeColor':
+        return 'color.convert';
+      case 'listNativeProcesses':
+        return 'process.read';
+      case 'terminateNativeProcess':
+        return 'process.terminate';
       case 'shellOpenPath':
         return 'shell.openPath';
       case 'shellOpenExternal':
@@ -1555,15 +1613,136 @@
     once: function(channel, listener) { return _addChildIpcListener(channel, listener, true); },
     off: function(channel, listener) { return _removeChildIpcListener(channel, listener); },
     removeListener: function(channel, listener) { return _removeChildIpcListener(channel, listener); },
-    removeAllListeners: function(channel) { return _removeAllChildIpcListeners(channel); }
+    removeAllListeners: function(channel) { return _removeAllChildIpcListeners(channel); },
+    send: function(){ return undefined; },
+    sendTo: function(){ return undefined; },
+    invoke: function(){ return Promise.resolve(null); }
   };
+  function _compatUnsupported(name) {
+    return function() { throw new Error('ERR_ATOOLS_NODE_COMPAT_UNSUPPORTED: ' + name); };
+  }
+  function _compatPathParts(value) {
+    return String(value || '').split(String.fromCharCode(92)).join('/').split('/').filter(Boolean);
+  }
+  var _compatPath = {
+    sep: '/',
+    delimiter: ':',
+    join: function() {
+      var absolute = arguments.length > 0 && String(arguments[0] || '').startsWith('/');
+      var parts = [];
+      Array.prototype.forEach.call(arguments, function(value) { parts = parts.concat(_compatPathParts(value)); });
+      return (absolute ? '/' : '') + parts.join('/');
+    },
+    resolve: function() { return _compatPath.join.apply(null, arguments); },
+    dirname: function(value) {
+      var text = String(value || '').split(String.fromCharCode(92)).join('/');
+      while (text.endsWith('/')) text = text.slice(0, -1);
+      var index = text.lastIndexOf('/');
+      return index <= 0 ? (text.startsWith('/') ? '/' : '.') : text.slice(0, index);
+    },
+    basename: function(value) { return String(value || '').split(String.fromCharCode(92)).join('/').split('/').pop() || ''; },
+    extname: function(value) {
+      var name = _compatPath.basename(value);
+      var index = name.lastIndexOf('.');
+      return index > 0 ? name.slice(index) : '';
+    }
+  };
+  var _compatFsPromises = {
+    stat: function(){ return Promise.reject(new Error('File is unavailable in isolated Web plugin runtime')); },
+    lstat: function(){ return Promise.reject(new Error('File is unavailable in isolated Web plugin runtime')); },
+    readFile: function(){ return Promise.reject(new Error('File is unavailable in isolated Web plugin runtime')); },
+    readdir: function(){ return Promise.resolve([]); },
+    writeFile: function(){ return Promise.reject(new Error('File write requires an ATools permission bridge')); },
+    mkdir: function(){ return Promise.reject(new Error('File write requires an ATools permission bridge')); }
+  };
+  var _compatFs = {
+    promises: _compatFsPromises,
+    existsSync: function(){ return false; },
+    readFileSync: _compatUnsupported('fs.readFileSync'),
+    writeFileSync: _compatUnsupported('fs.writeFileSync'),
+    appendFileSync: _compatUnsupported('fs.appendFileSync'),
+    readdirSync: function(){ return []; },
+    mkdirSync: _compatUnsupported('fs.mkdirSync'),
+    lstatSync: _compatUnsupported('fs.lstatSync'),
+    statSync: _compatUnsupported('fs.statSync')
+  };
+  var _compatOs = {
+    homedir: function(){ return _atoolsPluginPath || '/'; },
+    tmpdir: function(){ return '/tmp'; },
+    platform: function(){ return 'darwin'; },
+    release: function(){ return ''; },
+    arch: function(){ return 'arm64'; }
+  };
+  var _compatChildProcess = {
+    exec: _compatUnsupported('child_process.exec'),
+    execFile: _compatUnsupported('child_process.execFile'),
+    spawn: _compatUnsupported('child_process.spawn')
+  };
+  var _compatElectronClipboard = {
+    readText: function(){ return ''; },
+    writeText: function(){ return undefined; },
+    readImage: function(){ return { isEmpty: function(){ return true; }, toDataURL: function(){ return ''; } }; },
+    writeImage: function(){ return undefined; }
+  };
+  var _compatElectron = {
+    ipcRenderer: _ipcRenderer,
+    clipboard: _compatElectronClipboard,
+    nativeImage: { createFromPath: function(){ return null; }, createFromDataURL: function(){ return null; } }
+  };
+  if (!window.process) window.process = { platform: 'darwin', arch: 'arm64', env: {}, versions: { node: 'compat' } };
+  if (typeof window.__dirname === 'undefined') window.__dirname = _atoolsPluginPath;
+  if (typeof window.__filename === 'undefined') window.__filename = _compatPath.join(_atoolsPluginPath, 'preload.js');
+  if (typeof window.exports === 'undefined') window.exports = {};
+  if (typeof window.module === 'undefined') window.module = { exports: window.exports };
   if (typeof window.require !== 'function') {
     window.require = function(name) {
-      var moduleName = String(name || '');
-      if (moduleName === 'electron') return { ipcRenderer: _ipcRenderer };
+      var moduleName = String(name || '').replace(/^node:/, '');
+      if (moduleName === 'electron') return _compatElectron;
+      if (moduleName === 'path') return _compatPath;
+      if (moduleName === 'fs') return _compatFs;
+      if (moduleName === 'fs/promises') return _compatFsPromises;
+      if (moduleName === 'os') return _compatOs;
+      if (moduleName === 'child_process') return _compatChildProcess;
+      if (moduleName === 'url') return { URL: window.URL, URLSearchParams: window.URLSearchParams };
+      if (moduleName === 'adm-zip') return function(){ throw new Error('ZIP access requires a native sidecar'); };
+      if (moduleName === 'crypto' || moduleName === 'http' || moduleName === 'https' || moduleName === 'net' || moduleName === 'tls' || moduleName === 'zlib') {
+        return new Proxy({}, { get: function(_target, property) { return _compatUnsupported(moduleName + '.' + String(property)); } });
+      }
+      if (moduleName.startsWith('./') || moduleName.startsWith('../')) {
+        return new Proxy(function(){}, { get: function(){ return function(){ return undefined; }; }, apply: function(){ return undefined; } });
+      }
       throw new Error('Cannot find module ' + moduleName);
     };
   }
+  if (typeof window.Buffer === 'undefined') {
+    var _CompatBuffer = function(value) { return _CompatBuffer.from(value); };
+    _CompatBuffer.from = function(value) {
+        if (value instanceof Uint8Array) return value;
+        if (value instanceof ArrayBuffer) return new Uint8Array(value);
+        return new TextEncoder().encode(String(value == null ? '' : value));
+      };
+    _CompatBuffer.concat = function(values) {
+        var arrays = (values || []).map(function(value) { return _CompatBuffer.from(value); });
+        var size = arrays.reduce(function(sum, value) { return sum + value.length; }, 0);
+        var output = new Uint8Array(size);
+        var offset = 0;
+        arrays.forEach(function(value) { output.set(value, offset); offset += value.length; });
+        return output;
+      };
+    _CompatBuffer.isBuffer = function(value) { return value instanceof Uint8Array; };
+    window.Buffer = _CompatBuffer;
+  }
+  if (typeof window.setImmediate !== 'function') window.setImmediate = function(callback) { return setTimeout(callback, 0); };
+  if (typeof window.clearImmediate !== 'function') window.clearImmediate = function(id) { clearTimeout(id); };
+  try {
+    Object.defineProperty(window.navigator, 'serviceWorker', {
+      value: {
+        register: function(){ return Promise.resolve({ scope: '', unregister: function(){ return Promise.resolve(true); } }); },
+        getRegistrations: function(){ return Promise.resolve([]); }
+      },
+      configurable: true
+    });
+  } catch (_error) {}
   function _createBrowserWindowHandle(result, callback) {
     var record = result && typeof result === 'object' ? result : {};
     var id = String(record.id || '');
@@ -3556,6 +3735,13 @@
     }, 0);
   }
   window.addEventListener('contextmenu', _emitPluginContextMenu, true);
+  window.addEventListener('keydown', function(event) {
+    if (!event || event.key !== 'Escape') return;
+    setTimeout(function() {
+      if (event.defaultPrevented === true) return;
+      window.parent.postMessage({ __ipc_plugin_escape__: true }, '*');
+    }, 0);
+  });
   function _dbDocId(doc) {
     return doc && typeof doc._id === 'string' ? doc._id : '';
   }
@@ -3575,6 +3761,31 @@
       });
     }
     return list;
+  }
+  var _registeredProviders = {};
+  function _registerProvider(key, handler) {
+    key = String(key || '').trim();
+    var declarations = _atoolsDeclaredProviders && typeof _atoolsDeclaredProviders === 'object'
+      ? _atoolsDeclaredProviders
+      : {};
+    if (!key || !Object.prototype.hasOwnProperty.call(declarations, key)) {
+      throw new Error('Provider is not declared in plugin.json: ' + key);
+    }
+    if (typeof handler !== 'function') {
+      throw new Error('registerProvider requires a function handler: ' + key);
+    }
+    if (_registeredProviders[key]) {
+      throw new Error('Provider already registered: ' + key);
+    }
+    _registeredProviders[key] = handler;
+    return true;
+  }
+  function _providerInvoke(type, input, providerId) {
+    return _nativeCall('providersInvoke', {
+      providerType: String(type || ''),
+      input: input && typeof input === 'object' ? input : {},
+      providerId: providerId == null ? null : String(providerId)
+    });
   }
   window.utools = {
     db: {
@@ -3599,6 +3810,112 @@
     },
     dbStorage: _createDbStorage(),
     showNotification: function(msg) { return _invokeFn("show_notification", { message: String(msg) }); },
+    clipboard: {
+      readText: function() { return _nativeCall('readClipboardText'); },
+      history: function(query, limit) {
+        return _nativeCall('listClipboardHistory', {
+          query: String(query || ''),
+          limit: Number.isFinite(Number(limit)) ? Number(limit) : 50
+        });
+      },
+      getHistory: function(page, pageSize) {
+        var limit = Math.max(1, Number(pageSize) || 50);
+        return _nativeCall('listClipboardHistory', { query: '', limit: limit }).then(function(items) {
+          return { items: Array.isArray(items) ? items : [], page: Number(page) || 1, pageSize: limit };
+        });
+      },
+      search: function(query) {
+        return _nativeCall('listClipboardHistory', { query: String(query || ''), limit: 500 }).then(function(items) {
+          return Array.isArray(items) ? items : [];
+        });
+      },
+      onChange: function() { return function() {}; }
+    },
+    network: {
+      ipSnapshot: function() { return _nativeCall('getNativeIpSnapshot'); },
+      request: function(options) {
+        return _nativeCall('performNativeHttpRequest', { request: options || {} });
+      }
+    },
+    http: {
+      _headers: {},
+      setHeaders: function(headers) { this._headers = headers && typeof headers === 'object' ? headers : {}; return this; },
+      request: function(options) { return _nativeCall('performNativeHttpRequest', { request: options || {} }); },
+      get: function(url, options) { return this.request(Object.assign({}, options || {}, { url: String(url || ''), method: 'GET', headers: this._headers })); },
+      post: function(url, body, options) { return this.request(Object.assign({}, options || {}, { url: String(url || ''), method: 'POST', body: body, headers: this._headers })); }
+    },
+    translation: {
+      translate: function(text, sourceLang, targetLang) {
+        return _nativeCall('translateNativeText', {
+          request: {
+            text: String(text || ''),
+            sourceLang: String(sourceLang || 'auto'),
+            targetLang: String(targetLang || 'zh')
+          }
+        });
+      }
+    },
+    processes: {
+      list: function(query, limit) {
+        return _nativeCall('listNativeProcesses', {
+          query: String(query || ''),
+          limit: Number.isFinite(Number(limit)) ? Number(limit) : 300
+        });
+      },
+      terminate: function(pid, confirmed) {
+        return _nativeCall('terminateNativeProcess', {
+          pid: Number(pid),
+          confirmed: confirmed === true
+        });
+      }
+    },
+    hosts: {
+      read: function() { return _nativeCall('readNativeHosts'); },
+      write: function(content, confirmed) {
+        return _nativeCall('writeNativeHosts', {
+          content: String(content || ''),
+          confirmed: confirmed === true
+        });
+      }
+    },
+    todos: {
+      list: function() { return _nativeCall('listNativeTodos'); },
+      save: function(item) {
+        item = item || {};
+        return _nativeCall('saveNativeTodo', {
+          id: item.id || null,
+          title: String(item.title || ''),
+          completed: typeof item.completed === 'boolean' ? item.completed : null
+        });
+      },
+      delete: function(id, confirmed) {
+        return _nativeCall('deleteNativeTodo', {
+          id: String(id || ''),
+          confirmed: confirmed === true
+        });
+      }
+    },
+    calculation: {
+      evaluate: function(input) { return _nativeCall('calculateNativeSheet', { input: String(input || '') }); },
+      history: function() { return _nativeCall('listNativeCalculationHistory'); },
+      clearHistory: function(confirmed) { return _nativeCall('clearNativeCalculationHistory', { confirmed: confirmed === true }); }
+    },
+    codec: {
+      transform: function(kind, input) { return _nativeCall('nativeCodecTransform', { kind: String(kind || ''), input: String(input || '') }); }
+    },
+    time: {
+      snapshot: function() { return _nativeCall('nativeTimeSnapshot'); },
+      convert: function(mode, value, timezone) { return _nativeCall('convertNativeTime', { mode: String(mode || ''), value: String(value || ''), timezone: timezone == null ? null : String(timezone) }); }
+    },
+    qr: {
+      generate: function(text, size, errorCorrection) { return _nativeCall('generateNativeQr', { text: String(text || ''), size: Number(size || 256), errorCorrection: String(errorCorrection || 'M') }); }
+    },
+    json: {
+      transform: function(input) { return _nativeCall('nativeJsonTransform', { input: String(input || '') }); }
+    },
+    color: {
+      convert: function(input) { return _nativeCall('convertNativeColor', { input: String(input || '') }); }
+    },
     copyText: function(text) { return _invokeFn("copy_text", { text: text }); },
     copyImage: function(img) { return _nativeCall('copyImage', { image: img }); },
     copyFile: function(file) { return _nativeCall('copyFile', { file: file }); },
@@ -3777,6 +4094,37 @@
       window.__atools_registered_tools__[name] = handler;
       window.parent.postMessage({ __ipc_register_tool__: true, name: name }, '*');
       return true;
+    },
+    registerProvider: _registerProvider,
+    providers: {
+      getProviders: function(type) {
+        return _nativeCall('providersGetProviders', { providerType: type == null ? null : String(type) });
+      },
+      getDefaultProvider: function(type) {
+        return _nativeCall('providersGetDefault', { providerType: String(type || '') });
+      },
+      setDefaultProvider: function(type, providerId) {
+        return _nativeCall('providersSetDefault', {
+          providerType: String(type || ''),
+          providerId: String(providerId || '')
+        });
+      },
+      invokeProvider: _providerInvoke
+    },
+    translate: function(text, options) {
+      options = options && typeof options === 'object' ? options : {};
+      return _providerInvoke('translation', {
+        text: String(text || ''),
+        from: options.from,
+        to: options.to
+      }, options.providerId || null);
+    },
+    ocr: function(image, options) {
+      options = options && typeof options === 'object' ? options : {};
+      return _providerInvoke('ocr', {
+        image: String(image || ''),
+        lang: options.lang
+      }, options.providerId || null);
     },
     isDarkColors: function() { return _isDarkColors(); },
     isMacOS: function() { return navigator.platform.indexOf('Mac') > -1; },
@@ -4042,6 +4390,7 @@
 
   async function loadPluginHtml() {
     const mainFile = action.main_url || "index.html";
+    const headlessPlugin = !action.main_url?.trim();
     try {
       if (action.plugin_path === WEB_PREVIEW_PLUGIN_PATH) {
         loadPreviewPluginHtml();
@@ -4049,33 +4398,34 @@
       }
 
       const pluginDir = action.plugin_path;
-      const htmlPath = mainFile.startsWith("/") ? mainFile : `${pluginDir}/${mainFile}`;
+      let html: string;
+      if (headlessPlugin) {
+        html = '<!doctype html><html><head><meta charset="UTF-8"></head><body data-atools-headless-plugin="true"></body></html>';
+      } else {
+        const htmlPath = mainFile.startsWith("/") ? mainFile : `${pluginDir}/${mainFile}`;
+        html = await readTextFile(htmlPath);
+        html = await preparePluginHtmlResources(html, {
+          pluginDir,
+          mainFile,
+          readTextFile,
+          convertFileSrc,
+          warn: (message, error) => console.warn(`[PluginPanel] ${message}`, error),
+        });
+      }
 
-      let html = await readTextFile(htmlPath);
-      html = await preparePluginHtmlResources(html, {
-        pluginDir,
-        mainFile,
-        readTextFile,
-        convertFileSrc,
-        warn: (message, error) => console.warn(`[PluginPanel] ${message}`, error),
-      });
-
-      // Inline preload.js if referenced
+      let preloadScript = "";
+      // Preload must run after the Host Bridge and before any plugin page bundle,
+      // matching Electron/ZTools preload semantics.
       if (action.preload_path) {
         try {
           const preloadJs = await readTextFile(action.preload_path);
-          const preloadScript = `<script>\n${preloadJs}\n<\/script>`;
-          if (html.includes("</head>")) {
-            html = html.replace("</head>", `${preloadScript}</head>`);
-          } else {
-            html = preloadScript + html;
-          }
+          preloadScript = `<script data-atools-plugin-preload="true">\n${preloadJs}\n<\/script><script data-atools-plugin-preload-normalize="true">\nif (window.ztools && window.ztools !== window.utools) { try { Object.assign(window.utools, window.ztools); } catch (_error) {} } window.ztools = window.utools; window.services = window.services || {};\n<\/script>`;
         } catch (e) {
           console.warn("[PluginPanel] Failed to load preload.js:", e);
         }
       }
 
-      html = injectPluginBridge(html);
+      html = injectPluginBridge(html, "main", "", preloadScript);
       html = injectDesktopSmokeBridgeProbe(html);
 
       const bridgeProbePromise = waitForDesktopSmokeBridgeProbe(
@@ -4088,6 +4438,8 @@
       iframeSrcDoc = html;
       loadError = null;
       await tick();
+      await waitForPluginHostPaint();
+      reportPluginReady();
       const bridgeProbe = await bridgeProbePromise;
       await reportPluginPanelRenderSmoke({
         mainFile,
@@ -4098,6 +4450,7 @@
     } catch (e) {
       console.error("[PluginPanel] Load failed:", e);
       loadError = `无法加载插件: ${e}`;
+      await onloaderror?.(e);
       await reportPluginPanelRenderSmoke({
         mainFile,
         html: "",
@@ -6325,10 +6678,7 @@
     const registerSource = () => pluginMessageSources.setMain(node.contentWindow);
     const reportReady = () => {
       registerSource();
-      if (pluginReadyReported || (!iframeSrc && !iframeSrcDoc)) return;
-      pluginReadyReported = true;
-      void Promise.resolve(onready?.())
-        .catch((error) => console.warn("[PluginPanel] plugin load callback failed:", error));
+      reportPluginReady();
     };
     registerSource();
     node.addEventListener("load", reportReady);
@@ -6338,6 +6688,19 @@
         pluginMessageSources.unregisterMain(node.contentWindow);
       },
     };
+  }
+
+  function reportPluginReady() {
+    if (pluginReadyReported || (!iframeSrc && !iframeSrcDoc)) return;
+    pluginReadyReported = true;
+    void Promise.resolve(onready?.())
+      .catch((error) => console.warn("[PluginPanel] plugin load callback failed:", error));
+  }
+
+  function waitForPluginHostPaint() {
+    return new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
   }
 
   function pluginBrowserWindowFrame(node: HTMLIFrameElement, windowId: string) {
@@ -6404,6 +6767,109 @@ return output as text
 `, "getCopyedFiles");
         return normalizeCopiedFileEntries(output.split(/\r?\n/).map((line) => line.trim()).filter(Boolean));
       }
+      case "readClipboardText":
+        return invoke<string | null>("capture_current_clipboard_text");
+      case "listClipboardHistory":
+        return invoke("list_clipboard_history", {
+          query: typeof args.query === "string" ? args.query : "",
+          limit: typeof args.limit === "number" ? args.limit : 50,
+        });
+      case "getNativeIpSnapshot":
+        return invoke("native_ip_snapshot");
+      case "performNativeHttpRequest":
+        return invoke("perform_native_http_request", {
+          request: args.request && typeof args.request === "object" ? args.request : {},
+        });
+      case "translateNativeText":
+        return invoke("translate_native_text", {
+          request: args.request && typeof args.request === "object" ? args.request : {},
+        });
+      case "providersGetProviders":
+        return invoke("list_plugin_providers", {
+          providerType: typeof args.providerType === "string" ? args.providerType : null,
+        });
+      case "providersGetDefault":
+        return invoke("get_default_plugin_provider", {
+          providerType: typeof args.providerType === "string" ? args.providerType : "",
+        });
+      case "providersSetDefault":
+        return invoke("set_default_plugin_provider", {
+          providerType: typeof args.providerType === "string" ? args.providerType : "",
+          providerId: typeof args.providerId === "string" ? args.providerId : "",
+        });
+      case "providersInvoke":
+        return invoke("invoke_plugin_provider", {
+          providerType: typeof args.providerType === "string" ? args.providerType : "",
+          input: args.input && typeof args.input === "object" ? args.input : {},
+          providerId: typeof args.providerId === "string" ? args.providerId : null,
+        });
+      case "readNativeHosts":
+        return invoke("read_native_hosts");
+      case "writeNativeHosts":
+        return invoke("write_native_hosts", {
+          content: typeof args.content === "string" ? args.content : "",
+          confirmed: args.confirmed === true,
+        });
+      case "listNativeTodos":
+        return invoke("list_native_todos");
+      case "saveNativeTodo":
+        return invoke("save_native_todo", {
+          id: typeof args.id === "string" ? args.id : null,
+          title: typeof args.title === "string" ? args.title : "",
+          completed: typeof args.completed === "boolean" ? args.completed : null,
+        });
+      case "deleteNativeTodo":
+        return invoke("delete_native_todo", {
+          id: typeof args.id === "string" ? args.id : "",
+          confirmed: args.confirmed === true,
+        });
+      case "calculateNativeSheet":
+        return invoke("calculate_native_sheet", {
+          input: typeof args.input === "string" ? args.input : "",
+        });
+      case "listNativeCalculationHistory":
+        return invoke("list_native_calculation_history");
+      case "clearNativeCalculationHistory":
+        return invoke("clear_native_calculation_history", {
+          confirmed: args.confirmed === true,
+        });
+      case "nativeCodecTransform":
+        return invoke("native_codec_transform", {
+          kind: typeof args.kind === "string" ? args.kind : "",
+          input: typeof args.input === "string" ? args.input : "",
+        });
+      case "nativeTimeSnapshot":
+        return invoke("native_time_snapshot");
+      case "convertNativeTime":
+        return invoke("convert_native_time", {
+          mode: typeof args.mode === "string" ? args.mode : "",
+          value: typeof args.value === "string" ? args.value : "",
+          timezone: typeof args.timezone === "string" ? args.timezone : null,
+        });
+      case "generateNativeQr":
+        return invoke("generate_native_qr", {
+          text: typeof args.text === "string" ? args.text : "",
+          size: typeof args.size === "number" ? args.size : 256,
+          errorCorrection: typeof args.errorCorrection === "string" ? args.errorCorrection : "M",
+        });
+      case "nativeJsonTransform":
+        return invoke("native_json_transform", {
+          input: typeof args.input === "string" ? args.input : "",
+        });
+      case "convertNativeColor":
+        return invoke("convert_native_color", {
+          input: typeof args.input === "string" ? args.input : "",
+        });
+      case "listNativeProcesses":
+        return invoke("list_native_processes", {
+          query: typeof args.query === "string" ? args.query : "",
+          limit: typeof args.limit === "number" ? args.limit : 300,
+        });
+      case "terminateNativeProcess":
+        return invoke("terminate_native_process", {
+          pid: typeof args.pid === "number" ? args.pid : Number(args.pid),
+          confirmed: args.confirmed === true,
+        });
       case "shellShowItemInFolder": {
         const path = pathFromBridgeValue(args.path);
         await runCommand("open", ["-R", path], "shellShowItemInFolder");
@@ -6823,6 +7289,13 @@ end tell
 
     if (data.__ipc_plugin_contextmenu__) {
       handlePluginContextMenu(data as Record<string, unknown>);
+      return;
+    }
+
+    if (data.__ipc_plugin_escape__) {
+      void Promise.resolve(onescape?.()).catch((err) => {
+        console.warn("[PluginPanel] plugin ESC handling failed:", err);
+      });
       return;
     }
 

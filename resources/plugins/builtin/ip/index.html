@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IP 地址</title>
+  <style>
+    :root { color-scheme: light dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 18px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: CanvasText;
+      background: Canvas;
+    }
+    p { margin: 0; color: GrayText; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <p>网络接口由 Rust 在本机读取；选择任一地址即可复制，不会上传网络信息。</p>
+  <script>
+    async function loadIpSnapshot() {
+      try {
+        const snapshot = await window.utools.network.ipSnapshot();
+        const items = [];
+        if (snapshot.primary_ipv4) {
+          items.push({
+            title: snapshot.primary_ipv4,
+            description: `首选 IPv4 · ${snapshot.hostname || '本机'}`,
+            data: snapshot.primary_ipv4
+          });
+        }
+        if (snapshot.primary_ipv6) {
+          items.push({
+            title: snapshot.primary_ipv6,
+            description: `首选 IPv6 · ${snapshot.hostname || '本机'}`,
+            data: snapshot.primary_ipv6
+          });
+        }
+        for (const entry of snapshot.addresses || []) {
+          if (entry.address === snapshot.primary_ipv4 || entry.address === snapshot.primary_ipv6) continue;
+          const scope = entry.loopback ? '回环' : entry.link_local ? '链路本地' : '可用';
+          items.push({
+            title: entry.address,
+            description: `${entry.interface} · ${entry.family} · ${scope}`,
+            data: entry.address
+          });
+        }
+        window.utools.outPlugin({
+          items: items.length > 0 ? items : [{
+            title: '未发现网络地址',
+            description: 'Rust 网络接口枚举未返回可用地址'
+          }]
+        });
+      } catch (error) {
+        window.utools.outPlugin({
+          items: [{
+            title: 'IP 地址读取失败',
+            description: error && error.message ? error.message : String(error)
+          }]
+        });
+      }
+    }
+
+    loadIpSnapshot();
+  </script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "name": "hosts",
+  "version": "1.0.0",
+  "main": "index.html",
+  "logo": "logo.svg",
+  "description": "Rust 原生 hosts 查看、校验、备份与安全写入工具",
+  "author": "ATools Team",
+  "permissions": ["system.hosts.read", "system.hosts.write"],
+  "pluginSetting": { "height": 500 },
+  "features": [{
+    "code": "hosts",
+    "label": "Hosts 编辑器",
+    "icon": "logo.svg",
+    "explain": "编辑 /etc/hosts，保存前自动校验和备份",
+    "mainPush": true,
+    "cmds": ["Hosts 编辑器", "hosts", "域名映射", "本地域名", "DNS hosts"]
+  }]
+}

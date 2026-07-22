@@ -1,0 +1,22 @@
+{
+  "name": "ip",
+  "version": "1.0.0",
+  "main": "index.html",
+  "logo": "logo.svg",
+  "description": "Rust 原生本机 IP 与网络接口查看器",
+  "author": "ATools Team",
+  "permissions": ["network.read"],
+  "pluginSetting": {
+    "height": 430
+  },
+  "features": [
+    {
+      "code": "ip",
+      "label": "IP 地址",
+      "icon": "logo.svg",
+      "explain": "查看本机 IPv4、IPv6 与网络接口",
+      "mainPush": true,
+      "cmds": ["ip", "本机ip", "本地ip", "网络地址", "network ip"]
+    }
+  ]
+}

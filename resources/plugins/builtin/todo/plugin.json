@@ -1,0 +1,18 @@
+{
+  "name": "todo",
+  "version": "1.0.0",
+  "main": "index.html",
+  "logo": "logo.svg",
+  "description": "Rust 与 SQLite 驱动的本地待办清单",
+  "author": "ATools Team",
+  "permissions": ["todo.read", "todo.write", "todo.delete"],
+  "pluginSetting": { "height": 500 },
+  "features": [{
+    "code": "todo",
+    "label": "ToDo",
+    "icon": "logo.svg",
+    "explain": "使用本地 SQLite 管理待办事项",
+    "mainPush": true,
+    "cmds": ["ToDo", "待办", "任务清单", "todo list", "备忘"]
+  }]
+}

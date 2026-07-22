@@ -1,16 +1,1 @@
-{
-  "name": "编码转换",
-  "description": "Base64 / URL / Unicode 编解码工具",
-  "author": "ATools",
-  "version": "1.0.0",
-  "main": "index.html",
-  "features": [
-    {
-      "code": "编码转换",
-      "label": "编码转换",
-      "icon": "logo.png",
-      "explain": "Base64 / URL / Unicode 编解码",
-      "cmds": ["编码转换", "编码", "encode", "decode", "bianma", "base64", "url", "unicode"]
-    }
-  ]
-}
+{"name":"codec","description":"Rust 原生 Base64、URL 与 Unicode 编解码","author":"ATools Team","version":"1.0.0","main":"index.html","logo":"logo.svg","permissions":["codec.transform"],"pluginSetting":{"height":500},"features":[{"code":"codec","label":"编码转换","icon":"logo.svg","explain":"Base64 / URL / Unicode 原生编解码","mainPush":true,"cmds":["编码转换","编码","encode","decode","base64","url","unicode"]}]}

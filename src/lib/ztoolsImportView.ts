@@ -139,7 +139,8 @@ function statusLabel(status: ZToolsImportCandidateStatus): string {
 
 function candidateSubtitle(candidate: ZToolsImportCandidate): string {
   const version = candidate.version.trim() || "0.0.0";
-  return `${candidate.name} · ${version} · ${Math.max(0, candidate.features_count)} 指令`;
+  const source = candidate.source_type === "zpx" ? "ZPX" : candidate.source_type === "asar" ? "ASAR" : "目录";
+  return `${candidate.name} · ${version} · ${source} · ${Math.max(0, candidate.features_count)} 指令`;
 }
 
 function candidateReportDetail(candidate: ZToolsImportCandidate): string {

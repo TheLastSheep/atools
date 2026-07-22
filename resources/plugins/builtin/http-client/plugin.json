@@ -1,0 +1,22 @@
+{
+  "name": "http-client",
+  "version": "1.0.0",
+  "main": "index.html",
+  "logo": "logo.svg",
+  "description": "Rust 原生 HTTP 请求与接口调试工具",
+  "author": "ATools Team",
+  "permissions": ["network.http"],
+  "pluginSetting": {
+    "height": 500
+  },
+  "features": [
+    {
+      "code": "http-client",
+      "label": "HTTP 请求",
+      "icon": "logo.svg",
+      "explain": "发送受限且可审计的 Rust 原生 HTTP/HTTPS 请求",
+      "mainPush": true,
+      "cmds": ["HTTP 请求", "curl", "接口调试", "API 请求", "http client"]
+    }
+  ]
+}

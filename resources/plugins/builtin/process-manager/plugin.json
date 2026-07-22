@@ -1,0 +1,22 @@
+{
+  "name": "process-manager",
+  "version": "1.0.0",
+  "main": "index.html",
+  "logo": "logo.svg",
+  "description": "Rust 原生进程查看与安全结束工具",
+  "author": "ATools Team",
+  "permissions": ["process.read", "process.terminate"],
+  "pluginSetting": {
+    "height": 500
+  },
+  "features": [
+    {
+      "code": "process-manager",
+      "label": "结束进程",
+      "icon": "logo.svg",
+      "explain": "查看进程资源占用并安全结束当前用户进程",
+      "mainPush": true,
+      "cmds": ["结束进程", "进程管理", "process", "kill process", "任务管理器"]
+    }
+  ]
+}

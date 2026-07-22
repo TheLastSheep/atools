@@ -20,6 +20,11 @@ export type FeatureAction = {
   preload_path?: string;
   expand_height: number;
   plugin_permissions?: string[];
+  plugin_providers?: Record<string, {
+    type: "translation" | "ocr" | string;
+    label?: string;
+    description?: string;
+  }>;
   payload: unknown;
 };
 
@@ -67,6 +72,9 @@ export type Capability = {
   executor: {
     kind: "builtin" | "plugin" | "skill_recipe" | "external_mcp";
     id: string;
+    pluginRuntime?: "rust" | "node" | "web";
+    pluginCompatibility?: "native" | "ztools";
+    pluginTransport?: "host_bridge" | "json_rpc_stdio" | "mcp_stdio";
   };
   availability: {
     available: boolean;
@@ -115,7 +123,9 @@ export type PluginMarketCatalogPlugin = {
   version: string;
   description: string;
   author?: string | null;
-  download_url: string;
+  download_url?: string | null;
+  download_resolver_url?: string | null;
+  trust_policy: "signed_required" | "official_ztools_confirm" | string;
   checksum?: string | null;
   rating?: string | null;
   rating_count?: number | null;
@@ -126,12 +136,22 @@ export type PluginMarketCatalogPlugin = {
   signature?: string | null;
   public_key?: string | null;
   homepage?: string | null;
+  logo?: string | null;
+  category?: string | null;
+  package_size?: number | null;
 };
 
 export type PluginMarketCatalog = {
   source_url: string;
+  source_kind: "atools" | "ztools" | "legacy";
   updated_at?: string | null;
   plugins: PluginMarketCatalogPlugin[];
+};
+
+export type PluginMarketResolvedDownload = {
+  download_url: string;
+  package_format: "zip" | "zpx" | string;
+  trust_policy: string;
 };
 
 export type CrashLogEntry = {
@@ -347,8 +367,24 @@ export type InstalledPlugin = {
   updated_at: string;
 };
 
+export type PluginProviderDescriptor = {
+  id: string;
+  pluginId: string;
+  key: string;
+  type: "translation" | "ocr";
+  label: string;
+  description?: string | null;
+  source: "plugin";
+  pluginName: string;
+  pluginPath: string;
+  pluginLogo?: string | null;
+  enabled: boolean;
+  isDefault: boolean;
+};
+
 export type ZToolsImportCandidate = {
   path: string;
+  source_type: "directory" | "zpx" | "asar";
   name: string;
   title: string | null;
   version: string;

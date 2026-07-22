@@ -21,12 +21,24 @@ export function resultIconSrc(
   const value = icon?.trim();
   if (!value) return null;
   if (!isLocalPath(value)) return value;
-  return tauriAvailable ? convertFileSrc(value) : null;
+  if (!tauriAvailable) return null;
+  try {
+    return convertFileSrc(value);
+  } catch {
+    return null;
+  }
 }
 
 export function hasTauriAssetRuntime(): boolean {
-  return typeof window !== "undefined"
-    && Boolean((window as Window & { __TAURI_INTERNALS__?: { convertFileSrc?: unknown } }).__TAURI_INTERNALS__?.convertFileSrc);
+  if (typeof window === "undefined") return false;
+  const runtimeWindow = window as Window & {
+    __TAURI_INTERNALS__?: unknown;
+    __TAURI__?: unknown;
+    __TAURI_IPC__?: unknown;
+  };
+  return "__TAURI_INTERNALS__" in runtimeWindow
+    || "__TAURI__" in runtimeWindow
+    || "__TAURI_IPC__" in runtimeWindow;
 }
 
 export function resultFallbackIcon(result: SearchResult): ResultFallbackIcon {

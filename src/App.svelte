@@ -3,10 +3,13 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
   import { homeDir } from "@tauri-apps/api/path";
+  import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
   import { readText } from "@tauri-apps/plugin-clipboard-manager";
   import HomePanel from "./components/HomePanel.svelte";
   import AppUpdatePrompt from "./components/AppUpdatePrompt.svelte";
   import PermissionConfirmDialog from "./components/PermissionConfirmDialog.svelte";
+  import PasteboardDialog from "./components/PasteboardDialog.svelte";
+  import PasteboardShelf from "./components/PasteboardShelf.svelte";
   import ResultsList from "./components/ResultsList.svelte";
   import SearchBar from "./components/SearchBar.svelte";
   import SearchStatusBar from "./components/SearchStatusBar.svelte";
@@ -83,6 +86,7 @@
     COMMAND_HISTORY_UPDATED_EVENT,
     commandHistoryPayloadFromCode,
     commandHistoryResultsForQuery,
+    filterCommandHistoryByCodeAvailability,
     dispatchCommandHistoryUpdated,
     homeCommandsFor,
     loadCommandHistory,
@@ -105,6 +109,7 @@
   } from "./lib/pinnedCommands";
   import { isEditableKeyboardTarget, isMainSearchKeyboardTarget } from "./lib/keyboardTarget";
   import { appUpdater, appUpdaterState } from "./lib/appUpdater";
+  import { PLUGIN_OPEN_REQUESTED_EVENT, type PluginOpenRequest } from "./lib/pluginOpen";
 
   type ReleaseSmokeInfo = {
     token: string;
@@ -113,6 +118,12 @@
 
   type ReleaseSmokeProgress = {
     option_z_toggled?: boolean;
+    hotkey_show_ms?: number;
+    hotkey_toggle_attempt_count?: number;
+    hotkey_toggle_success_count?: number;
+    search_query?: string;
+    search_latency_ms?: number;
+    search_result_count?: number;
     settings_page_opened?: boolean;
     plugin_page_opened?: boolean;
     agent_page_opened?: boolean;
@@ -148,12 +159,17 @@
   let localLaunchEntries = $state<LocalLaunchEntry[]>(loadLocalLaunchEntries());
   let webQuickOpenEntries = $state<WebQuickOpenEntry[]>(loadWebQuickOpenEntries());
   let commandHistory = $state<CommandHistoryEntry[]>(loadCommandHistory());
+  let availableFeatureCodes = $state<Set<string>>(new Set());
+  let featureCatalog = $state<SearchResult[]>([]);
+  let availableFeatureCodesReady = $state(false);
   let commandAliases = $state<CommandAliasEntry[]>(loadCommandAliases());
   let pinnedCommandCodes = $state<string[]>(loadPinnedCommandCodes());
   let pastedItems = $state<PastedItem[]>([]);
   let remoteSearchStatus = $state<RemoteSearchStatus>("idle");
   let searchError = $state("");
   let searchRunId = 0;
+  let featureCatalogRetryCount = 0;
+  let featureCatalogRetryTimer: ReturnType<typeof setTimeout> | null = null;
   let pluginActivationWaiter: PluginActivationWaiter | null = null;
   let autoClearTimer: ReturnType<typeof setTimeout> | null = null;
   let clipboardPollTimer: ReturnType<typeof setInterval> | null = null;
@@ -162,28 +178,44 @@
   let lastAutoPastedText = "";
   let clipboardBaselineReady = false;
   const FALLBACK_WINDOW_HEIGHT = 600;
-  const SETTINGS_WINDOW_HEIGHT = 860;
+  const SETTINGS_WINDOW_HEIGHT = 600;
   const AGENT_WINDOW_HEIGHT = 760;
   const SEARCH_ONLY_WINDOW_HEIGHT = 72;
   const SHELL_BORDER_HEIGHT = 2;
   const SEARCH_BAR_HEIGHT = 58;
-  const HOME_OVERVIEW_HEIGHT = 66;
-  const HOME_PINNED_EMPTY_HEIGHT = 76;
-  const HOME_PANEL_VERTICAL_CHROME = 115;
+  const HOME_MIN_WINDOW_HEIGHT = 280;
+  const HOME_MAX_WINDOW_HEIGHT = 340;
+  const HOME_PANEL_VERTICAL_PADDING = 18;
+  const HOME_SECTION_HEADER_HEIGHT = 20;
+  const HOME_SECTION_GAP = 6;
   const RECENT_GRID_COLUMNS = 9;
-  const RECENT_TILE_HEIGHT = 78;
-  const RECENT_ROW_GAP = 8;
+  const RECENT_TILE_HEIGHT = 58;
+  const RECENT_ROW_GAP = 4;
   const RESULTS_MIN_HEIGHT = 112;
   const RESULTS_MAX_HEIGHT = 420;
   const RESULTS_VERTICAL_PADDING = 12;
   const SEARCH_STATUS_BAR_HEIGHT = 34;
   const RESULT_ROW_HEIGHT = 54;
   const RESULT_GROUP_HEADER_HEIGHT = 24;
+  const REMOTE_SEARCH_DEBOUNCE_MS = 16;
+  const FEATURE_SEARCH_TIMEOUT_MS = 1200;
+  const LOCAL_APP_SEARCH_TIMEOUT_MS = 1800;
   const RESULT_GROUP_GAP = 4;
   const isFloatingBallWindow = typeof window !== "undefined" && window.location.hash === "#/floating-ball";
   const isSuperPanelWindow = typeof window !== "undefined" && window.location.hash === "#/super-panel";
   const isPluginDetachWindow = typeof window !== "undefined" && window.location.hash.startsWith("#/plugin-detach");
-  const isMainWindow = typeof window !== "undefined" && window.location.hash === "";
+  const isPasteboardShelfWindow = typeof window !== "undefined" && window.location.hash === "#/pasteboard-shelf";
+  const isPasteboardDialogWindow = typeof window !== "undefined" && window.location.hash.startsWith("#/pasteboard-dialog");
+  const currentWindowLabel = currentTauriWindowLabel();
+  const isMainRoute = typeof window !== "undefined"
+    && (window.location.hash === "" || window.location.hash === "#/");
+  const isMainWindow = currentWindowLabel === "main"
+    || (isMainRoute
+      && !isFloatingBallWindow
+      && !isSuperPanelWindow
+      && !isPluginDetachWindow
+      && !isPasteboardShelfWindow
+      && !isPasteboardDialogWindow);
   let superPanelClipboardText = $state("");
   let superPanelStatus = $state("");
   let pluginPanelHost: HTMLDivElement | null = $state(null);
@@ -195,8 +227,8 @@
   let pinnedCommandCapacity = $derived(homeCommandRowCapacity(appSettings.pinnedRows));
   let recentCommandCapacity = $derived(homeCommandRowCapacity(appSettings.recentRows));
   let visibleRecentCommands = $derived(homeCommandsFor(
-    commandHistory,
-    RECOMMENDED_COMMANDS,
+    availableCommandHistory(),
+    recommendedCommandsForHome(),
     pinnedCommandCapacity + recentCommandCapacity,
     pinnedCommandOptions().slice(0, pinnedCommandCapacity),
   ));
@@ -224,6 +256,7 @@
   type PluginPanelComponent = Component<{
     action: FeatureAction;
     onclose: () => void | Promise<void>;
+    onescape: () => void | Promise<void>;
     onredirect: (label: unknown, payload: unknown) => Promise<boolean>;
     onsettingsredirect: (
       menu: "shortcuts" | "ai",
@@ -233,6 +266,7 @@
     desktopSmokeSampleIndex: number;
     desktopSmokeExternalPlanSample: boolean;
     onready?: () => void | Promise<void>;
+    onloaderror?: (error: unknown) => void | Promise<void>;
     ondesktopsmokerender?: () => void | Promise<void>;
   }>;
 
@@ -262,6 +296,7 @@
         });
       })
       .catch((error) => {
+        cancelPluginActivationWaiter(error instanceof Error ? error : new Error(String(error)));
         console.warn("[PluginPanel] failed to lazy-load plugin panel:", error);
       });
     return () => {
@@ -293,6 +328,9 @@
       if (isPluginDetachWindow || !activePlugin) return;
       void onPluginDetachAction();
     };
+    if (isPasteboardShelfWindow || isPasteboardDialogWindow) {
+      return;
+    }
     if (isFloatingBallWindow || isSuperPanelWindow) {
       window.addEventListener("atools-plugin-detach", onPluginDetach);
       loadAToolsSettings().then((settings) => {
@@ -319,6 +357,13 @@
       };
     }
 
+    // Start the packaged runtime probe before optional startup services. An
+    // updater or listener initialization failure must not suppress the
+    // benchmark report for an otherwise healthy main window.
+    if (isMainWindow) {
+      void runReleaseSmokeSequence();
+    }
+
     loadSearchPinyinEngine().then((loaded) => {
       if (!loaded || pinyinCancelled) return;
       if (query.trim() && activePlugin === null) {
@@ -329,9 +374,11 @@
       if (settingsCancelled) return;
       appSettings = settings;
       applyAToolsAppearance(settings);
+      if (isMainWindow) void resetPalette();
     }).catch(() => {
       // Settings are optional in the web preview.
     });
+    if (hasTauriRuntime()) void refreshFeatureCatalog();
 
     const onSettingsUpdated = (event: Event) => {
       const settings = (event as CustomEvent<AToolsSettings>).detail;
@@ -361,6 +408,12 @@
       pinnedCommandCodes = (event as CustomEvent<string[]>).detail ?? loadPinnedCommandCodes();
     };
     window.addEventListener(PINNED_COMMANDS_UPDATED_EVENT, onPinnedCommandsUpdated);
+    const onPluginOpenRequested = (event: Event) => {
+      const request = (event as CustomEvent<PluginOpenRequest>).detail;
+      if (!request?.code) return;
+      void activateFeature(request.code);
+    };
+    window.addEventListener(PLUGIN_OPEN_REQUESTED_EVENT, onPluginOpenRequested);
 
     const hasTauri = hasTauriRuntime();
     if (!hasTauri) {
@@ -374,14 +427,18 @@
         window.removeEventListener(COMMAND_HISTORY_UPDATED_EVENT, onCommandHistoryUpdated);
         window.removeEventListener(COMMAND_ALIASES_UPDATED_EVENT, onCommandAliasesUpdated);
         window.removeEventListener(PINNED_COMMANDS_UPDATED_EVENT, onPinnedCommandsUpdated);
+        window.removeEventListener(PLUGIN_OPEN_REQUESTED_EVENT, onPluginOpenRequested);
         clearAutoClearTimer();
+        clearFeatureCatalogRetry();
         stopClipboardPolling();
       };
     }
+    if (isMainWindow) void resetPalette();
 
     let pluginUnlisten: (() => void) | undefined;
     let permissionUnlisten: (() => void) | undefined;
     let updateUnlisten: (() => void) | undefined;
+    let builtinPluginsUnlisten: (() => void) | undefined;
     let cancelled = false;
     const stopStartupUpdateCheck = appUpdater.scheduleStartupCheck();
     try {
@@ -410,6 +467,14 @@
         console.warn("Permission request listener unavailable:", e);
       });
       startClipboardPolling();
+      listen("builtin-plugins-loaded", () => {
+        void refreshFeatureCatalog();
+      }).then((stop) => {
+        if (cancelled) stop();
+        else builtinPluginsUnlisten = stop;
+      }).catch((error) => {
+        console.debug("Builtin plugin refresh listener unavailable:", error);
+      });
       void appUpdater.startProgressListener().then((stop) => {
         if (cancelled) stop();
         else updateUnlisten = stop;
@@ -422,9 +487,6 @@
     if (desktopPluginPanelSmokeEnabled()) {
       void activateDesktopSmokePluginPanel();
     }
-    if (isMainWindow) {
-      void runReleaseSmokeSequence();
-    }
     return () => {
       settingsCancelled = true;
       pinyinCancelled = true;
@@ -434,12 +496,15 @@
       window.removeEventListener(COMMAND_HISTORY_UPDATED_EVENT, onCommandHistoryUpdated);
       window.removeEventListener(COMMAND_ALIASES_UPDATED_EVENT, onCommandAliasesUpdated);
       window.removeEventListener(PINNED_COMMANDS_UPDATED_EVENT, onPinnedCommandsUpdated);
+      window.removeEventListener(PLUGIN_OPEN_REQUESTED_EVENT, onPluginOpenRequested);
       clearAutoClearTimer();
+      clearFeatureCatalogRetry();
       stopClipboardPolling();
       cancelled = true;
       pluginUnlisten?.();
       permissionUnlisten?.();
       updateUnlisten?.();
+      builtinPluginsUnlisten?.();
       stopStartupUpdateCheck();
       window.removeEventListener("atools-plugin-detach", onPluginDetach);
     };
@@ -471,7 +536,7 @@
     results = localResults;
     selectedIndex = 0;
     searchError = "";
-    await resizePalette(resultsWindowHeightFor(localResults));
+    void resizePalette(resultsWindowHeightFor(localResults));
 
     if (!hasTauriRuntime()) {
       remoteSearchStatus = "unavailable";
@@ -480,26 +545,52 @@
     }
 
     remoteSearchStatus = "searching";
+    await new Promise<void>((resolve) => setTimeout(resolve, REMOTE_SEARCH_DEBOUNCE_MS));
+    if (runId !== searchRunId || query !== newQuery) return;
     try {
-      const remoteCalls = [
-        invoke<SearchResult[]>("search_features", { query: newQuery }),
-      ];
-      if (includeLocalAppSearch(appSettings)) {
-        remoteCalls.push(invoke<SearchResult[]>("search_local_apps", { query: newQuery, limit: 20 }));
-      }
-      const remoteSettled = await Promise.allSettled(remoteCalls);
+      const featureCall = invoke<SearchResult[]>("search_features", { query: newQuery });
+      const localAppEnabled = includeLocalAppSearch(appSettings);
+      const localAppCall = localAppEnabled
+        ? invoke<SearchResult[]>("search_local_apps", { query: newQuery, limit: 20 })
+        : Promise.resolve<SearchResult[]>([]);
+      const featureSettled = await settleSearchWithin(
+        featureCall,
+        FEATURE_SEARCH_TIMEOUT_MS,
+        "插件搜索",
+      );
       if (runId !== searchRunId || query !== newQuery) return;
-      const remoteResults = remoteSettled.flatMap((result) => result.status === "fulfilled" ? result.value : []);
-      const remoteErrors = remoteSettled.filter((result) => result.status === "rejected");
-      if (remoteResults.length === 0 && remoteErrors.length === remoteSettled.length) {
+      const featureResults = featureSettled.status === "fulfilled" ? featureSettled.value : [];
+      const remoteErrors: PromiseRejectedResult[] = featureSettled.status === "rejected"
+        ? [featureSettled]
+        : [];
+      const partialResults = [...localResults, ...featureResults].sort((a, b) => b.score - a.score);
+      results = partialResults;
+      selectedIndex = 0;
+      // Feature results are the primary response. Local applications are a
+      // background enrichment and must not keep the palette looking blocked.
+      remoteSearchStatus = "ready";
+      void resizePalette(resultsWindowHeightFor(partialResults));
+      focusSearch();
+
+      const localAppSettled = await settleSearchWithin(
+        localAppCall,
+        LOCAL_APP_SEARCH_TIMEOUT_MS,
+        "本地应用搜索",
+      );
+      if (runId !== searchRunId || query !== newQuery) return;
+      const localAppResults = localAppSettled.status === "fulfilled" ? localAppSettled.value : [];
+      if (localAppSettled.status === "rejected") remoteErrors.push(localAppSettled);
+      const remoteCallCount = localAppEnabled ? 2 : 1;
+      if (featureResults.length === 0 && localAppResults.length === 0 && remoteErrors.length === remoteCallCount) {
         throw new Error(remoteErrors.map((result) => String((result as PromiseRejectedResult).reason)).join("; "));
       }
-      const mergedResults = [...localResults, ...remoteResults].sort((a, b) => b.score - a.score);
+      const mergedResults = [...localResults, ...featureResults, ...localAppResults].sort((a, b) => b.score - a.score);
       results = mergedResults;
       selectedIndex = 0;
       remoteSearchStatus = "ready";
-      await resizePalette(resultsWindowHeightFor(mergedResults));
+      void resizePalette(resultsWindowHeightFor(mergedResults));
       focusSearch();
+      void hydrateLocalAppResultIcons(runId, newQuery, localAppResults);
     } catch (e) {
       console.error("Search failed:", e);
       if (runId !== searchRunId || query !== newQuery) return;
@@ -507,8 +598,60 @@
       selectedIndex = 0;
       remoteSearchStatus = "error";
       searchError = String(e);
-      await resizePalette(resultsWindowHeightFor(localResults));
+      void resizePalette(resultsWindowHeightFor(localResults));
       focusSearch();
+    }
+  }
+
+  function settleSearchWithin<T>(
+    call: Promise<T>,
+    timeoutMs: number,
+    label: string,
+  ): Promise<PromiseSettledResult<T>> {
+    return new Promise((resolve) => {
+      let completed = false;
+      const timeoutId = setTimeout(() => {
+        if (completed) return;
+        completed = true;
+        resolve({
+          status: "rejected",
+          reason: new Error(`${label}超过 ${timeoutMs}ms 未响应`),
+        });
+      }, timeoutMs);
+
+      call.then(
+        (value) => {
+          if (completed) return;
+          completed = true;
+          clearTimeout(timeoutId);
+          resolve({ status: "fulfilled", value });
+        },
+        (reason) => {
+          if (completed) return;
+          completed = true;
+          clearTimeout(timeoutId);
+          resolve({ status: "rejected", reason });
+        },
+      );
+    });
+  }
+
+  async function hydrateLocalAppResultIcons(
+    runId: number,
+    searchQuery: string,
+    localAppResults: SearchResult[],
+  ) {
+    const paths = [...new Set(localAppResults.map((result) => result.explain).filter(Boolean))];
+    if (paths.length === 0) return;
+    try {
+      const icons = await invoke<Record<string, string>>("load_local_app_icons", { paths });
+      if (runId !== searchRunId || query !== searchQuery) return;
+      results = results.map((result) => {
+        const icon = result.code.startsWith("local-app:") ? icons[result.explain] : undefined;
+        return icon ? { ...result, icon } : result;
+      });
+    } catch (error) {
+      console.debug("Local app icons unavailable:", error);
     }
   }
 
@@ -600,6 +743,11 @@
     payload?: unknown,
     options: { waitForPluginReady?: boolean; readyTimeoutMs?: number; throwOnError?: boolean } = {},
   ): Promise<number | null> {
+    if (code === "paste-clipboard" || code === "clipboard") {
+      await invoke("open_pasteboard_shelf_window");
+      await invoke("hide_main_window");
+      return null;
+    }
     if (code.startsWith("system:")) {
       await activateSystemPanel(code.replace("system:", "") as ShellPanel);
       return null;
@@ -737,12 +885,14 @@
     return {
       action,
       onclose: returnPluginToSearch,
+      onescape: onEscape,
       onredirect: handlePluginRedirect,
       onsettingsredirect: handlePluginSettingsRedirect,
       desktopSmokeExpectedSamples: queueActive ? desktopSmokePluginActions.length : 0,
       desktopSmokeSampleIndex: queueActive ? desktopSmokePluginIndex : 0,
       desktopSmokeExternalPlanSample: queueActive ? desktopSmokeActionExternalPlan(action) : false,
       onready: () => handlePluginReady(action.feature_code),
+      onloaderror: (error: unknown) => cancelPluginActivationWaiter(error instanceof Error ? error : new Error(String(error))),
       ondesktopsmokerender: queueActive ? handleDesktopSmokePluginPanelRender : undefined,
     };
   }
@@ -786,6 +936,7 @@
 
   async function onEscape() {
     if (activePlugin) {
+      if (!appSettings.pluginEscapeToSearch) return;
       await returnPluginToSearch();
     } else if (activePanel !== "home") {
       activePanel = "home";
@@ -898,11 +1049,77 @@
       ...systemResultsForQuery(value),
       ...commandAliasResultsForQuery(value, commandAliases, aliasTargetForCode),
       ...urlQuickOpenResultsForQuery(value),
-      ...commandHistoryResultsForQuery(value, commandHistory),
+      ...commandHistoryResultsForQuery(value, availableCommandHistory()),
       ...textQuickActionResultsForQuery(value),
       ...(includeLocalLaunchSearch(appSettings) ? localLaunchResultsForQuery(value, localLaunchEntries) : []),
       ...webQuickOpenResultsForQuery(value, webQuickOpenEntries),
     ].sort((a, b) => b.score - a.score);
+  }
+
+  function availableCommandHistory() {
+    if (!availableFeatureCodesReady) return commandHistory;
+    return filterCommandHistoryByCodeAvailability(commandHistory, isCommandCodeAvailable);
+  }
+
+  function recommendedCommandsForHome(): RecommendedCommand[] {
+    if (!availableFeatureCodesReady) {
+      return RECOMMENDED_COMMANDS.filter((command) => Boolean(command.panel));
+    }
+    const catalogByCode = new Map(featureCatalog.map((result) => [result.code, result]));
+    return RECOMMENDED_COMMANDS.flatMap((command) => {
+      if (command.panel) return [command];
+      const feature = catalogByCode.get(command.code);
+      if (!feature) return [];
+      return [{
+        ...command,
+        label: feature.label || command.label,
+        explain: feature.explain || command.explain,
+        icon: feature.icon,
+      }];
+    });
+  }
+
+  async function refreshFeatureCatalog() {
+    try {
+      const catalog = await invoke<SearchResult[]>("feature_catalog");
+      featureCatalog = catalog;
+      availableFeatureCodes = new Set(catalog.map((feature) => feature.code));
+      availableFeatureCodesReady = true;
+      if (catalog.length === 0 && featureCatalogRetryCount < 8) {
+        featureCatalogRetryCount += 1;
+        clearFeatureCatalogRetry();
+        featureCatalogRetryTimer = setTimeout(() => {
+          featureCatalogRetryTimer = null;
+          void refreshFeatureCatalog();
+        }, 250);
+      } else if (catalog.length > 0) {
+        featureCatalogRetryCount = 0;
+        clearFeatureCatalogRetry();
+      }
+      const nextHistory = filterCommandHistoryByCodeAvailability(commandHistory, isCommandCodeAvailable);
+      if (nextHistory.length !== commandHistory.length) {
+        commandHistory = nextHistory;
+        saveCommandHistory(nextHistory);
+        dispatchCommandHistoryUpdated(nextHistory);
+      }
+    } catch (error) {
+      console.debug("Feature catalog unavailable:", error);
+    }
+  }
+
+  function clearFeatureCatalogRetry() {
+    if (!featureCatalogRetryTimer) return;
+    clearTimeout(featureCatalogRetryTimer);
+    featureCatalogRetryTimer = null;
+  }
+
+  function isCommandCodeAvailable(code: string) {
+    if (code.startsWith("url:")) return Boolean(urlFromQuickOpenCode(code));
+    if (code.startsWith("local-app:")) return true;
+    if (code.startsWith("system:") || code.startsWith("local:") || code.startsWith("web:")) {
+      return Boolean(aliasTargetForCode(code));
+    }
+    return availableFeatureCodes.has(code);
   }
 
   function onSearchPaste(event: ClipboardEvent) {
@@ -1018,6 +1235,15 @@
     return "__TAURI_INTERNALS__" in globalWindow || "__TAURI__" in globalWindow || "__TAURI_IPC__" in globalWindow;
   }
 
+  function currentTauriWindowLabel() {
+    if (typeof window === "undefined") return "";
+    try {
+      return getCurrentWebviewWindow().label;
+    } catch {
+      return "";
+    }
+  }
+
   async function waitForTauriRuntime(): Promise<boolean> {
     for (let index = 0; index < 25; index += 1) {
       if (hasTauriRuntime() && typeof invoke === "function") {
@@ -1118,6 +1344,12 @@
           report: {
             token,
             option_z_toggled: patch.option_z_toggled,
+            hotkey_show_ms: patch.hotkey_show_ms,
+            hotkey_toggle_attempt_count: patch.hotkey_toggle_attempt_count,
+            hotkey_toggle_success_count: patch.hotkey_toggle_success_count,
+            search_query: patch.search_query,
+            search_latency_ms: patch.search_latency_ms,
+            search_result_count: patch.search_result_count,
             settings_page_opened: patch.settings_page_opened,
             plugin_page_opened: patch.plugin_page_opened,
             agent_page_opened: patch.agent_page_opened,
@@ -1139,6 +1371,12 @@
           await invoke("report_release_smoke_progress", {
             token,
             option_z_toggled: patch.option_z_toggled,
+            hotkey_show_ms: patch.hotkey_show_ms,
+            hotkey_toggle_attempt_count: patch.hotkey_toggle_attempt_count,
+            hotkey_toggle_success_count: patch.hotkey_toggle_success_count,
+            search_query: patch.search_query,
+            search_latency_ms: patch.search_latency_ms,
+            search_result_count: patch.search_result_count,
             settings_page_opened: patch.settings_page_opened,
             plugin_page_opened: patch.plugin_page_opened,
             agent_page_opened: patch.agent_page_opened,
@@ -1157,15 +1395,27 @@
     };
 
     let optionZToggled = false;
+    let hotkeyShowMs: number | undefined;
+    const hotkeyToggleAttemptCount = 5;
+    let hotkeyToggleSuccessCount = 0;
     try {
-      await invoke("show_main_window");
-      await sleep(80);
-      await invoke("hide_main_window");
-      optionZToggled = true;
+      const probe = await invoke<{
+        attemptCount: number;
+        successCount: number;
+        maxShowMs: number;
+      }>("benchmark_main_window_toggle", { attempts: hotkeyToggleAttemptCount });
+      hotkeyShowMs = probe.maxShowMs;
+      hotkeyToggleSuccessCount = probe.successCount;
+      optionZToggled = hotkeyToggleSuccessCount === hotkeyToggleAttemptCount;
     } catch (error) {
       errors.push(`Option+Z smoke failed: ${String(error)}`);
     }
-    await emitReport({ option_z_toggled: optionZToggled });
+    await emitReport({
+      option_z_toggled: optionZToggled,
+      hotkey_show_ms: hotkeyShowMs,
+      hotkey_toggle_attempt_count: hotkeyToggleAttemptCount,
+      hotkey_toggle_success_count: hotkeyToggleSuccessCount,
+    });
 
     let clipboardCopyTracked = false;
     try {
@@ -1194,12 +1444,17 @@
     }
     await emitReport({ clipboard_copy_tracked: clipboardCopyTracked });
 
-    const pluginActivationQuery = "calc";
+    const pluginActivationQuery = "color";
+    let searchLatencyMs: number | undefined;
+    let searchResultCount: number | undefined;
     let pluginActivationFeature: string | undefined;
     let pluginActivationMs: number | undefined;
     try {
       await invoke("show_main_window");
+      const searchStartedAt = performance.now();
       const pluginCandidates = await invoke<SearchResult[]>("search_features", { query: pluginActivationQuery });
+      searchLatencyMs = performance.now() - searchStartedAt;
+      searchResultCount = pluginCandidates.length;
       const pluginCandidate = pluginCandidates.find((candidate) => candidate.plugin_id && candidate.code);
       if (!pluginCandidate) {
         throw new Error(`No plugin feature matched ${pluginActivationQuery}`);
@@ -1227,6 +1482,9 @@
       }
     }
     await emitReport({
+      search_query: pluginActivationQuery,
+      search_latency_ms: searchLatencyMs,
+      search_result_count: searchResultCount,
       plugin_activation_feature: pluginActivationFeature,
       plugin_activation_ms: pluginActivationMs,
     });
@@ -1546,7 +1804,10 @@
         await openUrl(url);
         scheduleAutoClearSearch();
       }
+      return;
     }
+
+    await activateFeature(payload.code);
   }
 
   function rememberCommandResult(result: SearchResult, input: string) {
@@ -1565,7 +1826,7 @@
       plugin_id: entry.plugin_id,
       plugin_name: entry.plugin_name,
       label: entry.label,
-      icon: null,
+      icon: entry.icon || null,
       explain: entry.explain,
       score: 90,
       match_type: "exact",
@@ -1940,15 +2201,16 @@
     const pinnedRowCount = pinnedCount > 0 ? Math.ceil(pinnedCount / RECENT_GRID_COLUMNS) : 0;
     const recentRowCount = Math.max(1, Math.ceil(recentCount / RECENT_GRID_COLUMNS));
     const rowCount = pinnedRowCount + recentRowCount;
-    const extraSectionChrome = pinnedRowCount > 0 ? 23 : 0;
-    const pinnedSectionChrome = pinnedCount > 0 ? extraSectionChrome : HOME_PINNED_EMPTY_HEIGHT;
-    return SEARCH_BAR_HEIGHT
-      + HOME_PANEL_VERTICAL_CHROME + HOME_OVERVIEW_HEIGHT
-      + pinnedSectionChrome
+    const sectionCount = pinnedRowCount > 0 ? 2 : 1;
+    const measured = SEARCH_BAR_HEIGHT
+      + HOME_PANEL_VERTICAL_PADDING
+      + (sectionCount * HOME_SECTION_HEADER_HEIGHT)
+      + ((sectionCount - 1) * HOME_SECTION_GAP)
       + (rowCount * RECENT_TILE_HEIGHT)
       + (Math.max(0, rowCount - 1) * RECENT_ROW_GAP)
       + SEARCH_STATUS_BAR_HEIGHT
       + SHELL_BORDER_HEIGHT;
+    return Math.max(HOME_MIN_WINDOW_HEIGHT, Math.min(HOME_MAX_WINDOW_HEIGHT, measured));
   }
 
   function resultsWindowHeightFor(items: SearchResult[]) {
@@ -2003,6 +2265,7 @@
   }
 
   function onKeyDown(e: KeyboardEvent) {
+    if (isPasteboardShelfWindow || isPasteboardDialogWindow) return;
     if (e.key === "Escape") {
       if (settingsHeaderMenuOpen() || settingsConfirmDialogOpen()) return;
       if (activePanel !== "home" && activePlugin === null && isEditableKeyboardTarget(e.target)) {
@@ -2098,7 +2361,11 @@
 
 <svelte:window onkeydown={onKeyDown} />
 
-{#if isSuperPanelWindow}
+{#if isPasteboardShelfWindow}
+  <PasteboardShelf />
+{:else if isPasteboardDialogWindow}
+  <PasteboardDialog />
+{:else if isSuperPanelWindow}
   <main class="super-panel-shell">
     <section class="super-panel-surface">
       <div class="super-panel-header">
@@ -2166,14 +2433,8 @@
           commands={visibleRecentCommands}
           oncommand={onHomeCommand}
           onpanelchange={onHomePanelChange}
-          onsettingsmenu={openSettingsMenu}
           pinnedRows={appSettings.pinnedRows}
           recentRows={appSettings.recentRows}
-          localAppSearch={includeLocalAppSearch(appSettings)}
-          localLaunchSearch={includeLocalLaunchSearch(appSettings)}
-          commandAliasCount={commandAliases.length}
-          localLaunchCount={localLaunchEntries.filter((entry) => entry.enabled).length}
-          webQuickOpenCount={webQuickOpenEntries.filter((entry) => entry.enabled).length}
           selectedIndex={selectedRecentIndex}
           onselectionchange={onRecentSelectionChange}
           onactivate={(command) => activateRecentCommand(visibleRecentCommands.indexOf(command))}

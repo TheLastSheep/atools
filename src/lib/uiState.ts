@@ -11,21 +11,25 @@ export type RecommendedCommand = {
   code: string;
   label: string;
   explain: string;
+  icon?: string | null;
   panel?: ShellPanel;
   input?: string;
   source?: "history" | "recommended" | "pinned";
 };
 
 export const RECOMMENDED_COMMANDS: RecommendedCommand[] = [
-  { code: "图片批处理", label: "图片批处理", explain: "批量压缩、转换和处理图片" },
-  { code: "ip", label: "ip", explain: "查看本机 IP 信息" },
-  { code: "hosts", label: "hosts", explain: "管理 hosts" },
+  { code: "paste-clipboard", label: "Paste剪切板", explain: "本地剪贴板历史与分组" },
+  { code: "ip", label: "IP 地址", explain: "查看本机 IP 信息" },
+  { code: "process-manager", label: "结束进程", explain: "查看并结束本地进程" },
+  { code: "http-client", label: "HTTP 请求", explain: "Rust 原生 HTTP 请求工具" },
+  { code: "hosts", label: "Hosts 编辑器", explain: "读取并管理系统 hosts" },
+  { code: "todo", label: "ToDo", explain: "本地待办事项" },
+  { code: "calc", label: "计算稿纸", explain: "快速计算并保存历史" },
+  { code: "codec", label: "编码转换", explain: "Base64、URL 与 Unicode 转换" },
+  { code: "timestamp", label: "时间戳", explain: "时间戳与日期转换" },
+  { code: "qr-code", label: "二维码", explain: "生成二维码图片" },
+  { code: "json", label: "JSON 查看器", explain: "格式化、压缩和校验 JSON" },
+  { code: "color-converter", label: "颜色转换", explain: "HEX、RGB 与 HSL 转换" },
+  { code: "翻译", label: "翻译", explain: "Rust 原生多语言翻译" },
   { code: "设置", label: "设置", explain: "打开工具设置", panel: "settings" },
-  { code: "上次匹配", label: "上次匹配", explain: "恢复上次命令匹配" },
-  { code: "OCR", label: "OCR", explain: "图片文字识别" },
-  { code: "ctool", label: "ctool", explain: "开发常用工具" },
-  { code: "结束进程", label: "结束进程", explain: "结束本地进程" },
-  { code: "计算稿纸", label: "计算稿纸", explain: "快速计算草稿" },
-  { code: "curl", label: "curl", explain: "curl 命令工具" },
-  { code: "ToDo 待办", label: "ToDo 待办", explain: "待办事项" },
 ];

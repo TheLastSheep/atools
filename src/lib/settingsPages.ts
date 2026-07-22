@@ -3,6 +3,7 @@ export type SettingsMenuId =
   | "shortcuts"
   | "plugins"
   | "market"
+  | "providers"
   | "ai"
   | "mcp"
   | "web"
@@ -320,6 +321,7 @@ export function settingsMenuItems(): SettingsMenuItem[] {
     { id: "shortcuts", label: "快捷键", icon: "keyboard" },
     { id: "plugins", label: "已安装插件", icon: "plugin" },
     { id: "market", label: "插件市场", icon: "store" },
+    { id: "providers", label: "能力提供商", icon: "brain" },
     { id: "ai", label: "AI 模型", icon: "brain" },
     { id: "mcp", label: "MCP 服务", icon: "mcp" },
     { id: "web", label: "网页快开", icon: "search" },

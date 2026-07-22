@@ -1,7 +1,9 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import { open } from "@tauri-apps/plugin-dialog";
-  import type { ZToolsImportCandidate, ZToolsImportReport } from "../lib/types";
+  import type { InstalledPlugin, ZToolsImportCandidate, ZToolsImportReport } from "../lib/types";
+  import { dispatchPluginOpenRequest, firstOpenablePluginFeature } from "../lib/pluginOpen";
   import { ztoolsImportReportView, ztoolsImportView } from "../lib/ztoolsImportView";
 
   let candidates: ZToolsImportCandidate[] = $state([]);
@@ -10,8 +12,32 @@
   let scanning = $state(false);
   let importing = $state(false);
   let error = $state("");
+  let importedPlugins = $state<Record<string, InstalledPlugin>>({});
   let importView = $derived(ztoolsImportView(candidates, selected));
   let reportView = $derived(ztoolsImportReportView(report));
+
+  function applyCandidates(items: ZToolsImportCandidate[]) {
+    candidates = items;
+    selected = new Set(items.filter((item) => item.errors.length === 0).map((item) => item.path));
+    report = null;
+    importedPlugins = {};
+  }
+
+  async function scanDefault() {
+    scanning = true;
+    error = "";
+    try {
+      applyCandidates(await invoke<ZToolsImportCandidate[]>("scan_default_ztools_plugins"));
+    } catch (e) {
+      error = String(e);
+    } finally {
+      scanning = false;
+    }
+  }
+
+  onMount(() => {
+    void scanDefault();
+  });
 
   async function chooseAndScan() {
     const root = await open({ directory: true, multiple: false });
@@ -20,13 +46,26 @@
     scanning = true;
     error = "";
     try {
-      candidates = await invoke<ZToolsImportCandidate[]>("scan_ztools_plugins", { root });
-      selected = new Set(
-        candidates
-          .filter((item) => item.errors.length === 0)
-          .map((item) => item.path),
-      );
-      report = null;
+      applyCandidates(await invoke<ZToolsImportCandidate[]>("scan_ztools_plugins", { root }));
+    } catch (e) {
+      error = String(e);
+    } finally {
+      scanning = false;
+    }
+  }
+
+  async function chooseArchive() {
+    const root = await open({
+      directory: false,
+      multiple: false,
+      filters: [{ name: "ZTools 插件包", extensions: ["zpx", "asar"] }],
+    });
+    if (typeof root !== "string") return;
+
+    scanning = true;
+    error = "";
+    try {
+      applyCandidates(await invoke<ZToolsImportCandidate[]>("scan_ztools_plugins", { root }));
     } catch (e) {
       error = String(e);
     } finally {
@@ -43,6 +82,9 @@
         paths,
         overwrite: true,
       });
+      const plugins = await invoke<InstalledPlugin[]>("list_plugins");
+      const importedIds = new Set(report.imported);
+      importedPlugins = Object.fromEntries(plugins.filter((plugin) => importedIds.has(plugin.id)).map((plugin) => [plugin.id, plugin]));
     } catch (e) {
       error = String(e);
     } finally {
@@ -67,17 +109,27 @@
   function clearSelection() {
     selected = new Set();
   }
+
+  function openImportedPlugin(pluginId: string) {
+    if (!dispatchPluginOpenRequest(importedPlugins[pluginId])) {
+      error = "插件未启用或没有可打开的指令";
+    }
+  }
 </script>
 
 <section class="import-panel">
   <div class="import-head">
     <div>
       <h3>导入 ZTools 插件</h3>
-      <p>扫描包含 plugin.json 的目录，预检后批量导入。</p>
+      <p>自动扫描 ~/.ztools/plugins，也支持目录、ZPX 和 ASAR 文件。</p>
     </div>
-    <button class="secondary" onclick={chooseAndScan} disabled={scanning}>
-      {scanning ? "扫描中" : "选择目录并扫描"}
-    </button>
+    <div class="import-actions">
+      <button class="secondary" onclick={scanDefault} disabled={scanning}>
+        {scanning ? "扫描中" : "扫描 ZTools"}
+      </button>
+      <button class="secondary" onclick={chooseAndScan} disabled={scanning}>选择目录</button>
+      <button class="secondary" onclick={chooseArchive} disabled={scanning}>选择插件包</button>
+    </div>
   </div>
 
   {#if error}
@@ -168,6 +220,9 @@
               <strong>{row.detail}</strong>
               <small>{row.path}</small>
             </div>
+            {#if row.kind === "imported" && firstOpenablePluginFeature(importedPlugins[row.path])}
+              <button class="secondary" onclick={() => openImportedPlugin(row.path)}>立即打开</button>
+            {/if}
           </div>
         {/each}
       </div>
@@ -465,7 +520,8 @@
 
   .report-row {
     display: grid;
-    grid-template-columns: 72px minmax(0, 1fr);
+    grid-template-columns: 72px minmax(0, 1fr) auto;
+    align-items: center;
     gap: 10px;
     padding: 9px 10px;
     border-bottom: 1px solid var(--border);

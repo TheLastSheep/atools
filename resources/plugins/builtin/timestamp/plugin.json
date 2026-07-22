@@ -1,17 +1,1 @@
-{
-  "name": "时间戳",
-  "version": "1.0.0",
-  "description": "Unix 时间戳与日期互相转换",
-  "main": "index.html",
-  "author": "ATools",
-  "pluginSetting": { "single": true, "height": 500 },
-  "features": [
-    {
-      "code": "时间戳",
-      "label": "时间戳",
-      "explain": "Unix 时间戳与日期互转",
-      "cmds": ["时间戳", "timestamp", "shijiancuo", "time"]
-    }
-  ],
-  "logo": "logo.png"
-}
+{"name":"timestamp","version":"1.0.0","description":"Rust 原生 Unix 时间戳与日期转换","main":"index.html","author":"ATools Team","logo":"logo.svg","permissions":["time.read","time.convert"],"pluginSetting":{"single":true,"height":500},"features":[{"code":"timestamp","label":"时间戳","icon":"logo.svg","explain":"Unix 时间戳、UTC 与本地日期互转","mainPush":true,"cmds":["时间戳","timestamp","time","日期转换"]}]}

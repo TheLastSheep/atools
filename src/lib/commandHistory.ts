@@ -8,6 +8,7 @@ export type CommandHistoryEntry = {
   explain: string;
   plugin_id: string;
   plugin_name: string;
+  icon: string;
   input: string;
   usedAt: string;
   useCount: number;
@@ -22,7 +23,6 @@ export const COMMAND_HISTORY_STORAGE_KEY = "atools:command-history";
 export const COMMAND_HISTORY_UPDATED_EVENT = "atools-command-history-updated";
 const MAX_HISTORY_SIZE = 36;
 const HISTORY_CODE_PREFIX = "history:";
-const REPLAYABLE_CODE_PREFIXES = ["system:", "local:", "web:", "url:"];
 
 export function loadCommandHistory(): CommandHistoryEntry[] {
   try {
@@ -82,6 +82,13 @@ export function removeCommandHistoryEntryStorage(code: string): number {
   return removed;
 }
 
+export function filterCommandHistoryByCodeAvailability(
+  entries: CommandHistoryEntry[],
+  isAvailable: (code: string) => boolean,
+): CommandHistoryEntry[] {
+  return normalizeCommandHistory(entries).filter((entry) => isAvailable(entry.code));
+}
+
 export function commandHistoryStats(entries: CommandHistoryEntry[]) {
   const normalized = normalizeCommandHistory(entries);
   return {
@@ -115,6 +122,7 @@ export function commandHistoryEntryFromResult(
     explain: result.explain.trim(),
     plugin_id: result.plugin_id.trim() || "system",
     plugin_name: result.plugin_name.trim() || "ATools",
+    icon: result.icon?.trim() || "",
     input: input.trim(),
     usedAt: validIsoDate(now) ? now : new Date().toISOString(),
     useCount: 1,
@@ -185,6 +193,7 @@ export function homeCommandsFor(
       code: entry.code,
       label: entry.label,
       explain: entry.explain || entry.input,
+      icon: entry.icon || null,
       input: entry.input,
       source: "history",
     });
@@ -263,6 +272,7 @@ function normalizeCommandHistoryEntry(value: unknown): CommandHistoryEntry | nul
     explain: stringValue(raw.explain),
     plugin_id: stringValue(raw.plugin_id) || "system",
     plugin_name: stringValue(raw.plugin_name) || "ATools",
+    icon: stringValue(raw.icon),
     input: stringValue(raw.input),
     usedAt: validIsoDate(usedAt) ? usedAt : new Date(0).toISOString(),
     useCount: positiveInteger(raw.useCount),
@@ -270,7 +280,12 @@ function normalizeCommandHistoryEntry(value: unknown): CommandHistoryEntry | nul
 }
 
 function isReplayableCode(code: string): boolean {
-  return REPLAYABLE_CODE_PREFIXES.some((prefix) => code.startsWith(prefix));
+  const value = code.trim();
+  if (!value) return false;
+  if ([HISTORY_CODE_PREFIX, "alias:", "paste:", "text:"].some((prefix) => value.startsWith(prefix))) {
+    return false;
+  }
+  return true;
 }
 
 function validIsoDate(value: string): boolean {

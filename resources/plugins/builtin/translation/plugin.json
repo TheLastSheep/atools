@@ -4,6 +4,8 @@
   "author": "ATools",
   "version": "1.0.0",
   "main": "index.html",
+  "logo": "logo.svg",
+  "permissions": ["translation.request", "clipboard.write", "notification"],
   "pluginSetting": {
     "single": false,
     "height": 520
@@ -12,7 +14,7 @@
     {
       "code": "翻译",
       "label": "翻译",
-      "icon": "logo.png",
+      "icon": "logo.svg",
       "explain": "中英日韩多语言翻译",
       "cmds": ["翻译", "translate", "trans", "fanyi"]
     }
