@@ -25,4 +25,3 @@ assert.match(settingsPanel, /重新检测/);
 assert.match(pasteboardShelf, /warningCode === "accessibility_required"/);
 assert.match(pasteboardShelf, /open_accessibility_settings/);
 assert.match(pasteboardShelf, /get_accessibility_permission_status/);
-
