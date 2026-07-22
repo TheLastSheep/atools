@@ -29,6 +29,9 @@ assert.match(header, /\.secondary-tab\s*\{[\s\S]*?padding-left:\s*42px;/);
 assert.match(header, /\.tab-close\s*\{[\s\S]*?width:\s*28px;[\s\S]*?height:\s*28px;/);
 assert.match(header, /\.more-btn\s*\{[\s\S]*?width:\s*32px;[\s\S]*?height:\s*72px;/);
 assert.match(header, /\.more-btn span\s*\{[\s\S]*?width:\s*5px;[\s\S]*?height:\s*5px;/);
+assert.match(header, /@media \(max-width: 1000px\)\s*\{[\s\S]*?\.settings-header\s*\{[\s\S]*?height:\s*58px;/);
+assert.match(header, /@media \(max-width: 1000px\)\s*\{[\s\S]*?\.tab\s*\{[\s\S]*?height:\s*44px;[\s\S]*?font-size:\s*16px;/);
+assert.match(header, /@media \(max-width: 1000px\)\s*\{[\s\S]*?\.settings-header :global\(\.z-mark\.small\),[\s\S]*?--mark-size:\s*42px;/);
 
 assert.match(zMark, /\.z-mark\.small\s*\{[\s\S]*?--mark-size:\s*42px;/);
 assert.match(zMark, /\.z-mark\.large\s*\{[\s\S]*?--mark-size:\s*72px;/);
@@ -43,6 +46,6 @@ assertSmokeChecked(
   "macOS smoke checklist should mark the Settings ZTools shell and Z mark structure complete",
 );
 assertSmokeChecked(
-  "设置页顶部标签栏高度约 94px，标签约 72px，小/大 Z 图标约 42/72px，更多按钮三点居中，且没有横向溢出。",
+  "设置页在 800px 主窗下使用约 58px 顶栏、44px 标签和 42px Z 图标，更多按钮三点居中，且没有横向溢出。",
   "macOS smoke checklist should mark the Settings header sizing complete",
 );

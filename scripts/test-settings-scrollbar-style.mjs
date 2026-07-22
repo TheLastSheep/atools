@@ -24,7 +24,7 @@ assert.match(source, /\.settings-sidebar::-webkit-scrollbar-thumb:hover,\s*\.con
 assert.match(source, /:global\(:root\[data-atools-theme="dark"\]\)\s*\.settings-sidebar,\s*:global\(:root\[data-atools-theme="dark"\]\)\s*\.content-panel\s*\{[\s\S]*?scrollbar-color:\s*rgba\(255,\s*255,\s*255,\s*0\.24\)\s*transparent;/);
 assert.match(source, /:global\(:root\[data-atools-theme="dark"\]\)\s*\.settings-sidebar::-webkit-scrollbar-thumb,\s*:global\(:root\[data-atools-theme="dark"\]\)\s*\.content-panel::-webkit-scrollbar-thumb\s*\{[\s\S]*?background-color:\s*rgba\(255,\s*255,\s*255,\s*0\.24\);/);
 
-assert.match(source, /@media \(max-width:\s*720px\)\s*\{[\s\S]*?\.settings-sidebar::-webkit-scrollbar,\s*\.content-panel::-webkit-scrollbar\s*\{[\s\S]*?width:\s*8px;/);
+assert.match(source, /@media \(max-width:\s*1000px\)\s*\{[\s\S]*?\.settings-sidebar::-webkit-scrollbar,\s*\.content-panel::-webkit-scrollbar\s*\{[\s\S]*?width:\s*8px;/);
 
 assertSmokeChecked(
   "设置页左侧菜单和右侧内容区都有细窄圆角滚动条，亮/暗主题颜色正确，滚动条出现时布局不抖动且没有横向溢出。",

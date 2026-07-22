@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ATools Web Echo</title>
+  <style>
+    body { margin: 0; padding: 24px; font: 14px/1.5 system-ui, sans-serif; background: #f6f7f9; color: #17191f; }
+    main { max-width: 560px; margin: auto; padding: 20px; border-radius: 14px; background: white; box-shadow: 0 8px 30px #1112; }
+    input, button { box-sizing: border-box; width: 100%; margin-top: 10px; padding: 10px 12px; border: 1px solid #d7dbe3; border-radius: 8px; }
+    button { color: white; background: #315efb; border-color: #315efb; cursor: pointer; }
+    output { display: block; margin-top: 14px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Web Echo</h1>
+    <p>The UI and Agent/MCP tool share the same structured echo contract.</p>
+    <input id="message" value="Hello from ATools">
+    <button id="echo">Echo</button>
+    <output id="output"></output>
+  </main>
+  <script>
+    document.querySelector("#echo").addEventListener("click", () => {
+      const message = document.querySelector("#message").value;
+      document.querySelector("#output").textContent = JSON.stringify({ message, runtime: "web" }, null, 2);
+    });
+  </script>
+</body>
+</html>

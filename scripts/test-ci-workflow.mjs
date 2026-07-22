@@ -42,6 +42,7 @@ assert.match(workflow, /pnpm benchmark:database:ci/);
 assert.match(workflow, /database-performance-\$\{\{ github\.sha \}\}/);
 assert.match(workflow, /^  runtime-performance-evidence:/m);
 assert.match(workflow, /pnpm benchmark:runtime:ci/);
+assert.match(packageJson.scripts["benchmark:runtime:ci"], /--fail-on-threshold/);
 assert.match(workflow, /macos-runtime-performance-\$\{\{ github\.sha \}\}/);
 assert.ok(
   workflow.indexOf("- run: pnpm build") < workflow.indexOf("cargo clippy --workspace --all-targets -- -D warnings"),

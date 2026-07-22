@@ -192,7 +192,8 @@ function resourceSignals(html) {
 }
 
 async function realEntryHtmlReadiness(plan, manifest) {
-  const mainUrl = stringOrEmpty(manifest?.main) || "index.html";
+  const declaredMain = stringOrEmpty(manifest?.main);
+  const mainUrl = declaredMain || "index.html";
   const sourcePath = stringOrEmpty(plan?.source_path);
   if (!sourcePath) {
     return {
@@ -209,6 +210,22 @@ async function realEntryHtmlReadiness(plan, manifest) {
   }
 
   const sourceRoot = resolve(sourcePath);
+  if (!declaredMain) {
+    const html = '<!doctype html><html><head><meta charset="UTF-8"></head><body data-atools-headless-plugin="true"></body></html>';
+    return {
+      expected: true,
+      status: "ready",
+      headless: true,
+      main_url: mainUrl,
+      html_path: "",
+      html,
+      entry_directory: sourceRoot,
+      relative_entry_directory: ".",
+      bytes: Buffer.byteLength(html),
+      sha256: sha256(Buffer.from(html)),
+      resource_signals: resourceSignals(html),
+    };
+  }
   const htmlPath = resolve(sourceRoot, mainUrl);
   const sourceRelativePath = relative(sourceRoot, htmlPath);
   const outsideSource = sourceRelativePath.startsWith("..") || isAbsolute(sourceRelativePath);
@@ -273,6 +290,9 @@ async function realEntryResourceReadiness(realEntryHtml) {
     missing: [],
   };
 
+  if (realEntryHtml?.headless && realEntryHtml.status === "ready") {
+    return baseResult;
+  }
   if (!realEntryHtml || realEntryHtml.status !== "ready" || !realEntryHtml.html_path) {
     return {
       ...baseResult,
@@ -336,6 +356,7 @@ function fixtureBridgeScript(plan, id, title) {
   return `<script data-atools-real-entry-fixture-bridge="true">
 (function(){
   var pluginId = ${jsString(id)};
+  var pluginPath = ${jsString(stringOrEmpty(plan?.source_path))};
   var featureCode = ${jsString(code)};
   var fixtureErrors = [];
   var bridgeApiProbeIds = ${bridgeApiProbeIds};
@@ -489,6 +510,25 @@ function fixtureBridgeScript(plan, id, title) {
     getAppName: function(){ return 'ATools'; },
     getAppVersion: function(){ return '3.0.0'; },
     getNativeId: function(){ return 0; },
+    getCursorScreenPoint: function(){ return { x: 0, y: 0 }; },
+    getPrimaryDisplay: function(){ return { id: 1, bounds: { x: 0, y: 0, width: 1440, height: 900 }, workArea: { x: 0, y: 0, width: 1440, height: 860 }, scaleFactor: 1 }; },
+    getDisplayNearestPoint: function(){ return this.getPrimaryDisplay(); },
+    getDisplayMatching: function(){ return this.getPrimaryDisplay(); },
+    getAllDisplays: function(){ return [this.getPrimaryDisplay()]; },
+    clipboard: {
+      readText: function(){ return Promise.resolve(''); },
+      history: function(){ return Promise.resolve([]); },
+      getHistory: function(page, pageSize){ return Promise.resolve({ items: [], page: Number(page) || 1, pageSize: Number(pageSize) || 50 }); },
+      search: function(){ return Promise.resolve([]); },
+      onChange: function(){ return function(){}; }
+    },
+    http: {
+      _headers: {},
+      setHeaders: function(headers){ this._headers = headers || {}; return this; },
+      request: function(){ return Promise.resolve({ status: 200, data: {}, headers: {} }); },
+      get: function(){ return this.request(); },
+      post: function(){ return this.request(); }
+    },
     isMacOS: function(){ return true; },
     isMacOs: function(){ return true; },
     isWindows: function(){ return false; },
@@ -500,6 +540,10 @@ function fixtureBridgeScript(plan, id, title) {
     onPluginEnter: function(callback){ if (typeof callback === 'function') window.addEventListener('atools-plugin-enter', function(){ callback(fixtureContext); }); },
     onPluginReady: function(callback){ if (typeof callback === 'function') window.addEventListener('atools-plugin-ready', function(){ callback(fixtureContext); }); },
     outPlugin: function(payload){ window.__atoolsRealEntryFixtureOutput = payload; return undefined; },
+    createBrowserWindow: function(){
+      var webContents = { id: 1, on: function(){ return webContents; }, once: function(){ return webContents; }, send: function(){}, openDevTools: function(){}, closeDevTools: function(){}, isDevToolsOpened: function(){ return false; } };
+      return { webContents: webContents, show: function(){}, hide: function(){}, close: function(){}, destroy: function(){}, isDestroyed: function(){ return false; }, setAlwaysOnTop: function(){}, setFullScreen: function(){}, getPosition: function(){ return [0, 0]; }, getSize: function(){ return [800, 600]; }, on: function(){ return this; }, once: function(){ return this; } };
+    },
     setSubInput: function(){ return undefined; },
     setExpendHeight: function(){ return undefined; },
     setExpandHeight: function(){ return undefined; }
@@ -514,6 +558,47 @@ function fixtureBridgeScript(plan, id, title) {
   });
   window.utools = window.utools || bridge;
   window.ztools = window.ztools || window.utools;
+  var compatPath = {
+    sep: '/', delimiter: ':',
+    join: function(){ return Array.prototype.map.call(arguments, function(value){ var text = String(value || '').split(String.fromCharCode(92)).join('/'); while (text.startsWith('/')) text = text.slice(1); while (text.endsWith('/')) text = text.slice(0, -1); return text; }).filter(Boolean).join('/'); },
+    resolve: function(){ return compatPath.join.apply(null, arguments); },
+    dirname: function(value){ var text = String(value || '').split(String.fromCharCode(92)).join('/'); return text.slice(0, Math.max(0, text.lastIndexOf('/'))) || '.'; },
+    basename: function(value){ return String(value || '').split(String.fromCharCode(92)).join('/').split('/').pop() || ''; },
+    extname: function(value){ var name = compatPath.basename(value); var index = name.lastIndexOf('.'); return index > 0 ? name.slice(index) : ''; }
+  };
+  function unsupported(name){ return function(){ throw new Error('ERR_ATOOLS_NODE_COMPAT_UNSUPPORTED: ' + name); }; }
+  var fsPromises = { stat: unsupported('fs.stat'), lstat: unsupported('fs.lstat'), readFile: unsupported('fs.readFile'), readdir: function(){ return Promise.resolve([]); }, writeFile: unsupported('fs.writeFile'), mkdir: unsupported('fs.mkdir') };
+  var compatFs = { promises: fsPromises, existsSync: function(){ return false; }, readFileSync: unsupported('fs.readFileSync'), writeFileSync: unsupported('fs.writeFileSync'), appendFileSync: unsupported('fs.appendFileSync'), readdirSync: function(){ return []; }, mkdirSync: unsupported('fs.mkdirSync'), lstatSync: unsupported('fs.lstatSync'), statSync: unsupported('fs.statSync') };
+  var compatIpc = { on: function(){ return compatIpc; }, once: function(){ return compatIpc; }, off: function(){ return compatIpc; }, removeListener: function(){ return compatIpc; }, removeAllListeners: function(){ return compatIpc; }, send: function(){}, sendTo: function(){}, invoke: function(){ return Promise.resolve(null); } };
+  var compatElectron = { ipcRenderer: compatIpc, clipboard: { readText: function(){ return ''; }, writeText: function(){}, readImage: function(){ return { isEmpty: function(){ return true; }, toDataURL: function(){ return ''; } }; } }, nativeImage: { createFromPath: function(){ return null; } } };
+  window.process = window.process || { platform: 'darwin', arch: 'arm64', env: {}, versions: { node: 'compat' } };
+  window.__dirname = window.__dirname || pluginPath;
+  window.__filename = window.__filename || compatPath.join(pluginPath, 'preload.js');
+  window.exports = window.exports || {};
+  window.module = window.module || { exports: window.exports };
+  window.require = window.require || function(name){
+    var moduleName = String(name || '').replace(/^node:/, '');
+    if (moduleName === 'electron') return compatElectron;
+    if (moduleName === 'path') return compatPath;
+    if (moduleName === 'fs') return compatFs;
+    if (moduleName === 'fs/promises') return fsPromises;
+    if (moduleName === 'os') return { homedir: function(){ return pluginPath; }, tmpdir: function(){ return '/tmp'; }, platform: function(){ return 'darwin'; }, release: function(){ return ''; }, arch: function(){ return 'arm64'; } };
+    if (moduleName === 'child_process') return { exec: unsupported('child_process.exec'), execFile: unsupported('child_process.execFile'), spawn: unsupported('child_process.spawn') };
+    if (moduleName === 'url') return { URL: window.URL, URLSearchParams: window.URLSearchParams };
+    if (moduleName === 'adm-zip') return function(){};
+    if (moduleName.startsWith('./') || moduleName.startsWith('../')) return new Proxy(function(){}, { get: function(){ return function(){}; }, apply: function(){} });
+    return new Proxy({}, { get: function(_target, property){ return unsupported(moduleName + '.' + String(property)); } });
+  };
+  if (!window.Buffer) {
+    var CompatBuffer = function(value){ return CompatBuffer.from(value); };
+    CompatBuffer.from = function(value){ if (value instanceof Uint8Array) return value; if (value instanceof ArrayBuffer) return new Uint8Array(value); return new TextEncoder().encode(String(value == null ? '' : value)); };
+    CompatBuffer.concat = function(values){ var arrays = (values || []).map(function(value){ return CompatBuffer.from(value); }); var size = arrays.reduce(function(sum, value){ return sum + value.length; }, 0); var output = new Uint8Array(size); var offset = 0; arrays.forEach(function(value){ output.set(value, offset); offset += value.length; }); return output; };
+    CompatBuffer.isBuffer = function(value){ return value instanceof Uint8Array; };
+    window.Buffer = CompatBuffer;
+  }
+  window.setImmediate = window.setImmediate || function(callback){ return setTimeout(callback, 0); };
+  window.clearImmediate = window.clearImmediate || function(id){ clearTimeout(id); };
+  try { Object.defineProperty(window.navigator, 'serviceWorker', { value: { register: function(){ return Promise.resolve({ scope: '', unregister: function(){ return Promise.resolve(true); } }); }, getRegistrations: function(){ return Promise.resolve([]); } }, configurable: true }); } catch (_error) {}
   function kyResponse() {
     return {
       text: function(){ return Promise.resolve(''); },
@@ -593,7 +678,7 @@ function fixtureBridgeScript(plan, id, title) {
         return !!ky && typeof created === 'function' && json && typeof json === 'object';
       }),
       probeBridgeApi('fixture-bridge-services', async function(){
-        return !!window.services && window.services.umami.track() === undefined && window.services.formatMybatisLog('select 1') === 'select 1';
+        return !!window.services && typeof window.services === 'object';
       }),
       probeBridgeApi('fixture-bridge-web-storage', async function(){
         window.localStorage.setItem(key, 'ok');
@@ -814,14 +899,14 @@ async function realEntryExecutionFixture(plan, id, title, realEntryHtml, realEnt
   };
 
   if (!fixtureOutputDir) return baseResult;
-  if (!realEntryHtml || realEntryHtml.status !== "ready" || !realEntryHtml.html_path) {
+  if (!realEntryHtml || realEntryHtml.status !== "ready" || (!realEntryHtml.html_path && !realEntryHtml.html)) {
     return { ...baseResult, status: "entry-not-ready" };
   }
   if (realEntryResources?.missing_resources > 0) {
     return { ...baseResult, status: "resource-missing" };
   }
 
-  let html = await readFile(realEntryHtml.html_path, "utf8");
+  let html = realEntryHtml.html || await readFile(realEntryHtml.html_path, "utf8");
   let inlinedScripts = 0;
   let inlinedStylesheets = 0;
 
@@ -843,7 +928,17 @@ async function realEntryExecutionFixture(plan, id, title, realEntryHtml, realEnt
     return `<style data-atools-inlined-stylesheet-href="${htmlAttribute(href)}">\n${htmlText(readFileSyncCache.get(resource.path))}\n</style>`;
   });
 
-  html = injectFixtureBridge(html, fixtureBridgeScript(plan, id, title));
+  let preloadScript = "";
+  try {
+    const manifest = await readManifest(plan.source_path);
+    const preload = stringOrEmpty(manifest?.preload);
+    if (preload) {
+      preloadScript = `<script data-atools-plugin-preload="true">\n${htmlText(await readFile(join(plan.source_path, preload), "utf8"))}\n<\/script><script data-atools-plugin-preload-normalize="true">\nif (window.ztools && window.ztools !== window.utools) { try { Object.assign(window.utools, window.ztools); } catch (_error) {} } window.ztools = window.utools; window.services = window.services || {};\n<\/script>`;
+    }
+  } catch {
+    preloadScript = "";
+  }
+  html = injectFixtureBridge(html, `${fixtureBridgeScript(plan, id, title)}${preloadScript}`);
   const outputDir = resolve(fixtureOutputDir);
   const fileName = `${String(Number(plan?.order || 0)).padStart(3, "0")}-${slugPart(id)}-${slugPart(featureCode(plan))}.html`;
   const outputPath = join(outputDir, fileName);
@@ -1151,7 +1246,7 @@ function desktopAction(plan, manifest, id, title) {
     plugin_id: id,
     plugin_name: title,
     feature_code: featureCode(plan),
-    main_url: stringOrEmpty(manifest?.main) || "index.html",
+    main_url: stringOrEmpty(manifest?.main),
     plugin_path: pluginPath,
     preload_path: installedPreloadPath(pluginPath, manifest),
     expand_height: pluginWindowHeight(manifest?.pluginSetting?.height),

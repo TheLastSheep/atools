@@ -78,7 +78,7 @@ async function pluginCompatibilityFromManifest(manifestPath) {
   const errors = [];
 
   if (!platformSupported) warnings.push("Platform does not include darwin");
-  if (!mainExists) errors.push(`Missing main file: ${main || "<empty>"}`);
+  if (main && !mainExists) errors.push(`Missing main file: ${main}`);
   if (!preloadExists) warnings.push(`Missing preload file: ${preload}`);
   if (!logoExists) warnings.push(`Missing logo file: ${logo}`);
   if (unsupportedCmdTypes.length > 0) warnings.push(`Unsupported command types: ${unsupportedCmdTypes.join(", ")}`);
@@ -90,6 +90,7 @@ async function pluginCompatibilityFromManifest(manifestPath) {
     path: pluginDir,
     main,
     main_exists: mainExists,
+    headless: !main,
     preload,
     preload_exists: preloadExists,
     logo,

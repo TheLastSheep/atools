@@ -1,11 +1,27 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync, chmodSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, chmodSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const scriptUrl = pathToFileURL(new URL("smoke-macos-release-app.mjs", import.meta.url).pathname).href;
 const smoke = await import(scriptUrl);
+const [appSource, libSource] = [
+  readFileSync(new URL("../src/App.svelte", import.meta.url), "utf8"),
+  readFileSync(new URL("../src-tauri/src/lib.rs", import.meta.url), "utf8"),
+];
+
+assert.match(appSource, /const hotkeyToggleAttemptCount = 5/);
+assert.match(appSource, /"benchmark_main_window_toggle", \{ attempts: hotkeyToggleAttemptCount \}/);
+assert.doesNotMatch(appSource, /await invoke\("hide_main_window"\);\s*const showDurations/);
+assert.match(libSource, /commands::benchmark_main_window_toggle/);
+assert.equal(
+  appSource.indexOf("void runReleaseSmokeSequence();")
+    < appSource.indexOf("appUpdater.scheduleStartupCheck()"),
+  true,
+);
+assert.match(libSource, /release_smoke\.lock\(\)\.is_some\(\)[\s\S]*?window::show_main_window\(&handle\)\?/);
+assert.match(libSource, /WindowEvent::Focused[\s\S]*?release_smoke_enabled[\s\S]*?if !release_smoke_enabled[\s\S]*?window\.hide\(\)/);
 
 let progressReads = 0;
 let progressWaits = 0;
@@ -154,6 +170,12 @@ const report = smoke.evaluateReleaseAppSmoke({
   spctl: rejectedGatekeeper,
   release_smoke: {
     option_z_toggled: true,
+    hotkey_show_ms: 112.5,
+    hotkey_toggle_attempt_count: 5,
+    hotkey_toggle_success_count: 5,
+    search_query: "calc",
+    search_latency_ms: 24.75,
+    search_result_count: 2,
     settings_page_opened: true,
     plugin_page_opened: true,
     agent_page_opened: true,
@@ -169,6 +191,9 @@ assert.equal(report.checks.find((check) => check.id === "app-launch")?.status, "
 assert.equal(report.checks.find((check) => check.id === "first-launch-stability")?.status, "ok");
 assert.equal(report.checks.find((check) => check.id === "gatekeeper-assess")?.status, "warn");
 assert.equal(report.checks.find((check) => check.id === "release-smoke-option-z")?.status, "ok");
+assert.equal(report.checks.find((check) => check.id === "release-smoke-hotkey-latency")?.status, "ok");
+assert.equal(report.checks.find((check) => check.id === "release-smoke-hotkey-repeat")?.status, "ok");
+assert.equal(report.checks.find((check) => check.id === "release-smoke-search-latency")?.status, "ok");
 assert.equal(report.checks.find((check) => check.id === "release-smoke-settings")?.status, "ok");
 assert.equal(report.checks.find((check) => check.id === "release-smoke-plugin")?.status, "ok");
 assert.equal(report.checks.find((check) => check.id === "release-smoke-agent")?.status, "ok");

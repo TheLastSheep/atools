@@ -126,9 +126,10 @@ try {
     "Esc:清空",
   ]);
 
-  const [component, app] = await Promise.all([
+  const [component, app, commands] = await Promise.all([
     readFile(new URL("src/components/SearchStatusBar.svelte", root), "utf8"),
     readFile(new URL("src/App.svelte", root), "utf8"),
+    readFile(new URL("src-tauri/src/commands.rs", root), "utf8"),
   ]);
 
   assert.match(component, /class="search-status-bar"/);
@@ -141,11 +142,52 @@ try {
 
   assert.match(app, /import SearchStatusBar from "\.\/components\/SearchStatusBar\.svelte";/);
   assert.match(app, /const SEARCH_STATUS_BAR_HEIGHT = 34;/);
-  assert.match(app, /HOME_PANEL_VERTICAL_CHROME[\s\S]*?\+ SEARCH_STATUS_BAR_HEIGHT/);
+  assert.match(app, /const REMOTE_SEARCH_DEBOUNCE_MS = 16;/);
+  assert.match(app, /const FEATURE_SEARCH_TIMEOUT_MS = 1200;/);
+  assert.match(app, /const LOCAL_APP_SEARCH_TIMEOUT_MS = 1800;/);
+  assert.match(app, /const HOME_PANEL_VERTICAL_PADDING = 18;/);
+  assert.match(app, /const HOME_MIN_WINDOW_HEIGHT = 280;/);
+  assert.match(app, /const HOME_MAX_WINDOW_HEIGHT = 340;/);
+  assert.match(app, /HOME_PANEL_VERTICAL_PADDING[\s\S]*?\+ SEARCH_STATUS_BAR_HEIGHT[\s\S]*?Math\.max\(HOME_MIN_WINDOW_HEIGHT, Math\.min\(HOME_MAX_WINDOW_HEIGHT, measured\)\)/);
   assert.match(app, /return SEARCH_BAR_HEIGHT \+ listHeight \+ SEARCH_STATUS_BAR_HEIGHT \+ SHELL_BORDER_HEIGHT;/);
   assert.match(app, /\{#if activePanel === "settings" && activePlugin === null\}[\s\S]*?<SettingsHeader/);
   assert.match(app, /<SearchStatusBar[\s\S]*?mode="results"/);
   assert.match(app, /<SearchStatusBar[\s\S]*?mode="home"/);
+  assert.match(
+    app,
+    /const featureSettled = await settleSearchWithin\([\s\S]*?featureCall,[\s\S]*?FEATURE_SEARCH_TIMEOUT_MS[\s\S]*?results = partialResults[\s\S]*?const localAppSettled = await settleSearchWithin\([\s\S]*?localAppCall,[\s\S]*?LOCAL_APP_SEARCH_TIMEOUT_MS/,
+    "Plugin results should render before slower local application search completes",
+  );
+  assert.match(
+    app,
+    /setTimeout\(resolve, REMOTE_SEARCH_DEBOUNCE_MS\)[\s\S]*?runId !== searchRunId[\s\S]*?invoke<SearchResult\[]>\("search_features"/,
+    "Remote searches should debounce and discard superseded keystrokes before invoking Rust",
+  );
+  assert.match(
+    app,
+    /results = partialResults;[\s\S]*?remoteSearchStatus = "ready";[\s\S]*?const localAppSettled/,
+    "Local application enrichment must not leave the primary search response stuck in searching state",
+  );
+  assert.match(
+    app,
+    /function settleSearchWithin<T>[\s\S]*?setTimeout\(\(\) =>[\s\S]*?status: "rejected"[\s\S]*?clearTimeout\(timeoutId\)/,
+    "Every native search stage should have a deadline instead of leaving the palette searching forever",
+  );
+  assert.doesNotMatch(
+    app,
+    /await resizePalette\(resultsWindowHeightFor\((?:localResults|partialResults|mergedResults)\)\)/,
+    "Window resizing should not serialize the search response path",
+  );
+  assert.match(
+    commands,
+    /pub async fn search_features\([\s\S]*?spawn_blocking\(move \|\| \{[\s\S]*?search_features_inner/,
+    "SQLite feature search should execute outside the Tauri UI command path",
+  );
+  assert.match(
+    app,
+    /void hydrateLocalAppResultIcons\(runId, newQuery, localAppResults\)/,
+    "Local app icon hydration should not block search completion",
+  );
 
   assertSmokeChecked(
     "最近使用和搜索结果底部显示 34px 状态栏，展示当前位置/总数、当前选中项和 `Enter` / `Tab` / `Esc` 等按键提示；设置页不显示该底栏。",

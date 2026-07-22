@@ -45,58 +45,40 @@ try {
     assert.ok(smokeChecklist.includes(`- [x] ${row}`), message);
   };
 
-  assert.equal(typeof mod.homeQuickActions, "function");
-  const actions = mod.homeQuickActions();
-  assert.deepEqual(actions.map((action) => action.label), [
-    "导入 ZTools 插件",
-    "插件管理",
-    "Agent / MCP",
-    "设置",
-  ]);
-  assert.deepEqual(actions.map((action) => action.panel), ["import", "plugins", "agent", "settings"]);
-  assert.deepEqual(actions.map((action) => action.source), ["recommended", "recommended", "recommended", "recommended"]);
-  assert.ok(actions.every((action) => action.code.startsWith("home:")));
-  assert.ok(actions.every((action) => action.explain.trim().length > 0));
-  assert.equal(new Set(actions.map((action) => action.code)).size, actions.length);
-
-  const visible = mod.homeSurfaceSections({
-    recentCount: 0,
-    showQuickActions: true,
-  });
-  assert.deepEqual(visible, ["quick-actions", "recent"]);
-
-  const hidden = mod.homeSurfaceSections({
-    recentCount: 0,
-    showQuickActions: false,
-  });
-  assert.deepEqual(hidden, ["recent"]);
-
   const emptyPinnedSections = mod.homeCommandSections([
     { code: "history:one", label: "最近 1", explain: "history", source: "history" },
   ], {
     pinnedRows: 2,
     recentRows: 1,
-    showPinnedEmpty: true,
   });
-  assert.deepEqual(emptyPinnedSections.map((section) => [section.id, section.label, section.commands.length, section.empty]), [
-    ["pinned", "固定", 0, true],
-    ["recent", "最近使用", 1, false],
+  assert.deepEqual(emptyPinnedSections.map((section) => [section.id, section.label, section.commands.length]), [
+    ["recent", "最近使用", 1],
   ]);
-  assert.equal(emptyPinnedSections[0].emptyActionLabel, "管理固定指令");
 
   const [homePanel, app] = await Promise.all([
     readFile(new URL("src/components/HomePanel.svelte", root), "utf8"),
     readFile(new URL("src/App.svelte", root), "utf8"),
   ]);
-  assert.match(homePanel, /class="quick-actions"/);
-  assert.match(homePanel, /aria-label="常用入口"/);
-  assert.match(homePanel, /class="pinned-empty"/);
-  assert.match(homePanel, /aria-label="管理固定指令"/);
-  assert.match(homePanel, /onclick=\{openPinnedCommandsSettings\}/);
-  assert.match(homePanel, /onsettingsmenu\("commands"\)/);
+  assert.doesNotMatch(homePanel, /class="quick-actions"/);
+  assert.doesNotMatch(homePanel, /class="home-overview"/);
+  assert.doesNotMatch(homePanel, /class="pinned-empty"/);
+  assert.match(homePanel, /resultIconSrc/);
+  assert.match(homePanel, /<img src=\{source\} alt="" \/>/);
   assert.match(app, /showHomeRecent/);
   assert.match(app, /showQueryResults/);
-  assert.match(app, /<HomePanel[\s\S]*?onsettingsmenu=\{openSettingsMenu\}/);
+  assert.doesNotMatch(app, /<HomePanel[\s\S]*?onsettingsmenu=\{openSettingsMenu\}/);
+  assert.match(app, /const HOME_MIN_WINDOW_HEIGHT = 280;/);
+  assert.match(app, /const HOME_MAX_WINDOW_HEIGHT = 340;/);
+  assert.match(app, /invoke<SearchResult\[]>\("feature_catalog"\)/);
+  assert.match(app, /listen\("builtin-plugins-loaded"/);
+  assert.match(app, /featureCatalogRetryCount < 8/);
+  assert.match(app, /setTimeout\(\(\) =>[\s\S]*?refreshFeatureCatalog\(\)[\s\S]*?250/);
+  for (const implementedCode of ["paste-clipboard", "ip", "process-manager", "http-client", "hosts", "todo", "calc", "codec", "timestamp", "qr-code", "json", "color-converter", "翻译"]) {
+    assert.ok(uiStateSource.includes(`code: "${implementedCode}"`), `Home recommendations should include implemented feature ${implementedCode}`);
+  }
+  for (const unavailableLabel of ["图片批处理", "上次匹配", "OCR", "ctool"]) {
+    assert.ok(!uiStateSource.includes(`label: "${unavailableLabel}"`), `Home recommendations should not advertise unavailable feature ${unavailableLabel}`);
+  }
 
   const sections = mod.homeCommandSections([
     { code: "web:github", label: "GitHub", explain: "网页快开", source: "pinned" },
@@ -149,16 +131,12 @@ try {
     "macOS smoke checklist should mark Home pinned/recent ordering complete",
   );
   assertSmokeChecked(
-    "空搜索且没有固定指令时，首页仍显示紧凑 `固定` 空态，并提供 `管理固定指令` 入口。",
-    "macOS smoke checklist should mark Home pinned empty state complete",
+    "空搜索且没有固定指令时不渲染固定空态，首页直接进入最近使用。",
+    "macOS smoke checklist should mark compact empty-pinned behavior complete",
   );
   assertSmokeChecked(
-    "点击首页 `管理固定指令` 会进入设置页并直接选中 `所有指令`，不落到通用设置。",
-    "macOS smoke checklist should mark Home pinned management navigation complete",
-  );
-  assertSmokeChecked(
-    "空搜索首页上方显示 `导入 ZTools 插件`、`插件管理`、`Agent / MCP`、`设置` 四个紧凑入口，不显示营销说明块。",
-    "macOS smoke checklist should mark Home first-screen quick entries complete",
+    "默认首页只显示搜索、固定指令（存在时）和最近使用，不显示统计卡或管理入口。",
+    "macOS smoke checklist should mark compact search-first home complete",
   );
 } finally {
   await rm(outDir, { recursive: true, force: true });

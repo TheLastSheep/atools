@@ -1,0 +1,35 @@
+{
+  "name": "atools-node-echo",
+  "version": "0.1.0",
+  "description": "ATools Node MCP stdio plugin template",
+  "author": "ATools",
+  "runtime": {
+    "kind": "node",
+    "compatibility": "native",
+    "transport": "mcp_stdio",
+    "entry": "worker.mjs"
+  },
+  "permissions": [],
+  "features": [],
+  "tools": {
+    "echo": {
+      "description": "Echo structured input through the Node sidecar",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "message": { "type": "string" }
+        },
+        "required": ["message"],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "message": { "type": "string" },
+          "runtime": { "const": "node" }
+        },
+        "required": ["message", "runtime"]
+      }
+    }
+  }
+}

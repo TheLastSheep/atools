@@ -17,16 +17,14 @@ assert.ok(appSource.includes("pinnedRows={appSettings.pinnedRows}"), "HomePanel 
 assert.ok(appSource.includes("homeCommandStatus"), "App should compute section-aware home status text");
 assert.ok(appSource.includes("titleOverride={selectedRecentStatus.title}"), "Home status bar should use section-aware title");
 assert.ok(appSource.includes("detailOverride={selectedRecentStatus.detail}"), "Home status bar should use section-aware detail");
-assert.ok(appSource.includes("onsettingsmenu={openSettingsMenu}"), "App should wire HomePanel settings-menu requests");
 assert.ok(appSource.includes("settingsMenu={settingsMenuTarget}"), "App should pass requested settings menu to SystemPanel");
 
 assert.ok(panelSource.includes("homeCommandSections"), "HomePanel should split pinned and recent commands via homeCommandSections");
 assert.ok(panelSource.includes("section.label"), "HomePanel should render section labels");
 assert.ok(panelSource.includes("固定"), "HomePanel should render the fixed command section label");
 assert.ok(panelSource.includes("globalCommandIndex"), "HomePanel should preserve one continuous keyboard selection index");
-assert.ok(panelSource.includes("section.empty"), "HomePanel should render a pinned empty section");
-assert.ok(panelSource.includes("管理固定指令"), "HomePanel should expose pinned empty action");
-assert.ok(panelSource.includes('onsettingsmenu("commands")'), "Home pinned empty action should open Settings / 所有指令");
+assert.ok(!panelSource.includes("section.empty"), "HomePanel should omit empty fixed-section chrome");
+assert.ok(!panelSource.includes("管理固定指令"), "HomePanel should not expose management chrome in the launcher");
 
 assert.ok(settingsSource.includes("固定栏显示行数"), "Settings should expose fixed command row count");
 assert.ok(settingsSource.includes("initialMenu"), "SettingsPanel should support an initial menu prop for direct navigation");

@@ -1,0 +1,2683 @@
+{
+  "generated_at": "2026-07-22T04:31:53.130Z",
+  "source": "/tmp/atools-ztools-market-top30",
+  "summary": {
+    "scanned_plugins": 30,
+    "launchable_plugins": 30,
+    "ready_candidates": 8,
+    "risk_candidates": 22,
+    "blocked_plugins": 0,
+    "html_entry_plugins": 28,
+    "missing_local_resource_plugins": 3,
+    "missing_local_resources": 3,
+    "external_resource_plugins": 0,
+    "preload_missing_plugins": 0,
+    "preload_node_risk_plugins": 18,
+    "preload_electron_require_plugins": 11,
+    "selected_sample_count": 30
+  },
+  "sample_candidates": [
+    {
+      "name": "devbox",
+      "title": "开发百宝箱",
+      "version": "2.4.0",
+      "path": "/tmp/atools-ztools-market-top30/devbox",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 12,
+      "command_count": 88,
+      "feature_codes": [
+        "identity",
+        "password",
+        "number",
+        "uuid",
+        "color",
+        "signature",
+        "pinyin",
+        "qrcode",
+        "htmlpreview",
+        "timeconvert",
+        "textcompress",
+        "jsontool"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-DjJUowYi.css",
+          "assets/index-rBi3oy_r.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "ctool",
+      "title": "Ctool",
+      "version": "2.4.0",
+      "path": "/tmp/atools-ztools-market-top30/ctool",
+      "main": "tool.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 5,
+      "command_count": 6,
+      "feature_codes": [
+        "ctool",
+        "ctool-qrCode-generate",
+        "ctool-ip-ip",
+        "ctool-unicode-decoder",
+        "ctool-time-timestamp"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "tool.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/modulepreload-polyfill-B5Qt9EMX.js",
+          "assets/tool-BoaVJx4X.js",
+          "assets/tool-C8XLjsd5.css",
+          "favicon.ico"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "calculation-paper",
+      "title": "计算稿纸",
+      "version": "1.4.2",
+      "path": "/tmp/atools-ztools-market-top30/calculation-paper",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 4,
+      "command_count": 5,
+      "feature_codes": [
+        "calc",
+        "expression",
+        "sum",
+        "average"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "index.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "ai-helper",
+      "title": "AI助手",
+      "version": "1.1.0",
+      "path": "/tmp/atools-ztools-market-top30/ai-helper",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "chat"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-9wqT130U.css",
+          "assets/index-CJpklKlA.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "developer-codec-tools",
+      "title": "开发加解密编码工具",
+      "version": "0.1.0",
+      "path": "/tmp/atools-ztools-market-top30/developer-codec-tools",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 9,
+      "feature_codes": [
+        "codec-tools"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-Chdqklcc.js",
+          "assets/index-Q1dafhnp.css"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "image-toolbox-ztools",
+      "title": "图片工具箱",
+      "version": "2.3.1",
+      "path": "/tmp/atools-ztools-market-top30/image-toolbox-ztools",
+      "main": "src/index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 6,
+      "feature_codes": [
+        "image-edit"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "src/index.html",
+        "is_html": true,
+        "local_resources": [
+          "core/src/lib/fabric.min.js",
+          "src/index.js",
+          "src/style.css"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "qrcode-helper",
+      "title": "QRCode",
+      "version": "3.0.0",
+      "path": "/tmp/atools-ztools-market-top30/qrcode-helper",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 5,
+      "feature_codes": [
+        "qrcode"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "index.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "timestamp",
+      "title": "timestamp",
+      "version": "1.0.0",
+      "path": "/tmp/atools-ztools-market-top30/timestamp",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "timestamp"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-BANYciFe.css",
+          "assets/index-lejWdThR.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "color-helper",
+      "title": "颜色助手",
+      "version": "1.0.0",
+      "path": "/tmp/atools-ztools-market-top30/color-helper",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.cjs",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 8,
+      "command_count": 13,
+      "feature_codes": [
+        "color",
+        "ui",
+        "traditional",
+        "gradient",
+        "image",
+        "collect",
+        "pickercolor",
+        "ai"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-71881065.css",
+          "assets/index-d7c7cafc.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "diff-compare",
+      "title": "对比助手",
+      "version": "1.0.1",
+      "path": "/tmp/atools-ztools-market-top30/diff-compare",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 6,
+      "command_count": 13,
+      "feature_codes": [
+        "diff-main",
+        "diff-text",
+        "diff-image",
+        "diff-excel",
+        "diff-word",
+        "diff-pdf"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/excel-lib-BUW7exb-.js",
+          "assets/highlight-lib-CTq1kVpk.js",
+          "assets/index-CRN6ExPf.css",
+          "assets/index-DukWKvwd.js",
+          "assets/pdf-lib-tY2OQ9wk.js",
+          "assets/word-lib-Dr03gx0z.js",
+          "logo.svg"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "easy-translate",
+      "title": "易翻翻译",
+      "version": "2.22.2",
+      "path": "/tmp/atools-ztools-market-top30/easy-translate",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/index.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 4,
+      "command_count": 9,
+      "feature_codes": [
+        "keyword",
+        "anyword__fanyi",
+        "translateImg",
+        "codeMode__setting"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/arco-Db5X7Atd.js",
+          "assets/dep-O753C9ij.js",
+          "assets/index-DIbm2xhO.js",
+          "assets/index-Tq-EWa2c.css",
+          "favicon.svg"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "memo-quick-paste",
+      "title": "备忘快贴",
+      "version": "4.1.0",
+      "path": "/tmp/atools-ztools-market-top30/memo-quick-paste",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "crypto",
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 3,
+      "command_count": 7,
+      "feature_codes": [
+        "collection",
+        "record",
+        "search"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "index.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: crypto, fs, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "json-editor",
+      "title": "json-editor",
+      "version": "1.7.2",
+      "path": "/tmp/atools-ztools-market-top30/json-editor",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 2,
+      "feature_codes": [
+        "clean-cache"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "index.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "mt-ocr",
+      "title": "馒头OCR",
+      "version": "1.0.0",
+      "path": "/tmp/atools-ztools-market-top30/mt-ocr",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 7,
+      "feature_codes": [
+        "ocr"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-C_oF0EP4.css",
+          "assets/index-zxS0m4JV.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "regex-editor",
+      "title": "正则可视编辑器",
+      "version": "1.0.0",
+      "path": "/tmp/atools-ztools-market-top30/regex-editor",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "editor"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/app.css",
+          "assets/app.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "skill-hub",
+      "title": "Skill Hub",
+      "version": "1.0.0",
+      "path": "/tmp/atools-ztools-market-top30/skill-hub",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process",
+          "fs",
+          "http",
+          "https",
+          "os",
+          "path"
+        ],
+        "uses_child_process": true,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "skills"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-DVaPre4F.css",
+          "assets/index-eARFg0HN.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: child_process, fs, http, https, os, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "web-quick-open",
+      "title": "网页快开",
+      "version": "1.0.1",
+      "path": "/tmp/atools-ztools-market-top30/web-quick-open",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "http",
+          "https"
+        ],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 2,
+      "feature_codes": [
+        "manage"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-IkB__oJX.js",
+          "assets/index-Njtxa0Jf.css"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: http, https"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "whiteboard",
+      "title": "白板",
+      "version": "1.0.0",
+      "path": "/tmp/atools-ztools-market-top30/whiteboard",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "http",
+          "https",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "main"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-DvwzXwva.js",
+          "assets/index-rg5GLcxU.css",
+          "icon.png"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, http, https, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "sticky-note",
+      "title": "悬浮便签",
+      "version": "1.0.13",
+      "path": "/tmp/atools-ztools-market-top30/sticky-note",
+      "main": "dist/index.html",
+      "preload": {
+        "file": "ztools-preload/preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 3,
+      "command_count": 6,
+      "feature_codes": [
+        "home",
+        "new-note",
+        "view-recent-note"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 80,
+      "entry": {
+        "file": "dist/index.html",
+        "is_html": true,
+        "local_resources": [
+          "dist/assets/index-BjRAu7wy.js",
+          "dist/assets/index-MebRzRgI.css",
+          "dist/assets/primeicons-BD1Avdx-.js",
+          "dist/assets/primeicons-ClEMeZd5.css",
+          "dist/favicon.ico"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "json-tools",
+      "title": "JSON Tools",
+      "version": "1.22.0",
+      "path": "/tmp/atools-ztools-market-top30/json-tools",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "json"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 80,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "apple-touch-icon-180x180.png",
+          "assets/index-3GB1NEbz.js",
+          "assets/index-BHMuTnpo.css",
+          "blob",
+          "favicon.ico",
+          "manifest.webmanifest",
+          "registerSW.js"
+        ],
+        "missing_local_resources": [
+          "blob"
+        ],
+        "external_resources": []
+      },
+      "warnings": [
+        "Missing local entry resources: blob"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "long-screenshot",
+      "title": "长截图",
+      "version": "3.0.4",
+      "path": "/tmp/atools-ztools-market-top30/long-screenshot",
+      "main": "",
+      "preload": {
+        "file": "core/preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "长截图"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 80,
+      "entry": {
+        "file": "",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "ocr-new",
+      "title": "OCR 翻译",
+      "version": "1.0.0",
+      "path": "/tmp/atools-ztools-market-top30/ocr-new",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process",
+          "crypto",
+          "fs",
+          "path"
+        ],
+        "uses_child_process": true,
+        "uses_fs": true
+      },
+      "feature_count": 7,
+      "command_count": 18,
+      "feature_codes": [
+        "ocr",
+        "ocr-settings",
+        "ocr-copy",
+        "ocr-translate",
+        "ocr-screenshot",
+        "ocr-screenshot-copy",
+        "ocr-screenshot-translate"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 70,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-C-cCdz1m.js",
+          "assets/index-HeI9VtJV.css"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: child_process, crypto, fs, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "shortcut-capture",
+      "title": "截图",
+      "version": "1.0.0",
+      "path": "/tmp/atools-ztools-market-top30/shortcut-capture",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 4,
+      "command_count": 10,
+      "feature_codes": [
+        "shortcut-capture",
+        "shortcut-capture-copy",
+        "shortcut-capture-save",
+        "shortcut-capture-image"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 70,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-CRZJr_0k.js",
+          "assets/index-NfvmJyAk.css"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: fs, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "f-provider",
+      "title": "ZTools 提供商",
+      "version": "1.0.2",
+      "path": "/tmp/atools-ztools-market-top30/f-provider",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process",
+          "crypto",
+          "fs",
+          "http",
+          "https",
+          "os",
+          "path"
+        ],
+        "uses_child_process": true,
+        "uses_fs": true
+      },
+      "feature_count": 3,
+      "command_count": 6,
+      "feature_codes": [
+        "manage",
+        "code-translate",
+        "screen-ocr"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 70,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/_plugin-vue_export-helper-BnF995z0.css",
+          "assets/_plugin-vue_export-helper-D2FienCP.js",
+          "assets/main-CiAu26dP.css",
+          "assets/main-faWtP5oE.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: child_process, crypto, fs, http, https, os, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "screen-recorder",
+      "title": "录屏助手",
+      "version": "2.0.1",
+      "path": "/tmp/atools-ztools-market-top30/screen-recorder",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process",
+          "fs",
+          "os",
+          "path"
+        ],
+        "uses_child_process": true,
+        "uses_fs": true
+      },
+      "feature_count": 2,
+      "command_count": 2,
+      "feature_codes": [
+        "recorder",
+        "region"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 70,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "index.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: child_process, fs, os, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "file-renamer",
+      "title": "文件批量重命名",
+      "version": "1.0.2",
+      "path": "/tmp/atools-ztools-market-top30/file-renamer",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "rename"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 70,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-CMA1jj6e.css",
+          "assets/index-CPdRkyZq.js",
+          "logo.svg"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: fs"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "floating",
+      "title": "悬浮",
+      "version": "1.2.13",
+      "path": "/tmp/atools-ztools-market-top30/floating",
+      "main": "",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "suspend-screenshot"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 70,
+      "entry": {
+        "file": "",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: fs"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "saladict-ztools",
+      "title": "沙拉查词",
+      "version": "1.0.1",
+      "path": "/tmp/atools-ztools-market-top30/saladict-ztools",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.cjs",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "http",
+          "https",
+          "stream",
+          "zlib"
+        ],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "沙拉查词"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 70,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "webextensions-emulator-master/dist/core.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: http, https, stream, zlib"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "clipboard",
+      "title": "剪贴板",
+      "version": "1.2.7",
+      "path": "/tmp/atools-ztools-market-top30/clipboard",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 2,
+      "feature_codes": [
+        "clipboard"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 60,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-6VFuoqHg.css",
+          "assets/index-DujxaeRS.js",
+          "favicon.ico"
+        ],
+        "missing_local_resources": [
+          "favicon.ico"
+        ],
+        "external_resources": []
+      },
+      "warnings": [
+        "Missing local entry resources: favicon.ico",
+        "Preload requires Electron module"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "markdown",
+      "title": "markdown",
+      "version": "1.7.2",
+      "path": "/tmp/atools-ztools-market-top30/markdown",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "os",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "markdown"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 50,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-D6kabK3y.css",
+          "assets/index-DgnGCuyH.js",
+          "favicon.ico"
+        ],
+        "missing_local_resources": [
+          "favicon.ico"
+        ],
+        "external_resources": []
+      },
+      "warnings": [
+        "Missing local entry resources: favicon.ico",
+        "Preload requires Electron module",
+        "Preload requires Node modules: fs, os, path"
+      ],
+      "blockers": []
+    }
+  ],
+  "plugins": [
+    {
+      "name": "ai-helper",
+      "title": "AI助手",
+      "version": "1.1.0",
+      "path": "/tmp/atools-ztools-market-top30/ai-helper",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "chat"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-9wqT130U.css",
+          "assets/index-CJpklKlA.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "calculation-paper",
+      "title": "计算稿纸",
+      "version": "1.4.2",
+      "path": "/tmp/atools-ztools-market-top30/calculation-paper",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 4,
+      "command_count": 5,
+      "feature_codes": [
+        "calc",
+        "expression",
+        "sum",
+        "average"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "index.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "clipboard",
+      "title": "剪贴板",
+      "version": "1.2.7",
+      "path": "/tmp/atools-ztools-market-top30/clipboard",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 2,
+      "feature_codes": [
+        "clipboard"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 60,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-6VFuoqHg.css",
+          "assets/index-DujxaeRS.js",
+          "favicon.ico"
+        ],
+        "missing_local_resources": [
+          "favicon.ico"
+        ],
+        "external_resources": []
+      },
+      "warnings": [
+        "Missing local entry resources: favicon.ico",
+        "Preload requires Electron module"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "color-helper",
+      "title": "颜色助手",
+      "version": "1.0.0",
+      "path": "/tmp/atools-ztools-market-top30/color-helper",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.cjs",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 8,
+      "command_count": 13,
+      "feature_codes": [
+        "color",
+        "ui",
+        "traditional",
+        "gradient",
+        "image",
+        "collect",
+        "pickercolor",
+        "ai"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-71881065.css",
+          "assets/index-d7c7cafc.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "ctool",
+      "title": "Ctool",
+      "version": "2.4.0",
+      "path": "/tmp/atools-ztools-market-top30/ctool",
+      "main": "tool.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 5,
+      "command_count": 6,
+      "feature_codes": [
+        "ctool",
+        "ctool-qrCode-generate",
+        "ctool-ip-ip",
+        "ctool-unicode-decoder",
+        "ctool-time-timestamp"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "tool.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/modulepreload-polyfill-B5Qt9EMX.js",
+          "assets/tool-BoaVJx4X.js",
+          "assets/tool-C8XLjsd5.css",
+          "favicon.ico"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "devbox",
+      "title": "开发百宝箱",
+      "version": "2.4.0",
+      "path": "/tmp/atools-ztools-market-top30/devbox",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 12,
+      "command_count": 88,
+      "feature_codes": [
+        "identity",
+        "password",
+        "number",
+        "uuid",
+        "color",
+        "signature",
+        "pinyin",
+        "qrcode",
+        "htmlpreview",
+        "timeconvert",
+        "textcompress",
+        "jsontool"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-DjJUowYi.css",
+          "assets/index-rBi3oy_r.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "developer-codec-tools",
+      "title": "开发加解密编码工具",
+      "version": "0.1.0",
+      "path": "/tmp/atools-ztools-market-top30/developer-codec-tools",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 9,
+      "feature_codes": [
+        "codec-tools"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-Chdqklcc.js",
+          "assets/index-Q1dafhnp.css"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "diff-compare",
+      "title": "对比助手",
+      "version": "1.0.1",
+      "path": "/tmp/atools-ztools-market-top30/diff-compare",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 6,
+      "command_count": 13,
+      "feature_codes": [
+        "diff-main",
+        "diff-text",
+        "diff-image",
+        "diff-excel",
+        "diff-word",
+        "diff-pdf"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/excel-lib-BUW7exb-.js",
+          "assets/highlight-lib-CTq1kVpk.js",
+          "assets/index-CRN6ExPf.css",
+          "assets/index-DukWKvwd.js",
+          "assets/pdf-lib-tY2OQ9wk.js",
+          "assets/word-lib-Dr03gx0z.js",
+          "logo.svg"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "easy-translate",
+      "title": "易翻翻译",
+      "version": "2.22.2",
+      "path": "/tmp/atools-ztools-market-top30/easy-translate",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/index.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 4,
+      "command_count": 9,
+      "feature_codes": [
+        "keyword",
+        "anyword__fanyi",
+        "translateImg",
+        "codeMode__setting"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/arco-Db5X7Atd.js",
+          "assets/dep-O753C9ij.js",
+          "assets/index-DIbm2xhO.js",
+          "assets/index-Tq-EWa2c.css",
+          "favicon.svg"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "f-provider",
+      "title": "ZTools 提供商",
+      "version": "1.0.2",
+      "path": "/tmp/atools-ztools-market-top30/f-provider",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process",
+          "crypto",
+          "fs",
+          "http",
+          "https",
+          "os",
+          "path"
+        ],
+        "uses_child_process": true,
+        "uses_fs": true
+      },
+      "feature_count": 3,
+      "command_count": 6,
+      "feature_codes": [
+        "manage",
+        "code-translate",
+        "screen-ocr"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 70,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/_plugin-vue_export-helper-BnF995z0.css",
+          "assets/_plugin-vue_export-helper-D2FienCP.js",
+          "assets/main-CiAu26dP.css",
+          "assets/main-faWtP5oE.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: child_process, crypto, fs, http, https, os, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "file-renamer",
+      "title": "文件批量重命名",
+      "version": "1.0.2",
+      "path": "/tmp/atools-ztools-market-top30/file-renamer",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "rename"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 70,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-CMA1jj6e.css",
+          "assets/index-CPdRkyZq.js",
+          "logo.svg"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: fs"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "floating",
+      "title": "悬浮",
+      "version": "1.2.13",
+      "path": "/tmp/atools-ztools-market-top30/floating",
+      "main": "",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "suspend-screenshot"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 70,
+      "entry": {
+        "file": "",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: fs"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "image-toolbox-ztools",
+      "title": "图片工具箱",
+      "version": "2.3.1",
+      "path": "/tmp/atools-ztools-market-top30/image-toolbox-ztools",
+      "main": "src/index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 6,
+      "feature_codes": [
+        "image-edit"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "src/index.html",
+        "is_html": true,
+        "local_resources": [
+          "core/src/lib/fabric.min.js",
+          "src/index.js",
+          "src/style.css"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "json-editor",
+      "title": "json-editor",
+      "version": "1.7.2",
+      "path": "/tmp/atools-ztools-market-top30/json-editor",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 2,
+      "feature_codes": [
+        "clean-cache"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "index.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "json-tools",
+      "title": "JSON Tools",
+      "version": "1.22.0",
+      "path": "/tmp/atools-ztools-market-top30/json-tools",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "json"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 80,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "apple-touch-icon-180x180.png",
+          "assets/index-3GB1NEbz.js",
+          "assets/index-BHMuTnpo.css",
+          "blob",
+          "favicon.ico",
+          "manifest.webmanifest",
+          "registerSW.js"
+        ],
+        "missing_local_resources": [
+          "blob"
+        ],
+        "external_resources": []
+      },
+      "warnings": [
+        "Missing local entry resources: blob"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "long-screenshot",
+      "title": "长截图",
+      "version": "3.0.4",
+      "path": "/tmp/atools-ztools-market-top30/long-screenshot",
+      "main": "",
+      "preload": {
+        "file": "core/preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "长截图"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 80,
+      "entry": {
+        "file": "",
+        "is_html": false,
+        "local_resources": [],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "markdown",
+      "title": "markdown",
+      "version": "1.7.2",
+      "path": "/tmp/atools-ztools-market-top30/markdown",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "os",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "markdown"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 50,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-D6kabK3y.css",
+          "assets/index-DgnGCuyH.js",
+          "favicon.ico"
+        ],
+        "missing_local_resources": [
+          "favicon.ico"
+        ],
+        "external_resources": []
+      },
+      "warnings": [
+        "Missing local entry resources: favicon.ico",
+        "Preload requires Electron module",
+        "Preload requires Node modules: fs, os, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "memo-quick-paste",
+      "title": "备忘快贴",
+      "version": "4.1.0",
+      "path": "/tmp/atools-ztools-market-top30/memo-quick-paste",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "crypto",
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 3,
+      "command_count": 7,
+      "feature_codes": [
+        "collection",
+        "record",
+        "search"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "index.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: crypto, fs, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "mt-ocr",
+      "title": "馒头OCR",
+      "version": "1.0.0",
+      "path": "/tmp/atools-ztools-market-top30/mt-ocr",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 7,
+      "feature_codes": [
+        "ocr"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-C_oF0EP4.css",
+          "assets/index-zxS0m4JV.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "ocr-new",
+      "title": "OCR 翻译",
+      "version": "1.0.0",
+      "path": "/tmp/atools-ztools-market-top30/ocr-new",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process",
+          "crypto",
+          "fs",
+          "path"
+        ],
+        "uses_child_process": true,
+        "uses_fs": true
+      },
+      "feature_count": 7,
+      "command_count": 18,
+      "feature_codes": [
+        "ocr",
+        "ocr-settings",
+        "ocr-copy",
+        "ocr-translate",
+        "ocr-screenshot",
+        "ocr-screenshot-copy",
+        "ocr-screenshot-translate"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 70,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-C-cCdz1m.js",
+          "assets/index-HeI9VtJV.css"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: child_process, crypto, fs, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "qrcode-helper",
+      "title": "QRCode",
+      "version": "3.0.0",
+      "path": "/tmp/atools-ztools-market-top30/qrcode-helper",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 5,
+      "feature_codes": [
+        "qrcode"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "index.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "regex-editor",
+      "title": "正则可视编辑器",
+      "version": "1.0.0",
+      "path": "/tmp/atools-ztools-market-top30/regex-editor",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 4,
+      "feature_codes": [
+        "editor"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/app.css",
+          "assets/app.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "saladict-ztools",
+      "title": "沙拉查词",
+      "version": "1.0.1",
+      "path": "/tmp/atools-ztools-market-top30/saladict-ztools",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.cjs",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "http",
+          "https",
+          "stream",
+          "zlib"
+        ],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "沙拉查词"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 70,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "webextensions-emulator-master/dist/core.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: http, https, stream, zlib"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "screen-recorder",
+      "title": "录屏助手",
+      "version": "2.0.1",
+      "path": "/tmp/atools-ztools-market-top30/screen-recorder",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process",
+          "fs",
+          "os",
+          "path"
+        ],
+        "uses_child_process": true,
+        "uses_fs": true
+      },
+      "feature_count": 2,
+      "command_count": 2,
+      "feature_codes": [
+        "recorder",
+        "region"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 70,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "index.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: child_process, fs, os, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "shortcut-capture",
+      "title": "截图",
+      "version": "1.0.0",
+      "path": "/tmp/atools-ztools-market-top30/shortcut-capture",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 4,
+      "command_count": 10,
+      "feature_codes": [
+        "shortcut-capture",
+        "shortcut-capture-copy",
+        "shortcut-capture-save",
+        "shortcut-capture-image"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 70,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-CRZJr_0k.js",
+          "assets/index-NfvmJyAk.css"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: fs, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "skill-hub",
+      "title": "Skill Hub",
+      "version": "1.0.0",
+      "path": "/tmp/atools-ztools-market-top30/skill-hub",
+      "main": "index.html",
+      "preload": {
+        "file": "preload/services.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "child_process",
+          "fs",
+          "http",
+          "https",
+          "os",
+          "path"
+        ],
+        "uses_child_process": true,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "skills"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-DVaPre4F.css",
+          "assets/index-eARFg0HN.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: child_process, fs, http, https, os, path"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "sticky-note",
+      "title": "悬浮便签",
+      "version": "1.0.13",
+      "path": "/tmp/atools-ztools-market-top30/sticky-note",
+      "main": "dist/index.html",
+      "preload": {
+        "file": "ztools-preload/preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": true,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 3,
+      "command_count": 6,
+      "feature_codes": [
+        "home",
+        "new-note",
+        "view-recent-note"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 80,
+      "entry": {
+        "file": "dist/index.html",
+        "is_html": true,
+        "local_resources": [
+          "dist/assets/index-BjRAu7wy.js",
+          "dist/assets/index-MebRzRgI.css",
+          "dist/assets/primeicons-BD1Avdx-.js",
+          "dist/assets/primeicons-ClEMeZd5.css",
+          "dist/favicon.ico"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Electron module"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "timestamp",
+      "title": "timestamp",
+      "version": "1.0.0",
+      "path": "/tmp/atools-ztools-market-top30/timestamp",
+      "main": "index.html",
+      "preload": {
+        "file": "",
+        "declared": false,
+        "exists": false,
+        "uses_electron_require": false,
+        "uses_node_require": false,
+        "required_node_modules": [],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 3,
+      "feature_codes": [
+        "timestamp"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "ready",
+      "score": 100,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-BANYciFe.css",
+          "assets/index-lejWdThR.js"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [],
+      "blockers": []
+    },
+    {
+      "name": "web-quick-open",
+      "title": "网页快开",
+      "version": "1.0.1",
+      "path": "/tmp/atools-ztools-market-top30/web-quick-open",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "http",
+          "https"
+        ],
+        "uses_child_process": false,
+        "uses_fs": false
+      },
+      "feature_count": 1,
+      "command_count": 2,
+      "feature_codes": [
+        "manage"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-IkB__oJX.js",
+          "assets/index-Njtxa0Jf.css"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: http, https"
+      ],
+      "blockers": []
+    },
+    {
+      "name": "whiteboard",
+      "title": "白板",
+      "version": "1.0.0",
+      "path": "/tmp/atools-ztools-market-top30/whiteboard",
+      "main": "index.html",
+      "preload": {
+        "file": "preload.js",
+        "declared": true,
+        "exists": true,
+        "uses_electron_require": false,
+        "uses_node_require": true,
+        "required_node_modules": [
+          "fs",
+          "http",
+          "https",
+          "path"
+        ],
+        "uses_child_process": false,
+        "uses_fs": true
+      },
+      "feature_count": 1,
+      "command_count": 1,
+      "feature_codes": [
+        "main"
+      ],
+      "compatibility_status": "compatible",
+      "launch_candidate": true,
+      "runtime_status": "risk",
+      "score": 90,
+      "entry": {
+        "file": "index.html",
+        "is_html": true,
+        "local_resources": [
+          "assets/index-DvwzXwva.js",
+          "assets/index-rg5GLcxU.css",
+          "icon.png"
+        ],
+        "missing_local_resources": [],
+        "external_resources": []
+      },
+      "warnings": [
+        "Preload requires Node modules: fs, http, https, path"
+      ],
+      "blockers": []
+    }
+  ]
+}

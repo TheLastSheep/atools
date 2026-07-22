@@ -47,5 +47,12 @@ assert.doesNotMatch(copyCommand, /"text": text/);
 assert.match(copyCommand, /Clipboard write completed; text content was not persisted/);
 assert.match(app, /const priorCopyRunIds = new Set\(/);
 assert.match(app, /run\.capabilityId === "copy_text" && !priorCopyRunIds\.has\(run\.id\)/);
-assert.match(app, /const isMainWindow = [^;]+window\.location\.hash === ""/);
+assert.match(app, /import \{ getCurrentWebviewWindow \} from "@tauri-apps\/api\/webviewWindow"/);
+assert.match(app, /const isMainRoute = typeof window !== "undefined"[\s\S]*?window\.location\.hash === "#\/"/);
+assert.match(app, /const isMainWindow = currentWindowLabel === "main"[\s\S]*?\|\| \(isMainRoute/);
+assert.match(app, /&& !isPasteboardShelfWindow[\s\S]*?&& !isPasteboardDialogWindow/);
 assert.match(app, /if \(isMainWindow\) \{\s*void runReleaseSmokeSequence\(\);\s*\}/);
+assert.equal(
+  app.indexOf("void runReleaseSmokeSequence();") < app.indexOf("appUpdater.scheduleStartupCheck()"),
+  true,
+);

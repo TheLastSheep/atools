@@ -183,6 +183,33 @@ export function evaluateReleaseAppSmoke(input) {
         ? ok("release-smoke-option-z", "Release smoke reported Option+Z action")
         : error("release-smoke-option-z", "Release smoke did not confirm Option+Z action")
     );
+    const hotkeyShowMs = Number(releaseSmoke.hotkey_show_ms);
+    const hotkeyToggleAttemptCount = Number(releaseSmoke.hotkey_toggle_attempt_count);
+    const hotkeyToggleSuccessCount = Number(releaseSmoke.hotkey_toggle_success_count);
+    checks.push(
+      Number.isFinite(hotkeyShowMs) && hotkeyShowMs > 0
+        ? ok("release-smoke-hotkey-latency", `Main window show path completed in ${hotkeyShowMs.toFixed(3)}ms`)
+        : error("release-smoke-hotkey-latency", "Release smoke did not report a valid hotkey show duration")
+    );
+    checks.push(
+      Number.isFinite(hotkeyToggleAttemptCount)
+        && hotkeyToggleAttemptCount >= 5
+        && hotkeyToggleSuccessCount === hotkeyToggleAttemptCount
+        ? ok("release-smoke-hotkey-repeat", `Main window toggle path passed ${hotkeyToggleSuccessCount}/${hotkeyToggleAttemptCount} repeated attempts`)
+        : error("release-smoke-hotkey-repeat", `Main window toggle path passed ${hotkeyToggleSuccessCount}/${hotkeyToggleAttemptCount} repeated attempts`)
+    );
+    const searchLatencyMs = Number(releaseSmoke.search_latency_ms);
+    const searchResultCount = Number(releaseSmoke.search_result_count);
+    checks.push(
+      typeof releaseSmoke.search_query === "string"
+        && releaseSmoke.search_query.trim().length > 0
+        && Number.isFinite(searchLatencyMs)
+        && searchLatencyMs > 0
+        && Number.isFinite(searchResultCount)
+        && searchResultCount > 0
+        ? ok("release-smoke-search-latency", `${releaseSmoke.search_query} returned ${searchResultCount} results in ${searchLatencyMs.toFixed(3)}ms`)
+        : error("release-smoke-search-latency", "Release smoke did not report a valid packaged search duration")
+    );
     checks.push(
       releaseSmoke.settings_page_opened === true
         ? ok("release-smoke-settings", "Release smoke reported settings page opening")
@@ -209,8 +236,8 @@ export function evaluateReleaseAppSmoke(input) {
         && releaseSmoke.plugin_activation_feature.trim().length > 0
         && Number.isFinite(pluginActivationMs)
         && pluginActivationMs > 0
-        ? ok("release-smoke-plugin-activation", `Calculator plugin reported ready in ${pluginActivationMs.toFixed(3)}ms`)
-        : error("release-smoke-plugin-activation", "Release smoke did not report a valid calculator cold activation duration")
+        ? ok("release-smoke-plugin-activation", `${releaseSmoke.plugin_activation_feature} plugin reported ready in ${pluginActivationMs.toFixed(3)}ms`)
+        : error("release-smoke-plugin-activation", "Release smoke did not report a valid plugin cold activation duration")
     );
     if (!Array.isArray(releaseSmoke.errors)) {
       checks.push(

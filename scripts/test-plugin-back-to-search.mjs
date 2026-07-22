@@ -49,7 +49,7 @@ assert.match(
 );
 assert.match(
   appSource,
-  /async function onEscape\(\) \{\s*if \(activePlugin\) \{\s*await returnPluginToSearch\(\);\s*\}/,
+  /async function onEscape\(\) \{\s*if \(activePlugin\) \{\s*if \(!appSettings\.pluginEscapeToSearch\) return;\s*await returnPluginToSearch\(\);\s*\}/,
   "Escape from plugin mode should share the same back-to-search reset path",
 );
 

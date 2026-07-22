@@ -108,11 +108,11 @@ try {
   assert.match(panel, /marketCatalogBusyLabel/);
   assert.match(panel, /function pluginMarketPublicKeyTrusted/);
   assert.match(panel, /fetch_plugin_market_catalog/);
-  assert.match(panel, /invoke<PluginMarketCatalog>\("fetch_plugin_market_catalog", \{ url: pluginMarketUrl\.trim\(\) \}\)/);
+  assert.match(panel, /invoke<PluginMarketCatalog>\("fetch_plugin_market_catalog", \{ url: effectivePluginMarketUrl\(\) \}\)/);
   assert.match(panel, /install_plugin_from_market/);
-  assert.match(panel, /invoke\("install_plugin_from_market", \{ pluginId: plugin\.id, downloadUrl: plugin\.download_url, checksum: plugin\.checksum \?\? null, signature: plugin\.signature \?\? null, publicKey: plugin\.public_key \?\? null, operationId \}\)/);
+  assert.match(panel, /invoke\("install_plugin_from_market", \{ pluginId: plugin\.id, downloadUrl: resolved\.download_url, checksum: plugin\.checksum \?\? null, signature: plugin\.signature \?\? null, publicKey: plugin\.public_key \?\? null, operationId, sourceKind: pluginMarketCatalog\?\.source_kind \?\? null, sourceUrl: pluginMarketCatalog\?\.source_url \?\? null, confirmedUnsigned: officialUnsigned \}\)/);
   assert.match(panel, /update_plugin_from_market/);
-  assert.match(panel, /invoke\("update_plugin_from_market", \{ pluginId: plugin\.id, downloadUrl: plugin\.download_url, checksum: plugin\.checksum \?\? null, signature: plugin\.signature \?\? null, publicKey: plugin\.public_key \?\? null, operationId \}\)/);
+  assert.match(panel, /invoke\("update_plugin_from_market", \{ pluginId: plugin\.id, downloadUrl: resolved\.download_url, checksum: plugin\.checksum \?\? null, signature: plugin\.signature \?\? null, publicKey: plugin\.public_key \?\? null, operationId, sourceKind: pluginMarketCatalog\?\.source_kind \?\? null, sourceUrl: pluginMarketCatalog\?\.source_url \?\? null, confirmedUnsigned: officialUnsigned \}\)/);
   assert.match(panel, /invoke\("cancel_plugin_market_operation", \{ operationId: pluginMarketOperationId \}\)/);
   assert.match(panel, /installPluginFromMarketCatalog/);
   assert.match(panel, /plugin-market-progress/);
@@ -122,7 +122,8 @@ try {
   assert.match(panel, /取消\/重试/);
   assert.match(panel, /签名信任/);
   assert.match(panel, /发布者/);
-  assert.match(panel, /confirmSettingsAction\(\{\s*title: `\$\{actionLabel\}插件`,[\s\S]*?远程插件会下载 ZIP 并写入本地插件目录/);
+  assert.match(panel, /confirmSettingsAction\(\{\s*title: `\$\{actionLabel\}插件`,[\s\S]*?远程插件会下载 \$\{resolved\.package_format\.toUpperCase\(\)\} 并写入本地插件目录/);
+  assert.match(panel, /ZTools 官方包服务器[\s\S]*?confirmedUnsigned: officialUnsigned/);
   assert.match(panel, /confirmLabel: actionLabel/);
   assert.match(panel, /pluginMarketStatusText = `已取消\$\{actionLabel\} \$\{plugin\.name\}`;/);
   assert.match(panel, /remoteCatalogLoaded: Boolean\(pluginMarketCatalog\)/);
@@ -136,7 +137,7 @@ try {
   assert.match(panel, /\{plugin\.rating \? `评分 \$\{plugin\.rating\}` : "暂无评分"\}/);
   assert.match(panel, /SHA-256 已校验/);
   assert.match(panel, /marketCatalogBusyLabel\(plugin\) : marketCatalogActionLabel\(plugin\)/);
-  assert.match(panel, /!pluginMarketPublicKeyTrusted\(plugin\)/);
+  assert.match(panel, /!pluginMarketInstallAllowed\(plugin\)/);
 } finally {
   await rm(outDir, { recursive: true, force: true });
 }

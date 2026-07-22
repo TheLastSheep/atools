@@ -2,17 +2,26 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const root = new URL("../", import.meta.url);
-const [app, panel, shellFrame, smokeChecklist] = await Promise.all([
+const [app, panel, shellFrame, smokeChecklist, tauriConfig, tray] = await Promise.all([
   readFile(new URL("src/App.svelte", root), "utf8"),
   readFile(new URL("src/components/SettingsPanel.svelte", root), "utf8"),
   readFile(new URL("src/components/ShellFrame.svelte", root), "utf8"),
   readFile(new URL("docs/macos-smoke-checklist.md", root), "utf8"),
+  readFile(new URL("src-tauri/tauri.conf.json", root), "utf8"),
+  readFile(new URL("src-tauri/src/tray.rs", root), "utf8"),
 ]);
 const assertSmokeChecked = (row, message) => {
   assert.ok(smokeChecklist.includes(`- [x] ${row}`), message);
 };
 
-assert.match(app, /const SETTINGS_WINDOW_HEIGHT = 860;/);
+assert.match(app, /const SETTINGS_WINDOW_HEIGHT = 600;/);
+const settingsWindow = JSON.parse(tauriConfig).app.windows.find((window) => window.label === "settings");
+assert.deepEqual(
+  { width: settingsWindow.width, height: settingsWindow.height, resizable: settingsWindow.resizable },
+  { width: 800, height: 600, resizable: false },
+);
+assert.match(tray, /LogicalSize::new\(800\.0, 600\.0\)/);
+assert.match(tray, /window\.center\(\)/);
 assert.match(app, /targetHeight=\{getShellHeight\(\)\}/);
 assert.match(shellFrame, /style=\{`--shell-target-height: \$\{targetHeight\}px`\}/);
 assert.match(shellFrame, /\.shell-frame\s*\{[\s\S]*?overflow:\s*hidden;/);
@@ -42,8 +51,11 @@ assert.match(panel, /\.setting-label small\s*\{[\s\S]*?font-size:\s*20px;/);
 assert.match(panel, /\.hotkey-input,\s*\n\s*\.select-control,\s*\n\s*\.text-input,\s*\n\s*\.number-input\s*\{[\s\S]*?height:\s*66px;/);
 assert.match(panel, /\.icon-button,\s*\n\s*\.plain-button\s*\{[\s\S]*?min-height:\s*54px;/);
 assert.match(panel, /\.toggle\s*\{[\s\S]*?width:\s*86px;[\s\S]*?height:\s*48px;[\s\S]*?flex:\s*0 0 86px;/);
+assert.match(panel, /@media \(max-width: 1000px\)\s*\{[\s\S]*?\.settings-sidebar\s*\{[\s\S]*?width:\s*184px;/);
+assert.match(panel, /@media \(max-width: 1000px\)\s*\{[\s\S]*?\.setting-item\s*\{[\s\S]*?min-height:\s*76px;/);
+assert.match(panel, /@media \(max-width: 1000px\)\s*\{[\s\S]*?\.toggle\s*\{[\s\S]*?width:\s*52px;[\s\S]*?height:\s*30px;/);
 
 assertSmokeChecked(
-  "设置页以完整设置窗口展开，目标高度约 860px；在低视口下按 `min(100vh, 860px)` 收敛，不出现裁切或横向溢出。",
-  "macOS smoke checklist should mark the Settings 860px responsive shell complete",
+  "设置页以紧凑设置窗口展开，目标高度约 600px；在低视口下按 `min(100vh, 600px)` 收敛，不出现裁切或横向溢出。",
+  "macOS smoke checklist should mark the Settings 600px responsive shell complete",
 );

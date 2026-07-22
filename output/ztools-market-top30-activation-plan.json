@@ -1,0 +1,1454 @@
+{
+  "generated_at": "2026-07-22T04:31:53.133Z",
+  "source": "/tmp/atools-ztools-market-top30",
+  "install_root": "/tmp/atools-ztools-top30-installed",
+  "summary": {
+    "scanned_plugins": 30,
+    "launchable_plugins": 30,
+    "planned_samples": 30,
+    "ready_plans": 8,
+    "risk_plans": 22,
+    "blocked_skipped": 0,
+    "text_trigger_plans": 30,
+    "regex_trigger_plans": 0,
+    "typed_payload_plans": 0,
+    "manual_trigger_plans": 0,
+    "cleanup_required": true
+  },
+  "activation_plans": [
+    {
+      "order": 1,
+      "name": "devbox",
+      "title": "开发百宝箱",
+      "runtime_status": "ready",
+      "score": 100,
+      "source_path": "/tmp/atools-ztools-market-top30/devbox",
+      "expected_install_id": "devbox",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/tmp/atools-ztools-market-top30/devbox",
+        "install_root": "/tmp/atools-ztools-top30-installed",
+        "overwrite": true,
+        "expected_plugin_id": "devbox"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "identity",
+        "feature_label": "随机生成虚拟身份信息（姓名、身份证号、手机号、地址等），支持批量和导出",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "identity",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "ready"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [],
+      "cleanup": {
+        "uninstall_plugin_id": "devbox",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 2,
+      "name": "ctool",
+      "title": "Ctool",
+      "runtime_status": "ready",
+      "score": 100,
+      "source_path": "/tmp/atools-ztools-market-top30/ctool",
+      "expected_install_id": "ctool",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/tmp/atools-ztools-market-top30/ctool",
+        "install_root": "/tmp/atools-ztools-top30-installed",
+        "overwrite": true,
+        "expected_plugin_id": "ctool"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "ctool",
+        "feature_label": "程序开发常用工具",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "ctool",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "ready"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [],
+      "cleanup": {
+        "uninstall_plugin_id": "ctool",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 3,
+      "name": "calculation-paper",
+      "title": "计算稿纸",
+      "runtime_status": "ready",
+      "score": 100,
+      "source_path": "/tmp/atools-ztools-market-top30/calculation-paper",
+      "expected_install_id": "calculation-paper",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/tmp/atools-ztools-market-top30/calculation-paper",
+        "install_root": "/tmp/atools-ztools-top30-installed",
+        "overwrite": true,
+        "expected_plugin_id": "calculation-paper"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "calc",
+        "feature_label": "像打草稿一样计算",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "计算稿纸",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "ready"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [],
+      "cleanup": {
+        "uninstall_plugin_id": "calculation-paper",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 4,
+      "name": "ai-helper",
+      "title": "AI助手",
+      "runtime_status": "ready",
+      "score": 100,
+      "source_path": "/tmp/atools-ztools-market-top30/ai-helper",
+      "expected_install_id": "ai-helper",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/tmp/atools-ztools-market-top30/ai-helper",
+        "install_root": "/tmp/atools-ztools-top30-installed",
+        "overwrite": true,
+        "expected_plugin_id": "ai-helper"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "chat",
+        "feature_label": "AI 智能对话助手",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "AI助手",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "ready"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [],
+      "cleanup": {
+        "uninstall_plugin_id": "ai-helper",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 5,
+      "name": "developer-codec-tools",
+      "title": "开发加解密编码工具",
+      "runtime_status": "ready",
+      "score": 100,
+      "source_path": "/tmp/atools-ztools-market-top30/developer-codec-tools",
+      "expected_install_id": "developer-codec-tools",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/tmp/atools-ztools-market-top30/developer-codec-tools",
+        "install_root": "/tmp/atools-ztools-top30-installed",
+        "overwrite": true,
+        "expected_plugin_id": "developer-codec-tools"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "codec-tools",
+        "feature_label": "加密解密与编码转换",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "加密解密",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "ready"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [],
+      "cleanup": {
+        "uninstall_plugin_id": "developer-codec-tools",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 6,
+      "name": "image-toolbox-ztools",
+      "title": "图片工具箱",
+      "runtime_status": "ready",
+      "score": 100,
+      "source_path": "/tmp/atools-ztools-market-top30/image-toolbox-ztools",
+      "expected_install_id": "image-toolbox-ztools",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/tmp/atools-ztools-market-top30/image-toolbox-ztools",
+        "install_root": "/tmp/atools-ztools-top30-installed",
+        "overwrite": true,
+        "expected_plugin_id": "image-toolbox-ztools"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "image-edit",
+        "feature_label": "图片工具箱 - 马赛克、剪切、加字等图片编辑功能",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "图片工具箱",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "ready"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [],
+      "cleanup": {
+        "uninstall_plugin_id": "image-toolbox-ztools",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 7,
+      "name": "qrcode-helper",
+      "title": "QRCode",
+      "runtime_status": "ready",
+      "score": 100,
+      "source_path": "/tmp/atools-ztools-market-top30/qrcode-helper",
+      "expected_install_id": "qrcode-helper",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/tmp/atools-ztools-market-top30/qrcode-helper",
+        "install_root": "/tmp/atools-ztools-top30-installed",
+        "overwrite": true,
+        "expected_plugin_id": "qrcode-helper"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "qrcode",
+        "feature_label": "二维码生成、二维码识别",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "QRCode",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "ready"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [],
+      "cleanup": {
+        "uninstall_plugin_id": "qrcode-helper",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 8,
+      "name": "timestamp",
+      "title": "timestamp",
+      "runtime_status": "ready",
+      "score": 100,
+      "source_path": "/tmp/atools-ztools-market-top30/timestamp",
+      "expected_install_id": "timestamp",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/tmp/atools-ztools-market-top30/timestamp",
+        "install_root": "/tmp/atools-ztools-top30-installed",
+        "overwrite": true,
+        "expected_plugin_id": "timestamp"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "timestamp",
+        "feature_label": "时间戳转换",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "timestamp",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "ready"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [],
+      "cleanup": {
+        "uninstall_plugin_id": "timestamp",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 9,
+      "name": "color-helper",
+      "title": "颜色助手",
+      "runtime_status": "risk",
+      "score": 90,
+      "source_path": "/tmp/atools-ztools-market-top30/color-helper",
+      "expected_install_id": "color-helper",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/tmp/atools-ztools-market-top30/color-helper",
+        "install_root": "/tmp/atools-ztools-top30-installed",
+        "overwrite": true,
+        "expected_plugin_id": "color-helper"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "color",
+        "feature_label": "颜色",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "Color",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "risk"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [
+        "Preload requires Node modules: path"
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "color-helper",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 10,
+      "name": "diff-compare",
+      "title": "对比助手",
+      "runtime_status": "risk",
+      "score": 90,
+      "source_path": "/tmp/atools-ztools-market-top30/diff-compare",
+      "expected_install_id": "diff-compare",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/tmp/atools-ztools-market-top30/diff-compare",
+        "install_root": "/tmp/atools-ztools-top30-installed",
+        "overwrite": true,
+        "expected_plugin_id": "diff-compare"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "diff-main",
+        "feature_label": "代码对比工具，支持文本、图片、Excel、Word、PDF",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "diff",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "risk"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [
+        "Preload requires Node modules: fs, path"
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "diff-compare",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 11,
+      "name": "easy-translate",
+      "title": "易翻翻译",
+      "runtime_status": "risk",
+      "score": 90,
+      "source_path": "/tmp/atools-ztools-market-top30/easy-translate",
+      "expected_install_id": "easy-translate",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/tmp/atools-ztools-market-top30/easy-translate",
+        "install_root": "/tmp/atools-ztools-top30-installed",
+        "overwrite": true,
+        "expected_plugin_id": "easy-translate"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "keyword",
+        "feature_label": "易翻翻译",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "ef(易翻翻译)",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "risk"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [
+        "Preload requires Node modules: fs"
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "easy-translate",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 12,
+      "name": "memo-quick-paste",
+      "title": "备忘快贴",
+      "runtime_status": "risk",
+      "score": 90,
+      "source_path": "/tmp/atools-ztools-market-top30/memo-quick-paste",
+      "expected_install_id": "memo-quick-paste",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/tmp/atools-ztools-market-top30/memo-quick-paste",
+        "install_root": "/tmp/atools-ztools-top30-installed",
+        "overwrite": true,
+        "expected_plugin_id": "memo-quick-paste"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "collection",
+        "feature_label": "记录「文本」「代码」「图片」，快捷输出",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "备忘",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "risk"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [
+        "Preload requires Node modules: crypto, fs, path"
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "memo-quick-paste",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 13,
+      "name": "json-editor",
+      "title": "json-editor",
+      "runtime_status": "risk",
+      "score": 90,
+      "source_path": "/tmp/atools-ztools-market-top30/json-editor",
+      "expected_install_id": "json-editor",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/tmp/atools-ztools-market-top30/json-editor",
+        "install_root": "/tmp/atools-ztools-top30-installed",
+        "overwrite": true,
+        "expected_plugin_id": "json-editor"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "clean-cache",
+        "feature_label": "Json 格式化编辑",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "Json",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "risk"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [
+        "Preload requires Node modules: fs"
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "json-editor",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 14,
+      "name": "mt-ocr",
+      "title": "馒头OCR",
+      "runtime_status": "risk",
+      "score": 90,
+      "source_path": "/tmp/atools-ztools-market-top30/mt-ocr",
+      "expected_install_id": "mt-ocr",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/tmp/atools-ztools-market-top30/mt-ocr",
+        "install_root": "/tmp/atools-ztools-top30-installed",
+        "overwrite": true,
+        "expected_plugin_id": "mt-ocr"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "ocr",
+        "feature_label": "OCR 文字识别，支持截图/本地图片/剪贴板/拖放",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "OCR",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "risk"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [
+        "Preload requires Node modules: fs, path"
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "mt-ocr",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 15,
+      "name": "regex-editor",
+      "title": "正则可视编辑器",
+      "runtime_status": "risk",
+      "score": 90,
+      "source_path": "/tmp/atools-ztools-market-top30/regex-editor",
+      "expected_install_id": "regex-editor",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/tmp/atools-ztools-market-top30/regex-editor",
+        "install_root": "/tmp/atools-ztools-top30-installed",
+        "overwrite": true,
+        "expected_plugin_id": "regex-editor"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "editor",
+        "feature_label": "正则可视化编辑器，铁路图展示、实时匹配、AI 中文说明与范例库",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "正则",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "risk"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [
+        "Preload requires Node modules: fs, path"
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "regex-editor",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 16,
+      "name": "skill-hub",
+      "title": "Skill Hub",
+      "runtime_status": "risk",
+      "score": 90,
+      "source_path": "/tmp/atools-ztools-market-top30/skill-hub",
+      "expected_install_id": "skill-hub",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/tmp/atools-ztools-market-top30/skill-hub",
+        "install_root": "/tmp/atools-ztools-top30-installed",
+        "overwrite": true,
+        "expected_plugin_id": "skill-hub"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "skills",
+        "feature_label": "Skill Hub — 技能商店浏览下载、项目/Agent 扫描、一键分发",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "skills",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "risk"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [
+        "Preload requires Node modules: child_process, fs, http, https, os, path"
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "skill-hub",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 17,
+      "name": "web-quick-open",
+      "title": "网页快开",
+      "runtime_status": "risk",
+      "score": 90,
+      "source_path": "/tmp/atools-ztools-market-top30/web-quick-open",
+      "expected_install_id": "web-quick-open",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/tmp/atools-ztools-market-top30/web-quick-open",
+        "install_root": "/tmp/atools-ztools-top30-installed",
+        "overwrite": true,
+        "expected_plugin_id": "web-quick-open"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "manage",
+        "feature_label": "管理网页快开",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "网页快开",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "risk"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [
+        "Preload requires Node modules: http, https"
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "web-quick-open",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 18,
+      "name": "whiteboard",
+      "title": "白板",
+      "runtime_status": "risk",
+      "score": 90,
+      "source_path": "/tmp/atools-ztools-market-top30/whiteboard",
+      "expected_install_id": "whiteboard",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/tmp/atools-ztools-market-top30/whiteboard",
+        "install_root": "/tmp/atools-ztools-top30-installed",
+        "overwrite": true,
+        "expected_plugin_id": "whiteboard"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "main",
+        "feature_label": "白板是一款高性能绘图工具，提供无限画布和丰富的绘图能力，让用户能够轻松地进行创意表达、头脑风暴。",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "白板",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "risk"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [
+        "Preload requires Node modules: fs, http, https, path"
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "whiteboard",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 19,
+      "name": "sticky-note",
+      "title": "悬浮便签",
+      "runtime_status": "risk",
+      "score": 80,
+      "source_path": "/tmp/atools-ztools-market-top30/sticky-note",
+      "expected_install_id": "sticky-note",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/tmp/atools-ztools-market-top30/sticky-note",
+        "install_root": "/tmp/atools-ztools-top30-installed",
+        "overwrite": true,
+        "expected_plugin_id": "sticky-note"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "home",
+        "feature_label": "打开便签列表",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "便签",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "risk"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [
+        "Preload requires Electron module"
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "sticky-note",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 20,
+      "name": "json-tools",
+      "title": "JSON Tools",
+      "runtime_status": "risk",
+      "score": 80,
+      "source_path": "/tmp/atools-ztools-market-top30/json-tools",
+      "expected_install_id": "json-tools",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/tmp/atools-ztools-market-top30/json-tools",
+        "install_root": "/tmp/atools-ztools-top30-installed",
+        "overwrite": true,
+        "expected_plugin_id": "json-tools"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "json",
+        "feature_label": "json 工具箱",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "json",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": false,
+        "runtime_status": "risk"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [
+        "Missing local entry resources: blob"
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "json-tools",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 21,
+      "name": "long-screenshot",
+      "title": "长截图",
+      "runtime_status": "risk",
+      "score": 80,
+      "source_path": "/tmp/atools-ztools-market-top30/long-screenshot",
+      "expected_install_id": "long-screenshot",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/tmp/atools-ztools-market-top30/long-screenshot",
+        "install_root": "/tmp/atools-ztools-top30-installed",
+        "overwrite": true,
+        "expected_plugin_id": "long-screenshot"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "长截图",
+        "feature_label": "长截图",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "长截图",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "risk"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [
+        "Preload requires Electron module"
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "long-screenshot",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 22,
+      "name": "ocr-new",
+      "title": "OCR 翻译",
+      "runtime_status": "risk",
+      "score": 70,
+      "source_path": "/tmp/atools-ztools-market-top30/ocr-new",
+      "expected_install_id": "ocr-new",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/tmp/atools-ztools-market-top30/ocr-new",
+        "install_root": "/tmp/atools-ztools-top30-installed",
+        "overwrite": true,
+        "expected_plugin_id": "ocr-new"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "ocr",
+        "feature_label": "图片文字识别",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "OCR",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "risk"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: child_process, crypto, fs, path"
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "ocr-new",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 23,
+      "name": "shortcut-capture",
+      "title": "截图",
+      "runtime_status": "risk",
+      "score": 70,
+      "source_path": "/tmp/atools-ztools-market-top30/shortcut-capture",
+      "expected_install_id": "shortcut-capture",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/tmp/atools-ztools-market-top30/shortcut-capture",
+        "install_root": "/tmp/atools-ztools-top30-installed",
+        "overwrite": true,
+        "expected_plugin_id": "shortcut-capture"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "shortcut-capture",
+        "feature_label": "截图",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "shortcutCapture",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "risk"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: fs, path"
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "shortcut-capture",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 24,
+      "name": "f-provider",
+      "title": "ZTools 提供商",
+      "runtime_status": "risk",
+      "score": 70,
+      "source_path": "/tmp/atools-ztools-market-top30/f-provider",
+      "expected_install_id": "f-provider",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/tmp/atools-ztools-market-top30/f-provider",
+        "install_root": "/tmp/atools-ztools-top30-installed",
+        "overwrite": true,
+        "expected_plugin_id": "f-provider"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "manage",
+        "feature_label": "OCR 识别与翻译（关键词进入管理；图片/选中文本进入识别或翻译）",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "ZTools 提供商",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "risk"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: child_process, crypto, fs, http, https, os, path"
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "f-provider",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 25,
+      "name": "screen-recorder",
+      "title": "录屏助手",
+      "runtime_status": "risk",
+      "score": 70,
+      "source_path": "/tmp/atools-ztools-market-top30/screen-recorder",
+      "expected_install_id": "screen-recorder",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/tmp/atools-ztools-market-top30/screen-recorder",
+        "install_root": "/tmp/atools-ztools-top30-installed",
+        "overwrite": true,
+        "expected_plugin_id": "screen-recorder"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "recorder",
+        "feature_label": "专业级屏幕录制工具，提供全屏/窗口/自定义区域三种录制模式",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "录屏助手",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "risk"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: child_process, fs, os, path"
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "screen-recorder",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 26,
+      "name": "file-renamer",
+      "title": "文件批量重命名",
+      "runtime_status": "risk",
+      "score": 70,
+      "source_path": "/tmp/atools-ztools-market-top30/file-renamer",
+      "expected_install_id": "file-renamer",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/tmp/atools-ztools-market-top30/file-renamer",
+        "install_root": "/tmp/atools-ztools-top30-installed",
+        "overwrite": true,
+        "expected_plugin_id": "file-renamer"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "rename",
+        "feature_label": "批量重命名文件，支持多种重命名规则",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "重命名文件",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "risk"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: fs"
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "file-renamer",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 27,
+      "name": "floating",
+      "title": "悬浮",
+      "runtime_status": "risk",
+      "score": 70,
+      "source_path": "/tmp/atools-ztools-market-top30/floating",
+      "expected_install_id": "floating",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/tmp/atools-ztools-market-top30/floating",
+        "install_root": "/tmp/atools-ztools-top30-installed",
+        "overwrite": true,
+        "expected_plugin_id": "floating"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "suspend-screenshot",
+        "feature_label": "suspend-screenshot",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "截图并悬浮",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "risk"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: fs"
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "floating",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 28,
+      "name": "saladict-ztools",
+      "title": "沙拉查词",
+      "runtime_status": "risk",
+      "score": 70,
+      "source_path": "/tmp/atools-ztools-market-top30/saladict-ztools",
+      "expected_install_id": "saladict-ztools",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/tmp/atools-ztools-market-top30/saladict-ztools",
+        "install_root": "/tmp/atools-ztools-top30-installed",
+        "overwrite": true,
+        "expected_plugin_id": "saladict-ztools"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "沙拉查词",
+        "feature_label": "沙拉查词",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "沙拉查词",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": true,
+        "runtime_status": "risk"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [
+        "Preload requires Electron module",
+        "Preload requires Node modules: http, https, stream, zlib"
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "saladict-ztools",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 29,
+      "name": "clipboard",
+      "title": "剪贴板",
+      "runtime_status": "risk",
+      "score": 60,
+      "source_path": "/tmp/atools-ztools-market-top30/clipboard",
+      "expected_install_id": "clipboard",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/tmp/atools-ztools-market-top30/clipboard",
+        "install_root": "/tmp/atools-ztools-top30-installed",
+        "overwrite": true,
+        "expected_plugin_id": "clipboard"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "clipboard",
+        "feature_label": "剪贴板",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "剪贴板",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": false,
+        "runtime_status": "risk"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [
+        "Missing local entry resources: favicon.ico",
+        "Preload requires Electron module"
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "clipboard",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    },
+    {
+      "order": 30,
+      "name": "markdown",
+      "title": "markdown",
+      "runtime_status": "risk",
+      "score": 50,
+      "source_path": "/tmp/atools-ztools-market-top30/markdown",
+      "expected_install_id": "markdown",
+      "install": {
+        "command": "install_ztools_plugin",
+        "source_path": "/tmp/atools-ztools-market-top30/markdown",
+        "install_root": "/tmp/atools-ztools-top30-installed",
+        "overwrite": true,
+        "expected_plugin_id": "markdown"
+      },
+      "enable": {
+        "expected_enabled_after_import": true,
+        "required_before_activation": true
+      },
+      "activation": {
+        "feature_code": "markdown",
+        "feature_label": "Markdown",
+        "trigger_type": "text",
+        "command_type": "text",
+        "query": "Markdown",
+        "typed_payload": null,
+        "manual_reason": ""
+      },
+      "assertions": {
+        "plugin_path_exists": true,
+        "main_exists": true,
+        "preload_checked": true,
+        "entry_resources_ok": false,
+        "runtime_status": "risk"
+      },
+      "render_smoke": {
+        "safe": true,
+        "reason": ""
+      },
+      "risks": [
+        "Missing local entry resources: favicon.ico",
+        "Preload requires Electron module",
+        "Preload requires Node modules: fs, os, path"
+      ],
+      "cleanup": {
+        "uninstall_plugin_id": "markdown",
+        "remove_plugin_data": true,
+        "remove_installed_files": true
+      }
+    }
+  ]
+}

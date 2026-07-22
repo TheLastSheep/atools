@@ -31,6 +31,7 @@ try {
   const candidates = [
     {
       path: "/plugins/ok",
+      source_type: "directory",
       name: "ok-plugin",
       title: "OK 插件",
       version: "1.2.3",
@@ -45,6 +46,7 @@ try {
     },
     {
       path: "/plugins/warn",
+      source_type: "zpx",
       name: "warn-plugin",
       title: null,
       version: "",
@@ -59,6 +61,7 @@ try {
     },
     {
       path: "/plugins/bad",
+      source_type: "asar",
       name: "bad-plugin",
       title: "Bad 插件",
       version: "0.0.1",
@@ -124,9 +127,9 @@ try {
     ["/plugins/bad", false],
   ]);
   assert.equal(view.rows[0].title, "OK 插件");
-  assert.equal(view.rows[0].subtitle, "ok-plugin · 1.2.3 · 3 指令");
+  assert.equal(view.rows[0].subtitle, "ok-plugin · 1.2.3 · 目录 · 3 指令");
   assert.equal(view.rows[1].title, "warn-plugin");
-  assert.equal(view.rows[1].subtitle, "warn-plugin · 0.0.0 · 2 指令");
+  assert.equal(view.rows[1].subtitle, "warn-plugin · 0.0.0 · ZPX · 2 指令");
   assert.deepEqual(view.rows[1].missingFlags, ["缺少 preload", "缺少图标", "未支持 regex"]);
   assert.deepEqual(view.rows[1].messages, ["preload.js 不存在", "存在暂不支持的 cmd type: regex"]);
   assert.deepEqual(view.rows[2].missingFlags, ["平台不匹配", "缺少入口", "缺少 preload", "缺少图标"]);
@@ -159,15 +162,18 @@ try {
   const emptyReport = mod.ztoolsImportReportView(null);
   assert.equal(emptyReport, null);
 
-  const [homeSurface, homePanel, appShell, systemPanel, importPanel] = await Promise.all([
-    readFile(new URL("src/lib/homeSurface.ts", root), "utf8"),
-    readFile(new URL("src/components/HomePanel.svelte", root), "utf8"),
+  const [uiState, appShell, systemPanel, importPanel, importTypes, nativeImporter, nativeLib, nativeCargo] = await Promise.all([
+    readFile(new URL("src/lib/uiState.ts", root), "utf8"),
     readFile(new URL("src/App.svelte", root), "utf8"),
     readFile(new URL("src/components/SystemPanel.svelte", root), "utf8"),
     readFile(new URL("src/components/ZToolsImportPanel.svelte", root), "utf8"),
+    readFile(new URL("src/lib/types.ts", root), "utf8"),
+    readFile(new URL("src-tauri/src/ztools_import.rs", root), "utf8"),
+    readFile(new URL("src-tauri/src/lib.rs", root), "utf8"),
+    readFile(new URL("src-tauri/Cargo.toml", root), "utf8"),
   ]);
-  assert.match(homeSurface, /code: "home:import-ztools"[\s\S]*label: "导入 ZTools 插件"[\s\S]*panel: "import"/);
-  assert.match(homePanel, /function activateQuickAction\(action: HomeQuickAction\) \{[\s\S]*if \(action\.panel\) \{[\s\S]*onpanelchange\(action\.panel\);[\s\S]*return;[\s\S]*\}/);
+  assert.match(uiState, /id: "import", label: "导入 ZTools 插件"[\s\S]*aliases: \["import", "ztools"\]/);
+  assert.doesNotMatch(appShell, /home:import-ztools/);
   assert.match(appShell, /<HomePanel[\s\S]*onpanelchange=\{onHomePanelChange\}/);
   assert.match(appShell, /async function onHomePanelChange\(panel: ShellPanel\) \{[\s\S]*await onPanelChange\(panel\);[\s\S]*\}/);
   assert.match(appShell, /<SystemPanel panel=\{activePanel\} settingsMenu=\{settingsMenuTarget\} onpanelchange=\{onPanelChange\} \/>/);
@@ -176,11 +182,28 @@ try {
   assert.match(importPanel, /import \{ open \} from "@tauri-apps\/plugin-dialog";/);
   assert.match(importPanel, /const root = await open\(\{ directory: true, multiple: false \}\);/);
   assert.match(importPanel, /if \(typeof root !== "string"\) return;/);
-  assert.match(importPanel, /candidates = await invoke<ZToolsImportCandidate\[]>\("scan_ztools_plugins", \{ root \}\);/);
-  assert.match(importPanel, /selected = new Set\([\s\S]*candidates[\s\S]*\.filter\(\(item\) => item\.errors\.length === 0\)[\s\S]*\.map\(\(item\) => item\.path\),[\s\S]*\);/);
+  assert.match(importPanel, /applyCandidates\(await invoke<ZToolsImportCandidate\[]>\("scan_ztools_plugins", \{ root \}\)\);/);
+  assert.match(importPanel, /function applyCandidates\(items: ZToolsImportCandidate\[]\)[\s\S]*items\.filter\(\(item\) => item\.errors\.length === 0\)\.map\(\(item\) => item\.path\)/);
   assert.match(importPanel, /report = null;/);
+  assert.match(importPanel, /invoke<ZToolsImportCandidate\[]>\("scan_default_ztools_plugins"\)/);
+  assert.match(importPanel, /onMount\(\(\) => \{[\s\S]*void scanDefault\(\);[\s\S]*\}\);/);
+  assert.match(importPanel, /extensions: \["zpx", "asar"\]/);
+  assert.match(importTypes, /source_type: "directory" \| "zpx" \| "asar";/);
+  assert.match(nativeLib, /commands::scan_default_ztools_plugins/);
+  assert.match(nativeImporter, /home\.join\("\.ztools"\)\.join\("plugins"\)/);
+  assert.match(nativeImporter, /MAX_ARCHIVE_BYTES: u64 = 64 \* 1024 \* 1024/);
+  assert.match(nativeImporter, /MAX_ARCHIVE_ENTRIES: usize = 4096/);
+  assert.match(nativeImporter, /flate2::read::GzDecoder/);
+  assert.match(nativeImporter, /brotli::Decompressor/);
+  assert.match(nativeImporter, /ASAR symbolic links are not supported/);
+  assert.match(nativeImporter, /scans_gzip_and_brotli_zpx_plugins/);
+  assert.match(nativeCargo, /brotli = "8"/);
+  assert.match(nativeCargo, /flate2 = "1"/);
+  assert.doesNotMatch(nativeCargo, /^asar\s*=/m);
   assert.match(importPanel, /等待扫描/);
-  assert.match(importPanel, /选择目录并扫描/);
+  assert.match(importPanel, /扫描 ZTools/);
+  assert.match(importPanel, /选择目录/);
+  assert.match(importPanel, /选择插件包/);
   assert.match(importPanel, /onclick=\{chooseAndScan\}/);
   assert.doesNotMatch(importPanel, /onMount\(\(\)\s*=>\s*chooseAndScan/);
   assert.match(importPanel, /\{#if candidates\.length > 0\}[\s\S]*class="candidate-summary"[\s\S]*class="candidate-list"[\s\S]*class="import-actions"[\s\S]*\{:else\}[\s\S]*class="empty-import-state"/);

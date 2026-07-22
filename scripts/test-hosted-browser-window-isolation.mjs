@@ -297,6 +297,7 @@ try {
     .replace(/__PLUGIN_ID__/g, JSON.stringify("isolated-rpc-plugin"))
     .replace(/__FEATURE_CODE__/g, JSON.stringify("isolated-rpc-feature"))
     .replace(/__ACTION_PAYLOAD__/g, JSON.stringify(null))
+    .replace(/__PLUGIN_PATH__/g, JSON.stringify("/tmp/isolated-rpc-plugin"))
     .replace(/__APP_NAME__/g, JSON.stringify("ATools"))
     .replace(/__APP_VERSION__/g, JSON.stringify("3.0.0"))
     .replace("var _atoolsWindowType = 'main';", "var _atoolsWindowType = 'browserWindow';")

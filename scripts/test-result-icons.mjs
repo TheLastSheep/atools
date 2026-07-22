@@ -36,6 +36,16 @@ try {
     mod.resultIconSrc("C:\\Program Files\\App\\icon.ico", true, convert),
     "asset://localhost/C%3A%5CProgram%20Files%5CApp%5Cicon.ico",
   );
+  assert.equal(mod.resultIconSrc("/tmp/missing.png", true, () => {
+    throw new Error("runtime unavailable");
+  }), null);
+
+  assert.equal(mod.hasTauriAssetRuntime(), false);
+  globalThis.window = { __TAURI_INTERNALS__: {} };
+  assert.equal(mod.hasTauriAssetRuntime(), true);
+  globalThis.window = { __TAURI_IPC__: () => {} };
+  assert.equal(mod.hasTauriAssetRuntime(), true);
+  delete globalThis.window;
 } finally {
   await rm(outDir, { recursive: true, force: true });
 }

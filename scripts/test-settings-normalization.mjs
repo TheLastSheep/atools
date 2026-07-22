@@ -52,6 +52,7 @@ try {
   assert.equal(restoredDefaults.primaryColor, "purple");
   assert.equal(restoredDefaults.showRecentInSearch, true);
   assert.equal(restoredDefaults.recentRows, 2);
+  assert.equal(restoredDefaults.pinnedRows, 1);
 
   const normalized = mod.normalizeSettings({
     superPanelEnabled: true,

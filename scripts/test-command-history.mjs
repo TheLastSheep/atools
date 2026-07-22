@@ -65,8 +65,21 @@ try {
     score: 87,
     match_type: "exact",
   };
+  const pluginResult = {
+    code: "json-format",
+    plugin_id: "json-tools",
+    plugin_name: "JSON 工具",
+    label: "JSON 格式化",
+    icon: "/tmp/json-tools/logo.png",
+    explain: "格式化 JSON",
+    score: 95,
+    match_type: "exact",
+  };
 
   assert.equal(mod.commandHistoryEntryFromResult(textResult, "{}", "2026-06-02T01:00:00.000Z"), null);
+  const pluginEntry = mod.commandHistoryEntryFromResult(pluginResult, "json", "2026-06-02T01:00:00.000Z");
+  assert.equal(pluginEntry.code, "json-format");
+  assert.equal(pluginEntry.icon, "/tmp/json-tools/logo.png");
 
   const first = mod.recordCommandUse([], settingsResult, "设置", "2026-06-02T01:00:00.000Z");
   assert.equal(first.length, 1);
@@ -79,6 +92,15 @@ try {
   assert.deepEqual(third.map((entry) => entry.code), ["system:settings", "url:https%3A%2F%2Fexample.com%2Fdocs"]);
   assert.equal(third[0].useCount, 2);
   assert.equal(third[0].usedAt, "2026-06-02T01:02:00.000Z");
+
+  const availableOnly = mod.filterCommandHistoryByCodeAvailability(
+    [pluginEntry, ...third],
+    (code) => code !== "json-format",
+  );
+  assert.deepEqual(
+    availableOnly.map((entry) => entry.code),
+    ["system:settings", "url:https%3A%2F%2Fexample.com%2Fdocs"],
+  );
 
   const normalized = mod.normalizeCommandHistory([
     { code: "local:desktop", label: "打开 桌面", explain: "文件夹 · ~/Desktop", plugin_id: "local-launch", plugin_name: "本地启动", input: "desktop", usedAt: "2026-06-02T00:00:00.000Z", useCount: 1 },
@@ -96,6 +118,9 @@ try {
   assert.deepEqual(home.map((entry) => entry.code), ["system:settings", "url:https%3A%2F%2Fexample.com%2Fdocs", "ip"]);
   assert.equal(home[0].source, "history");
   assert.equal(home[2].source, "recommended");
+
+  const pluginHome = mod.homeCommandsFor([pluginEntry], [], 1);
+  assert.equal(pluginHome[0].icon, "/tmp/json-tools/logo.png");
 
   const pinnedHome = mod.homeCommandsFor(third, [
     { code: "system:settings", label: "设置", explain: "推荐设置", panel: "settings" },

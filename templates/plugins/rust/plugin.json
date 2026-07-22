@@ -1,0 +1,35 @@
+{
+  "name": "atools-rust-echo",
+  "version": "0.1.0",
+  "description": "ATools Rust JSON-RPC stdio plugin template",
+  "author": "ATools",
+  "runtime": {
+    "kind": "rust",
+    "compatibility": "native",
+    "transport": "json_rpc_stdio",
+    "entry": "bin/atools-rust-echo"
+  },
+  "permissions": [],
+  "features": [],
+  "tools": {
+    "echo": {
+      "description": "Echo structured input through the Rust sidecar",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "message": { "type": "string" }
+        },
+        "required": ["message"],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "message": { "type": "string" },
+          "runtime": { "const": "rust" }
+        },
+        "required": ["message", "runtime"]
+      }
+    }
+  }
+}

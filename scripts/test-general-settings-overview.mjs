@@ -88,9 +88,10 @@ try {
   assert.match(panel, /打开主窗口 DevTools/);
   assert.match(panel, /插件市场地址/);
   assert.match(panel, /bind:value=\{pluginMarketUrl\}/);
-  assert.match(panel, /pluginMarketCustom \? "插件市场页将使用该地址作为外部市场入口"/);
+  assert.match(panel, /pluginMarketCustom \? "插件市场页将使用该地址" : "默认使用 ZTools 官方市场/);
   assert.match(panel, /openPluginMarketUrl/);
-  assert.match(panel, /callHumanCapability\("open_url", \{ url: pluginMarketUrl\.trim\(\) \}\)/);
+  assert.match(panel, /const trimmedUrl = effectivePluginMarketUrl\(\)/);
+  assert.match(panel, /callHumanCapability\("open_url", \{ url: trimmedUrl \}\)/);
   assert.match(panel, /打开市场地址/);
   assert.match(panel, /setFloatingBallVisible/);
   assert.match(panel, /invoke\("set_floating_ball_visible", \{ visible: floatingBallEnabled \}\)/);

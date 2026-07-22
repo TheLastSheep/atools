@@ -23,11 +23,11 @@ assert.match(source, /\.plain-button\s*\{[\s\S]*?padding:\s*0 22px;/);
 assert.match(source, /\.toggle\s*\{[\s\S]*?width:\s*86px;[\s\S]*?height:\s*48px;[\s\S]*?flex:\s*0 0 86px;/);
 assert.match(source, /\.toggle span::before\s*\{[\s\S]*?top:\s*5px;[\s\S]*?left:\s*5px;[\s\S]*?width:\s*34px;[\s\S]*?height:\s*34px;/);
 assert.match(source, /\.toggle input:checked \+ span::before\s*\{[\s\S]*?transform:\s*translateX\(38px\);/);
-assert.match(source, /@media \(max-width: 720px\)\s*\{[\s\S]*?\.hotkey-input,\s*\n\s*\.select-control,\s*\n\s*\.text-input,\s*\n\s*\.number-input\s*\{[\s\S]*?height:\s*40px;/);
-assert.match(source, /@media \(max-width: 720px\)\s*\{[\s\S]*?\.hotkey-input,\s*\n\s*\.select-control,\s*\n\s*\.text-input,\s*\n\s*\.number-input\s*\{[\s\S]*?max-width:\s*100%;/);
-assert.match(source, /@media \(max-width: 720px\)\s*\{[\s\S]*?\.toggle\s*\{[\s\S]*?width:\s*52px;[\s\S]*?height:\s*30px;/);
+assert.match(source, /@media \(max-width: 1000px\)\s*\{[\s\S]*?\.hotkey-input,\s*\n\s*\.select-control,\s*\n\s*\.text-input,\s*\n\s*\.number-input\s*\{[\s\S]*?height:\s*40px;/);
+assert.match(source, /@media \(max-width: 1000px\)\s*\{[\s\S]*?\.hotkey-input,\s*\n\s*\.select-control,\s*\n\s*\.text-input,\s*\n\s*\.number-input\s*\{[\s\S]*?max-width:\s*100%;/);
+assert.match(source, /@media \(max-width: 1000px\)\s*\{[\s\S]*?\.toggle\s*\{[\s\S]*?width:\s*52px;[\s\S]*?height:\s*30px;/);
 
 assertSmokeChecked(
-  "设置页桌面控件为 ZTools 风格大尺寸：呼出快捷键约 300x66px，下拉约 300x66px，按钮约 54px 高，开关约 86x48px，且没有横向溢出。",
+  "设置页在 800px 主窗下使用约 40px 高输入/下拉、36px 按钮和 52x30px 开关，且没有横向溢出。",
   "macOS smoke checklist should mark the Settings desktop controls sizing complete",
 );

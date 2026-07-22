@@ -1,0 +1,44 @@
+{
+  "name": "atools-web-echo",
+  "version": "0.1.0",
+  "description": "ATools isolated Web Host Bridge plugin template",
+  "author": "ATools",
+  "main": "index.html",
+  "preload": "preload.js",
+  "runtime": {
+    "kind": "web",
+    "compatibility": "native",
+    "transport": "host_bridge",
+    "entry": "index.html"
+  },
+  "permissions": [],
+  "features": [
+    {
+      "code": "atools-web-echo",
+      "label": "Web Echo",
+      "explain": "Open the Web Host Bridge echo example",
+      "cmds": ["web echo"]
+    }
+  ],
+  "tools": {
+    "echo": {
+      "description": "Echo structured input through the Web Host Bridge",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "message": { "type": "string" }
+        },
+        "required": ["message"],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "message": { "type": "string" },
+          "runtime": { "const": "web" }
+        },
+        "required": ["message", "runtime"]
+      }
+    }
+  }
+}
