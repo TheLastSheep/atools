@@ -1,19 +1,24 @@
 {
-  "name": "clipboard",
-  "version": "1.0.0",
+  "name": "Paste剪切板",
+  "version": "2.0.0",
   "main": "index.html",
   "logo": "logo.png",
   "preload": "preload.js",
-  "description": "剪贴板历史管理",
+  "description": "原生高性能剪贴板历史、分组、预览与快捷粘贴",
   "author": "ATools Team",
+  "permissions": ["clipboard.read", "clipboard.write"],
   "pluginSetting": {
-    "height": 500
+    "single": true,
+    "height": 356
   },
   "features": [
     {
-      "code": "clipboard",
-      "explain": "查看剪贴板历史",
-      "cmds": ["剪贴板", "clipboard", "粘贴历史", "剪贴板历史"]
+      "code": "paste-clipboard",
+      "label": "Paste剪切板",
+      "icon": "logo.png",
+      "explain": "打开原生 Paste 风格剪贴板",
+      "mainPush": true,
+      "cmds": ["Paste剪切板", "剪贴板", "clipboard", "paste", "粘贴历史", "剪贴板历史"]
     }
   ]
 }

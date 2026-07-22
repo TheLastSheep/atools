@@ -1,82 +1,45 @@
-// Clipboard plugin - manage clipboard history
+// Rust-backed clipboard plugin. System reads and SQLite history stay in Tauri.
 
-const DB_KEY = 'clipboard_history';
-const MAX_HISTORY = 50;
+const MAX_HISTORY = 100;
 
-utools.onPluginEnter(({ code }) => {
+utools.onPluginEnter(async () => {
   utools.setSubInput({
     placeholder: '搜索剪贴板历史',
     focus: true
   });
-
-  // Load initial history
-  loadHistory();
+  await captureCurrentClipboard();
+  await loadHistory();
 });
 
-utools.onSubInput(({ text }) => {
-  if (!text.trim()) {
-    loadHistory();
-    return;
+utools.onSubInput(async ({ text }) => {
+  await loadHistory(text.trim());
+});
+
+async function captureCurrentClipboard() {
+  try {
+    await utools.clipboard.readText();
+  } catch (error) {
+    console.error('[Clipboard] Failed to capture current text:', error);
   }
-  // Filter history by search text
-  loadHistory(text);
-});
-
-async function onClipboardChange() {
-  // Called when clipboard content changes (via Tauri event)
-  const newContent = await utools.clipboard.readText();
-  if (!newContent) return;
-
-  const history = await getHistory();
-  const entry = {
-    text: newContent,
-    timestamp: Date.now()
-  };
-
-  // Add to front, avoiding duplicates
-  const filtered = history.filter(item => item.text !== newContent);
-  filtered.unshift(entry);
-
-  // Trim to max history
-  const trimmed = filtered.slice(0, MAX_HISTORY);
-
-  await utools.db.put({ _id: DB_KEY, items: trimmed });
-  loadHistory();
 }
 
 async function loadHistory(filter = '') {
   try {
-    const history = await getHistory();
-    let items = history;
-
-    // Apply filter if provided
-    if (filter) {
-      const lowerFilter = filter.toLowerCase();
-      items = history.filter(item =>
-        item.text.toLowerCase().includes(lowerFilter)
-      );
-    }
-
-    const resultItems = items.map(item => ({
+    const history = await utools.clipboard.history(filter, MAX_HISTORY);
+    const resultItems = history.map(item => ({
       title: item.text.length > 50 ? item.text.slice(0, 50) + '...' : item.text,
-      description: formatTimestamp(item.timestamp),
+      description: `${formatTimestamp(item.last_copied_at)} · 使用 ${item.used_count} 次`,
       data: item.text
     }));
-
     utools.outPlugin({ items: resultItems });
   } catch (e) {
     console.error('[Clipboard] Failed to load history:', e);
-    utools.outPlugin({ items: [] });
-  }
-}
-
-async function getHistory() {
-  try {
-    const doc = await utools.db.get(DB_KEY);
-    return doc.items || [];
-  } catch (e) {
-    // Document doesn't exist yet
-    return [];
+    utools.outPlugin({
+      items: [{
+        title: '剪贴板历史读取失败',
+        description: e.message || String(e)
+      }]
+    });
   }
 }
 
@@ -94,11 +57,4 @@ function formatTimestamp(ts) {
   if (diffDays < 7) return `${diffDays} 天前`;
 
   return date.toLocaleDateString('zh-CN');
-}
-
-// Listen for clipboard changes (if Tauri event is available)
-if (typeof window !== 'undefined' && window.__TAURI__) {
-  window.__TAURI__.event.listen('clipboard-change', () => {
-    onClipboardChange();
-  });
 }

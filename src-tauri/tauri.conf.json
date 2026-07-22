@@ -18,7 +18,7 @@
         "title": "ATools 3.0",
         "url": "/",
         "width": 800,
-        "height": 600,
+        "height": 320,
         "minHeight": 70,
         "resizable": false,
         "fullscreen": false,
@@ -36,14 +36,22 @@
         "url": "/#/settings",
         "width": 800,
         "height": 600,
-        "resizable": true,
+        "resizable": false,
         "fullscreen": false,
         "visible": false,
         "center": true
       }
     ],
     "security": {
-      "csp": "default-src 'self' blob: data: filesystem: ws: wss: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self' img-src: 'self' data: asset: https://asset.localhost"
+      "csp": "default-src 'self' blob: data: filesystem: ws: wss: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self' img-src: 'self' data: asset: https://asset.localhost",
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "$HOME/.atools/plugins/**",
+          "$HOME/.atools/pasteboard/blobs/**",
+          "$RESOURCE/plugins/builtin/**"
+        ]
+      }
     },
     "trayIcon": {
       "iconPath": "icons/icon.png",

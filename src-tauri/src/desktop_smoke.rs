@@ -5209,6 +5209,7 @@ mod tests {
             features: vec![feature.clone()],
             development: None,
             tools: HashMap::new(),
+            providers: HashMap::new(),
             permissions: vec![
                 "data".to_string(),
                 "clipboard".to_string(),
@@ -5217,6 +5218,7 @@ mod tests {
                 "dialog".to_string(),
                 "context".to_string(),
             ],
+            runtime: None,
         };
         let plugin = Plugin {
             id: id.to_string(),

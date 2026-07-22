@@ -1,3 +1,4 @@
+mod accessibility;
 pub mod agent_tools;
 mod builtin_plugins;
 mod commands;
@@ -5,6 +6,11 @@ pub mod crash;
 mod desktop_smoke;
 mod hotkey;
 pub mod mcp_server;
+pub mod pasteboard_native;
+pub mod pasteboard_runtime;
+pub mod pasteboard_sync;
+pub mod pasteboard_window;
+mod providers;
 mod state;
 mod tray;
 mod updater;
@@ -20,12 +26,14 @@ use atools_core::db::Database;
 use atools_plugin::ipc_handler::IpcHandler;
 use state::AppState;
 use std::sync::Arc;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 const RELEASE_SMOKE_TOKEN_ARG: &str = "--atools-release-smoke-token=";
 const RELEASE_SMOKE_REPORT_PATH_ARG: &str = "--atools-release-smoke-report=";
 const RELEASE_SMOKE_TOKEN_ENV: &str = "ATOOLS_RELEASE_SMOKE_TOKEN";
 const RELEASE_SMOKE_REPORT_PATH_ENV: &str = "ATOOLS_RELEASE_SMOKE_REPORT_PATH";
+const PASTEBOARD_SHELF_SMOKE_ARG: &str = "--atools-pasteboard-shelf-smoke";
+const VISUAL_SMOKE_ARG: &str = "--atools-visual-smoke";
 
 pub fn run() {
     tracing_subscriber::fmt()
@@ -43,7 +51,15 @@ pub fn run() {
 
     let db = Arc::new(Database::new().expect("Failed to open database"));
     let release_smoke = parse_release_smoke_config();
-    let app_state = AppState::new(config, db, release_smoke);
+    let pasteboard_runtime = Arc::new(
+        pasteboard_runtime::PasteboardRuntime::new(
+            pasteboard_native::system_pasteboard_backend(),
+            db.clone(),
+            &config,
+        )
+        .expect("Failed to initialize native Paste clipboard runtime"),
+    );
+    let app_state = AppState::new(config, db, release_smoke, pasteboard_runtime);
     app_state.record_runtime_event("info", "ATools state initialized");
 
     tauri::Builder::default()
@@ -63,7 +79,29 @@ pub fn run() {
         .manage(updater::UpdateCoordinator::default())
         .invoke_handler(tauri::generate_handler![
             commands::search_features,
+            commands::available_feature_codes,
+            commands::feature_catalog,
+            commands::native_ip_snapshot,
+            commands::perform_native_http_request,
+            commands::translate_native_text,
+            commands::read_native_hosts,
+            commands::write_native_hosts,
+            commands::list_native_todos,
+            commands::save_native_todo,
+            commands::delete_native_todo,
+            commands::calculate_native_sheet,
+            commands::list_native_calculation_history,
+            commands::clear_native_calculation_history,
+            commands::native_codec_transform,
+            commands::native_time_snapshot,
+            commands::convert_native_time,
+            commands::generate_native_qr,
+            commands::native_json_transform,
+            commands::convert_native_color,
+            commands::list_native_processes,
+            commands::terminate_native_process,
             commands::search_local_apps,
+            commands::load_local_app_icons,
             commands::activate_feature,
             desktop_smoke::desktop_smoke_plugin_panel_action,
             desktop_smoke::desktop_smoke_plugin_panel_actions,
@@ -72,10 +110,12 @@ pub fn run() {
             commands::update_plugin_from_path,
             commands::authorize_plugin_permissions,
             commands::fetch_plugin_market_catalog,
+            commands::resolve_plugin_market_download,
             commands::install_plugin_from_market,
             commands::update_plugin_from_market,
             commands::cancel_plugin_market_operation,
             commands::scan_ztools_plugins,
+            commands::scan_default_ztools_plugins,
             commands::import_ztools_plugins,
             commands::uninstall_plugin,
             commands::list_plugins,
@@ -85,13 +125,43 @@ pub fn run() {
             commands::get_plugin_data,
             commands::put_plugin_data,
             commands::remove_plugin_data,
+            commands::capture_current_clipboard_text,
             commands::list_clipboard_history,
             commands::clear_clipboard_history,
             commands::export_clipboard_history_json,
+            commands::pasteboard_list_items,
+            commands::pasteboard_list_pinboards,
+            commands::pasteboard_save_pinboard,
+            commands::pasteboard_delete_pinboard,
+            commands::pasteboard_assign_items,
+            commands::pasteboard_update_item_title,
+            commands::pasteboard_delete_items,
+            commands::pasteboard_capture_status,
+            commands::pasteboard_stack_status,
+            commands::pasteboard_set_stack,
+            commands::pasteboard_clear_stack,
+            commands::pasteboard_set_capture_paused,
+            commands::pasteboard_capture_now,
+            commands::pasteboard_copy_item,
+            commands::pasteboard_paste_item,
+            commands::pasteboard_item_preview,
+            commands::pasteboard_recognize_item,
+            commands::pasteboard_create_text_item,
+            commands::pasteboard_update_text_item,
+            commands::pasteboard_rotate_image,
+            commands::pasteboard_quick_look_item,
+            commands::open_pasteboard_shelf_window,
+            commands::hide_pasteboard_shelf_window,
+            commands::toggle_pasteboard_shelf_window,
+            commands::reposition_pasteboard_shelf_window,
+            commands::open_pasteboard_dialog_window,
+            commands::hide_pasteboard_dialog_window,
             commands::get_plugin_data_item,
             commands::put_plugin_data_bulk,
             commands::show_main_window,
             commands::hide_main_window,
+            commands::toggle_main_window,
+            commands::benchmark_main_window_toggle,
             commands::expand_window,
             commands::reset_window,
             commands::set_floating_ball_visible,
@@ -160,6 +230,7 @@ pub fn run() {
             commands::export_crash_log,
             commands::clear_crash_log,
             commands::sync_webdav_now,
+            commands::pasteboard_sync_webdav_now,
             commands::preview_webdav_backup,
             commands::plan_webdav_restore,
             commands::restore_webdav_settings,
@@ -171,6 +242,12 @@ pub fn run() {
             updater::check_app_update,
             updater::install_app_update,
             updater::get_app_update_status,
+            providers::list_plugin_providers,
+            providers::get_default_plugin_provider,
+            providers::set_default_plugin_provider,
+            providers::invoke_plugin_provider,
+            accessibility::get_accessibility_permission_status,
+            accessibility::open_accessibility_settings,
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -181,12 +258,18 @@ pub fn run() {
 
             tray::setup_tray(&handle)?;
             hotkey::setup_hotkey(&handle)?;
+            if pasteboard_shelf_smoke_enabled() {
+                pasteboard_window::show_pasteboard_shelf(&handle)?;
+            }
             if let Err(error) = window::center_main_window(&handle) {
                 tracing::error!("Failed to center main window on startup: {}", error);
                 app_state.inner().record_runtime_event(
                     "error",
                     format!("Failed to center main window: {error}"),
                 );
+            }
+            if app_state.inner().release_smoke.lock().is_some() || visual_smoke_enabled() {
+                window::show_main_window(&handle)?;
             }
             let settings_json = app_state
                 .inner()
@@ -229,16 +312,20 @@ pub fn run() {
             }
 
             // Create API handler wrapped as IpcHandler
-            let api_handler = ApiHandler::new(db, plugins_dir);
+            let api_handler = Arc::new(ApiHandler::new(db, plugins_dir));
             let handler: Arc<dyn IpcHandler + Send + Sync> =
-                Arc::new(ApiHandlerWrapper::new(api_handler));
+                Arc::new(ApiHandlerWrapper::from_shared(api_handler.clone()));
 
             // Initialize plugin runtime with handler
             let plugin_runtime = Arc::new(
                 atools_plugin::runtime::JsRuntime::new(handler)
                     .expect("Failed to create plugin runtime"),
             );
+            let sidecar_supervisor = Arc::new(atools_plugin::SidecarSupervisor::new());
+            api_handler.attach_runtime(&plugin_runtime);
+            app.manage(api_handler);
             app.manage(plugin_runtime);
+            app.manage(sidecar_supervisor);
 
             // Load builtin plugins (registers them in DB + executes preloads)
             let runtime_for_plugins = app
@@ -283,6 +370,7 @@ pub fn run() {
                                 .inner()
                                 .record_runtime_event("info", "Plugin Agent tools synced");
                         }
+                        let _ = app_for_plugins.emit("builtin-plugins-loaded", ());
                     }
                 });
             });
@@ -324,6 +412,32 @@ pub fn run() {
                 desktop_smoke::spawn_desktop_smoke_reporter(handle.clone());
             }
 
+            let pasteboard_runtime = app_state.inner().pasteboard_runtime.clone();
+            let pasteboard_app = handle.clone();
+            let pasteboard_capture_task = tauri::async_runtime::spawn(async move {
+                loop {
+                    match pasteboard_runtime.capture_once().await {
+                        Ok(outcome) => {
+                            if !matches!(outcome, pasteboard_runtime::CaptureOutcome::Unchanged) {
+                                let _ = pasteboard_app.emit("pasteboard://changed", &outcome);
+                            }
+                        }
+                        Err(error) => {
+                            tracing::warn!(%error, "Native Paste clipboard capture failed");
+                            let _ = pasteboard_app.emit(
+                                "pasteboard://capture-error",
+                                serde_json::json!({ "message": error }),
+                            );
+                        }
+                    }
+                    tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+                }
+            });
+            *app_state.inner().pasteboard_capture_task.lock() = Some(pasteboard_capture_task);
+            app_state
+                .inner()
+                .record_runtime_event("info", "Native Paste clipboard capture started");
+
             tracing::info!("ATools 3.0 started");
             app_state
                 .inner()
@@ -339,7 +453,22 @@ pub fn run() {
                 }
             }
             tauri::WindowEvent::Focused(focused) if window.label() == "main" && !focused => {
-                window.hide().ok();
+                let release_smoke_enabled = window
+                    .app_handle()
+                    .state::<AppState>()
+                    .release_smoke
+                    .lock()
+                    .is_some();
+                if !release_smoke_enabled && !visual_smoke_enabled() {
+                    window.hide().ok();
+                }
+            }
+            tauri::WindowEvent::Focused(false)
+                if window.label() == pasteboard_window::PASTEBOARD_SHELF_LABEL =>
+            {
+                if !pasteboard_shelf_smoke_enabled() {
+                    window.hide().ok();
+                }
             }
             _ => {}
         })
@@ -350,6 +479,16 @@ pub fn run() {
                 api.prevent_exit();
             }
         });
+}
+
+fn pasteboard_shelf_smoke_enabled() -> bool {
+    std::env::args().any(|arg| arg == PASTEBOARD_SHELF_SMOKE_ARG)
+        || std::env::var("ATOOLS_PASTEBOARD_SHELF_SMOKE").is_ok_and(|value| value == "1")
+}
+
+fn visual_smoke_enabled() -> bool {
+    std::env::args().any(|arg| arg == VISUAL_SMOKE_ARG)
+        || std::env::var("ATOOLS_VISUAL_SMOKE").is_ok_and(|value| value == "1")
 }
 
 fn parse_release_smoke_config() -> Option<ReleaseSmokeConfig> {

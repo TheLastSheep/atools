@@ -56,19 +56,15 @@ fn tray_visible_from_settings(value: Option<&str>) -> bool {
 }
 
 fn toggle_main_window(app: &tauri::AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
-        if window.is_visible().unwrap_or(false) {
-            window.hide().ok();
-        } else {
-            window.center().ok();
-            window.show().ok();
-            window.set_focus().ok();
-        }
+    if let Err(error) = crate::window::toggle_main_window(app) {
+        tracing::error!("Failed to toggle main window from tray: {error}");
     }
 }
 
 fn open_settings_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("settings") {
+        let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize::new(800.0, 600.0)));
+        let _ = window.center();
         window.show().ok();
         window.set_focus().ok();
     }

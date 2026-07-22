@@ -1,11 +1,24 @@
 use tauri::{
-    AppHandle, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindow,
+    AppHandle, Manager, Monitor, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindow,
     WebviewWindowBuilder,
 };
 use url::form_urlencoded;
 
 const DEFAULT_WINDOW_WIDTH: u32 = 800;
 const DEFAULT_WINDOW_HEIGHT: f64 = 600.0;
+static MAIN_WINDOW_POSITIONS: std::sync::LazyLock<
+    std::sync::Mutex<std::collections::HashMap<String, PhysicalPosition<i32>>>,
+> = std::sync::LazyLock::new(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+static LAST_USED_MAIN_MONITOR: std::sync::LazyLock<std::sync::Mutex<Option<String>>> =
+    std::sync::LazyLock::new(|| std::sync::Mutex::new(None));
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MainWindowPositionStrategy {
+    Remember,
+    Cursor,
+    Primary,
+    LastActive,
+}
 pub const FLOATING_BALL_LABEL: &str = "floating-ball";
 pub const FLOATING_BALL_WIDTH: u32 = 64;
 pub const FLOATING_BALL_HEIGHT: u32 = 64;
@@ -54,6 +67,199 @@ pub fn center_main_window(app: &AppHandle) -> tauri::Result<()> {
     if let Some(window) = app.get_webview_window("main") {
         window.center()?;
     }
+    Ok(())
+}
+
+pub fn show_main_window(app: &AppHandle) -> tauri::Result<()> {
+    if let Some(window) = app.get_webview_window("main") {
+        position_main_window(app, &window)?;
+        prepare_main_window_for_macos_spaces(&window)?;
+        window.show()?;
+        activate_macos_app(app)?;
+        window.set_focus()?;
+    }
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn activate_macos_app(app: &AppHandle) -> tauri::Result<()> {
+    use objc2::MainThreadMarker;
+    use objc2_app_kit::NSApplication;
+
+    if let Some(mtm) = MainThreadMarker::new() {
+        NSApplication::sharedApplication(mtm).activate();
+        return Ok(());
+    }
+
+    app.run_on_main_thread(|| {
+        let mtm = MainThreadMarker::new().expect("AppKit activation runs on the main thread");
+        NSApplication::sharedApplication(mtm).activate();
+    })
+}
+
+#[cfg(not(target_os = "macos"))]
+fn activate_macos_app(_app: &AppHandle) -> tauri::Result<()> {
+    Ok(())
+}
+
+pub fn hide_main_window(app: &AppHandle) -> tauri::Result<()> {
+    if let Some(window) = app.get_webview_window("main") {
+        remember_main_window_position(&window);
+        window.hide()?;
+    }
+    Ok(())
+}
+
+pub fn toggle_main_window(app: &AppHandle) -> tauri::Result<bool> {
+    let Some(window) = app.get_webview_window("main") else {
+        return Ok(false);
+    };
+    if window.is_visible()? {
+        remember_main_window_position(&window);
+        window.hide()?;
+        return Ok(false);
+    }
+    position_main_window(app, &window)?;
+    prepare_main_window_for_macos_spaces(&window)?;
+    window.show()?;
+    activate_macos_app(app)?;
+    window.set_focus()?;
+    Ok(true)
+}
+
+fn main_window_position_strategy(app: &AppHandle) -> MainWindowPositionStrategy {
+    let value = app
+        .try_state::<crate::state::AppState>()
+        .and_then(|state| state.db.get_setting("settings-general").ok().flatten())
+        .and_then(|settings| serde_json::from_str::<serde_json::Value>(&settings).ok())
+        .and_then(|settings| {
+            settings
+                .get("windowPositionStrategy")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_string)
+        });
+    match value.as_deref() {
+        Some("cursor") => MainWindowPositionStrategy::Cursor,
+        Some("primary") => MainWindowPositionStrategy::Primary,
+        Some("lastActive") => MainWindowPositionStrategy::LastActive,
+        _ => MainWindowPositionStrategy::Remember,
+    }
+}
+
+fn position_main_window(app: &AppHandle, window: &WebviewWindow) -> tauri::Result<()> {
+    let strategy = main_window_position_strategy(app);
+    let cursor_monitor = cursor_monitor(app);
+    let monitor = match strategy {
+        MainWindowPositionStrategy::Primary => app.primary_monitor()?,
+        MainWindowPositionStrategy::LastActive => last_used_monitor(app).or(cursor_monitor),
+        MainWindowPositionStrategy::Cursor | MainWindowPositionStrategy::Remember => cursor_monitor,
+    }
+    .or(app.primary_monitor()?)
+    .or_else(|| window.current_monitor().ok().flatten());
+    let Some(monitor) = monitor else {
+        return window.center();
+    };
+
+    if strategy == MainWindowPositionStrategy::Remember {
+        let key = monitor_key(&monitor);
+        if let Some(saved) = MAIN_WINDOW_POSITIONS
+            .lock()
+            .ok()
+            .and_then(|positions| positions.get(&key).copied())
+        {
+            let position = clamp_window_position(saved, window.outer_size()?, &monitor);
+            return window.set_position(position);
+        }
+    }
+
+    window.set_position(centered_window_position(window.outer_size()?, &monitor))
+}
+
+fn remember_main_window_position(window: &WebviewWindow) {
+    let Ok(Some(monitor)) = window.current_monitor() else {
+        return;
+    };
+    let Ok(position) = window.outer_position() else {
+        return;
+    };
+    let key = monitor_key(&monitor);
+    if let Ok(mut positions) = MAIN_WINDOW_POSITIONS.lock() {
+        positions.insert(key.clone(), position);
+    }
+    if let Ok(mut last) = LAST_USED_MAIN_MONITOR.lock() {
+        *last = Some(key);
+    }
+}
+
+fn cursor_monitor(app: &AppHandle) -> Option<Monitor> {
+    app.cursor_position()
+        .ok()
+        .and_then(|cursor| app.monitor_from_point(cursor.x, cursor.y).ok().flatten())
+}
+
+fn last_used_monitor(app: &AppHandle) -> Option<Monitor> {
+    let key = LAST_USED_MAIN_MONITOR.lock().ok()?.clone()?;
+    app.available_monitors()
+        .ok()?
+        .into_iter()
+        .find(|monitor| monitor_key(monitor) == key)
+}
+
+fn monitor_key(monitor: &Monitor) -> String {
+    let work = monitor.work_area();
+    format!(
+        "{}:{}:{}:{}",
+        work.position.x, work.position.y, work.size.width, work.size.height
+    )
+}
+
+fn centered_window_position(size: PhysicalSize<u32>, monitor: &Monitor) -> PhysicalPosition<i32> {
+    let work = monitor.work_area();
+    let x = work
+        .position
+        .x
+        .saturating_add(work.size.width.saturating_sub(size.width) as i32 / 2);
+    let y = work
+        .position
+        .y
+        .saturating_add(work.size.height.saturating_sub(size.height) as i32 / 2);
+    PhysicalPosition::new(x, y)
+}
+
+fn clamp_window_position(
+    position: PhysicalPosition<i32>,
+    size: PhysicalSize<u32>,
+    monitor: &Monitor,
+) -> PhysicalPosition<i32> {
+    let work = monitor.work_area();
+    let max_x = work
+        .position
+        .x
+        .saturating_add(work.size.width.saturating_sub(size.width) as i32);
+    let max_y = work
+        .position
+        .y
+        .saturating_add(work.size.height.saturating_sub(size.height) as i32);
+    PhysicalPosition::new(
+        position
+            .x
+            .max(work.position.x)
+            .min(max_x.max(work.position.x)),
+        position
+            .y
+            .max(work.position.y)
+            .min(max_y.max(work.position.y)),
+    )
+}
+
+#[cfg(target_os = "macos")]
+fn prepare_main_window_for_macos_spaces(window: &WebviewWindow) -> tauri::Result<()> {
+    window.set_visible_on_all_workspaces(true)?;
+    window.set_always_on_top(true)
+}
+
+#[cfg(not(target_os = "macos"))]
+fn prepare_main_window_for_macos_spaces(_window: &WebviewWindow) -> tauri::Result<()> {
     Ok(())
 }
 

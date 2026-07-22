@@ -1,5 +1,6 @@
 use crate::desktop_smoke::PluginPanelRenderSmokeSummary;
 use crate::mcp_server::McpServerStatus;
+use crate::pasteboard_runtime::PasteboardRuntime;
 use atools_core::agent::PendingAgentToolRequest;
 use atools_core::config::AppConfig;
 use atools_core::db::Database;
@@ -30,6 +31,12 @@ pub struct ReleaseSmokeProgress {
     pub token: String,
     pub report_path: Option<String>,
     pub option_z_toggled: Option<bool>,
+    pub hotkey_show_ms: Option<f64>,
+    pub hotkey_toggle_attempt_count: Option<usize>,
+    pub hotkey_toggle_success_count: Option<usize>,
+    pub search_query: Option<String>,
+    pub search_latency_ms: Option<f64>,
+    pub search_result_count: Option<usize>,
     pub settings_page_opened: Option<bool>,
     pub plugin_page_opened: Option<bool>,
     pub agent_page_opened: Option<bool>,
@@ -53,6 +60,8 @@ pub struct AppState {
     pub mcp_status: Mutex<Option<McpServerStatus>>,
     pub pending_agent_requests: Mutex<BTreeMap<String, PendingAgentToolRequest>>,
     pub active_task_runs: Mutex<BTreeMap<String, tokio::task::AbortHandle>>,
+    pub pasteboard_runtime: Arc<PasteboardRuntime>,
+    pub pasteboard_capture_task: Mutex<Option<tauri::async_runtime::JoinHandle<()>>>,
     pub runtime_events: Mutex<Vec<RuntimeEvent>>,
     pub plugin_panel_render_smoke: Mutex<Option<PluginPanelRenderSmokeSummary>>,
     pub release_smoke: Mutex<Option<ReleaseSmokeConfig>>,
@@ -64,6 +73,7 @@ impl AppState {
         config: AppConfig,
         db: Arc<Database>,
         release_smoke: Option<ReleaseSmokeConfig>,
+        pasteboard_runtime: Arc<PasteboardRuntime>,
     ) -> Self {
         Self {
             config,
@@ -72,6 +82,8 @@ impl AppState {
             mcp_status: Mutex::new(None),
             pending_agent_requests: Mutex::new(BTreeMap::new()),
             active_task_runs: Mutex::new(BTreeMap::new()),
+            pasteboard_runtime,
+            pasteboard_capture_task: Mutex::new(None),
             runtime_events: Mutex::new(Vec::new()),
             plugin_panel_render_smoke: Mutex::new(None),
             release_smoke: Mutex::new(release_smoke),

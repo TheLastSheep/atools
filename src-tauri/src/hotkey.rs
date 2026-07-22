@@ -1,9 +1,16 @@
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+
+const PASTE_STACK_SHORTCUT: &str = "Cmd+V";
 
 pub fn setup_hotkey(app: &AppHandle) -> tauri::Result<()> {
     let shortcut = configured_hotkey(app);
-    register_hotkey(app, &shortcut)
+    register_hotkey(app, &shortcut)?;
+    let pasteboard_shortcut = configured_pasteboard_hotkey(app);
+    if let Err(error) = register_pasteboard_hotkey(app, &pasteboard_shortcut) {
+        tracing::warn!(shortcut = pasteboard_shortcut, %error, "Failed to register Paste clipboard hotkey");
+    }
+    Ok(())
 }
 
 pub fn update_hotkey(app: &AppHandle, shortcut: &str) -> tauri::Result<()> {
@@ -35,16 +42,88 @@ pub(crate) fn is_shortcut_registered(app: &AppHandle, shortcut: &str) -> bool {
     app.global_shortcut().is_registered(shortcut.as_str())
 }
 
+pub(crate) fn activate_paste_stack_shortcut(app: &AppHandle) -> tauri::Result<()> {
+    if app.global_shortcut().is_registered(PASTE_STACK_SHORTCUT) {
+        return Ok(());
+    }
+    register_paste_stack_shortcut(app)
+}
+
+pub(crate) fn deactivate_paste_stack_shortcut(app: &AppHandle) -> tauri::Result<()> {
+    if app.global_shortcut().is_registered(PASTE_STACK_SHORTCUT) {
+        app.global_shortcut()
+            .unregister(PASTE_STACK_SHORTCUT)
+            .map_err(|error| tauri::Error::Anyhow(error.into()))?;
+    }
+    Ok(())
+}
+
+fn register_paste_stack_shortcut(app: &AppHandle) -> tauri::Result<()> {
+    let handle = app.clone();
+    app.global_shortcut()
+        .on_shortcut(PASTE_STACK_SHORTCUT, move |_app, _shortcut, event| {
+            if event.state != ShortcutState::Pressed {
+                return;
+            }
+            let handle = handle.clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(error) = deactivate_paste_stack_shortcut(&handle) {
+                    tracing::warn!(%error, "Failed to suspend Paste Stack shortcut");
+                }
+                let state = handle.state::<crate::state::AppState>();
+                let Some(item_id) = state.pasteboard_runtime.pop_paste_stack_item() else {
+                    let status = state.pasteboard_runtime.paste_stack_status();
+                    let _ = handle.emit("pasteboard://stack", status);
+                    return;
+                };
+                let result = state.pasteboard_runtime.paste_item(&item_id, false).await;
+                let status = state.pasteboard_runtime.paste_stack_status();
+                let _ = handle.emit("pasteboard://stack", &status);
+                if let Err(error) = result {
+                    tracing::error!(%error, item_id, "Paste Stack item failed");
+                }
+                if status.active {
+                    if let Err(error) = register_paste_stack_shortcut(&handle) {
+                        tracing::error!(%error, "Failed to re-arm Paste Stack shortcut");
+                    }
+                }
+            });
+        })
+        .map_err(|error| tauri::Error::Anyhow(error.into()))?;
+    Ok(())
+}
+
 fn register_hotkey(app: &AppHandle, shortcut: &str) -> tauri::Result<()> {
     let handle = app.clone();
     let shortcut = normalize_shortcut(shortcut);
     app.global_shortcut()
         .on_shortcut(shortcut.as_str(), move |_app, _shortcut, event| {
+            tracing::debug!(state = ?event.state, "Global shortcut event received");
             if event.state == ShortcutState::Pressed {
-                toggle_main_window(&handle);
+                if let Err(error) = toggle_main_window(&handle) {
+                    tracing::error!("Failed to toggle main window from global shortcut: {error}");
+                }
             }
         })
         .map_err(|e| tauri::Error::Anyhow(e.into()))?;
+    tracing::info!(shortcut, "Global shortcut registered");
+    Ok(())
+}
+
+fn register_pasteboard_hotkey(app: &AppHandle, shortcut: &str) -> tauri::Result<()> {
+    let handle = app.clone();
+    let shortcut = normalize_shortcut(shortcut);
+    app.global_shortcut()
+        .on_shortcut(shortcut.as_str(), move |_app, _shortcut, event| {
+            if event.state != ShortcutState::Pressed {
+                return;
+            }
+            if let Err(error) = crate::pasteboard_window::toggle_pasteboard_shelf(&handle) {
+                tracing::error!(%error, "Failed to toggle Paste clipboard shelf from global shortcut");
+            }
+        })
+        .map_err(|error| tauri::Error::Anyhow(error.into()))?;
+    tracing::info!(shortcut, "Paste clipboard global shortcut registered");
     Ok(())
 }
 
@@ -106,6 +185,32 @@ fn configured_hotkey(app: &AppHandle) -> String {
         .unwrap_or_else(|| default_hotkey_label().to_string())
 }
 
+pub(crate) fn configured_pasteboard_hotkey(app: &AppHandle) -> String {
+    let Some(state) = app.try_state::<crate::state::AppState>() else {
+        return default_pasteboard_hotkey_label().to_string();
+    };
+    let Ok(Some(value)) = state.db.get_setting("settings-general") else {
+        return default_pasteboard_hotkey_label().to_string();
+    };
+    serde_json::from_str::<serde_json::Value>(&value)
+        .ok()
+        .and_then(|json| {
+            json.get("pasteboardHotkey")
+                .and_then(|value| value.as_str())
+                .map(ToOwned::to_owned)
+        })
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| default_pasteboard_hotkey_label().to_string())
+}
+
+fn default_pasteboard_hotkey_label() -> &'static str {
+    if cfg!(target_os = "macos") {
+        "Shift+Cmd+V"
+    } else {
+        "Shift+Alt+V"
+    }
+}
+
 fn default_hotkey_label() -> &'static str {
     if cfg!(target_os = "macos") {
         "Option+Z"
@@ -123,19 +228,15 @@ fn normalize_shortcut(shortcut: &str) -> String {
         .replace("command+", "Cmd+")
 }
 
-fn toggle_main_window(app: &AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
-        if window.is_visible().unwrap_or(false) {
-            window.hide().ok();
-        } else {
-            if wakeup_blacklisted(app) {
-                return;
-            }
-            window.center().ok();
-            window.show().ok();
-            window.set_focus().ok();
-        }
+pub(crate) fn toggle_main_window(app: &AppHandle) -> tauri::Result<bool> {
+    let is_visible = app
+        .get_webview_window("main")
+        .and_then(|window| window.is_visible().ok())
+        .unwrap_or(false);
+    if !is_visible && wakeup_blacklisted(app) {
+        return Ok(false);
     }
+    crate::window::toggle_main_window(app)
 }
 
 fn wakeup_blacklisted(app: &AppHandle) -> bool {
@@ -182,22 +283,22 @@ fn normalize_wakeup_app_name(value: &str) -> String {
     value.trim().to_lowercase()
 }
 
-fn read_foreground_app_name() -> Option<String> {
-    if !cfg!(target_os = "macos") {
-        return None;
+pub(crate) fn read_foreground_app_name() -> Option<String> {
+    #[cfg(target_os = "macos")]
+    {
+        use objc2_app_kit::NSWorkspace;
+
+        let workspace = NSWorkspace::sharedWorkspace();
+        let value = workspace
+            .frontmostApplication()?
+            .localizedName()?
+            .to_string();
+        let value = value.trim().to_string();
+        return (!value.is_empty()).then_some(value);
     }
-    let output = std::process::Command::new("osascript")
-        .args([
-            "-e",
-            "tell application \"System Events\" to get name of first application process whose frontmost is true",
-        ])
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let value = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    (!value.is_empty()).then_some(value)
+
+    #[cfg(not(target_os = "macos"))]
+    None
 }
 
 #[cfg(test)]

@@ -23,9 +23,11 @@ use atools_core::task_run::{
     Artifact, ArtifactKind, TaskIssue, TaskRun, TaskRunInitiator, TaskRunStatus,
     TaskValidationStatus,
 };
+use atools_core::{PasteboardItem, PasteboardItemKind, PasteboardPinboard, PasteboardTombstone};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::fs;
+use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager};
 
 const LOCAL_APP_PLUGIN_ID: &str = "local-apps";
@@ -34,6 +36,9 @@ const LOCAL_APP_SEARCH_CACHE_TTL: std::time::Duration = std::time::Duration::fro
 
 static LOCAL_APP_SEARCH_CACHE: std::sync::LazyLock<std::sync::Mutex<LocalAppSearchCache>> =
     std::sync::LazyLock::new(|| std::sync::Mutex::new(LocalAppSearchCache::default()));
+static LOCAL_APP_ICON_CACHE: std::sync::LazyLock<
+    std::sync::Mutex<std::collections::HashMap<String, Option<String>>>,
+> = std::sync::LazyLock::new(|| std::sync::Mutex::new(std::collections::HashMap::new()));
 static PLUGIN_MARKET_CANCELLED_OPERATIONS: std::sync::LazyLock<
     std::sync::Mutex<std::collections::BTreeSet<String>>,
 > = std::sync::LazyLock::new(|| std::sync::Mutex::new(std::collections::BTreeSet::new()));
@@ -41,31 +46,55 @@ static PLUGIN_MUTATION_LOCK: std::sync::LazyLock<std::sync::Mutex<()>> =
     std::sync::LazyLock::new(|| std::sync::Mutex::new(()));
 
 #[tauri::command]
-pub fn search_features(
-    state: tauri::State<AppState>,
+pub async fn search_features(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
     query: String,
 ) -> Result<Vec<SearchResult>, String> {
-    let features = state.db.all_features().map_err(|e| e.to_string())?;
-    let match_results = matcher::search_all(&features, &query);
+    let db = state.db.clone();
+    let builtin_dir = app
+        .path()
+        .resolve("plugins/builtin", tauri::path::BaseDirectory::Resource)
+        .ok();
+    tauri::async_runtime::spawn_blocking(move || {
+        search_features_inner(&db, &query, builtin_dir.as_deref())
+    })
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+fn search_features_inner(
+    db: &Database,
+    query: &str,
+    builtin_dir: Option<&std::path::Path>,
+) -> Result<Vec<SearchResult>, String> {
+    let features = db.all_features().map_err(|e| e.to_string())?;
+    let plugins = db.list_plugins().map_err(|e| e.to_string())?;
+    let match_results = matcher::search_all(&features, query);
 
     // Join MatchResult back to FeatureEntry to fill in label/explain/icon/name.
     let feature_map: std::collections::HashMap<&str, &atools_core::FeatureEntry> =
         features.iter().map(|f| (f.code.as_str(), f)).collect();
-    let plugin_map: std::collections::HashMap<String, String> = features
+    let plugin_map: std::collections::HashMap<&str, &atools_core::Plugin> = plugins
         .iter()
-        .map(|f| (f.code.clone(), f.plugin_name.clone()))
+        .map(|plugin| (plugin.id.as_str(), plugin))
         .collect();
 
     let results: Vec<SearchResult> = match_results
         .into_iter()
         .map(|m| {
             let feature = feature_map.get(m.feature_code.as_str());
+            let plugin = plugin_map.get(m.plugin_id.as_str()).copied();
             SearchResult {
                 code: m.feature_code.clone(),
                 plugin_id: m.plugin_id,
-                plugin_name: plugin_map.get(&m.feature_code).cloned().unwrap_or_default(),
+                plugin_name: plugin
+                    .map(|plugin| plugin.name.clone())
+                    .or_else(|| feature.map(|feature| feature.plugin_name.clone()))
+                    .unwrap_or_default(),
                 label: feature.map(|f| f.label.clone()).unwrap_or_default(),
-                icon: feature.and_then(|f| f.icon.clone()),
+                icon: feature
+                    .and_then(|feature| resolve_feature_icon(feature, plugin, builtin_dir)),
                 explain: feature.map(|f| f.explain.clone()).unwrap_or_default(),
                 score: m.score,
                 match_type: m.match_type,
@@ -76,15 +105,2758 @@ pub fn search_features(
 }
 
 #[tauri::command]
-pub fn search_local_apps(query: String, limit: Option<usize>) -> Result<Vec<SearchResult>, String> {
+pub async fn available_feature_codes(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<String>, String> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut codes = db
+            .all_features()
+            .map_err(|error| error.to_string())?
+            .into_iter()
+            .map(|feature| feature.code)
+            .collect::<Vec<_>>();
+        codes.sort();
+        codes.dedup();
+        Ok(codes)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+pub async fn feature_catalog(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<SearchResult>, String> {
+    let db = state.db.clone();
+    let builtin_dir = app
+        .path()
+        .resolve("plugins/builtin", tauri::path::BaseDirectory::Resource)
+        .ok();
+    tauri::async_runtime::spawn_blocking(move || {
+        feature_catalog_inner(&db, builtin_dir.as_deref())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+fn feature_catalog_inner(
+    db: &Database,
+    builtin_dir: Option<&std::path::Path>,
+) -> Result<Vec<SearchResult>, String> {
+    let features = db.all_features().map_err(|error| error.to_string())?;
+    let plugins = db.list_plugins().map_err(|error| error.to_string())?;
+    let plugin_map = plugins
+        .iter()
+        .map(|plugin| (plugin.id.as_str(), plugin))
+        .collect::<std::collections::HashMap<_, _>>();
+    Ok(features
+        .iter()
+        .map(|feature| {
+            let plugin = plugin_map.get(feature.plugin_id.as_str()).copied();
+            SearchResult {
+                code: feature.code.clone(),
+                plugin_id: feature.plugin_id.clone(),
+                plugin_name: plugin
+                    .map(|plugin| plugin.name.clone())
+                    .unwrap_or_else(|| feature.plugin_name.clone()),
+                label: feature.label.clone(),
+                icon: resolve_feature_icon(feature, plugin, builtin_dir),
+                explain: feature.explain.clone(),
+                score: feature.priority,
+                match_type: "catalog",
+            }
+        })
+        .collect())
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct NativeIpAddress {
+    pub interface: String,
+    pub address: String,
+    pub family: String,
+    pub loopback: bool,
+    pub link_local: bool,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct NativeIpSnapshot {
+    pub hostname: String,
+    pub primary_ipv4: Option<String>,
+    pub primary_ipv6: Option<String>,
+    pub addresses: Vec<NativeIpAddress>,
+}
+
+#[tauri::command]
+pub async fn native_ip_snapshot() -> Result<NativeIpSnapshot, String> {
+    tauri::async_runtime::spawn_blocking(native_ip_snapshot_inner)
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+fn native_ip_snapshot_inner() -> Result<NativeIpSnapshot, String> {
+    let mut addresses = get_if_addrs::get_if_addrs()
+        .map_err(|error| error.to_string())?
+        .into_iter()
+        .map(|interface| {
+            let ip = interface.ip();
+            NativeIpAddress {
+                interface: interface.name,
+                address: ip.to_string(),
+                family: if ip.is_ipv4() { "IPv4" } else { "IPv6" }.to_string(),
+                loopback: ip.is_loopback(),
+                link_local: match ip {
+                    std::net::IpAddr::V4(value) => value.is_link_local(),
+                    std::net::IpAddr::V6(value) => value.is_unicast_link_local(),
+                },
+            }
+        })
+        .collect::<Vec<_>>();
+    addresses.sort_by_key(ip_address_sort_key);
+    addresses
+        .dedup_by(|left, right| left.interface == right.interface && left.address == right.address);
+
+    let primary_ipv4 = addresses
+        .iter()
+        .find(|entry| entry.family == "IPv4" && !entry.loopback && !entry.link_local)
+        .map(|entry| entry.address.clone());
+    let primary_ipv6 = addresses
+        .iter()
+        .find(|entry| entry.family == "IPv6" && !entry.loopback && !entry.link_local)
+        .map(|entry| entry.address.clone());
+
+    Ok(NativeIpSnapshot {
+        hostname: gethostname::gethostname().to_string_lossy().into_owned(),
+        primary_ipv4,
+        primary_ipv6,
+        addresses,
+    })
+}
+
+fn ip_address_sort_key(entry: &NativeIpAddress) -> (u8, u8, u8, String, String) {
+    let availability = u8::from(entry.loopback || entry.link_local);
+    let family = u8::from(entry.family != "IPv4");
+    let interface = match entry.interface.as_str() {
+        "en0" => 0,
+        "en1" => 1,
+        name if name.starts_with("en") => 2,
+        name if name.starts_with("utun") => 4,
+        "lo0" => 9,
+        _ => 3,
+    };
+    (
+        availability,
+        family,
+        interface,
+        entry.interface.clone(),
+        entry.address.clone(),
+    )
+}
+
+const NATIVE_HTTP_MAX_REQUEST_BODY_BYTES: usize = 1024 * 1024;
+const NATIVE_HTTP_DEFAULT_RESPONSE_BYTES: usize = 1024 * 1024;
+const NATIVE_HTTP_MAX_RESPONSE_BYTES: usize = 5 * 1024 * 1024;
+const NATIVE_HTTP_MAX_HEADERS: usize = 64;
+const NATIVE_HTTP_MAX_HEADER_BYTES: usize = 32 * 1024;
+const NATIVE_HTTP_DEFAULT_TIMEOUT_MS: u64 = 15_000;
+const NATIVE_HTTP_MAX_TIMEOUT_MS: u64 = 30_000;
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+pub struct NativeHttpHeader {
+    pub name: String,
+    pub value: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+pub struct NativeHttpRequest {
+    pub method: String,
+    pub url: String,
+    #[serde(default)]
+    pub headers: Vec<NativeHttpHeader>,
+    pub body: Option<String>,
+    pub timeout_ms: Option<u64>,
+    pub max_response_bytes: Option<usize>,
+    pub follow_redirects: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct NativeHttpResponse {
+    pub status: u16,
+    pub status_text: String,
+    pub final_url: String,
+    pub headers: Vec<NativeHttpHeader>,
+    pub body: String,
+    pub body_encoding: String,
+    pub body_bytes: usize,
+    pub duration_ms: u64,
+}
+
+#[tauri::command]
+pub async fn perform_native_http_request(
+    state: tauri::State<'_, AppState>,
+    request: NativeHttpRequest,
+) -> Result<NativeHttpResponse, String> {
+    let started = std::time::Instant::now();
+    let audit_input = native_http_audit_input(&request);
+    let mut run = TaskRun::new(
+        "plugin.http.request",
+        TaskRunInitiator::human(Some("builtin-http-client".to_string())),
+        audit_input,
+    );
+    run.transition(TaskRunStatus::Running)
+        .expect("HTTP request TaskRun can start");
+    state
+        .db
+        .upsert_task_run(&run)
+        .map_err(|error| error.to_string())?;
+
+    let result = perform_native_http_request_inner(request).await;
+    match result {
+        Ok(response) => {
+            run.output = serde_json::json!({
+                "status": response.status,
+                "finalUrl": response.final_url,
+                "bodyBytes": response.body_bytes,
+                "bodyEncoding": response.body_encoding,
+            });
+            run.summary = Some(format!(
+                "HTTP {} returned {} ({} bytes)",
+                run.input
+                    .get("method")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("REQUEST"),
+                response.status,
+                response.body_bytes,
+            ));
+            run.validation.status = TaskValidationStatus::Passed;
+            run.validation.summary = Some(
+                "URL, method, timeout, redirects, headers, and body limits were validated"
+                    .to_string(),
+            );
+            run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
+            run.transition(TaskRunStatus::Succeeded)
+                .expect("running HTTP request TaskRun can succeed");
+            state
+                .db
+                .upsert_task_run(&run)
+                .map_err(|error| error.to_string())?;
+            Ok(response)
+        }
+        Err(error) => {
+            run.summary = Some("Native HTTP request failed".to_string());
+            run.errors.push(TaskIssue::error(
+                "native_http_request_failed",
+                error.clone(),
+            ));
+            run.validation.status = TaskValidationStatus::Failed;
+            run.validation.summary = Some("The request was rejected or failed".to_string());
+            run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
+            run.transition(TaskRunStatus::Failed)
+                .expect("running HTTP request TaskRun can fail");
+            let _ = state.db.upsert_task_run(&run);
+            Err(error)
+        }
+    }
+}
+
+fn native_http_audit_input(request: &NativeHttpRequest) -> serde_json::Value {
+    serde_json::json!({
+        "method": request.method.trim().to_uppercase(),
+        "url": request.url.trim(),
+        "headerNames": request.headers.iter().map(|header| header.name.trim()).collect::<Vec<_>>(),
+        "bodyBytes": request.body.as_deref().unwrap_or_default().len(),
+        "timeoutMs": request.timeout_ms.unwrap_or(NATIVE_HTTP_DEFAULT_TIMEOUT_MS),
+        "maxResponseBytes": request.max_response_bytes.unwrap_or(NATIVE_HTTP_DEFAULT_RESPONSE_BYTES),
+        "followRedirects": request.follow_redirects.unwrap_or(false),
+    })
+}
+
+async fn perform_native_http_request_inner(
+    request: NativeHttpRequest,
+) -> Result<NativeHttpResponse, String> {
+    let started = std::time::Instant::now();
+    let method = native_http_method(&request.method)?;
+    let url = native_http_url(&request.url)?;
+    let timeout_ms = request
+        .timeout_ms
+        .unwrap_or(NATIVE_HTTP_DEFAULT_TIMEOUT_MS)
+        .clamp(250, NATIVE_HTTP_MAX_TIMEOUT_MS);
+    let max_response_bytes = request
+        .max_response_bytes
+        .unwrap_or(NATIVE_HTTP_DEFAULT_RESPONSE_BYTES)
+        .clamp(1024, NATIVE_HTTP_MAX_RESPONSE_BYTES);
+    let body = request.body.unwrap_or_default();
+    if body.len() > NATIVE_HTTP_MAX_REQUEST_BODY_BYTES {
+        return Err(format!(
+            "HTTP request body is too large: {} bytes (max {})",
+            body.len(),
+            NATIVE_HTTP_MAX_REQUEST_BODY_BYTES
+        ));
+    }
+
+    let redirect_policy = if request.follow_redirects.unwrap_or(false) {
+        reqwest::redirect::Policy::custom(|attempt| {
+            if attempt.previous().len() >= 5 {
+                return attempt.error("HTTP redirect limit exceeded");
+            }
+            if !matches!(attempt.url().scheme(), "http" | "https") {
+                return attempt.error("HTTP redirect must use http or https");
+            }
+            attempt.follow()
+        })
+    } else {
+        reqwest::redirect::Policy::none()
+    };
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_millis(timeout_ms))
+        .redirect(redirect_policy)
+        .user_agent("ATools/3.0 Rust HTTP Client")
+        .build()
+        .map_err(|error| format!("HTTP client creation failed: {error}"))?;
+    let mut builder = client.request(method, url);
+    let mut header_bytes = 0usize;
+    if request.headers.len() > NATIVE_HTTP_MAX_HEADERS {
+        return Err(format!(
+            "Too many HTTP headers (max {NATIVE_HTTP_MAX_HEADERS})"
+        ));
+    }
+    for header in request.headers {
+        let name = header.name.trim();
+        let value = header.value.trim();
+        header_bytes = header_bytes
+            .saturating_add(name.len())
+            .saturating_add(value.len());
+        if header_bytes > NATIVE_HTTP_MAX_HEADER_BYTES {
+            return Err(format!(
+                "HTTP headers are too large (max {NATIVE_HTTP_MAX_HEADER_BYTES} bytes)"
+            ));
+        }
+        let parsed_name = reqwest::header::HeaderName::from_bytes(name.as_bytes())
+            .map_err(|error| format!("Invalid HTTP header name {name:?}: {error}"))?;
+        if matches!(
+            parsed_name.as_str(),
+            "host" | "content-length" | "connection" | "transfer-encoding"
+        ) {
+            return Err(format!("HTTP header {name:?} is managed by ATools"));
+        }
+        let parsed_value = reqwest::header::HeaderValue::from_str(value)
+            .map_err(|error| format!("Invalid HTTP header value for {name:?}: {error}"))?;
+        builder = builder.header(parsed_name, parsed_value);
+    }
+    if !body.is_empty() {
+        builder = builder.body(body);
+    }
+
+    let mut response = builder
+        .send()
+        .await
+        .map_err(|error| format!("HTTP request failed: {error}"))?;
+    if response
+        .content_length()
+        .is_some_and(|length| length > max_response_bytes as u64)
+    {
+        return Err(format!(
+            "HTTP response is too large (max {max_response_bytes} bytes)"
+        ));
+    }
+    let status = response.status();
+    let final_url = response.url().to_string();
+    let headers = response
+        .headers()
+        .iter()
+        .map(|(name, value)| NativeHttpHeader {
+            name: name.as_str().to_string(),
+            value: value
+                .to_str()
+                .map(str::to_string)
+                .unwrap_or_else(|_| format!("base64:{}", STANDARD.encode(value.as_bytes()))),
+        })
+        .collect::<Vec<_>>();
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|error| format!("HTTP response body failed: {error}"))?
+    {
+        if bytes.len().saturating_add(chunk.len()) > max_response_bytes {
+            return Err(format!(
+                "HTTP response is too large (max {max_response_bytes} bytes)"
+            ));
+        }
+        bytes.extend_from_slice(&chunk);
+    }
+    let body_bytes = bytes.len();
+    let (body, body_encoding) = match String::from_utf8(bytes) {
+        Ok(text) => (text, "utf8".to_string()),
+        Err(error) => (STANDARD.encode(error.into_bytes()), "base64".to_string()),
+    };
+    Ok(NativeHttpResponse {
+        status: status.as_u16(),
+        status_text: status.canonical_reason().unwrap_or_default().to_string(),
+        final_url,
+        headers,
+        body,
+        body_encoding,
+        body_bytes,
+        duration_ms: started.elapsed().as_millis() as u64,
+    })
+}
+
+fn native_http_method(value: &str) -> Result<reqwest::Method, String> {
+    match value.trim().to_uppercase().as_str() {
+        "GET" => Ok(reqwest::Method::GET),
+        "POST" => Ok(reqwest::Method::POST),
+        "PUT" => Ok(reqwest::Method::PUT),
+        "PATCH" => Ok(reqwest::Method::PATCH),
+        "DELETE" => Ok(reqwest::Method::DELETE),
+        "HEAD" => Ok(reqwest::Method::HEAD),
+        "OPTIONS" => Ok(reqwest::Method::OPTIONS),
+        _ => Err("HTTP method must be GET, POST, PUT, PATCH, DELETE, HEAD, or OPTIONS".to_string()),
+    }
+}
+
+fn native_http_url(value: &str) -> Result<reqwest::Url, String> {
+    let value = value.trim();
+    if value.len() > 8192 {
+        return Err("HTTP URL is too long".to_string());
+    }
+    let url = reqwest::Url::parse(value).map_err(|error| format!("Invalid HTTP URL: {error}"))?;
+    if !matches!(url.scheme(), "http" | "https") {
+        return Err("HTTP URL must use http or https".to_string());
+    }
+    if url.host_str().is_none() {
+        return Err("HTTP URL must include a host".to_string());
+    }
+    if !url.username().is_empty() || url.password().is_some() {
+        return Err(
+            "HTTP URL credentials are not allowed; use an Authorization header".to_string(),
+        );
+    }
+    Ok(url)
+}
+
+const GOOGLE_TRANSLATE_ENDPOINT: &str = "https://translate.googleapis.com/translate_a/single";
+const NATIVE_TRANSLATION_MAX_TEXT_BYTES: usize = 64 * 1024;
+const NATIVE_TRANSLATION_MAX_RESPONSE_BYTES: usize = 1024 * 1024;
+const NATIVE_TRANSLATION_TIMEOUT_SECS: u64 = 12;
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct NativeTranslationRequest {
+    pub text: String,
+    pub source_lang: String,
+    pub target_lang: String,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct NativeTranslationResponse {
+    pub translated_text: String,
+    pub detected_source_lang: Option<String>,
+    pub target_lang: String,
+    pub provider: String,
+    pub duration_ms: u64,
+}
+
+#[tauri::command]
+pub async fn translate_native_text(
+    state: tauri::State<'_, AppState>,
+    request: NativeTranslationRequest,
+) -> Result<NativeTranslationResponse, String> {
+    let started = std::time::Instant::now();
+    let source_lang = validated_translation_language(&request.source_lang, true)?;
+    let target_lang = validated_translation_language(&request.target_lang, false)?;
+    let text_bytes = request.text.trim().len();
+    let mut run = TaskRun::new(
+        "plugin.translation.request",
+        TaskRunInitiator::human(Some("builtin-translation".to_string())),
+        serde_json::json!({
+            "sourceLang": source_lang,
+            "targetLang": target_lang,
+            "textBytes": text_bytes,
+            "textRedacted": true,
+            "provider": "google-translate",
+        }),
+    );
+    run.transition(TaskRunStatus::Running)
+        .expect("translation TaskRun can start");
+    state
+        .db
+        .upsert_task_run(&run)
+        .map_err(|error| error.to_string())?;
+
+    let proxy_url = saved_network_proxy_url(&state.db)?;
+    let result = translate_native_text_with_endpoint(
+        request,
+        GOOGLE_TRANSLATE_ENDPOINT,
+        proxy_url.as_deref(),
+    )
+    .await;
+    match result {
+        Ok(response) => {
+            run.output = serde_json::json!({
+                "detectedSourceLang": response.detected_source_lang,
+                "targetLang": response.target_lang,
+                "translatedBytes": response.translated_text.len(),
+                "translationRedacted": true,
+                "provider": response.provider,
+            });
+            run.summary = Some(format!(
+                "Translated {} bytes from {} to {}",
+                text_bytes,
+                run.input["sourceLang"].as_str().unwrap_or("auto"),
+                response.target_lang,
+            ));
+            run.validation.status = TaskValidationStatus::Passed;
+            run.validation.summary = Some(
+                "Language, payload, timeout, redirect, proxy, and response limits were validated"
+                    .to_string(),
+            );
+            run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
+            run.transition(TaskRunStatus::Succeeded)
+                .expect("running translation TaskRun can succeed");
+            state
+                .db
+                .upsert_task_run(&run)
+                .map_err(|error| error.to_string())?;
+            Ok(response)
+        }
+        Err(error) => {
+            run.summary = Some("Native translation failed".to_string());
+            run.errors
+                .push(TaskIssue::error("native_translation_failed", error.clone()));
+            run.validation.status = TaskValidationStatus::Failed;
+            run.validation.summary = Some("The translation request was rejected or failed".to_string());
+            run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
+            run.transition(TaskRunStatus::Failed)
+                .expect("running translation TaskRun can fail");
+            let _ = state.db.upsert_task_run(&run);
+            Err(error)
+        }
+    }
+}
+
+fn saved_network_proxy_url(db: &Database) -> Result<Option<String>, String> {
+    let Some(raw) = db
+        .get_setting("settings-general")
+        .map_err(|error| error.to_string())?
+    else {
+        return Ok(None);
+    };
+    let settings: serde_json::Value =
+        serde_json::from_str(&raw).map_err(|error| format!("Invalid saved settings: {error}"))?;
+    network_proxy_url_from_settings(&settings)
+}
+
+async fn translate_native_text_with_endpoint(
+    request: NativeTranslationRequest,
+    endpoint: &str,
+    proxy_url: Option<&str>,
+) -> Result<NativeTranslationResponse, String> {
+    let started = std::time::Instant::now();
+    let text = request.text.trim();
+    if text.is_empty() {
+        return Err("Translation text is required".to_string());
+    }
+    if text.len() > NATIVE_TRANSLATION_MAX_TEXT_BYTES {
+        return Err(format!(
+            "Translation text is too large: {} bytes (max {})",
+            text.len(),
+            NATIVE_TRANSLATION_MAX_TEXT_BYTES
+        ));
+    }
+    let source_lang = validated_translation_language(&request.source_lang, true)?;
+    let target_lang = validated_translation_language(&request.target_lang, false)?;
+    if source_lang != "auto" && source_lang == target_lang {
+        return Err("Source and target languages must be different".to_string());
+    }
+    let endpoint = native_http_url(endpoint)?;
+    let mut client_builder = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(NATIVE_TRANSLATION_TIMEOUT_SECS))
+        .redirect(reqwest::redirect::Policy::none())
+        .user_agent("ATools/3.0 Rust Translation");
+    if let Some(proxy_url) = proxy_url {
+        client_builder = client_builder.proxy(
+            reqwest::Proxy::all(proxy_url)
+                .map_err(|error| format!("Invalid network proxy URL: {error}"))?,
+        );
+    }
+    let client = client_builder
+        .build()
+        .map_err(|error| format!("Translation client creation failed: {error}"))?;
+    let mut response = client
+        .post(endpoint)
+        .form(&[
+            ("client", "gtx"),
+            ("sl", source_lang.as_str()),
+            ("tl", target_lang.as_str()),
+            ("dt", "t"),
+            ("q", text),
+        ])
+        .send()
+        .await
+        .map_err(|error| format!("Translation request failed: {error}"))?;
+    if !response.status().is_success() {
+        return Err(format!(
+            "Translation service returned HTTP {}",
+            response.status().as_u16()
+        ));
+    }
+    if response
+        .content_length()
+        .is_some_and(|length| length > NATIVE_TRANSLATION_MAX_RESPONSE_BYTES as u64)
+    {
+        return Err("Translation response is too large".to_string());
+    }
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|error| format!("Translation response failed: {error}"))?
+    {
+        if bytes.len().saturating_add(chunk.len()) > NATIVE_TRANSLATION_MAX_RESPONSE_BYTES {
+            return Err("Translation response is too large".to_string());
+        }
+        bytes.extend_from_slice(&chunk);
+    }
+    let (translated_text, detected_source_lang) = parse_google_translation_response(&bytes)?;
+    Ok(NativeTranslationResponse {
+        translated_text,
+        detected_source_lang,
+        target_lang,
+        provider: "google-translate".to_string(),
+        duration_ms: started.elapsed().as_millis() as u64,
+    })
+}
+
+fn validated_translation_language(value: &str, allow_auto: bool) -> Result<String, String> {
+    let value = value.trim().to_lowercase();
+    let allowed = ["zh", "en", "ja", "ko", "fr", "de", "es", "ru"];
+    if (allow_auto && value == "auto") || allowed.contains(&value.as_str()) {
+        return Ok(value);
+    }
+    Err(format!("Unsupported translation language: {value}"))
+}
+
+fn parse_google_translation_response(bytes: &[u8]) -> Result<(String, Option<String>), String> {
+    let payload: serde_json::Value = serde_json::from_slice(bytes)
+        .map_err(|error| format!("Translation response JSON failed: {error}"))?;
+    let segments = payload
+        .get(0)
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| "Translation response has no segments".to_string())?;
+    let translated = segments
+        .iter()
+        .filter_map(|segment| segment.get(0).and_then(serde_json::Value::as_str))
+        .collect::<String>();
+    if translated.is_empty() {
+        return Err("Translation response is empty".to_string());
+    }
+    let detected = payload
+        .get(2)
+        .and_then(|value| {
+            value.as_str().or_else(|| {
+                value
+                    .as_array()
+                    .and_then(|items| items.first())
+                    .and_then(serde_json::Value::as_str)
+            })
+        })
+        .map(ToString::to_string);
+    Ok((translated, detected))
+}
+
+const NATIVE_HOSTS_MAX_BYTES: usize = 256 * 1024;
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct NativeHostsSnapshot {
+    pub path: String,
+    pub content: String,
+    pub size_bytes: usize,
+    pub modified_at_ms: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct NativeHostsWriteResult {
+    pub path: String,
+    pub backup_path: String,
+    pub bytes_written: usize,
+    pub cache_flushed: bool,
+}
+
+#[tauri::command]
+pub async fn read_native_hosts() -> Result<NativeHostsSnapshot, String> {
+    tauri::async_runtime::spawn_blocking(read_native_hosts_inner)
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+pub async fn write_native_hosts(
+    state: tauri::State<'_, AppState>,
+    content: String,
+    confirmed: bool,
+) -> Result<NativeHostsWriteResult, String> {
+    let started = std::time::Instant::now();
+    let mut run = TaskRun::new(
+        "plugin.hosts.write",
+        TaskRunInitiator::human(Some("builtin-hosts-editor".to_string())),
+        serde_json::json!({
+            "confirmed": confirmed,
+            "contentBytes": content.len(),
+            "contentRedacted": true,
+        }),
+    );
+    run.transition(TaskRunStatus::Running)
+        .expect("hosts write TaskRun can start");
+    state
+        .db
+        .upsert_task_run(&run)
+        .map_err(|error| error.to_string())?;
+
+    let result =
+        tauri::async_runtime::spawn_blocking(move || write_native_hosts_inner(&content, confirmed))
+            .await
+            .map_err(|error| error.to_string())?;
+    match result {
+        Ok(write_result) => {
+            run.output = serde_json::json!({
+                "path": write_result.path,
+                "backupPath": write_result.backup_path,
+                "bytesWritten": write_result.bytes_written,
+                "cacheFlushed": write_result.cache_flushed,
+            });
+            run.summary = Some(format!(
+                "Updated hosts file and created backup {}",
+                write_result.backup_path
+            ));
+            run.validation.status = TaskValidationStatus::Passed;
+            run.validation.summary = Some(
+                "The normalized file was read back after an administrator-authorized atomic install"
+                    .to_string(),
+            );
+            run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
+            run.transition(TaskRunStatus::Succeeded)
+                .expect("running hosts write TaskRun can succeed");
+            state
+                .db
+                .upsert_task_run(&run)
+                .map_err(|error| error.to_string())?;
+            Ok(write_result)
+        }
+        Err(error) => {
+            run.summary = Some("Hosts file update failed or was cancelled".to_string());
+            run.errors
+                .push(TaskIssue::error("native_hosts_write_failed", error.clone()));
+            run.validation.status = TaskValidationStatus::Failed;
+            run.validation.summary =
+                Some("No successful verified hosts update was recorded".to_string());
+            run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
+            run.transition(TaskRunStatus::Failed)
+                .expect("running hosts write TaskRun can fail");
+            let _ = state.db.upsert_task_run(&run);
+            Err(error)
+        }
+    }
+}
+
+fn native_hosts_path() -> &'static std::path::Path {
+    std::path::Path::new("/etc/hosts")
+}
+
+fn read_native_hosts_inner() -> Result<NativeHostsSnapshot, String> {
+    let path = native_hosts_path();
+    let content =
+        fs::read_to_string(path).map_err(|error| format!("Failed to read /etc/hosts: {error}"))?;
+    let modified_at_ms = fs::metadata(path)
+        .ok()
+        .and_then(|metadata| metadata.modified().ok())
+        .and_then(|modified| modified.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|duration| duration.as_millis() as u64);
+    Ok(NativeHostsSnapshot {
+        path: path.to_string_lossy().into_owned(),
+        size_bytes: content.len(),
+        content,
+        modified_at_ms,
+    })
+}
+
+fn validate_native_hosts_content(content: &str) -> Result<String, String> {
+    if content.as_bytes().contains(&0) {
+        return Err("Hosts content cannot contain NUL bytes".to_string());
+    }
+    if content.len() > NATIVE_HOSTS_MAX_BYTES {
+        return Err(format!(
+            "Hosts content is too large: {} bytes (max {})",
+            content.len(),
+            NATIVE_HOSTS_MAX_BYTES
+        ));
+    }
+    let normalized = content.replace("\r\n", "\n").replace('\r', "\n");
+    let mut mapping_count = 0usize;
+    for (index, line) in normalized.lines().enumerate() {
+        let value = line.split('#').next().unwrap_or_default().trim();
+        if value.is_empty() {
+            continue;
+        }
+        let fields = value.split_whitespace().collect::<Vec<_>>();
+        if fields.len() < 2 {
+            return Err(format!(
+                "Hosts line {} must contain an IP and hostname",
+                index + 1
+            ));
+        }
+        fields[0]
+            .parse::<std::net::IpAddr>()
+            .map_err(|_| format!("Hosts line {} has an invalid IP address", index + 1))?;
+        for hostname in &fields[1..] {
+            if hostname.len() > 253
+                || hostname.starts_with('.')
+                || hostname.ends_with('.')
+                || !hostname
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'-' | b'_'))
+            {
+                return Err(format!(
+                    "Hosts line {} has an invalid hostname {:?}",
+                    index + 1,
+                    hostname
+                ));
+            }
+        }
+        mapping_count += 1;
+    }
+    if mapping_count == 0 {
+        return Err("Hosts content must contain at least one IP mapping".to_string());
+    }
+    Ok(if normalized.ends_with('\n') {
+        normalized
+    } else {
+        format!("{normalized}\n")
+    })
+}
+
+fn write_native_hosts_inner(
+    content: &str,
+    confirmed: bool,
+) -> Result<NativeHostsWriteResult, String> {
+    if !confirmed {
+        return Err("Hosts update requires explicit confirmation".to_string());
+    }
+    let normalized = validate_native_hosts_content(content)?;
+    let backup_dir = dirs::home_dir()
+        .ok_or_else(|| "Cannot resolve the home directory for hosts backup".to_string())?
+        .join(".atools/backups/hosts");
+    fs::create_dir_all(&backup_dir)
+        .map_err(|error| format!("Failed to create hosts backup directory: {error}"))?;
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|error| error.to_string())?
+        .as_millis();
+    let backup_path = backup_dir.join(format!("hosts-{timestamp}.bak"));
+    fs::copy(native_hosts_path(), &backup_path)
+        .map_err(|error| format!("Failed to back up /etc/hosts: {error}"))?;
+
+    let temp_path = std::env::temp_dir().join(format!("atools-hosts-{}.tmp", uuid::Uuid::new_v4()));
+    fs::write(&temp_path, normalized.as_bytes())
+        .map_err(|error| format!("Failed to stage hosts update: {error}"))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&temp_path, fs::Permissions::from_mode(0o600))
+            .map_err(|error| format!("Failed to protect staged hosts update: {error}"))?;
+    }
+
+    let install_result = install_native_hosts_with_privilege(&temp_path);
+    let _ = fs::remove_file(&temp_path);
+    install_result?;
+    let installed = fs::read_to_string(native_hosts_path())
+        .map_err(|error| format!("Failed to verify /etc/hosts after update: {error}"))?;
+    if installed != normalized {
+        return Err(format!(
+            "Hosts verification failed; restore from {} if needed",
+            backup_path.display()
+        ));
+    }
+    Ok(NativeHostsWriteResult {
+        path: native_hosts_path().to_string_lossy().into_owned(),
+        backup_path: backup_path.to_string_lossy().into_owned(),
+        bytes_written: normalized.len(),
+        cache_flushed: true,
+    })
+}
+
+#[cfg(target_os = "macos")]
+fn install_native_hosts_with_privilege(temp_path: &std::path::Path) -> Result<(), String> {
+    let quoted_path = shell_single_quote(&temp_path.to_string_lossy());
+    let command = format!(
+        "/usr/bin/install -o root -g wheel -m 644 {quoted_path} /etc/hosts && /usr/bin/dscacheutil -flushcache && (/usr/bin/killall -HUP mDNSResponder >/dev/null 2>&1 || true)"
+    );
+    let script = format!(
+        "do shell script \"{}\" with administrator privileges",
+        apple_script_string(&command)
+    );
+    let output = std::process::Command::new("/usr/bin/osascript")
+        .args(["-e", &script])
+        .output()
+        .map_err(|error| format!("Failed to request administrator authorization: {error}"))?;
+    if output.status.success() {
+        return Ok(());
+    }
+    let message = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let fallback = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    Err(if !message.is_empty() {
+        format!("Administrator authorization failed: {message}")
+    } else if !fallback.is_empty() {
+        format!("Administrator authorization failed: {fallback}")
+    } else {
+        "Administrator authorization was cancelled or failed".to_string()
+    })
+}
+
+#[cfg(not(target_os = "macos"))]
+fn install_native_hosts_with_privilege(_temp_path: &std::path::Path) -> Result<(), String> {
+    Err("Native hosts editing is currently supported on macOS only".to_string())
+}
+
+fn shell_single_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\"'\"'"))
+}
+
+fn apple_script_string(value: &str) -> String {
+    value.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+const NATIVE_TODO_PLUGIN_NAME: &str = "todo";
+const NATIVE_TODO_MAX_TITLE_CHARS: usize = 500;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct NativeTodoItem {
+    pub id: String,
+    pub title: String,
+    pub completed: bool,
+    pub created_at_ms: u64,
+    pub updated_at_ms: u64,
+}
+
+#[tauri::command]
+pub async fn list_native_todos(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<NativeTodoItem>, String> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || list_native_todos_inner(&db))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+pub async fn save_native_todo(
+    state: tauri::State<'_, AppState>,
+    id: Option<String>,
+    title: String,
+    completed: Option<bool>,
+) -> Result<NativeTodoItem, String> {
+    let started = std::time::Instant::now();
+    let mut run = TaskRun::new(
+        "plugin.todo.save",
+        TaskRunInitiator::human(Some("builtin-todo".to_string())),
+        serde_json::json!({
+            "id": id,
+            "titleCharacters": title.chars().count(),
+            "titleRedacted": true,
+            "completed": completed,
+        }),
+    );
+    run.transition(TaskRunStatus::Running)
+        .expect("todo save TaskRun can start");
+    state
+        .db
+        .upsert_task_run(&run)
+        .map_err(|error| error.to_string())?;
+    let db = state.db.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        save_native_todo_inner(&db, id.as_deref(), &title, completed)
+    })
+    .await
+    .map_err(|error| error.to_string())?;
+    finish_todo_mutation_task_run(&state.db, run, result, started, "save")
+}
+
+#[tauri::command]
+pub async fn delete_native_todo(
+    state: tauri::State<'_, AppState>,
+    id: String,
+    confirmed: bool,
+) -> Result<NativeTodoItem, String> {
+    let started = std::time::Instant::now();
+    let mut run = TaskRun::new(
+        "plugin.todo.delete",
+        TaskRunInitiator::human(Some("builtin-todo".to_string())),
+        serde_json::json!({ "id": id, "confirmed": confirmed }),
+    );
+    run.transition(TaskRunStatus::Running)
+        .expect("todo delete TaskRun can start");
+    state
+        .db
+        .upsert_task_run(&run)
+        .map_err(|error| error.to_string())?;
+    let db = state.db.clone();
+    let result =
+        tauri::async_runtime::spawn_blocking(move || delete_native_todo_inner(&db, &id, confirmed))
+            .await
+            .map_err(|error| error.to_string())?;
+    finish_todo_mutation_task_run(&state.db, run, result, started, "delete")
+}
+
+fn finish_todo_mutation_task_run(
+    db: &Database,
+    mut run: TaskRun,
+    result: Result<NativeTodoItem, String>,
+    started: std::time::Instant,
+    operation: &str,
+) -> Result<NativeTodoItem, String> {
+    match result {
+        Ok(item) => {
+            run.output = serde_json::json!({
+                "id": item.id,
+                "completed": item.completed,
+                "updatedAtMs": item.updated_at_ms,
+            });
+            run.summary = Some(format!("Todo {operation} succeeded"));
+            run.validation.status = TaskValidationStatus::Passed;
+            run.validation.summary =
+                Some("The SQLite document was read back as a typed todo item".to_string());
+            run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
+            run.transition(TaskRunStatus::Succeeded)
+                .expect("running todo mutation TaskRun can succeed");
+            db.upsert_task_run(&run)
+                .map_err(|error| error.to_string())?;
+            Ok(item)
+        }
+        Err(error) => {
+            run.summary = Some(format!("Todo {operation} failed"));
+            run.errors.push(TaskIssue::error(
+                "native_todo_mutation_failed",
+                error.clone(),
+            ));
+            run.validation.status = TaskValidationStatus::Failed;
+            run.validation.summary = Some("No verified todo mutation was recorded".to_string());
+            run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
+            run.transition(TaskRunStatus::Failed)
+                .expect("running todo mutation TaskRun can fail");
+            let _ = db.upsert_task_run(&run);
+            Err(error)
+        }
+    }
+}
+
+fn list_native_todos_inner(db: &Database) -> Result<Vec<NativeTodoItem>, String> {
+    let plugin_id = native_todo_plugin_id(db)?;
+    let mut items = db
+        .plugin_data_all(&plugin_id)
+        .map_err(|error| error.to_string())?
+        .into_iter()
+        .filter_map(native_todo_from_document)
+        .collect::<Vec<_>>();
+    items.sort_by(|left, right| {
+        left.completed
+            .cmp(&right.completed)
+            .then_with(|| right.updated_at_ms.cmp(&left.updated_at_ms))
+            .then_with(|| left.id.cmp(&right.id))
+    });
+    Ok(items)
+}
+
+fn save_native_todo_inner(
+    db: &Database,
+    id: Option<&str>,
+    title: &str,
+    completed: Option<bool>,
+) -> Result<NativeTodoItem, String> {
+    let plugin_id = native_todo_plugin_id(db)?;
+    let title = title.trim();
+    if title.is_empty() {
+        return Err("Todo title cannot be empty".to_string());
+    }
+    if title.chars().count() > NATIVE_TODO_MAX_TITLE_CHARS {
+        return Err(format!(
+            "Todo title is too long (max {NATIVE_TODO_MAX_TITLE_CHARS} characters)"
+        ));
+    }
+    let id = id
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+    let existing = db
+        .plugin_data_get(&plugin_id, &id)
+        .map_err(|error| error.to_string())?
+        .and_then(native_todo_from_document);
+    let now = epoch_millis();
+    let item = NativeTodoItem {
+        id: id.clone(),
+        title: title.to_string(),
+        completed: completed
+            .or_else(|| existing.as_ref().map(|item| item.completed))
+            .unwrap_or(false),
+        created_at_ms: existing
+            .as_ref()
+            .map(|item| item.created_at_ms)
+            .unwrap_or(now),
+        updated_at_ms: now,
+    };
+    db.plugin_data_put(&plugin_id, &native_todo_document(&item))
+        .map_err(|error| error.to_string())?;
+    db.plugin_data_get(&plugin_id, &id)
+        .map_err(|error| error.to_string())?
+        .and_then(native_todo_from_document)
+        .ok_or_else(|| "Todo could not be read back from SQLite".to_string())
+}
+
+fn delete_native_todo_inner(
+    db: &Database,
+    id: &str,
+    confirmed: bool,
+) -> Result<NativeTodoItem, String> {
+    if !confirmed {
+        return Err("Todo deletion requires explicit confirmation".to_string());
+    }
+    let id = id.trim();
+    let plugin_id = native_todo_plugin_id(db)?;
+    let item = db
+        .plugin_data_get(&plugin_id, id)
+        .map_err(|error| error.to_string())?
+        .and_then(native_todo_from_document)
+        .ok_or_else(|| "Todo item does not exist".to_string())?;
+    db.plugin_data_remove(&plugin_id, id)
+        .map_err(|error| error.to_string())?;
+    if db
+        .plugin_data_get(&plugin_id, id)
+        .map_err(|error| error.to_string())?
+        .is_some()
+    {
+        return Err("Todo deletion could not be verified".to_string());
+    }
+    Ok(item)
+}
+
+fn native_todo_plugin_id(db: &Database) -> Result<String, String> {
+    db.list_plugins()
+        .map_err(|error| error.to_string())?
+        .into_iter()
+        .find(|plugin| plugin.name == NATIVE_TODO_PLUGIN_NAME)
+        .map(|plugin| plugin.id)
+        .ok_or_else(|| "The built-in ToDo plugin is not registered".to_string())
+}
+
+fn native_todo_document(item: &NativeTodoItem) -> Document {
+    Document {
+        id: item.id.clone(),
+        rev: None,
+        data: serde_json::json!({
+            "kind": "todo",
+            "title": item.title,
+            "completed": item.completed,
+            "createdAtMs": item.created_at_ms,
+            "updatedAtMs": item.updated_at_ms,
+        }),
+    }
+}
+
+fn native_todo_from_document(document: Document) -> Option<NativeTodoItem> {
+    (document.data.get("kind")?.as_str()? == "todo").then_some(NativeTodoItem {
+        id: document.id,
+        title: document.data.get("title")?.as_str()?.to_string(),
+        completed: document.data.get("completed")?.as_bool()?,
+        created_at_ms: document.data.get("createdAtMs")?.as_u64()?,
+        updated_at_ms: document.data.get("updatedAtMs")?.as_u64()?,
+    })
+}
+
+fn epoch_millis() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
+}
+
+const NATIVE_CALCULATION_PLUGIN_NAME: &str = "calculation-paper";
+const NATIVE_CALCULATION_MAX_INPUT_BYTES: usize = 64 * 1024;
+const NATIVE_CALCULATION_MAX_LINES: usize = 200;
+const NATIVE_CALCULATION_HISTORY_LIMIT: usize = 100;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NativeCalculationLine {
+    pub expression: String,
+    pub result: Option<String>,
+    pub value: Option<f64>,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NativeCalculationSheet {
+    pub lines: Vec<NativeCalculationLine>,
+    pub success_count: usize,
+    pub created_at_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NativeCalculationHistoryItem {
+    pub id: String,
+    pub expression: String,
+    pub result: String,
+    pub value: f64,
+    pub created_at_ms: u64,
+}
+
+#[tauri::command]
+pub async fn calculate_native_sheet(
+    state: tauri::State<'_, AppState>,
+    input: String,
+) -> Result<NativeCalculationSheet, String> {
+    let started = std::time::Instant::now();
+    let mut run = TaskRun::new(
+        "plugin.calculation.evaluate",
+        TaskRunInitiator::human(Some("builtin-calculation-paper".to_string())),
+        serde_json::json!({
+            "inputBytes": input.len(),
+            "lineCount": input.lines().count(),
+            "inputRedacted": true,
+        }),
+    );
+    run.transition(TaskRunStatus::Running)
+        .expect("calculation TaskRun can start");
+    state
+        .db
+        .upsert_task_run(&run)
+        .map_err(|error| error.to_string())?;
+    let db = state.db.clone();
+    let result =
+        tauri::async_runtime::spawn_blocking(move || calculate_native_sheet_inner(&db, &input))
+            .await
+            .map_err(|error| error.to_string())?;
+    match result {
+        Ok(sheet) => {
+            run.output = serde_json::json!({
+                "lineCount": sheet.lines.len(),
+                "successCount": sheet.success_count,
+                "errorCount": sheet.lines.len().saturating_sub(sheet.success_count),
+            });
+            run.summary = Some(format!(
+                "Calculated {} of {} worksheet lines",
+                sheet.success_count,
+                sheet.lines.len()
+            ));
+            run.validation.status = TaskValidationStatus::Passed;
+            run.validation.summary =
+                Some("Expressions were parsed by the Rust math evaluator".to_string());
+            run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
+            run.transition(TaskRunStatus::Succeeded)
+                .expect("running calculation TaskRun can succeed");
+            state
+                .db
+                .upsert_task_run(&run)
+                .map_err(|error| error.to_string())?;
+            Ok(sheet)
+        }
+        Err(error) => {
+            run.summary = Some("Calculation worksheet failed".to_string());
+            run.errors
+                .push(TaskIssue::error("native_calculation_failed", error.clone()));
+            run.validation.status = TaskValidationStatus::Failed;
+            run.validation.summary = Some("No calculation result was persisted".to_string());
+            run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
+            run.transition(TaskRunStatus::Failed)
+                .expect("running calculation TaskRun can fail");
+            let _ = state.db.upsert_task_run(&run);
+            Err(error)
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn list_native_calculation_history(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<NativeCalculationHistoryItem>, String> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || list_native_calculation_history_inner(&db))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+pub async fn clear_native_calculation_history(
+    state: tauri::State<'_, AppState>,
+    confirmed: bool,
+) -> Result<usize, String> {
+    let started = std::time::Instant::now();
+    let mut run = TaskRun::new(
+        "plugin.calculation.clear_history",
+        TaskRunInitiator::human(Some("builtin-calculation-paper".to_string())),
+        serde_json::json!({ "confirmed": confirmed }),
+    );
+    run.transition(TaskRunStatus::Running)
+        .expect("calculation history clear TaskRun can start");
+    state
+        .db
+        .upsert_task_run(&run)
+        .map_err(|error| error.to_string())?;
+    let db = state.db.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        if !confirmed {
+            return Err("Calculation history clearing requires explicit confirmation".to_string());
+        }
+        clear_native_calculation_history_inner(&db)
+    })
+    .await
+    .map_err(|error| error.to_string())?;
+    match result {
+        Ok(count) => {
+            run.output = serde_json::json!({ "deletedCount": count });
+            run.summary = Some(format!("Cleared {count} calculation history items"));
+            run.validation.status = TaskValidationStatus::Passed;
+            run.validation.summary = Some("SQLite history was queried after deletion".to_string());
+            run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
+            run.transition(TaskRunStatus::Succeeded)
+                .expect("running calculation clear TaskRun can succeed");
+            state
+                .db
+                .upsert_task_run(&run)
+                .map_err(|error| error.to_string())?;
+            Ok(count)
+        }
+        Err(error) => {
+            run.summary = Some("Calculation history clear failed or was cancelled".to_string());
+            run.errors.push(TaskIssue::error(
+                "calculation_history_clear_failed",
+                error.clone(),
+            ));
+            run.validation.status = TaskValidationStatus::Failed;
+            run.validation.summary = Some("No verified history clear was recorded".to_string());
+            run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
+            run.transition(TaskRunStatus::Failed)
+                .expect("running calculation clear TaskRun can fail");
+            let _ = state.db.upsert_task_run(&run);
+            Err(error)
+        }
+    }
+}
+
+fn clear_native_calculation_history_inner(db: &Database) -> Result<usize, String> {
+    let plugin_id = native_calculation_plugin_id(db)?;
+    let history = list_native_calculation_history_inner(db)?;
+    for item in &history {
+        db.plugin_data_remove(&plugin_id, &item.id)
+            .map_err(|error| error.to_string())?;
+    }
+    if !list_native_calculation_history_inner(db)?.is_empty() {
+        return Err("Calculation history clearing could not be verified".to_string());
+    }
+    Ok(history.len())
+}
+
+fn calculate_native_sheet_inner(
+    db: &Database,
+    input: &str,
+) -> Result<NativeCalculationSheet, String> {
+    if input.len() > NATIVE_CALCULATION_MAX_INPUT_BYTES {
+        return Err(format!(
+            "Calculation worksheet is too large (max {NATIVE_CALCULATION_MAX_INPUT_BYTES} bytes)"
+        ));
+    }
+    let expressions = input
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>();
+    if expressions.is_empty() {
+        return Err("Calculation worksheet cannot be empty".to_string());
+    }
+    if expressions.len() > NATIVE_CALCULATION_MAX_LINES {
+        return Err(format!(
+            "Calculation worksheet has too many lines (max {NATIVE_CALCULATION_MAX_LINES})"
+        ));
+    }
+    let created_at_ms = epoch_millis();
+    let mut lines = Vec::with_capacity(expressions.len());
+    let mut history = Vec::new();
+    for expression in expressions {
+        match evaluate_native_expression(expression) {
+            Ok(value) => {
+                let result = format_native_calculation(value);
+                history.push(NativeCalculationHistoryItem {
+                    id: format!("calculation-{}", uuid::Uuid::new_v4()),
+                    expression: expression.to_string(),
+                    result: result.clone(),
+                    value,
+                    created_at_ms,
+                });
+                lines.push(NativeCalculationLine {
+                    expression: expression.to_string(),
+                    result: Some(result),
+                    value: Some(value),
+                    error: None,
+                });
+            }
+            Err(error) => lines.push(NativeCalculationLine {
+                expression: expression.to_string(),
+                result: None,
+                value: None,
+                error: Some(error),
+            }),
+        }
+    }
+    if !history.is_empty() {
+        persist_native_calculation_history(db, &history)?;
+    }
+    Ok(NativeCalculationSheet {
+        success_count: history.len(),
+        lines,
+        created_at_ms,
+    })
+}
+
+fn evaluate_native_expression(expression: &str) -> Result<f64, String> {
+    let normalized = expression
+        .replace('×', "*")
+        .replace('÷', "/")
+        .replace('−', "-");
+    let value =
+        meval::eval_str(&normalized).map_err(|error| format!("Invalid expression: {error}"))?;
+    if !value.is_finite() {
+        return Err("Calculation result must be finite".to_string());
+    }
+    Ok(value)
+}
+
+fn format_native_calculation(value: f64) -> String {
+    if value == 0.0 {
+        return "0".to_string();
+    }
+    if value.fract() == 0.0 && value.abs() < 1e15 {
+        return format!("{value:.0}");
+    }
+    if value.abs() >= 1e12 || value.abs() < 1e-9 {
+        return format!("{value:.10e}");
+    }
+    format!("{value:.12}")
+        .trim_end_matches('0')
+        .trim_end_matches('.')
+        .to_string()
+}
+
+fn native_calculation_plugin_id(db: &Database) -> Result<String, String> {
+    db.list_plugins()
+        .map_err(|error| error.to_string())?
+        .into_iter()
+        .find(|plugin| plugin.name == NATIVE_CALCULATION_PLUGIN_NAME)
+        .map(|plugin| plugin.id)
+        .ok_or_else(|| "The built-in calculation paper plugin is not registered".to_string())
+}
+
+fn persist_native_calculation_history(
+    db: &Database,
+    items: &[NativeCalculationHistoryItem],
+) -> Result<(), String> {
+    let plugin_id = native_calculation_plugin_id(db)?;
+    for item in items {
+        db.plugin_data_put(
+            &plugin_id,
+            &Document {
+                id: item.id.clone(),
+                rev: None,
+                data: serde_json::json!({
+                    "kind": "calculation-history",
+                    "expression": item.expression,
+                    "result": item.result,
+                    "value": item.value,
+                    "createdAtMs": item.created_at_ms,
+                }),
+            },
+        )
+        .map_err(|error| error.to_string())?;
+    }
+    let all = list_native_calculation_history_inner(db)?;
+    for stale in all.iter().skip(NATIVE_CALCULATION_HISTORY_LIMIT) {
+        db.plugin_data_remove(&plugin_id, &stale.id)
+            .map_err(|error| error.to_string())?;
+    }
+    Ok(())
+}
+
+fn list_native_calculation_history_inner(
+    db: &Database,
+) -> Result<Vec<NativeCalculationHistoryItem>, String> {
+    let plugin_id = native_calculation_plugin_id(db)?;
+    let mut items = db
+        .plugin_data_all(&plugin_id)
+        .map_err(|error| error.to_string())?
+        .into_iter()
+        .filter_map(native_calculation_history_from_document)
+        .collect::<Vec<_>>();
+    items.sort_by(|left, right| {
+        right
+            .created_at_ms
+            .cmp(&left.created_at_ms)
+            .then_with(|| right.id.cmp(&left.id))
+    });
+    Ok(items)
+}
+
+fn native_calculation_history_from_document(
+    document: Document,
+) -> Option<NativeCalculationHistoryItem> {
+    (document.data.get("kind")?.as_str()? == "calculation-history").then_some(
+        NativeCalculationHistoryItem {
+            id: document.id,
+            expression: document.data.get("expression")?.as_str()?.to_string(),
+            result: document.data.get("result")?.as_str()?.to_string(),
+            value: document.data.get("value")?.as_f64()?,
+            created_at_ms: document.data.get("createdAtMs")?.as_u64()?,
+        },
+    )
+}
+
+const NATIVE_CODEC_MAX_INPUT_BYTES: usize = 1024 * 1024;
+const URL_COMPONENT_ENCODE_SET: &percent_encoding::AsciiSet = &percent_encoding::CONTROLS
+    .add(b' ')
+    .add(b'"')
+    .add(b'#')
+    .add(b'%')
+    .add(b'&')
+    .add(b'+')
+    .add(b',')
+    .add(b'/')
+    .add(b':')
+    .add(b';')
+    .add(b'<')
+    .add(b'=')
+    .add(b'>')
+    .add(b'?')
+    .add(b'@')
+    .add(b'[')
+    .add(b'\\')
+    .add(b']')
+    .add(b'^')
+    .add(b'`')
+    .add(b'{')
+    .add(b'|')
+    .add(b'}');
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct NativeCodecResult {
+    pub kind: String,
+    pub encoded: String,
+    pub decoded: Option<String>,
+    pub decode_error: Option<String>,
+}
+
+#[tauri::command]
+pub async fn native_codec_transform(
+    state: tauri::State<'_, AppState>,
+    kind: String,
+    input: String,
+) -> Result<NativeCodecResult, String> {
+    let started = std::time::Instant::now();
+    let mut run = TaskRun::new(
+        "plugin.codec.transform",
+        TaskRunInitiator::human(Some("builtin-codec".to_string())),
+        serde_json::json!({
+            "kind": kind,
+            "inputBytes": input.len(),
+            "inputRedacted": true,
+        }),
+    );
+    run.transition(TaskRunStatus::Running)
+        .expect("codec TaskRun can start");
+    state
+        .db
+        .upsert_task_run(&run)
+        .map_err(|error| error.to_string())?;
+    let result =
+        tauri::async_runtime::spawn_blocking(move || native_codec_transform_inner(&kind, &input))
+            .await
+            .map_err(|error| error.to_string())?;
+    match result {
+        Ok(output) => {
+            run.output = serde_json::json!({
+                "kind": output.kind,
+                "encodedBytes": output.encoded.len(),
+                "decodedBytes": output.decoded.as_deref().map(str::len),
+                "decodeSucceeded": output.decode_error.is_none(),
+                "contentRedacted": true,
+            });
+            run.summary = Some(format!("{} codec transform completed", output.kind));
+            run.validation.status = TaskValidationStatus::Passed;
+            run.validation.summary =
+                Some("Conversion ran in the Rust codec implementation".to_string());
+            run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
+            run.transition(TaskRunStatus::Succeeded)
+                .expect("running codec TaskRun can succeed");
+            state
+                .db
+                .upsert_task_run(&run)
+                .map_err(|error| error.to_string())?;
+            Ok(output)
+        }
+        Err(error) => {
+            run.summary = Some("Codec transform failed".to_string());
+            run.errors
+                .push(TaskIssue::error("native_codec_failed", error.clone()));
+            run.validation.status = TaskValidationStatus::Failed;
+            run.validation.summary = Some("No codec output was produced".to_string());
+            run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
+            run.transition(TaskRunStatus::Failed)
+                .expect("running codec TaskRun can fail");
+            let _ = state.db.upsert_task_run(&run);
+            Err(error)
+        }
+    }
+}
+
+fn native_codec_transform_inner(kind: &str, input: &str) -> Result<NativeCodecResult, String> {
+    if input.len() > NATIVE_CODEC_MAX_INPUT_BYTES {
+        return Err(format!(
+            "Codec input is too large (max {NATIVE_CODEC_MAX_INPUT_BYTES} bytes)"
+        ));
+    }
+    use base64::Engine as _;
+    match kind.trim().to_lowercase().as_str() {
+        "base64" => {
+            let decoded = STANDARD
+                .decode(input.trim())
+                .map_err(|error| error.to_string())
+                .and_then(|bytes| String::from_utf8(bytes).map_err(|error| error.to_string()));
+            Ok(codec_result(
+                "base64",
+                STANDARD.encode(input.as_bytes()),
+                decoded,
+            ))
+        }
+        "url" => {
+            let decoded = percent_encoding::percent_decode_str(input)
+                .decode_utf8()
+                .map(|value| value.into_owned())
+                .map_err(|error| error.to_string());
+            Ok(codec_result(
+                "url",
+                percent_encoding::utf8_percent_encode(input, URL_COMPONENT_ENCODE_SET).to_string(),
+                decoded,
+            ))
+        }
+        "unicode" => Ok(codec_result(
+            "unicode",
+            encode_unicode_escapes(input),
+            decode_unicode_escapes(input),
+        )),
+        _ => Err("Codec kind must be base64, url, or unicode".to_string()),
+    }
+}
+
+fn codec_result(kind: &str, encoded: String, decoded: Result<String, String>) -> NativeCodecResult {
+    match decoded {
+        Ok(decoded) => NativeCodecResult {
+            kind: kind.to_string(),
+            encoded,
+            decoded: Some(decoded),
+            decode_error: None,
+        },
+        Err(error) => NativeCodecResult {
+            kind: kind.to_string(),
+            encoded,
+            decoded: None,
+            decode_error: Some(error),
+        },
+    }
+}
+
+fn encode_unicode_escapes(input: &str) -> String {
+    input
+        .encode_utf16()
+        .map(|unit| format!("\\u{unit:04x}"))
+        .collect()
+}
+
+fn decode_unicode_escapes(input: &str) -> Result<String, String> {
+    let mut output = String::new();
+    let chars = input.chars().collect::<Vec<_>>();
+    let mut index = 0usize;
+    while index < chars.len() {
+        if chars[index] == '\\' && chars.get(index + 1) == Some(&'u') {
+            let first = unicode_escape_unit(&chars, index)?;
+            index += 6;
+            if (0xD800..=0xDBFF).contains(&first) {
+                if chars.get(index) != Some(&'\\') || chars.get(index + 1) != Some(&'u') {
+                    return Err(
+                        "Unicode high surrogate must be followed by a low surrogate".to_string()
+                    );
+                }
+                let second = unicode_escape_unit(&chars, index)?;
+                if !(0xDC00..=0xDFFF).contains(&second) {
+                    return Err("Unicode surrogate pair is invalid".to_string());
+                }
+                index += 6;
+                output.extend(
+                    std::char::decode_utf16([first, second])
+                        .map(|value| {
+                            value.map_err(|error| format!("Invalid Unicode escape: {error}"))
+                        })
+                        .collect::<Result<Vec<_>, _>>()?,
+                );
+            } else if (0xDC00..=0xDFFF).contains(&first) {
+                return Err("Unicode low surrogate is missing its high surrogate".to_string());
+            } else {
+                output.push(
+                    char::from_u32(first as u32)
+                        .ok_or_else(|| "Invalid Unicode escape".to_string())?,
+                );
+            }
+        } else {
+            output.push(chars[index]);
+            index += 1;
+        }
+    }
+    Ok(output)
+}
+
+fn unicode_escape_unit(chars: &[char], start: usize) -> Result<u16, String> {
+    if start + 6 > chars.len() {
+        return Err("Unicode escape must contain four hexadecimal digits".to_string());
+    }
+    let value = chars[start + 2..start + 6].iter().collect::<String>();
+    u16::from_str_radix(&value, 16).map_err(|_| format!("Invalid Unicode escape: \\u{value}"))
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct NativeTimeSnapshot {
+    pub unix_seconds: i64,
+    pub unix_milliseconds: i64,
+    pub local: String,
+    pub utc: String,
+    pub iso_8601: String,
+    pub timezone_offset_minutes: i32,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct NativeTimeConversion {
+    pub unix_seconds: i64,
+    pub unix_milliseconds: i64,
+    pub local: String,
+    pub utc: String,
+    pub iso_8601: String,
+}
+
+#[tauri::command]
+pub fn native_time_snapshot() -> NativeTimeSnapshot {
+    use chrono::Offset as _;
+    let now = chrono::Local::now();
+    NativeTimeSnapshot {
+        unix_seconds: now.timestamp(),
+        unix_milliseconds: now.timestamp_millis(),
+        local: now.format("%Y-%m-%d %H:%M:%S").to_string(),
+        utc: now
+            .with_timezone(&chrono::Utc)
+            .format("%Y-%m-%d %H:%M:%S UTC")
+            .to_string(),
+        iso_8601: now.to_rfc3339(),
+        timezone_offset_minutes: now.offset().fix().local_minus_utc() / 60,
+    }
+}
+
+#[tauri::command]
+pub async fn convert_native_time(
+    state: tauri::State<'_, AppState>,
+    mode: String,
+    value: String,
+    timezone: Option<String>,
+) -> Result<NativeTimeConversion, String> {
+    let started = std::time::Instant::now();
+    let mut run = TaskRun::new(
+        "plugin.time.convert",
+        TaskRunInitiator::human(Some("builtin-timestamp".to_string())),
+        serde_json::json!({ "mode": mode, "timezone": timezone, "valueRedacted": true }),
+    );
+    run.transition(TaskRunStatus::Running)
+        .expect("time conversion TaskRun can start");
+    state
+        .db
+        .upsert_task_run(&run)
+        .map_err(|error| error.to_string())?;
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        convert_native_time_inner(&mode, &value, timezone.as_deref())
+    })
+    .await
+    .map_err(|error| error.to_string())?;
+    match result {
+        Ok(output) => {
+            run.output = serde_json::json!({
+                "unixSeconds": output.unix_seconds,
+                "unixMilliseconds": output.unix_milliseconds,
+                "iso8601": output.iso_8601,
+            });
+            run.summary = Some("Time conversion completed".to_string());
+            run.validation.status = TaskValidationStatus::Passed;
+            run.validation.summary = Some("The input was parsed by chrono in Rust".to_string());
+            run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
+            run.transition(TaskRunStatus::Succeeded)
+                .expect("running time conversion TaskRun can succeed");
+            state
+                .db
+                .upsert_task_run(&run)
+                .map_err(|error| error.to_string())?;
+            Ok(output)
+        }
+        Err(error) => {
+            run.summary = Some("Time conversion failed".to_string());
+            run.errors.push(TaskIssue::error(
+                "native_time_conversion_failed",
+                error.clone(),
+            ));
+            run.validation.status = TaskValidationStatus::Failed;
+            run.validation.summary =
+                Some("The input was not a valid timestamp or date".to_string());
+            run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
+            run.transition(TaskRunStatus::Failed)
+                .expect("running time conversion TaskRun can fail");
+            let _ = state.db.upsert_task_run(&run);
+            Err(error)
+        }
+    }
+}
+
+fn convert_native_time_inner(
+    mode: &str,
+    value: &str,
+    timezone: Option<&str>,
+) -> Result<NativeTimeConversion, String> {
+    use chrono::{LocalResult, NaiveDateTime, TimeZone as _};
+    let datetime =
+        match mode.trim().to_lowercase().as_str() {
+            "timestamp" => {
+                let raw = value
+                    .trim()
+                    .parse::<i64>()
+                    .map_err(|_| "Invalid Unix timestamp".to_string())?;
+                let milliseconds = if raw.unsigned_abs() >= 100_000_000_000 {
+                    raw
+                } else {
+                    raw.saturating_mul(1000)
+                };
+                chrono::Utc
+                    .timestamp_millis_opt(milliseconds)
+                    .single()
+                    .ok_or_else(|| "Unix timestamp is outside the supported range".to_string())?
+            }
+            "datetime" => {
+                let naive = ["%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M"]
+                    .iter()
+                    .find_map(|format| NaiveDateTime::parse_from_str(value.trim(), format).ok())
+                    .ok_or_else(|| "Date must use YYYY-MM-DD HH:MM:SS".to_string())?;
+                match timezone.unwrap_or("local").trim().to_lowercase().as_str() {
+                    "utc" => chrono::Utc.from_utc_datetime(&naive),
+                    "local" => match chrono::Local.from_local_datetime(&naive) {
+                        LocalResult::Single(value) => value.with_timezone(&chrono::Utc),
+                        LocalResult::Ambiguous(_, _) => {
+                            return Err("Local date is ambiguous because of daylight saving time"
+                                .to_string())
+                        }
+                        LocalResult::None => {
+                            return Err("Local date does not exist because of daylight saving time"
+                                .to_string())
+                        }
+                    },
+                    _ => return Err("Timezone must be local or utc".to_string()),
+                }
+            }
+            _ => return Err("Time conversion mode must be timestamp or datetime".to_string()),
+        };
+    let local = datetime.with_timezone(&chrono::Local);
+    Ok(NativeTimeConversion {
+        unix_seconds: datetime.timestamp(),
+        unix_milliseconds: datetime.timestamp_millis(),
+        local: local.format("%Y-%m-%d %H:%M:%S").to_string(),
+        utc: datetime.format("%Y-%m-%d %H:%M:%S UTC").to_string(),
+        iso_8601: datetime.to_rfc3339(),
+    })
+}
+
+const NATIVE_QR_MAX_INPUT_BYTES: usize = 4096;
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct NativeQrCode {
+    pub data_url: String,
+    pub width: u32,
+    pub height: u32,
+    pub png_bytes: usize,
+    pub error_correction: String,
+}
+
+#[tauri::command]
+pub async fn generate_native_qr(
+    state: tauri::State<'_, AppState>,
+    text: String,
+    size: Option<u32>,
+    error_correction: Option<String>,
+) -> Result<NativeQrCode, String> {
+    let started = std::time::Instant::now();
+    let mut run = TaskRun::new(
+        "plugin.qr.generate",
+        TaskRunInitiator::human(Some("builtin-qr".to_string())),
+        serde_json::json!({
+            "inputBytes": text.len(),
+            "inputRedacted": true,
+            "size": size,
+            "errorCorrection": error_correction,
+        }),
+    );
+    run.transition(TaskRunStatus::Running)
+        .expect("QR generation TaskRun can start");
+    state
+        .db
+        .upsert_task_run(&run)
+        .map_err(|error| error.to_string())?;
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        generate_native_qr_inner(&text, size, error_correction.as_deref())
+    })
+    .await
+    .map_err(|error| error.to_string())?;
+    match result {
+        Ok(output) => {
+            run.output = serde_json::json!({
+                "width": output.width,
+                "height": output.height,
+                "pngBytes": output.png_bytes,
+                "errorCorrection": output.error_correction,
+                "contentRedacted": true,
+            });
+            run.summary = Some(format!(
+                "Generated {}x{} QR code",
+                output.width, output.height
+            ));
+            run.validation.status = TaskValidationStatus::Passed;
+            run.validation.summary =
+                Some("The QR matrix and PNG were generated in Rust".to_string());
+            run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
+            run.transition(TaskRunStatus::Succeeded)
+                .expect("running QR generation TaskRun can succeed");
+            state
+                .db
+                .upsert_task_run(&run)
+                .map_err(|error| error.to_string())?;
+            Ok(output)
+        }
+        Err(error) => {
+            run.summary = Some("QR generation failed".to_string());
+            run.errors.push(TaskIssue::error(
+                "native_qr_generation_failed",
+                error.clone(),
+            ));
+            run.validation.status = TaskValidationStatus::Failed;
+            run.validation.summary = Some("No QR image was produced".to_string());
+            run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
+            run.transition(TaskRunStatus::Failed)
+                .expect("running QR generation TaskRun can fail");
+            let _ = state.db.upsert_task_run(&run);
+            Err(error)
+        }
+    }
+}
+
+fn generate_native_qr_inner(
+    text: &str,
+    size: Option<u32>,
+    error_correction: Option<&str>,
+) -> Result<NativeQrCode, String> {
+    let text = text.trim();
+    if text.is_empty() {
+        return Err("QR content cannot be empty".to_string());
+    }
+    if text.len() > NATIVE_QR_MAX_INPUT_BYTES {
+        return Err(format!(
+            "QR content is too large (max {NATIVE_QR_MAX_INPUT_BYTES} bytes)"
+        ));
+    }
+    let error_correction = error_correction.unwrap_or("M").trim().to_uppercase();
+    let level = match error_correction.as_str() {
+        "L" => qrcode::EcLevel::L,
+        "M" => qrcode::EcLevel::M,
+        "Q" => qrcode::EcLevel::Q,
+        "H" => qrcode::EcLevel::H,
+        _ => return Err("QR error correction must be L, M, Q, or H".to_string()),
+    };
+    let size = size.unwrap_or(256).clamp(128, 1024);
+    let code = qrcode::QrCode::with_error_correction_level(text.as_bytes(), level)
+        .map_err(|error| format!("QR content cannot be encoded: {error}"))?;
+    let image = code
+        .render::<image::Luma<u8>>()
+        .min_dimensions(size, size)
+        .max_dimensions(size, size)
+        .quiet_zone(true)
+        .dark_color(image::Luma([0]))
+        .light_color(image::Luma([255]))
+        .build();
+    let width = image.width();
+    let height = image.height();
+    let mut png = std::io::Cursor::new(Vec::new());
+    image::DynamicImage::ImageLuma8(image)
+        .write_to(&mut png, image::ImageFormat::Png)
+        .map_err(|error| format!("QR PNG encoding failed: {error}"))?;
+    let png = png.into_inner();
+    Ok(NativeQrCode {
+        data_url: format!("data:image/png;base64,{}", STANDARD.encode(&png)),
+        width,
+        height,
+        png_bytes: png.len(),
+        error_correction,
+    })
+}
+
+const NATIVE_JSON_MAX_INPUT_BYTES: usize = 5 * 1024 * 1024;
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct NativeJsonTransform {
+    pub formatted: String,
+    pub compact: String,
+    pub item_count: usize,
+    pub root_type: String,
+    pub input_bytes: usize,
+    pub compact_bytes: usize,
+}
+
+#[tauri::command]
+pub async fn native_json_transform(
+    state: tauri::State<'_, AppState>,
+    input: String,
+) -> Result<NativeJsonTransform, String> {
+    let started = std::time::Instant::now();
+    let mut run = TaskRun::new(
+        "plugin.json.transform",
+        TaskRunInitiator::human(Some("builtin-json".to_string())),
+        serde_json::json!({
+            "inputBytes": input.len(),
+            "inputRedacted": true,
+        }),
+    );
+    run.transition(TaskRunStatus::Running)
+        .expect("JSON transform TaskRun can start");
+    state
+        .db
+        .upsert_task_run(&run)
+        .map_err(|error| error.to_string())?;
+    let result = tauri::async_runtime::spawn_blocking(move || native_json_transform_inner(&input))
+        .await
+        .map_err(|error| error.to_string())?;
+    match result {
+        Ok(output) => {
+            run.output = serde_json::json!({
+                "rootType": output.root_type,
+                "itemCount": output.item_count,
+                "inputBytes": output.input_bytes,
+                "compactBytes": output.compact_bytes,
+                "contentRedacted": true,
+            });
+            run.summary = Some(format!("Validated {} JSON items", output.item_count));
+            run.validation.status = TaskValidationStatus::Passed;
+            run.validation.summary =
+                Some("JSON was parsed and re-serialized by serde_json".to_string());
+            run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
+            run.transition(TaskRunStatus::Succeeded)
+                .expect("running JSON TaskRun can succeed");
+            state
+                .db
+                .upsert_task_run(&run)
+                .map_err(|error| error.to_string())?;
+            Ok(output)
+        }
+        Err(error) => {
+            run.summary = Some("JSON validation failed".to_string());
+            run.errors.push(TaskIssue::error(
+                "native_json_transform_failed",
+                error.clone(),
+            ));
+            run.validation.status = TaskValidationStatus::Failed;
+            run.validation.summary = Some("Input was not valid bounded JSON".to_string());
+            run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
+            run.transition(TaskRunStatus::Failed)
+                .expect("running JSON TaskRun can fail");
+            let _ = state.db.upsert_task_run(&run);
+            Err(error)
+        }
+    }
+}
+
+fn native_json_transform_inner(input: &str) -> Result<NativeJsonTransform, String> {
+    if input.len() > NATIVE_JSON_MAX_INPUT_BYTES {
+        return Err(format!(
+            "JSON input is too large (max {NATIVE_JSON_MAX_INPUT_BYTES} bytes)"
+        ));
+    }
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return Err("JSON input cannot be empty".to_string());
+    }
+    let value = serde_json::from_str::<serde_json::Value>(trimmed).map_err(|error| {
+        format!(
+            "Invalid JSON at line {}, column {}: {}",
+            error.line(),
+            error.column(),
+            error
+        )
+    })?;
+    let formatted = serde_json::to_string_pretty(&value)
+        .map_err(|error| format!("JSON formatting failed: {error}"))?;
+    let compact = serde_json::to_string(&value)
+        .map_err(|error| format!("JSON compression failed: {error}"))?;
+    Ok(NativeJsonTransform {
+        formatted,
+        compact_bytes: compact.len(),
+        compact,
+        item_count: native_json_item_count(&value),
+        root_type: native_json_root_type(&value).to_string(),
+        input_bytes: input.len(),
+    })
+}
+
+fn native_json_item_count(value: &serde_json::Value) -> usize {
+    match value {
+        serde_json::Value::Array(items) => items.iter().fold(items.len(), |count, value| {
+            count.saturating_add(native_json_item_count(value))
+        }),
+        serde_json::Value::Object(items) => items.values().fold(items.len(), |count, value| {
+            count.saturating_add(native_json_item_count(value))
+        }),
+        _ => 0,
+    }
+}
+
+fn native_json_root_type(value: &serde_json::Value) -> &'static str {
+    match value {
+        serde_json::Value::Null => "null",
+        serde_json::Value::Bool(_) => "boolean",
+        serde_json::Value::Number(_) => "number",
+        serde_json::Value::String(_) => "string",
+        serde_json::Value::Array(_) => "array",
+        serde_json::Value::Object(_) => "object",
+    }
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct NativeColorConversion {
+    pub hex: String,
+    pub rgb: String,
+    pub hsl: String,
+    pub red: u8,
+    pub green: u8,
+    pub blue: u8,
+    pub alpha: f64,
+}
+
+#[tauri::command]
+pub async fn convert_native_color(
+    state: tauri::State<'_, AppState>,
+    input: String,
+) -> Result<NativeColorConversion, String> {
+    let started = std::time::Instant::now();
+    let mut run = TaskRun::new(
+        "plugin.color.convert",
+        TaskRunInitiator::human(Some("builtin-color".to_string())),
+        serde_json::json!({ "inputCharacters": input.chars().count(), "inputRedacted": true }),
+    );
+    run.transition(TaskRunStatus::Running)
+        .expect("color conversion TaskRun can start");
+    state
+        .db
+        .upsert_task_run(&run)
+        .map_err(|error| error.to_string())?;
+    let result = tauri::async_runtime::spawn_blocking(move || convert_native_color_inner(&input))
+        .await
+        .map_err(|error| error.to_string())?;
+    match result {
+        Ok(output) => {
+            run.output = serde_json::json!({ "hex": output.hex, "alpha": output.alpha });
+            run.summary = Some("Color conversion completed".to_string());
+            run.validation.status = TaskValidationStatus::Passed;
+            run.validation.summary =
+                Some("Color channels were parsed and normalized in Rust".to_string());
+            run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
+            run.transition(TaskRunStatus::Succeeded)
+                .expect("running color conversion TaskRun can succeed");
+            state
+                .db
+                .upsert_task_run(&run)
+                .map_err(|error| error.to_string())?;
+            Ok(output)
+        }
+        Err(error) => {
+            run.summary = Some("Color conversion failed".to_string());
+            run.errors.push(TaskIssue::error(
+                "native_color_conversion_failed",
+                error.clone(),
+            ));
+            run.validation.status = TaskValidationStatus::Failed;
+            run.validation.summary =
+                Some("Input was not a supported HEX, RGB, or HSL color".to_string());
+            run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
+            run.transition(TaskRunStatus::Failed)
+                .expect("running color conversion TaskRun can fail");
+            let _ = state.db.upsert_task_run(&run);
+            Err(error)
+        }
+    }
+}
+
+fn convert_native_color_inner(input: &str) -> Result<NativeColorConversion, String> {
+    let value = input.trim().to_lowercase();
+    if value.len() > 128 {
+        return Err("Color input is too long".to_string());
+    }
+    let (red, green, blue, alpha) = if value.starts_with('#') {
+        parse_native_hex_color(&value)?
+    } else if value.starts_with("rgb(") || value.starts_with("rgba(") {
+        parse_native_rgb_color(&value)?
+    } else if value.starts_with("hsl(") || value.starts_with("hsla(") {
+        parse_native_hsl_color(&value)?
+    } else {
+        return Err("Color must use #hex, rgb()/rgba(), or hsl()/hsla()".to_string());
+    };
+    let (hue, saturation, lightness) = rgb_channels_to_hsl(red, green, blue);
+    let alpha_suffix = if alpha < 1.0 {
+        format!(" / {}", format_color_decimal(alpha))
+    } else {
+        String::new()
+    };
+    let hex = if alpha < 1.0 {
+        format!(
+            "#{red:02x}{green:02x}{blue:02x}{:02x}",
+            (alpha * 255.0).round() as u8
+        )
+    } else {
+        format!("#{red:02x}{green:02x}{blue:02x}")
+    };
+    Ok(NativeColorConversion {
+        hex,
+        rgb: if alpha < 1.0 {
+            format!(
+                "rgba({red}, {green}, {blue}, {})",
+                format_color_decimal(alpha)
+            )
+        } else {
+            format!("rgb({red}, {green}, {blue})")
+        },
+        hsl: format!("hsl({hue}, {saturation}%, {lightness}%{alpha_suffix})"),
+        red,
+        green,
+        blue,
+        alpha,
+    })
+}
+
+fn parse_native_hex_color(value: &str) -> Result<(u8, u8, u8, f64), String> {
+    let hex = value.trim_start_matches('#');
+    let expanded = match hex.len() {
+        3 | 4 => hex
+            .chars()
+            .flat_map(|value| [value, value])
+            .collect::<String>(),
+        6 | 8 => hex.to_string(),
+        _ => return Err("HEX color must contain 3, 4, 6, or 8 digits".to_string()),
+    };
+    if !expanded.bytes().all(|value| value.is_ascii_hexdigit()) {
+        return Err("HEX color contains invalid digits".to_string());
+    }
+    let channel = |offset| {
+        u8::from_str_radix(&expanded[offset..offset + 2], 16).map_err(|error| error.to_string())
+    };
+    Ok((
+        channel(0)?,
+        channel(2)?,
+        channel(4)?,
+        if expanded.len() == 8 {
+            channel(6)? as f64 / 255.0
+        } else {
+            1.0
+        },
+    ))
+}
+
+fn parse_native_rgb_color(value: &str) -> Result<(u8, u8, u8, f64), String> {
+    let fields = color_function_fields(value)?;
+    if fields.len() != 3 && fields.len() != 4 {
+        return Err("RGB color requires three channels and optional alpha".to_string());
+    }
+    let channel = |index: usize| {
+        fields[index]
+            .parse::<u8>()
+            .map_err(|_| format!("RGB channel {} must be between 0 and 255", index + 1))
+    };
+    Ok((
+        channel(0)?,
+        channel(1)?,
+        channel(2)?,
+        parse_color_alpha(fields.get(3).copied())?,
+    ))
+}
+
+fn parse_native_hsl_color(value: &str) -> Result<(u8, u8, u8, f64), String> {
+    let fields = color_function_fields(value)?;
+    if fields.len() != 3 && fields.len() != 4 {
+        return Err(
+            "HSL color requires hue, saturation, lightness, and optional alpha".to_string(),
+        );
+    }
+    let hue = fields[0]
+        .parse::<f64>()
+        .map_err(|_| "HSL hue must be a number".to_string())?;
+    let percent = |index: usize, name: &str| -> Result<f64, String> {
+        let raw = fields[index]
+            .strip_suffix('%')
+            .ok_or_else(|| format!("HSL {name} must use %"))?;
+        let value = raw
+            .parse::<f64>()
+            .map_err(|_| format!("HSL {name} must be a number"))?;
+        if !(0.0..=100.0).contains(&value) {
+            return Err(format!("HSL {name} must be between 0% and 100%"));
+        }
+        Ok(value / 100.0)
+    };
+    let saturation = percent(1, "saturation")?;
+    let lightness = percent(2, "lightness")?;
+    let (red, green, blue) = hsl_to_rgb_channels(hue, saturation, lightness);
+    Ok((red, green, blue, parse_color_alpha(fields.get(3).copied())?))
+}
+
+fn color_function_fields(value: &str) -> Result<Vec<&str>, String> {
+    let start = value
+        .find('(')
+        .ok_or_else(|| "Color function is missing (".to_string())?;
+    let end = value
+        .rfind(')')
+        .ok_or_else(|| "Color function is missing )".to_string())?;
+    if end <= start || !value[end + 1..].trim().is_empty() {
+        return Err("Color function syntax is invalid".to_string());
+    }
+    Ok(value[start + 1..end].split(',').map(str::trim).collect())
+}
+
+fn parse_color_alpha(value: Option<&str>) -> Result<f64, String> {
+    let Some(value) = value else {
+        return Ok(1.0);
+    };
+    let alpha = value
+        .parse::<f64>()
+        .map_err(|_| "Alpha must be a number".to_string())?;
+    if !(0.0..=1.0).contains(&alpha) {
+        return Err("Alpha must be between 0 and 1".to_string());
+    }
+    Ok(alpha)
+}
+
+fn rgb_channels_to_hsl(red: u8, green: u8, blue: u8) -> (i32, i32, i32) {
+    let red = red as f64 / 255.0;
+    let green = green as f64 / 255.0;
+    let blue = blue as f64 / 255.0;
+    let max = red.max(green).max(blue);
+    let min = red.min(green).min(blue);
+    let lightness = (max + min) / 2.0;
+    if (max - min).abs() < f64::EPSILON {
+        return (0, 0, (lightness * 100.0).round() as i32);
+    }
+    let delta = max - min;
+    let saturation = if lightness > 0.5 {
+        delta / (2.0 - max - min)
+    } else {
+        delta / (max + min)
+    };
+    let mut hue = if (max - red).abs() < f64::EPSILON {
+        (green - blue) / delta + if green < blue { 6.0 } else { 0.0 }
+    } else if (max - green).abs() < f64::EPSILON {
+        (blue - red) / delta + 2.0
+    } else {
+        (red - green) / delta + 4.0
+    };
+    hue /= 6.0;
+    (
+        (hue * 360.0).round() as i32,
+        (saturation * 100.0).round() as i32,
+        (lightness * 100.0).round() as i32,
+    )
+}
+
+fn hsl_to_rgb_channels(hue: f64, saturation: f64, lightness: f64) -> (u8, u8, u8) {
+    if saturation == 0.0 {
+        let value = (lightness * 255.0).round() as u8;
+        return (value, value, value);
+    }
+    let hue = hue.rem_euclid(360.0) / 360.0;
+    let q = if lightness < 0.5 {
+        lightness * (1.0 + saturation)
+    } else {
+        lightness + saturation - lightness * saturation
+    };
+    let p = 2.0 * lightness - q;
+    let channel = |mut value: f64| {
+        if value < 0.0 {
+            value += 1.0;
+        }
+        if value > 1.0 {
+            value -= 1.0;
+        }
+        let value = if value < 1.0 / 6.0 {
+            p + (q - p) * 6.0 * value
+        } else if value < 0.5 {
+            q
+        } else if value < 2.0 / 3.0 {
+            p + (q - p) * (2.0 / 3.0 - value) * 6.0
+        } else {
+            p
+        };
+        (value * 255.0).round() as u8
+    };
+    (
+        channel(hue + 1.0 / 3.0),
+        channel(hue),
+        channel(hue - 1.0 / 3.0),
+    )
+}
+
+fn format_color_decimal(value: f64) -> String {
+    format!("{value:.3}")
+        .trim_end_matches('0')
+        .trim_end_matches('.')
+        .to_string()
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct NativeProcessInfo {
+    pub pid: u32,
+    pub name: String,
+    pub executable: String,
+    pub command: String,
+    pub cpu_percent: f32,
+    pub memory_bytes: u64,
+    pub protected: bool,
+    pub protected_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct NativeProcessTermination {
+    pub pid: u32,
+    pub name: String,
+    pub signal_sent: bool,
+}
+
+#[tauri::command]
+pub async fn list_native_processes(
+    query: Option<String>,
+    limit: Option<usize>,
+) -> Result<Vec<NativeProcessInfo>, String> {
+    let query = query.unwrap_or_default();
+    let limit = limit.unwrap_or(300).clamp(1, 1000);
+    tauri::async_runtime::spawn_blocking(move || list_native_processes_inner(&query, limit))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+pub async fn terminate_native_process(
+    state: tauri::State<'_, AppState>,
+    pid: u32,
+    confirmed: bool,
+) -> Result<NativeProcessTermination, String> {
+    let started = std::time::Instant::now();
+    let mut run = TaskRun::new(
+        "plugin.process.terminate",
+        TaskRunInitiator::human(Some("builtin-process-manager".to_string())),
+        serde_json::json!({ "pid": pid, "confirmed": confirmed }),
+    );
+    run.transition(TaskRunStatus::Running)
+        .expect("process termination TaskRun can start");
+    state
+        .db
+        .upsert_task_run(&run)
+        .map_err(|error| error.to_string())?;
+
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        terminate_native_process_inner(pid, confirmed)
+    })
+    .await
+    .map_err(|error| error.to_string())?;
+
+    match result {
+        Ok(termination) => {
+            run.output = serde_json::to_value(&termination).unwrap_or(serde_json::Value::Null);
+            run.summary = Some(format!(
+                "Sent termination signal to {} ({})",
+                termination.name, pid
+            ));
+            run.validation.status = TaskValidationStatus::Passed;
+            run.validation.summary =
+                Some("The selected process was revalidated before signaling".to_string());
+            run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
+            run.transition(TaskRunStatus::Succeeded)
+                .expect("running process termination TaskRun can succeed");
+            state
+                .db
+                .upsert_task_run(&run)
+                .map_err(|error| error.to_string())?;
+            Ok(termination)
+        }
+        Err(error) => {
+            run.summary = Some(format!("Failed to terminate process {pid}"));
+            run.errors.push(TaskIssue::error(
+                "process_termination_failed",
+                error.clone(),
+            ));
+            run.validation.status = TaskValidationStatus::Failed;
+            run.validation.summary = Some("Process termination was rejected or failed".to_string());
+            run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
+            run.transition(TaskRunStatus::Failed)
+                .expect("running process termination TaskRun can fail");
+            let _ = state.db.upsert_task_run(&run);
+            Err(error)
+        }
+    }
+}
+
+fn list_native_processes_inner(
+    query: &str,
+    limit: usize,
+) -> Result<Vec<NativeProcessInfo>, String> {
+    use sysinfo::{ProcessesToUpdate, System};
+
+    let mut system = System::new_all();
+    system.refresh_processes(ProcessesToUpdate::All, true);
+    let current_uid = native_effective_uid();
+    let normalized_query = query.trim().to_lowercase();
+    let mut processes = system
+        .processes()
+        .iter()
+        .map(|(pid, process)| native_process_info(*pid, process, current_uid.as_ref()))
+        .filter(|process| {
+            normalized_query.is_empty()
+                || process.name.to_lowercase().contains(&normalized_query)
+                || process
+                    .executable
+                    .to_lowercase()
+                    .contains(&normalized_query)
+                || process.command.to_lowercase().contains(&normalized_query)
+                || process.pid.to_string() == normalized_query
+        })
+        .collect::<Vec<_>>();
+    processes.sort_by(|left, right| {
+        left.protected
+            .cmp(&right.protected)
+            .then_with(|| {
+                right
+                    .cpu_percent
+                    .partial_cmp(&left.cpu_percent)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .then_with(|| right.memory_bytes.cmp(&left.memory_bytes))
+            .then_with(|| left.name.to_lowercase().cmp(&right.name.to_lowercase()))
+            .then_with(|| left.pid.cmp(&right.pid))
+    });
+    processes.truncate(limit);
+    Ok(processes)
+}
+
+fn native_process_info(
+    pid: sysinfo::Pid,
+    process: &sysinfo::Process,
+    current_uid: Option<&sysinfo::Uid>,
+) -> NativeProcessInfo {
+    let pid_value = pid.as_u32();
+    let name = process.name().to_string_lossy().into_owned();
+    let executable = process
+        .exe()
+        .map(|path| path.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let command = process
+        .cmd()
+        .iter()
+        .map(|value| value.to_string_lossy())
+        .collect::<Vec<_>>()
+        .join(" ");
+    let protected_reason = native_process_protected_reason(
+        pid_value,
+        &name,
+        &executable,
+        process.user_id(),
+        current_uid,
+    );
+    NativeProcessInfo {
+        pid: pid_value,
+        name,
+        executable,
+        command,
+        cpu_percent: process.cpu_usage(),
+        memory_bytes: process.memory(),
+        protected: protected_reason.is_some(),
+        protected_reason,
+    }
+}
+
+fn terminate_native_process_inner(
+    pid: u32,
+    confirmed: bool,
+) -> Result<NativeProcessTermination, String> {
+    use sysinfo::{Pid, ProcessesToUpdate, Signal, System};
+
+    if !confirmed {
+        return Err("Process termination requires explicit confirmation".to_string());
+    }
+    let mut system = System::new_all();
+    let target_pid = Pid::from_u32(pid);
+    system.refresh_processes(ProcessesToUpdate::Some(&[target_pid]), true);
+    let process = system
+        .process(target_pid)
+        .ok_or_else(|| format!("Process no longer exists: {pid}"))?;
+    let name = process.name().to_string_lossy().into_owned();
+    let executable = process
+        .exe()
+        .map(|path| path.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    if let Some(reason) = native_process_protected_reason(
+        pid,
+        &name,
+        &executable,
+        process.user_id(),
+        native_effective_uid().as_ref(),
+    ) {
+        return Err(format!("Protected process cannot be terminated: {reason}"));
+    }
+    let signal_sent = process
+        .kill_with(Signal::Term)
+        .unwrap_or_else(|| process.kill());
+    if !signal_sent {
+        return Err(format!("Failed to signal process {name} ({pid})"));
+    }
+    Ok(NativeProcessTermination {
+        pid,
+        name,
+        signal_sent,
+    })
+}
+
+fn native_process_protected_reason(
+    pid: u32,
+    name: &str,
+    executable: &str,
+    owner_uid: Option<&sysinfo::Uid>,
+    current_uid: Option<&sysinfo::Uid>,
+) -> Option<String> {
+    if pid == std::process::id() {
+        return Some("ATools 当前进程".to_string());
+    }
+    if pid <= 1 {
+        return Some("系统启动进程".to_string());
+    }
+    if owner_uid
+        .zip(current_uid)
+        .is_some_and(|(owner, current)| owner != current)
+    {
+        return Some("非当前用户进程".to_string());
+    }
+    let normalized_name = name.trim().to_lowercase();
+    if [
+        "kernel_task",
+        "launchd",
+        "windowserver",
+        "loginwindow",
+        "securityagent",
+        "systemuiserver",
+        "dock",
+        "finder",
+    ]
+    .contains(&normalized_name.as_str())
+    {
+        return Some("macOS 核心桌面进程".to_string());
+    }
+    if executable.starts_with("/System/Library/") || executable.starts_with("/usr/libexec/") {
+        return Some("macOS 系统服务".to_string());
+    }
+    None
+}
+
+#[cfg(unix)]
+fn native_effective_uid() -> Option<sysinfo::Uid> {
+    sysinfo::Uid::try_from(unsafe { libc::geteuid() } as usize).ok()
+}
+
+#[cfg(not(unix))]
+fn native_effective_uid() -> Option<sysinfo::Uid> {
+    None
+}
+
+fn resolve_feature_icon(
+    feature: &atools_core::FeatureEntry,
+    plugin: Option<&atools_core::Plugin>,
+    builtin_dir: Option<&std::path::Path>,
+) -> Option<String> {
+    let value = feature
+        .icon
+        .as_deref()
+        .filter(|value| !value.trim().is_empty())
+        .or_else(|| plugin.and_then(|plugin| plugin.manifest.logo.as_deref()))?
+        .trim();
+    if value.starts_with("data:")
+        || value.starts_with("http://")
+        || value.starts_with("https://")
+        || value.starts_with("asset:")
+    {
+        return Some(value.to_string());
+    }
+    let icon_path = std::path::Path::new(value);
+    if icon_path.is_absolute() {
+        return canonical_icon_file(icon_path);
+    }
+
+    let plugin = plugin?;
+    let plugin_path = std::path::Path::new(&plugin.path);
+    if crate::builtin_plugins::is_builtin_plugin_path(&plugin.path) {
+        if let (Some(root), Some(directory_name)) = (builtin_dir, plugin_path.file_name()) {
+            if let Some(current_icon) = canonical_icon_file(&root.join(directory_name).join(icon_path)) {
+                return Some(current_icon);
+            }
+        }
+    }
+    canonical_icon_file(&plugin_path.join(icon_path))
+}
+
+fn canonical_icon_file(path: &std::path::Path) -> Option<String> {
+    path.canonicalize()
+        .ok()
+        .filter(|path| path.is_file())
+        .map(|path| path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub async fn search_local_apps(
+    query: String,
+    limit: Option<usize>,
+) -> Result<Vec<SearchResult>, String> {
     let limit = limit.unwrap_or(20).clamp(1, 100);
     let roots = default_local_app_roots();
-    let mut cache = LOCAL_APP_SEARCH_CACHE
-        .lock()
-        .map_err(|_| "Local app search cache lock poisoned".to_string())?;
-    Ok(search_local_apps_with_cache(
-        &mut cache, &roots, &query, limit,
-    ))
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut cache = LOCAL_APP_SEARCH_CACHE
+            .lock()
+            .map_err(|_| "Local app search cache lock poisoned".to_string())?;
+        Ok(search_local_apps_with_cache(
+            &mut cache, &roots, &query, limit,
+        ))
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+pub async fn load_local_app_icons(
+    paths: Vec<String>,
+) -> Result<std::collections::BTreeMap<String, String>, String> {
+    tauri::async_runtime::spawn_blocking(move || load_local_app_icons_inner(&paths))
+        .await
+        .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
@@ -182,6 +2954,7 @@ pub(crate) fn activate_feature_inner(
         preload_path,
         expand_height: height,
         plugin_permissions: normalized_plugin_permissions(&plugin.manifest.permissions),
+        plugin_providers: plugin.manifest.providers.clone(),
         payload: payload.unwrap_or(serde_json::Value::Null),
     })
 }
@@ -217,7 +2990,6 @@ pub struct LocalAppSearchCache {
 struct LocalAppEntry {
     name: String,
     path: String,
-    icon: Option<String>,
     aliases: Vec<String>,
 }
 
@@ -362,12 +3134,10 @@ fn collect_app_bundles(
 fn local_app_entry(path: std::path::PathBuf) -> Option<LocalAppEntry> {
     let plist = local_app_info_plist(&path);
     let name = app_display_name(&path, plist.as_deref())?;
-    let icon = local_app_icon_path(&path, plist.as_deref());
     let aliases = local_app_metadata_aliases(plist.as_deref());
     Some(LocalAppEntry {
         name,
         path: path.to_string_lossy().to_string(),
-        icon,
         aliases,
     })
 }
@@ -394,11 +3164,151 @@ fn local_app_result(entry: &LocalAppEntry, query: &str) -> Option<SearchResult> 
         plugin_id: LOCAL_APP_PLUGIN_ID.to_string(),
         plugin_name: "本地应用".to_string(),
         label: format!("打开 {}", entry.name),
-        icon: entry.icon.clone(),
+        icon: None,
         explain: entry.path.clone(),
         score,
         match_type,
     })
+}
+
+fn load_local_app_icons_inner(
+    paths: &[String],
+) -> Result<std::collections::BTreeMap<String, String>, String> {
+    let allowed_roots = default_local_app_roots()
+        .into_iter()
+        .filter_map(|root| root.canonicalize().ok())
+        .collect::<Vec<_>>();
+    let mut cache = LOCAL_APP_ICON_CACHE
+        .lock()
+        .map_err(|_| "Local app icon cache lock poisoned".to_string())?;
+    let mut icons = std::collections::BTreeMap::new();
+    for requested in paths.iter().take(100) {
+        let Ok(app_path) = std::path::Path::new(requested).canonicalize() else {
+            continue;
+        };
+        if !is_app_bundle(&app_path) || !allowed_roots.iter().any(|root| app_path.starts_with(root))
+        {
+            continue;
+        }
+        let cache_key = app_path.to_string_lossy().to_string();
+        let icon = cache
+            .entry(cache_key)
+            .or_insert_with(|| local_app_icon_data_url(&app_path));
+        if let Some(icon) = icon {
+            icons.insert(requested.clone(), icon.clone());
+        }
+    }
+    Ok(icons)
+}
+
+#[cfg(target_os = "macos")]
+fn local_app_icon_data_url(app_path: &std::path::Path) -> Option<String> {
+    if let Some(icon_path) = local_app_icon_resource_path(app_path) {
+        let extension = icon_path
+            .extension()
+            .and_then(|value| value.to_str())
+            .unwrap_or_default()
+            .to_ascii_lowercase();
+        let encoded = if extension == "icns" {
+            local_app_icns_png(&icon_path).and_then(|png| local_app_png_data_url(&png))
+        } else {
+            std::fs::read(&icon_path)
+                .ok()
+                .and_then(|bytes| local_app_image_data_url(&bytes))
+        };
+        if encoded.is_some() {
+            return encoded;
+        }
+    }
+
+    local_app_icon_data_url_with_appkit(app_path)
+}
+
+#[cfg(target_os = "macos")]
+fn local_app_icon_data_url_with_appkit(app_path: &std::path::Path) -> Option<String> {
+    use objc2::runtime::AnyObject;
+    use objc2_app_kit::{NSBitmapImageFileType, NSBitmapImageRep, NSWorkspace};
+    use objc2_foundation::{NSDictionary, NSString};
+
+    let path = NSString::from_str(app_path.to_str()?);
+    let image = NSWorkspace::sharedWorkspace().iconForFile(&path);
+    let tiff = image.TIFFRepresentation()?;
+    let bitmap = NSBitmapImageRep::imageRepWithData(&tiff)?;
+    let properties = NSDictionary::<objc2_app_kit::NSBitmapImageRepPropertyKey, AnyObject>::new();
+    let png = unsafe {
+        bitmap.representationUsingType_properties(NSBitmapImageFileType::PNG, &properties)
+    }?;
+    local_app_png_data_url(&png.to_vec())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn local_app_icon_data_url(_app_path: &std::path::Path) -> Option<String> {
+    None
+}
+
+fn local_app_png_data_url(png: &[u8]) -> Option<String> {
+    let image = image::load_from_memory_with_format(png, image::ImageFormat::Png).ok()?;
+    local_app_dynamic_image_data_url(image)
+}
+
+fn local_app_image_data_url(bytes: &[u8]) -> Option<String> {
+    local_app_dynamic_image_data_url(image::load_from_memory(bytes).ok()?)
+}
+
+fn local_app_dynamic_image_data_url(image: image::DynamicImage) -> Option<String> {
+    let thumbnail = image.thumbnail(64, 64);
+    let mut output = std::io::Cursor::new(Vec::new());
+    thumbnail
+        .write_to(&mut output, image::ImageFormat::Png)
+        .ok()?;
+    Some(format!(
+        "data:image/png;base64,{}",
+        STANDARD.encode(output.into_inner())
+    ))
+}
+
+fn local_app_icon_resource_path(app_path: &std::path::Path) -> Option<std::path::PathBuf> {
+    let plist = local_app_info_plist(app_path)?;
+    let icon_name = plist_string_value(&plist, "CFBundleIconFile")
+        .or_else(|| plist_string_value(&plist, "CFBundleIconName"))?;
+    let icon_name = icon_name.trim();
+    if icon_name.is_empty() {
+        return None;
+    }
+    let resources = app_path.join("Contents").join("Resources");
+    let mut candidates = vec![resources.join(icon_name)];
+    if std::path::Path::new(icon_name).extension().is_none() {
+        candidates.push(resources.join(format!("{icon_name}.icns")));
+    }
+    candidates.into_iter().find(|path| path.is_file())
+}
+
+fn local_app_icns_png(path: &std::path::Path) -> Option<Vec<u8>> {
+    let reader = std::io::BufReader::new(std::fs::File::open(path).ok()?);
+    let family = icns::IconFamily::read(reader).ok()?;
+    let mut icon_types = family
+        .available_icons()
+        .into_iter()
+        .filter(|icon_type| !icon_type.is_mask())
+        .collect::<Vec<_>>();
+    icon_types.sort_by_key(|icon_type| {
+        let width = icon_type.screen_width();
+        if width >= 64 {
+            width - 64
+        } else {
+            10_000 + (64 - width)
+        }
+    });
+    for icon_type in icon_types {
+        let Ok(image) = family.get_icon_with_type(icon_type) else {
+            continue;
+        };
+        let mut png = Vec::new();
+        if image.write_png(&mut png).is_ok() {
+            return Some(png);
+        }
+    }
+    None
 }
 
 fn is_app_bundle(path: &std::path::Path) -> bool {
@@ -427,26 +3337,6 @@ fn fallback_app_display_name(path: &std::path::Path) -> Option<String> {
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(ToString::to_string)
-}
-
-fn local_app_icon_path(app_path: &std::path::Path, plist: Option<&str>) -> Option<String> {
-    let plist = plist?;
-    let icon_name = plist_string_value(plist, "CFBundleIconFile")
-        .or_else(|| plist_string_value(plist, "CFBundleIconName"))?;
-    let icon_name = icon_name.trim();
-    if icon_name.is_empty() {
-        return None;
-    }
-
-    let resources = app_path.join("Contents").join("Resources");
-    let mut candidates = vec![resources.join(icon_name)];
-    if std::path::Path::new(icon_name).extension().is_none() {
-        candidates.push(resources.join(format!("{icon_name}.icns")));
-    }
-    candidates
-        .into_iter()
-        .find(|path| path.is_file())
-        .map(|path| path.to_string_lossy().to_string())
 }
 
 fn local_app_info_plist(app_path: &std::path::Path) -> Option<String> {
@@ -546,8 +3436,19 @@ pub async fn install_plugin_from_market(
     signature: Option<String>,
     public_key: Option<String>,
     operation_id: Option<String>,
+    source_kind: Option<PluginMarketCatalogSourceKind>,
+    source_url: Option<String>,
+    confirmed_unsigned: Option<bool>,
 ) -> Result<Plugin, String> {
-    validate_plugin_market_trust(&state.config, signature.as_deref(), public_key.as_deref())?;
+    validate_plugin_market_install_trust(
+        &state.config,
+        signature.as_deref(),
+        public_key.as_deref(),
+        source_kind.as_ref(),
+        source_url.as_deref(),
+        &download_url,
+        confirmed_unsigned.unwrap_or(false),
+    )?;
     let progress_context = PluginMarketProgressContext {
         plugin_id: plugin_id.clone(),
         operation: "install".to_string(),
@@ -587,8 +3488,19 @@ pub async fn update_plugin_from_market(
     signature: Option<String>,
     public_key: Option<String>,
     operation_id: Option<String>,
+    source_kind: Option<PluginMarketCatalogSourceKind>,
+    source_url: Option<String>,
+    confirmed_unsigned: Option<bool>,
 ) -> Result<Plugin, String> {
-    validate_plugin_market_trust(&state.config, signature.as_deref(), public_key.as_deref())?;
+    validate_plugin_market_install_trust(
+        &state.config,
+        signature.as_deref(),
+        public_key.as_deref(),
+        source_kind.as_ref(),
+        source_url.as_deref(),
+        &download_url,
+        confirmed_unsigned.unwrap_or(false),
+    )?;
     let progress_context = PluginMarketProgressContext {
         plugin_id: Some(plugin_id.clone()),
         operation: "update".to_string(),
@@ -676,18 +3588,29 @@ pub fn authorize_plugin_permissions(
 #[derive(Debug, Clone, serde::Serialize, PartialEq, Eq)]
 pub struct PluginMarketCatalog {
     pub source_url: String,
+    pub source_kind: PluginMarketCatalogSourceKind,
     pub updated_at: Option<String>,
     pub plugins: Vec<PluginMarketCatalogPlugin>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PluginMarketCatalogSourceKind {
+    Atools,
+    Ztools,
+    Legacy,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct PluginMarketCatalogPlugin {
     pub id: String,
     pub name: String,
     pub version: String,
     pub description: String,
     pub author: Option<String>,
-    pub download_url: String,
+    pub download_url: Option<String>,
+    pub download_resolver_url: Option<String>,
+    pub trust_policy: String,
     pub checksum: Option<String>,
     pub rating: Option<String>,
     pub rating_count: Option<u64>,
@@ -698,6 +3621,16 @@ pub struct PluginMarketCatalogPlugin {
     pub signature: Option<String>,
     pub public_key: Option<String>,
     pub homepage: Option<String>,
+    pub logo: Option<String>,
+    pub category: Option<String>,
+    pub package_size: Option<u64>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, PartialEq, Eq)]
+pub struct PluginMarketResolvedDownload {
+    pub download_url: String,
+    pub package_format: String,
+    pub trust_policy: String,
 }
 
 #[derive(Debug, Clone)]
@@ -772,6 +3705,56 @@ struct RawPluginMarketCatalogPlugin {
     homepage: Option<String>,
 }
 
+#[derive(Debug, Clone, serde::Deserialize)]
+struct RawZtoolsMarketCatalog {
+    #[serde(default)]
+    categories: Vec<RawZtoolsMarketCategory>,
+    #[serde(default)]
+    latest: Vec<RawZtoolsMarketPlugin>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+struct RawZtoolsMarketCategory {
+    #[serde(default)]
+    title: Option<String>,
+    #[serde(default)]
+    plugins: Vec<RawZtoolsMarketPlugin>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+struct RawZtoolsMarketPlugin {
+    #[serde(default)]
+    name: String,
+    #[serde(default)]
+    title: Option<String>,
+    #[serde(default)]
+    version: String,
+    #[serde(default)]
+    description: String,
+    #[serde(default)]
+    author: Option<String>,
+    #[serde(default)]
+    homepage: Option<String>,
+    #[serde(default)]
+    logo: Option<String>,
+    #[serde(default)]
+    size: Option<u64>,
+    #[serde(default, rename = "downloadCount")]
+    download_count: Option<u64>,
+    #[serde(default, rename = "updatedAt")]
+    updated_at: Option<serde_json::Value>,
+    #[serde(default, rename = "categoryTitle")]
+    category_title: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+struct RawZtoolsDownloadResponse {
+    #[serde(default, rename = "downloadUrl")]
+    download_url: Option<String>,
+    #[serde(default, rename = "zpxDownloadUrl")]
+    zpx_download_url: Option<String>,
+}
+
 #[tauri::command]
 pub async fn fetch_plugin_market_catalog(url: String) -> Result<PluginMarketCatalog, String> {
     fetch_plugin_market_catalog_from_url(&url).await
@@ -781,12 +3764,13 @@ pub(crate) async fn fetch_plugin_market_catalog_from_url(
     url: &str,
 ) -> Result<PluginMarketCatalog, String> {
     let source_url = plugin_market_catalog_url(url)?;
+    let request_url = plugin_market_catalog_request_url(&source_url);
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(15))
         .build()
         .map_err(|error| format!("Plugin market HTTP client failed: {error}"))?;
     let response = client
-        .get(source_url.clone())
+        .get(request_url)
         .send()
         .await
         .map_err(|error| format!("Plugin market catalog request failed: {error}"))?;
@@ -795,10 +3779,67 @@ pub(crate) async fn fetch_plugin_market_catalog_from_url(
         return Err(format!("Plugin market catalog returned HTTP {status}"));
     }
     let raw = response
-        .json::<RawPluginMarketCatalog>()
+        .json::<serde_json::Value>()
         .await
         .map_err(|error| format!("Invalid plugin market catalog JSON: {error}"))?;
-    Ok(normalize_plugin_market_catalog(source_url.to_string(), raw))
+    normalize_plugin_market_catalog_value(source_url.to_string(), raw)
+}
+
+fn plugin_market_catalog_request_url(source_url: &reqwest::Url) -> reqwest::Url {
+    if is_ztools_market_base_url(source_url) {
+        let mut request_url = source_url.clone();
+        request_url.set_path(&format!("{}/plugins", source_url.path().trim_end_matches('/')));
+        let platform = if cfg!(target_os = "macos") {
+            "darwin"
+        } else if cfg!(target_os = "windows") {
+            "win32"
+        } else {
+            "linux"
+        };
+        request_url
+            .query_pairs_mut()
+            .append_pair("limit", "30")
+            .append_pair("platform", platform);
+        request_url
+    } else {
+        source_url.clone()
+    }
+}
+
+fn is_ztools_market_base_url(url: &reqwest::Url) -> bool {
+    url.path().trim_end_matches('/') == "/api/market"
+}
+
+fn normalize_plugin_market_catalog_value(
+    source_url: String,
+    raw: serde_json::Value,
+) -> Result<PluginMarketCatalog, String> {
+    if raw.get("categories").and_then(serde_json::Value::as_array).is_some() {
+        let catalog = serde_json::from_value::<RawZtoolsMarketCatalog>(raw)
+            .map_err(|error| format!("Invalid ZTools plugin market catalog JSON: {error}"))?;
+        return Ok(normalize_ztools_market_catalog(source_url, catalog));
+    }
+
+    if raw.is_array() {
+        let plugins = serde_json::from_value::<Vec<RawPluginMarketCatalogPlugin>>(raw)
+            .map_err(|error| format!("Invalid legacy plugin market catalog JSON: {error}"))?;
+        return Ok(normalize_plugin_market_catalog(
+            source_url,
+            RawPluginMarketCatalog {
+                updated_at: None,
+                plugins,
+            },
+            PluginMarketCatalogSourceKind::Legacy,
+        ));
+    }
+
+    let catalog = serde_json::from_value::<RawPluginMarketCatalog>(raw)
+        .map_err(|error| format!("Invalid ATools plugin market catalog JSON: {error}"))?;
+    Ok(normalize_plugin_market_catalog(
+        source_url,
+        catalog,
+        PluginMarketCatalogSourceKind::Atools,
+    ))
 }
 
 fn plugin_market_catalog_url(url: &str) -> Result<reqwest::Url, String> {
@@ -813,6 +3854,7 @@ fn plugin_market_catalog_url(url: &str) -> Result<reqwest::Url, String> {
 fn normalize_plugin_market_catalog(
     source_url: String,
     raw: RawPluginMarketCatalog,
+    source_kind: PluginMarketCatalogSourceKind,
 ) -> PluginMarketCatalog {
     let plugins = raw
         .plugins
@@ -821,6 +3863,7 @@ fn normalize_plugin_market_catalog(
         .collect();
     PluginMarketCatalog {
         source_url,
+        source_kind,
         updated_at: raw.updated_at.and_then(trimmed_optional_string),
         plugins,
     }
@@ -833,7 +3876,10 @@ fn normalize_plugin_market_catalog_plugin(
     if name.is_empty() {
         return None;
     }
-    let download_url = trimmed_http_url(&raw.download_url)?;
+    let download_url = trimmed_http_url(&raw.download_url);
+    if download_url.is_none() {
+        return None;
+    }
     let id =
         trimmed_optional_string(raw.id).unwrap_or_else(|| atools_core::utils::sanitize_id(&name));
     Some(PluginMarketCatalogPlugin {
@@ -843,6 +3889,8 @@ fn normalize_plugin_market_catalog_plugin(
         description: trimmed_optional_string(raw.description).unwrap_or_default(),
         author: raw.author.and_then(trimmed_optional_string),
         download_url,
+        download_resolver_url: None,
+        trust_policy: "signed_required".to_string(),
         checksum: normalize_plugin_market_catalog_checksum(raw.checksum.or(raw.sha256)),
         rating: normalize_plugin_market_catalog_rating(raw.rating),
         rating_count: normalize_plugin_market_catalog_count(raw.rating_count),
@@ -853,7 +3901,173 @@ fn normalize_plugin_market_catalog_plugin(
         signature: raw.signature.and_then(trimmed_optional_string),
         public_key: raw.public_key.and_then(trimmed_optional_string),
         homepage: raw.homepage.and_then(|url| trimmed_http_url(&url)),
+        logo: None,
+        category: None,
+        package_size: None,
     })
+}
+
+fn normalize_ztools_market_catalog(
+    source_url: String,
+    raw: RawZtoolsMarketCatalog,
+) -> PluginMarketCatalog {
+    let resolver_base = plugin_market_catalog_url(&source_url)
+        .ok()
+        .and_then(|url| ztools_download_resolver_base(&url));
+    let mut by_id = std::collections::BTreeMap::new();
+    for category in raw.categories {
+        for mut plugin in category.plugins {
+            if plugin.category_title.is_none() {
+                plugin.category_title = category.title.clone();
+            }
+            if let Some(normalized) = normalize_ztools_market_plugin(plugin, resolver_base.as_deref()) {
+                by_id.insert(normalized.id.clone(), normalized);
+            }
+        }
+    }
+    for plugin in raw.latest {
+        if let Some(normalized) = normalize_ztools_market_plugin(plugin, resolver_base.as_deref()) {
+            by_id.entry(normalized.id.clone()).or_insert(normalized);
+        }
+    }
+    let mut plugins = by_id.into_values().collect::<Vec<_>>();
+    plugins.sort_by(|left, right| {
+        right
+            .downloads
+            .unwrap_or_default()
+            .cmp(&left.downloads.unwrap_or_default())
+            .then_with(|| left.name.cmp(&right.name))
+    });
+    PluginMarketCatalog {
+        source_url,
+        source_kind: PluginMarketCatalogSourceKind::Ztools,
+        updated_at: None,
+        plugins,
+    }
+}
+
+fn ztools_download_resolver_base(source_url: &reqwest::Url) -> Option<String> {
+    let mut resolver = source_url.clone();
+    let path = source_url.path().trim_end_matches('/');
+    let market_path = path.strip_suffix("/plugins").unwrap_or(path);
+    if !market_path.ends_with("/api/market") {
+        return None;
+    }
+    resolver.set_path(&format!("{market_path}/plugins/download"));
+    resolver.set_query(None);
+    Some(resolver.to_string())
+}
+
+fn normalize_ztools_market_plugin(
+    raw: RawZtoolsMarketPlugin,
+    resolver_base: Option<&str>,
+) -> Option<PluginMarketCatalogPlugin> {
+    let id = raw.name.trim().to_string();
+    if id.is_empty() {
+        return None;
+    }
+    let display_name = raw
+        .title
+        .and_then(trimmed_optional_string)
+        .unwrap_or_else(|| id.clone());
+    let download_resolver_url = resolver_base.and_then(|base| {
+        let mut url = reqwest::Url::parse(base).ok()?;
+        url.query_pairs_mut().append_pair("name", &id);
+        Some(url.to_string())
+    });
+    Some(PluginMarketCatalogPlugin {
+        id,
+        name: display_name,
+        version: trimmed_optional_string(raw.version).unwrap_or_else(|| "0.0.0".to_string()),
+        description: raw.description.trim().to_string(),
+        author: raw.author.and_then(trimmed_optional_string),
+        download_url: None,
+        download_resolver_url,
+        trust_policy: "official_ztools_confirm".to_string(),
+        checksum: None,
+        rating: None,
+        rating_count: None,
+        downloads: raw.download_count,
+        updated_at: raw.updated_at.and_then(plugin_market_value_string),
+        publisher: None,
+        publisher_url: None,
+        signature: None,
+        public_key: None,
+        homepage: raw.homepage.and_then(|url| trimmed_http_url(&url)),
+        logo: raw.logo.and_then(|url| trimmed_http_url(&url)),
+        category: raw.category_title.and_then(trimmed_optional_string),
+        package_size: raw.size,
+    })
+}
+
+fn plugin_market_value_string(value: serde_json::Value) -> Option<String> {
+    match value {
+        serde_json::Value::String(value) => trimmed_optional_string(value),
+        serde_json::Value::Number(value) => Some(value.to_string()),
+        _ => None,
+    }
+}
+
+#[tauri::command]
+pub async fn resolve_plugin_market_download(
+    plugin: PluginMarketCatalogPlugin,
+) -> Result<PluginMarketResolvedDownload, String> {
+    resolve_plugin_market_download_inner(&plugin).await
+}
+
+pub(crate) async fn resolve_plugin_market_download_inner(
+    plugin: &PluginMarketCatalogPlugin,
+) -> Result<PluginMarketResolvedDownload, String> {
+    if let Some(download_url) = plugin.download_url.as_deref() {
+        let download_url = plugin_market_download_url(download_url)?.to_string();
+        return Ok(PluginMarketResolvedDownload {
+            package_format: plugin_market_package_format(&download_url).to_string(),
+            download_url,
+            trust_policy: plugin.trust_policy.clone(),
+        });
+    }
+    let resolver_url = plugin
+        .download_resolver_url
+        .as_deref()
+        .ok_or_else(|| "Plugin market entry has no download URL or resolver".to_string())?;
+    let resolver_url = plugin_market_catalog_url(resolver_url)?;
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .map_err(|error| format!("Plugin market HTTP client failed: {error}"))?;
+    let response = client
+        .get(resolver_url)
+        .send()
+        .await
+        .map_err(|error| format!("Plugin market download resolver failed: {error}"))?;
+    let status = response.status();
+    if !status.is_success() {
+        return Err(format!("Plugin market download resolver returned HTTP {status}"));
+    }
+    let resolved = response
+        .json::<RawZtoolsDownloadResponse>()
+        .await
+        .map_err(|error| format!("Invalid plugin market download response: {error}"))?;
+    // ATools currently consumes the ZIP compatibility artifact. ZPX remains advertised by
+    // ZTools, but its ASAR container is intentionally not treated as ZIP.
+    let download_url = resolved
+        .download_url
+        .and_then(|url| trimmed_http_url(&url))
+        .or_else(|| resolved.zpx_download_url.and_then(|url| trimmed_http_url(&url)))
+        .ok_or_else(|| "Plugin market download response has no HTTPS package URL".to_string())?;
+    Ok(PluginMarketResolvedDownload {
+        package_format: plugin_market_package_format(&download_url).to_string(),
+        download_url,
+        trust_policy: plugin.trust_policy.clone(),
+    })
+}
+
+fn plugin_market_package_format(download_url: &str) -> &'static str {
+    let path = reqwest::Url::parse(download_url)
+        .ok()
+        .map(|url| url.path().to_ascii_lowercase())
+        .unwrap_or_default();
+    if path.ends_with(".zpx") { "zpx" } else { "zip" }
 }
 
 fn normalize_plugin_market_catalog_rating(value: Option<serde_json::Value>) -> Option<String> {
@@ -1451,6 +4665,48 @@ fn validate_plugin_market_trust(
     Ok(())
 }
 
+fn validate_plugin_market_install_trust(
+    config: &atools_core::config::AppConfig,
+    signature: Option<&str>,
+    public_key: Option<&str>,
+    source_kind: Option<&PluginMarketCatalogSourceKind>,
+    source_url: Option<&str>,
+    download_url: &str,
+    confirmed_unsigned: bool,
+) -> Result<(), String> {
+    let has_signature = signature.is_some_and(|value| !value.trim().is_empty());
+    let has_public_key = public_key.is_some_and(|value| !value.trim().is_empty());
+    if has_signature || has_public_key {
+        return validate_plugin_market_trust(config, signature, public_key);
+    }
+
+    if source_kind != Some(&PluginMarketCatalogSourceKind::Ztools) {
+        return Err("Unsigned plugin packages are only allowed from the official ZTools market"
+            .to_string());
+    }
+    if !confirmed_unsigned {
+        return Err(
+            "Official ZTools packages are unsigned and require explicit install confirmation"
+                .to_string(),
+        );
+    }
+    let source_url = source_url
+        .ok_or_else(|| "Official ZTools install requires its catalog source URL".to_string())?;
+    let source = plugin_market_catalog_url(source_url)?;
+    let source_path = source.path().trim_end_matches('/');
+    if source.scheme() != "https"
+        || source.host_str() != Some("z-tools.top")
+        || (source_path != "/api/market" && source_path != "/api/market/plugins")
+    {
+        return Err("Unsigned plugin catalog is not the official ZTools HTTPS market".to_string());
+    }
+    let package = plugin_market_download_url(download_url)?;
+    if package.scheme() != "https" || package.host_str() != Some("ztools.zosen.link") {
+        return Err("Unsigned ZTools package URL is not on the official package host".to_string());
+    }
+    Ok(())
+}
+
 fn trusted_plugin_market_public_keys(
     config: &atools_core::config::AppConfig,
 ) -> Result<std::collections::BTreeSet<[u8; 32]>, String> {
@@ -1731,6 +4987,19 @@ fn extract_plugin_market_zip(
                 target_path.display()
             )
         })?;
+        #[cfg(unix)]
+        if let Some(mode) = entry.unix_mode() {
+            if mode & 0o170000 != 0o120000 {
+                use std::os::unix::fs::PermissionsExt;
+                let permissions = std::fs::Permissions::from_mode(mode & 0o777);
+                std::fs::set_permissions(&target_path, permissions).map_err(|error| {
+                    format!(
+                        "Failed to apply plugin market file mode to {}: {error}",
+                        target_path.display()
+                    )
+                })?;
+            }
+        }
     }
     Ok(())
 }
@@ -1750,10 +5019,15 @@ fn validate_plugin_market_zip_entry(
         .map(|mode| mode & 0o170000 == 0o120000)
         .unwrap_or(false)
     {
-        return Err(format!(
-            "Plugin market zip contains unsupported symlink entry: {}",
-            entry.name()
-        ));
+        let relative_path = entry.enclosed_name().ok_or_else(|| {
+            format!("Plugin market zip contains unsafe symlink path: {}", entry.name())
+        })?;
+        if !is_node_modules_bin_entry(&relative_path) {
+            return Err(format!(
+                "Plugin market zip contains unsupported symlink entry: {}",
+                entry.name()
+            ));
+        }
     }
     let Some(relative_path) = entry.enclosed_name() else {
         return Err(format!(
@@ -1858,6 +5132,7 @@ fn install_plugin_from_directory_checked_with_policy_inner(
         .map_err(|e| format!("Failed to read plugin.json: {}", e))?;
     let manifest: PluginManifest = serde_json::from_str(&manifest_content)
         .map_err(|e| format!("Invalid plugin.json: {}", e))?;
+    manifest.validate_runtime_contract()?;
 
     let plugin_id = atools_core::utils::sanitize_id(&manifest.name);
     if let Some(expected_plugin_id) = expected_plugin_id
@@ -1947,6 +5222,7 @@ fn plugin_update_from_path_with_policy_inner(
         .map_err(|e| format!("Failed to read plugin.json: {}", e))?;
     let manifest: PluginManifest = serde_json::from_str(&manifest_content)
         .map_err(|e| format!("Invalid plugin.json: {}", e))?;
+    manifest.validate_runtime_contract()?;
     let source_plugin_id = atools_core::utils::sanitize_id(&manifest.name);
     if source_plugin_id != plugin_id {
         return Err(format!(
@@ -2020,6 +5296,12 @@ pub fn scan_ztools_plugins(
 }
 
 #[tauri::command]
+pub fn scan_default_ztools_plugins(
+) -> Result<Vec<crate::ztools_import::ZToolsImportCandidate>, String> {
+    crate::ztools_import::scan_default_ztools_plugin_candidates()
+}
+
+#[tauri::command]
 pub fn import_ztools_plugins(
     state: tauri::State<AppState>,
     paths: Vec<String>,
@@ -2036,7 +5318,12 @@ pub fn import_ztools_plugins(
 }
 
 #[tauri::command]
-pub fn uninstall_plugin(state: tauri::State<AppState>, plugin_id: String) -> Result<(), String> {
+pub async fn uninstall_plugin(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    plugin_id: String,
+) -> Result<(), String> {
+    stop_plugin_sidecar(&app, &plugin_id).await?;
     uninstall_plugin_inner(&state.db, &state.config, &plugin_id)?;
     crate::agent_tools::sync_plugin_tools(&state.db)?;
     tracing::info!("Uninstalled plugin: {}", plugin_id);
@@ -2090,11 +5377,15 @@ pub fn list_plugins(state: tauri::State<AppState>) -> Result<Vec<Plugin>, String
 }
 
 #[tauri::command]
-pub fn toggle_plugin(
-    state: tauri::State<AppState>,
+pub async fn toggle_plugin(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
     plugin_id: String,
     enabled: bool,
 ) -> Result<(), String> {
+    if !enabled {
+        stop_plugin_sidecar(&app, &plugin_id).await?;
+    }
     let mut plugin = state.db.get_plugin(&plugin_id).map_err(|e| e.to_string())?;
     plugin.enabled = enabled;
     plugin.updated_at = atools_core::utils::now_iso();
@@ -2103,6 +5394,16 @@ pub fn toggle_plugin(
         .save_plugin_with_features(&plugin, &plugin.manifest.features)
         .map_err(|e| e.to_string())?;
     crate::agent_tools::sync_plugin_tools(&state.db)?;
+    Ok(())
+}
+
+async fn stop_plugin_sidecar(app: &AppHandle, plugin_id: &str) -> Result<(), String> {
+    if let Some(supervisor) = app.try_state::<Arc<atools_plugin::SidecarSupervisor>>() {
+        supervisor
+            .stop(plugin_id)
+            .await
+            .map_err(|error| error.to_string())?;
+    }
     Ok(())
 }
 
@@ -2174,6 +5475,120 @@ pub fn remove_plugin_data(
 }
 
 #[tauri::command]
+pub fn capture_current_clipboard_text(
+    app: AppHandle,
+    state: tauri::State<AppState>,
+) -> Result<Option<String>, String> {
+    use tauri_plugin_clipboard_manager::ClipboardExt;
+
+    let started = std::time::Instant::now();
+    let mut run = TaskRun::new(
+        "plugin.feature.clipboard.capture",
+        TaskRunInitiator::human(Some("builtin-clipboard-plugin".to_string())),
+        serde_json::json!({ "contentRedacted": true }),
+    );
+    run.transition(TaskRunStatus::Running)
+        .expect("clipboard capture TaskRun can start");
+    state
+        .db
+        .upsert_task_run(&run)
+        .map_err(|error| error.to_string())?;
+
+    let text = match app.clipboard().read_text() {
+        Ok(text) => text,
+        Err(error) => {
+            let message = error.to_string();
+            run.summary = Some("Failed to read the current clipboard text".to_string());
+            run.errors
+                .push(TaskIssue::error("clipboard_read_failed", message.clone()));
+            run.validation.status = TaskValidationStatus::Failed;
+            run.validation.summary = Some("Clipboard read failed".to_string());
+            run.metrics = serde_json::json!({
+                "durationMs": started.elapsed().as_millis() as u64
+            });
+            run.transition(TaskRunStatus::Failed)
+                .expect("running clipboard capture can fail");
+            let _ = state.db.upsert_task_run(&run);
+            return Err(message);
+        }
+    };
+    let text = text.trim().to_string();
+    let mut recorded = false;
+    let captured = if text.is_empty() {
+        None
+    } else {
+        let already_latest = state
+            .db
+            .search_clipboard_history("", 1)
+            .unwrap_or_default()
+            .first()
+            .is_some_and(|entry| entry.text == text);
+        if already_latest {
+            return finish_clipboard_capture_task_run(&state.db, run, started, Some(text), false);
+        }
+        if let Err(error) = state
+            .db
+            .record_clipboard_text(&text, &atools_core::utils::now_iso())
+        {
+            let message = error.to_string();
+            run.summary = Some("Failed to persist the current clipboard text".to_string());
+            run.errors.push(TaskIssue::error(
+                "clipboard_history_write_failed",
+                message.clone(),
+            ));
+            run.validation.status = TaskValidationStatus::Failed;
+            run.validation.summary = Some("Clipboard history write failed".to_string());
+            run.metrics = serde_json::json!({
+                "durationMs": started.elapsed().as_millis() as u64
+            });
+            run.transition(TaskRunStatus::Failed)
+                .expect("running clipboard capture can fail while persisting");
+            let _ = state.db.upsert_task_run(&run);
+            return Err(message);
+        }
+        recorded = true;
+        Some(text)
+    };
+    finish_clipboard_capture_task_run(&state.db, run, started, captured, recorded)
+}
+
+fn finish_clipboard_capture_task_run(
+    db: &Database,
+    mut run: TaskRun,
+    started: std::time::Instant,
+    captured: Option<String>,
+    recorded: bool,
+) -> Result<Option<String>, String> {
+    let character_count = captured.as_deref().map(|value| value.chars().count());
+    let byte_count = captured.as_deref().map(str::len);
+    run.output = serde_json::json!({
+        "captured": captured.is_some(),
+        "recorded": recorded,
+        "contentRedacted": true,
+        "characterCount": character_count,
+        "byteCount": byte_count,
+    });
+    run.summary = Some(if recorded {
+        "Captured the current clipboard text into local history".to_string()
+    } else if captured.is_some() {
+        "The current clipboard text is already the latest local history item".to_string()
+    } else {
+        "The current text clipboard was empty".to_string()
+    });
+    run.validation.status = TaskValidationStatus::Passed;
+    run.validation.summary =
+        Some("Clipboard text stayed local and was redacted from the TaskRun payload".to_string());
+    run.metrics = serde_json::json!({
+        "durationMs": started.elapsed().as_millis() as u64
+    });
+    run.transition(TaskRunStatus::Succeeded)
+        .expect("running clipboard capture can succeed");
+    db.upsert_task_run(&run)
+        .map_err(|error| error.to_string())?;
+    Ok(captured)
+}
+
+#[tauri::command]
 pub fn list_clipboard_history(
     state: tauri::State<AppState>,
     query: Option<String>,
@@ -2204,22 +5619,741 @@ pub fn export_clipboard_history_json(
         .map_err(|e| e.to_string())
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PasteboardPreview {
+    pub item_id: String,
+    pub kind: PasteboardItemKind,
+    pub title: Option<String>,
+    pub text: Option<String>,
+    pub asset_path: Option<String>,
+    pub media_type: Option<String>,
+    pub files: Vec<String>,
+    pub ocr_text: Option<String>,
+}
+
+#[tauri::command]
+pub fn pasteboard_list_items(
+    state: tauri::State<AppState>,
+    query: Option<String>,
+    pinboard_id: Option<String>,
+    kinds: Option<Vec<PasteboardItemKind>>,
+    limit: Option<usize>,
+    offset: Option<usize>,
+) -> Result<Vec<PasteboardItem>, String> {
+    state
+        .db
+        .search_pasteboard_items(
+            query.as_deref().unwrap_or_default(),
+            pinboard_id.as_deref(),
+            kinds.as_deref().unwrap_or_default(),
+            limit.unwrap_or(100),
+            offset.unwrap_or(0),
+        )
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn pasteboard_list_pinboards(
+    state: tauri::State<AppState>,
+) -> Result<Vec<PasteboardPinboard>, String> {
+    state
+        .db
+        .list_pasteboard_pinboards()
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn pasteboard_save_pinboard(
+    state: tauri::State<AppState>,
+    id: Option<String>,
+    name: String,
+    color: String,
+    order_key: Option<String>,
+) -> Result<PasteboardPinboard, String> {
+    let name = name.trim();
+    if name.is_empty() {
+        return Err("分组名称不能为空".into());
+    }
+    let now = atools_core::utils::now_iso();
+    let existing = id.as_deref().and_then(|id| {
+        state
+            .db
+            .list_pasteboard_pinboards()
+            .ok()?
+            .into_iter()
+            .find(|pinboard| pinboard.id == id)
+    });
+    let pinboard = PasteboardPinboard {
+        id: id.unwrap_or_else(|| format!("group-{}", uuid::Uuid::new_v4())),
+        name: name.to_string(),
+        color: if color.trim().is_empty() {
+            "#7C5CFF".into()
+        } else {
+            color.trim().to_string()
+        },
+        order_key: order_key
+            .filter(|value| !value.trim().is_empty())
+            .or_else(|| existing.as_ref().map(|value| value.order_key.clone()))
+            .unwrap_or_else(|| format!("z-{now}")),
+        created_at: existing
+            .as_ref()
+            .map(|value| value.created_at.clone())
+            .unwrap_or_else(|| now.clone()),
+        updated_at: now,
+        field_clocks: existing
+            .map(|value| value.field_clocks)
+            .unwrap_or_else(|| serde_json::json!({})),
+    };
+    state
+        .db
+        .upsert_pasteboard_pinboard(&pinboard)
+        .map_err(|error| error.to_string())?;
+    let _ = state
+        .db
+        .delete_pasteboard_tombstone(&pinboard.id, "pinboard");
+    Ok(pinboard)
+}
+
+#[tauri::command]
+pub fn pasteboard_delete_pinboard(
+    state: tauri::State<AppState>,
+    id: String,
+) -> Result<bool, String> {
+    let deleted = state
+        .db
+        .delete_pasteboard_pinboard(&id)
+        .map_err(|error| error.to_string())?;
+    if deleted {
+        state
+            .db
+            .upsert_pasteboard_tombstone(&pasteboard_tombstone(&state, id, "pinboard"))
+            .map_err(|error| error.to_string())?;
+    }
+    Ok(deleted)
+}
+
+#[tauri::command]
+pub fn pasteboard_assign_items(
+    state: tauri::State<AppState>,
+    item_ids: Vec<String>,
+    pinboard_id: Option<String>,
+) -> Result<usize, String> {
+    let mut updated = 0;
+    for (index, item_id) in item_ids.into_iter().enumerate() {
+        let order_key = pinboard_id
+            .as_ref()
+            .map(|_| format!("{}-{index:08}", atools_core::utils::now_iso()));
+        if state
+            .db
+            .assign_pasteboard_item(&item_id, pinboard_id.as_deref(), order_key.as_deref())
+            .map_err(|error| error.to_string())?
+        {
+            updated += 1;
+        }
+    }
+    Ok(updated)
+}
+
+#[tauri::command]
+pub fn pasteboard_update_item_title(
+    state: tauri::State<AppState>,
+    item_id: String,
+    title: Option<String>,
+) -> Result<PasteboardItem, String> {
+    let mut item = state
+        .db
+        .get_pasteboard_item(&item_id)
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| format!("Paste item not found: {item_id}"))?;
+    item.title = title
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+    item.updated_at = atools_core::utils::now_iso();
+    state
+        .db
+        .upsert_pasteboard_item(&item)
+        .map_err(|error| error.to_string())?;
+    let _ = state.db.delete_pasteboard_tombstone(&item.id, "paste_item");
+    Ok(item)
+}
+
+#[tauri::command]
+pub fn pasteboard_delete_items(
+    state: tauri::State<AppState>,
+    item_ids: Vec<String>,
+) -> Result<usize, String> {
+    let mut deleted = 0;
+    for item_id in item_ids {
+        if state
+            .db
+            .delete_pasteboard_item(&item_id)
+            .map_err(|error| error.to_string())?
+        {
+            state
+                .db
+                .upsert_pasteboard_tombstone(&pasteboard_tombstone(&state, item_id, "paste_item"))
+                .map_err(|error| error.to_string())?;
+            deleted += 1;
+        }
+    }
+    Ok(deleted)
+}
+
+fn pasteboard_tombstone(
+    state: &tauri::State<AppState>,
+    entity_id: String,
+    entity_kind: &str,
+) -> PasteboardTombstone {
+    let deleted_at = atools_core::utils::now_iso();
+    let wall_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis()
+        .min(u128::from(u64::MAX)) as u64;
+    let device_id = state.pasteboard_runtime.device_id().to_string();
+    PasteboardTombstone {
+        entity_id,
+        entity_kind: entity_kind.to_string(),
+        deleted_at,
+        deleted_clock: serde_json::json!({
+            "wallMs": wall_ms,
+            "counter": 0,
+            "deviceId": device_id,
+        }),
+        source_device_id: device_id,
+    }
+}
+
+#[tauri::command]
+pub fn pasteboard_capture_status(
+    state: tauri::State<AppState>,
+) -> crate::pasteboard_runtime::PasteboardCaptureStatus {
+    state.pasteboard_runtime.status()
+}
+
+#[tauri::command]
+pub fn pasteboard_stack_status(
+    state: tauri::State<AppState>,
+) -> crate::pasteboard_runtime::PasteStackStatus {
+    state.pasteboard_runtime.paste_stack_status()
+}
+
+#[tauri::command]
+pub fn pasteboard_set_stack(
+    app: AppHandle,
+    state: tauri::State<AppState>,
+    item_ids: Vec<String>,
+) -> Result<crate::pasteboard_runtime::PasteStackStatus, String> {
+    let status = state.pasteboard_runtime.set_paste_stack(item_ids)?;
+    if status.active {
+        crate::hotkey::activate_paste_stack_shortcut(&app).map_err(|error| error.to_string())?;
+    } else {
+        crate::hotkey::deactivate_paste_stack_shortcut(&app).map_err(|error| error.to_string())?;
+    }
+    let _ = app.emit("pasteboard://stack", &status);
+    Ok(status)
+}
+
+#[tauri::command]
+pub fn pasteboard_clear_stack(
+    app: AppHandle,
+    state: tauri::State<AppState>,
+) -> Result<crate::pasteboard_runtime::PasteStackStatus, String> {
+    let status = state.pasteboard_runtime.clear_paste_stack();
+    crate::hotkey::deactivate_paste_stack_shortcut(&app).map_err(|error| error.to_string())?;
+    let _ = app.emit("pasteboard://stack", &status);
+    Ok(status)
+}
+
+#[tauri::command]
+pub fn pasteboard_set_capture_paused(
+    state: tauri::State<AppState>,
+    paused: bool,
+) -> Result<crate::pasteboard_runtime::PasteboardCaptureStatus, String> {
+    let mut settings = state
+        .db
+        .get_setting("settings-general")
+        .map_err(|error| error.to_string())?
+        .and_then(|value| serde_json::from_str::<serde_json::Value>(&value).ok())
+        .filter(serde_json::Value::is_object)
+        .unwrap_or_else(|| serde_json::json!({}));
+    settings
+        .as_object_mut()
+        .expect("settings were normalized to an object")
+        .insert("pasteboardCapturePaused".into(), paused.into());
+    state
+        .db
+        .set_setting(
+            "settings-general",
+            &serde_json::to_string(&settings).map_err(|error| error.to_string())?,
+        )
+        .map_err(|error| error.to_string())?;
+    Ok(state.pasteboard_runtime.status())
+}
+
+#[tauri::command]
+pub async fn pasteboard_capture_now(
+    state: tauri::State<'_, AppState>,
+) -> Result<crate::pasteboard_runtime::CaptureOutcome, String> {
+    state.pasteboard_runtime.capture_once().await
+}
+
+#[tauri::command]
+pub async fn pasteboard_copy_item(
+    state: tauri::State<'_, AppState>,
+    item_id: String,
+    plain_text: Option<bool>,
+) -> Result<crate::pasteboard_runtime::PasteOutcome, String> {
+    run_pasteboard_item_action(&state, item_id, plain_text.unwrap_or(false), false).await
+}
+
+#[tauri::command]
+pub async fn pasteboard_paste_item(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    item_id: String,
+    plain_text: Option<bool>,
+) -> Result<crate::pasteboard_runtime::PasteOutcome, String> {
+    if let Some(window) = app.get_webview_window(crate::pasteboard_window::PASTEBOARD_SHELF_LABEL) {
+        let _ = window.hide();
+    }
+    run_pasteboard_item_action(&state, item_id, plain_text.unwrap_or(false), true).await
+}
+
+async fn run_pasteboard_item_action(
+    state: &tauri::State<'_, AppState>,
+    item_id: String,
+    plain_text: bool,
+    direct_paste: bool,
+) -> Result<crate::pasteboard_runtime::PasteOutcome, String> {
+    let started = std::time::Instant::now();
+    let capability = if direct_paste {
+        "pasteboard.paste_item"
+    } else {
+        "pasteboard.copy_item"
+    };
+    let mut run = TaskRun::new(
+        capability,
+        TaskRunInitiator::human(Some("paste-clipboard-shelf".into())),
+        serde_json::json!({ "itemId": item_id, "plainText": plain_text, "contentRedacted": true }),
+    );
+    run.transition(TaskRunStatus::Running)
+        .map_err(|error| error.to_string())?;
+    state
+        .db
+        .upsert_task_run(&run)
+        .map_err(|error| error.to_string())?;
+    let result = if direct_paste {
+        state
+            .pasteboard_runtime
+            .paste_item(&item_id, plain_text)
+            .await
+    } else {
+        state
+            .pasteboard_runtime
+            .copy_item(&item_id, plain_text)
+            .await
+    };
+    match result {
+        Ok(outcome) => {
+            run.summary = Some(if outcome.pasted {
+                "Paste item copied and pasted".into()
+            } else {
+                "Paste item copied".into()
+            });
+            run.output = serde_json::to_value(&outcome).map_err(|error| error.to_string())?;
+            if let Some(warning) = outcome.warning.clone() {
+                run.warnings.push(TaskIssue::error(
+                    outcome
+                        .warning_code
+                        .clone()
+                        .unwrap_or_else(|| "paste_warning".into()),
+                    warning,
+                ));
+            }
+            run.metrics = serde_json::json!({
+                "durationMs": started.elapsed().as_millis() as u64
+            });
+            run.validation.status = TaskValidationStatus::Passed;
+            run.validation.summary =
+                Some("Clipboard write completed without persisting content in TaskRun".into());
+            run.transition(TaskRunStatus::Succeeded)
+                .map_err(|error| error.to_string())?;
+            state
+                .db
+                .upsert_task_run(&run)
+                .map_err(|error| error.to_string())?;
+            Ok(outcome)
+        }
+        Err(error) => {
+            run.summary = Some("Paste item action failed".into());
+            run.errors.push(TaskIssue::error(
+                "pasteboard_item_action_failed",
+                error.clone(),
+            ));
+            run.metrics = serde_json::json!({
+                "durationMs": started.elapsed().as_millis() as u64
+            });
+            run.validation.status = TaskValidationStatus::Failed;
+            run.validation.summary = Some("Native clipboard action failed".into());
+            run.transition(TaskRunStatus::Failed)
+                .map_err(|transition_error| transition_error.to_string())?;
+            let _ = state.db.upsert_task_run(&run);
+            Err(error)
+        }
+    }
+}
+
+#[tauri::command]
+pub fn pasteboard_item_preview(
+    state: tauri::State<AppState>,
+    item_id: String,
+) -> Result<PasteboardPreview, String> {
+    let item = state
+        .db
+        .get_pasteboard_item(&item_id)
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| format!("Paste item not found: {item_id}"))?;
+    let text = ["text", "url", "color", "previewText"]
+        .into_iter()
+        .find_map(|key| {
+            item.payload
+                .get(key)
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_string)
+        });
+    let (asset_path, media_type) = pasteboard_preview_asset(&state.config, &item)?;
+    let files = item
+        .payload
+        .get("files")
+        .and_then(serde_json::Value::as_array)
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(serde_json::Value::as_str)
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default();
+    Ok(PasteboardPreview {
+        item_id: item.id,
+        kind: item.kind,
+        title: item.title,
+        text,
+        asset_path,
+        media_type,
+        files,
+        ocr_text: item.ocr_text,
+    })
+}
+
+#[tauri::command]
+pub async fn pasteboard_recognize_item(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    item_id: String,
+) -> Result<String, String> {
+    let mut item = state
+        .db
+        .get_pasteboard_item(&item_id)
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| format!("Paste item not found: {item_id}"))?;
+    if item.kind != PasteboardItemKind::Image {
+        return Err("只有图片内容支持 OCR".into());
+    }
+    let path = pasteboard_original_asset_path(&state.config, &item, "imageBlobPath")?;
+    let text = tauri::async_runtime::spawn_blocking(move || {
+        crate::pasteboard_native::recognize_text(&path)
+    })
+    .await
+    .map_err(|error| error.to_string())??;
+    item.ocr_text = (!text.trim().is_empty()).then_some(text.clone());
+    item.updated_at = atools_core::utils::now_iso();
+    state
+        .db
+        .upsert_pasteboard_item(&item)
+        .map_err(|error| error.to_string())?;
+    let _ = app.emit(
+        "pasteboard://changed",
+        serde_json::json!({ "status": "ocr_updated", "itemId": item.id }),
+    );
+    Ok(text)
+}
+
+#[tauri::command]
+pub fn pasteboard_create_text_item(
+    app: AppHandle,
+    state: tauri::State<AppState>,
+    text: String,
+    title: Option<String>,
+) -> Result<PasteboardItem, String> {
+    let item = state.pasteboard_runtime.create_text_item(&text, title)?;
+    let _ = app.emit(
+        "pasteboard://changed",
+        serde_json::json!({ "status": "created", "itemId": item.id }),
+    );
+    Ok(item)
+}
+
+#[tauri::command]
+pub fn pasteboard_update_text_item(
+    app: AppHandle,
+    state: tauri::State<AppState>,
+    item_id: String,
+    text: String,
+    title: Option<String>,
+) -> Result<PasteboardItem, String> {
+    let item = state
+        .pasteboard_runtime
+        .update_text_item(&item_id, &text, title)?;
+    let _ = app.emit(
+        "pasteboard://changed",
+        serde_json::json!({ "status": "updated", "itemId": item.id }),
+    );
+    Ok(item)
+}
+
+#[tauri::command]
+pub async fn pasteboard_rotate_image(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    item_id: String,
+    quarter_turns: i32,
+) -> Result<PasteboardItem, String> {
+    let item = state
+        .pasteboard_runtime
+        .rotate_image(&item_id, quarter_turns)
+        .await?;
+    let _ = app.emit(
+        "pasteboard://changed",
+        serde_json::json!({ "status": "image_updated", "itemId": item.id }),
+    );
+    Ok(item)
+}
+
+#[tauri::command]
+pub fn pasteboard_quick_look_item(
+    state: tauri::State<AppState>,
+    item_id: String,
+) -> Result<(), String> {
+    let item = state
+        .db
+        .get_pasteboard_item(&item_id)
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| format!("Paste item not found: {item_id}"))?;
+    let path = if item.kind == PasteboardItemKind::Image {
+        pasteboard_original_asset_path(&state.config, &item, "imageBlobPath")?
+    } else if item.kind == PasteboardItemKind::Pdf {
+        pasteboard_original_asset_path(&state.config, &item, "pdfBlobPath")?
+    } else if item.kind == PasteboardItemKind::Files {
+        item.payload
+            .get("files")
+            .and_then(serde_json::Value::as_array)
+            .and_then(|files| files.first())
+            .and_then(serde_json::Value::as_str)
+            .map(std::path::PathBuf::from)
+            .ok_or_else(|| "文件内容没有可用的本机路径".to_string())?
+    } else {
+        return Err("当前内容类型不支持 Quick Look".into());
+    };
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("/usr/bin/qlmanage")
+            .arg("-p")
+            .arg(path)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .map_err(|error| error.to_string())?;
+        Ok(())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = path;
+        Err("Quick Look is currently available on macOS".into())
+    }
+}
+
+fn pasteboard_original_asset_path(
+    config: &AppConfig,
+    item: &PasteboardItem,
+    path_key: &str,
+) -> Result<std::path::PathBuf, String> {
+    let relative_path = item
+        .payload
+        .get(path_key)
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| "Paste item has no local attachment".to_string())?;
+    let root = config
+        .pasteboard_blobs_dir()
+        .canonicalize()
+        .map_err(|error| error.to_string())?;
+    let path = root
+        .join(relative_path)
+        .canonicalize()
+        .map_err(|error| error.to_string())?;
+    if !path.starts_with(&root) || !path.is_file() {
+        return Err("Paste attachment escaped the managed blob directory".into());
+    }
+    Ok(path)
+}
+
+#[tauri::command]
+pub fn open_pasteboard_shelf_window(app: AppHandle) -> Result<(), String> {
+    crate::pasteboard_window::show_pasteboard_shelf(&app).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn hide_pasteboard_shelf_window(app: AppHandle) -> Result<(), String> {
+    crate::pasteboard_window::hide_pasteboard_shelf(&app).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn toggle_pasteboard_shelf_window(app: AppHandle) -> Result<bool, String> {
+    crate::pasteboard_window::toggle_pasteboard_shelf(&app).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn reposition_pasteboard_shelf_window(
+    app: AppHandle,
+) -> Result<crate::pasteboard_window::PasteboardShelfBounds, String> {
+    crate::pasteboard_window::reposition_pasteboard_shelf(&app).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn open_pasteboard_dialog_window(
+    app: AppHandle,
+    mode: String,
+    item_id: Option<String>,
+) -> Result<(), String> {
+    crate::pasteboard_window::open_pasteboard_dialog(&app, &mode, item_id.as_deref())
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn hide_pasteboard_dialog_window(app: AppHandle) -> Result<(), String> {
+    crate::pasteboard_window::hide_pasteboard_dialog(&app).map_err(|error| error.to_string())
+}
+
+fn pasteboard_preview_asset(
+    config: &AppConfig,
+    item: &PasteboardItem,
+) -> Result<(Option<String>, Option<String>), String> {
+    let (path_key, media_type) = match item.kind {
+        PasteboardItemKind::Image => (
+            "thumbnailBlobPath",
+            item.payload
+                .get("thumbnailMediaType")
+                .or_else(|| item.payload.get("imageMediaType"))
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_string),
+        ),
+        PasteboardItemKind::Pdf => ("pdfBlobPath", Some("application/pdf".into())),
+        _ => return Ok((None, None)),
+    };
+    let Some(relative_path) = item
+        .payload
+        .get(path_key)
+        .or_else(|| item.payload.get("imageBlobPath"))
+        .and_then(serde_json::Value::as_str)
+    else {
+        return Ok((None, media_type));
+    };
+    let root = config
+        .pasteboard_blobs_dir()
+        .canonicalize()
+        .map_err(|error| error.to_string())?;
+    let path = root
+        .join(relative_path)
+        .canonicalize()
+        .map_err(|error| error.to_string())?;
+    if !path.starts_with(&root) || !path.is_file() {
+        return Err("Paste preview asset escaped the managed blob directory".into());
+    }
+    Ok((Some(path.to_string_lossy().to_string()), media_type))
+}
+
 #[tauri::command]
 pub fn show_main_window(app: AppHandle) -> Result<(), String> {
-    if let Some(window) = app.get_webview_window("main") {
-        window.center().map_err(|e| e.to_string())?;
-        window.show().map_err(|e| e.to_string())?;
-        window.set_focus().map_err(|e| e.to_string())?;
-    }
-    Ok(())
+    crate::window::show_main_window(&app).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub fn hide_main_window(app: AppHandle) -> Result<(), String> {
-    if let Some(window) = app.get_webview_window("main") {
-        window.hide().map_err(|e| e.to_string())?;
+    crate::window::hide_main_window(&app).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn toggle_main_window(app: AppHandle) -> Result<bool, String> {
+    crate::hotkey::toggle_main_window(&app).map_err(|e| e.to_string())
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MainWindowToggleProbe {
+    attempt_count: usize,
+    success_count: usize,
+    max_show_ms: f64,
+}
+
+#[tauri::command]
+pub fn benchmark_main_window_toggle(
+    app: AppHandle,
+    attempts: Option<usize>,
+) -> Result<MainWindowToggleProbe, String> {
+    let attempt_count = attempts.unwrap_or(5).clamp(1, 20);
+    crate::window::hide_main_window(&app).map_err(|error| error.to_string())?;
+
+    let result = (|| {
+        let mut success_count = 0;
+        let mut max_show_ms = 0.0_f64;
+        for attempt in 0..attempt_count {
+            let started_at = std::time::Instant::now();
+            let shown = crate::hotkey::toggle_main_window(&app).map_err(|error| {
+                format!(
+                    "Hotkey show path failed on attempt {}: {error}",
+                    attempt + 1
+                )
+            })?;
+            if !shown {
+                return Err(format!(
+                    "Hotkey show path did not show the main window on attempt {}",
+                    attempt + 1
+                ));
+            }
+            max_show_ms = max_show_ms.max(started_at.elapsed().as_secs_f64() * 1000.0);
+
+            let hidden = crate::hotkey::toggle_main_window(&app).map_err(|error| {
+                format!(
+                    "Hotkey hide path failed on attempt {}: {error}",
+                    attempt + 1
+                )
+            })?;
+            if hidden {
+                return Err(format!(
+                    "Hotkey hide path did not hide the main window on attempt {}",
+                    attempt + 1
+                ));
+            }
+            success_count += 1;
+        }
+        Ok(MainWindowToggleProbe {
+            attempt_count,
+            success_count,
+            max_show_ms,
+        })
+    })();
+
+    let restore_result = crate::window::show_main_window(&app).map_err(|error| error.to_string());
+    match (result, restore_result) {
+        (Ok(probe), Ok(())) => Ok(probe),
+        (Err(error), _) => Err(error),
+        (Ok(_), Err(error)) => Err(format!(
+            "Failed to restore main window after probe: {error}"
+        )),
     }
-    Ok(())
 }
 
 #[tauri::command]
@@ -2231,6 +6365,12 @@ pub fn release_smoke_info(state: tauri::State<AppState>) -> Option<ReleaseSmokeC
 pub struct ReleaseSmokeProgressReport {
     token: String,
     option_z_toggled: Option<bool>,
+    hotkey_show_ms: Option<f64>,
+    hotkey_toggle_attempt_count: Option<usize>,
+    hotkey_toggle_success_count: Option<usize>,
+    search_query: Option<String>,
+    search_latency_ms: Option<f64>,
+    search_result_count: Option<usize>,
     settings_page_opened: Option<bool>,
     plugin_page_opened: Option<bool>,
     agent_page_opened: Option<bool>,
@@ -2271,10 +6411,12 @@ pub fn report_release_smoke_progress(
             .ok_or_else(|| "Release smoke is not enabled".to_string())?
     };
     tracing::debug!(
-        "Release smoke report received: token={} completed={} option_z={} settings={} plugin={} agent={} clipboard_copy={} plugin_activation_ms={:?}",
+        "Release smoke report received: token={} completed={} option_z={} hotkey_show_ms={:?} search_latency_ms={:?} settings={} plugin={} agent={} clipboard_copy={} plugin_activation_ms={:?}",
         report.token,
         report.completed.unwrap_or(false),
         report.option_z_toggled.unwrap_or_default(),
+        report.hotkey_show_ms,
+        report.search_latency_ms,
         report.settings_page_opened.unwrap_or_default(),
         report.plugin_page_opened.unwrap_or_default(),
         report.agent_page_opened.unwrap_or_default(),
@@ -2290,12 +6432,42 @@ pub fn report_release_smoke_progress(
     {
         return Err("Plugin activation duration must be a positive finite number".to_string());
     }
+    if report
+        .hotkey_show_ms
+        .is_some_and(|value| !value.is_finite() || value <= 0.0)
+    {
+        return Err("Hotkey show duration must be a positive finite number".to_string());
+    }
+    if report
+        .search_latency_ms
+        .is_some_and(|value| !value.is_finite() || value < 0.0)
+    {
+        return Err("Search duration must be a non-negative finite number".to_string());
+    }
 
     let mut progress = state.release_smoke_progress.lock();
     progress.token = config.token.clone();
     progress.report_path = config.report_path.clone();
     if let Some(value) = report.option_z_toggled {
         progress.option_z_toggled = Some(value);
+    }
+    if let Some(value) = report.hotkey_show_ms {
+        progress.hotkey_show_ms = Some(value);
+    }
+    if let Some(value) = report.hotkey_toggle_attempt_count {
+        progress.hotkey_toggle_attempt_count = Some(value);
+    }
+    if let Some(value) = report.hotkey_toggle_success_count {
+        progress.hotkey_toggle_success_count = Some(value);
+    }
+    if let Some(value) = report.search_query {
+        progress.search_query = Some(value);
+    }
+    if let Some(value) = report.search_latency_ms {
+        progress.search_latency_ms = Some(value);
+    }
+    if let Some(value) = report.search_result_count {
+        progress.search_result_count = Some(value);
     }
     if let Some(value) = report.settings_page_opened {
         progress.settings_page_opened = Some(value);
@@ -3025,17 +7197,16 @@ mod settings_command_tests {
         ai_connection_config_from_settings, ai_models_url,
         apply_webdav_plugin_data_payload_with_mode, devtools_mode_from_settings,
         devtools_target_label, hotkey_update_plan, launch_agent_plist,
-        macos_current_browser_url_script, macos_current_folder_path_script,
-        macos_frontmost_app_name_script, macos_open_reveal_args, macos_screencapture_args,
-        merge_mcp_client_config, native_command_error, record_webdav_clipboard_entries,
-        screen_capture_file_to_data_url, screen_capture_smoke_guard_error,
-        shell_show_item_in_folder, test_ai_connection_config, webdav_config_from_settings,
-        write_audit_archive_file, write_mcp_client_config_file, HotkeyUpdatePlan,
-        WebdavPluginDataConflictSelection, WebdavPluginDataRestoreMode,
+        macos_current_browser_url_script, macos_current_folder_path_script, macos_open_reveal_args,
+        macos_screencapture_args, merge_mcp_client_config, native_command_error,
+        record_webdav_clipboard_entries, resolve_feature_icon, screen_capture_file_to_data_url,
+        screen_capture_smoke_guard_error, shell_show_item_in_folder, test_ai_connection_config,
+        webdav_config_from_settings, write_audit_archive_file, write_mcp_client_config_file,
+        HotkeyUpdatePlan, WebdavPluginDataConflictSelection, WebdavPluginDataRestoreMode,
     };
     use crate::webdav::WebdavClipboardRestoreEntry;
     use atools_core::agent::{AuditLogEntry, AuditStatus};
-    use atools_core::models::{Document, Plugin, PluginManifest};
+    use atools_core::models::{Document, FeatureEntry, Plugin, PluginManifest};
     use atools_core::Database;
 
     #[test]
@@ -3074,8 +7245,6 @@ mod settings_command_tests {
         assert!(macos_current_browser_url_script().contains("Safari"));
         assert!(macos_current_folder_path_script().contains("Finder"));
         assert!(macos_current_folder_path_script().contains("POSIX path"));
-        assert!(macos_frontmost_app_name_script().contains("frontmost is true"));
-        assert!(macos_frontmost_app_name_script().contains("System Events"));
     }
 
     #[test]
@@ -3084,6 +7253,109 @@ mod settings_command_tests {
 
         assert!(error.contains("screenCapture failed"));
         assert!(error.contains("permission denied"));
+    }
+
+    #[test]
+    fn feature_icon_falls_back_to_canonical_plugin_logo() {
+        let dir = tempfile::tempdir().unwrap();
+        let logo = dir.path().join("logo.png");
+        std::fs::write(&logo, b"png").unwrap();
+        let manifest: PluginManifest = serde_json::from_value(serde_json::json!({
+            "name": "imported-plugin",
+            "version": "1.0.0",
+            "logo": "logo.png",
+            "features": []
+        }))
+        .unwrap();
+        let plugin = Plugin {
+            id: "imported-plugin".to_string(),
+            name: "Imported Plugin".to_string(),
+            version: "1.0.0".to_string(),
+            path: dir.path().to_string_lossy().to_string(),
+            enabled: true,
+            manifest,
+            created_at: "2026-07-20T00:00:00Z".to_string(),
+            updated_at: "2026-07-20T00:00:00Z".to_string(),
+        };
+        let feature = FeatureEntry {
+            code: "imported".to_string(),
+            plugin_id: plugin.id.clone(),
+            plugin_name: plugin.name.clone(),
+            label: "Imported".to_string(),
+            icon: None,
+            explain: String::new(),
+            cmds: Vec::new(),
+            main_push: false,
+            priority: 0,
+        };
+
+        assert_eq!(
+            resolve_feature_icon(&feature, Some(&plugin), None),
+            Some(logo.canonicalize().unwrap().to_string_lossy().to_string())
+        );
+    }
+
+    #[test]
+    fn builtin_feature_icon_prefers_current_bundle_resource_over_stale_plugin_path() {
+        let current = tempfile::tempdir().unwrap();
+        let current_plugin = current.path().join("ip");
+        std::fs::create_dir_all(&current_plugin).unwrap();
+        let current_logo = current_plugin.join("logo.svg");
+        std::fs::write(&current_logo, "<svg></svg>").unwrap();
+        let manifest: PluginManifest = serde_json::from_value(serde_json::json!({
+            "name": "ip",
+            "version": "1.0.0",
+            "main": "index.html",
+            "logo": "logo.svg",
+            "features": []
+        }))
+        .unwrap();
+        let plugin = Plugin {
+            id: "builtin-ip".to_string(),
+            name: "ip".to_string(),
+            version: "1.0.0".to_string(),
+            path: "/Applications/Old ATools.app/Contents/Resources/plugins/builtin/ip".to_string(),
+            enabled: true,
+            manifest,
+            created_at: "2026-07-21T00:00:00Z".to_string(),
+            updated_at: "2026-07-21T00:00:00Z".to_string(),
+        };
+        let feature = FeatureEntry {
+            code: "ip".to_string(),
+            plugin_id: plugin.id.clone(),
+            plugin_name: plugin.name.clone(),
+            label: "IP 地址".to_string(),
+            icon: Some("logo.svg".to_string()),
+            explain: String::new(),
+            cmds: Vec::new(),
+            main_push: false,
+            priority: 0,
+        };
+
+        assert_eq!(
+            resolve_feature_icon(&feature, Some(&plugin), Some(current.path())),
+            Some(current_logo.canonicalize().unwrap().to_string_lossy().to_string())
+        );
+    }
+
+    #[test]
+    fn feature_icon_preserves_self_contained_urls_without_plugin_metadata() {
+        let mut feature = FeatureEntry {
+            code: "standalone".to_string(),
+            plugin_id: "missing-plugin".to_string(),
+            plugin_name: "Standalone".to_string(),
+            label: "Standalone".to_string(),
+            icon: Some("data:image/png;base64,cG5n".to_string()),
+            explain: String::new(),
+            cmds: Vec::new(),
+            main_push: false,
+            priority: 0,
+        };
+
+        assert_eq!(resolve_feature_icon(&feature, None, None), feature.icon.clone(),);
+
+        feature.icon = Some("https://example.com/icon.png".to_string());
+        assert_eq!(resolve_feature_icon(&feature, None, None), feature.icon.clone(),);
     }
 
     #[test]
@@ -3860,8 +8132,8 @@ mod settings_command_tests {
         assert_eq!(plugin.description, "Math utilities");
         assert_eq!(plugin.author.as_deref(), Some("ATools"));
         assert_eq!(
-            plugin.download_url,
-            "https://market.example.com/calculator.zip"
+            plugin.download_url.as_deref(),
+            Some("https://market.example.com/calculator.zip")
         );
         assert_eq!(
             plugin.checksum.as_deref(),
@@ -3882,6 +8154,250 @@ mod settings_command_tests {
             plugin.homepage.as_deref(),
             Some("https://market.example.com/calculator")
         );
+        assert_eq!(catalog.source_kind, super::PluginMarketCatalogSourceKind::Atools);
+        assert_eq!(plugin.trust_policy, "signed_required");
+    }
+
+    #[tokio::test]
+    async fn plugin_market_catalog_adapts_ztools_aggregate_and_download_resolver() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base_url = format!("http://{}/api/market", listener.local_addr().unwrap());
+
+        tokio::spawn(async move {
+            let Ok((mut socket, _)) = listener.accept().await else {
+                return;
+            };
+            let mut buffer = vec![0; 16 * 1024];
+            let bytes = socket.read(&mut buffer).await.unwrap();
+            let request = String::from_utf8_lossy(&buffer[..bytes]);
+            assert!(request.starts_with("GET /api/market/plugins?limit=30&platform="));
+            let body = r#"{
+              "banners": [],
+              "categories": [{
+                "id": 2,
+                "title": "开发工具",
+                "plugins": [{
+                  "name": "json-editor",
+                  "title": "JSON Editor",
+                  "version": "1.7.2",
+                  "description": "JSON utilities",
+                  "author": "ZTools",
+                  "logo": "https://ztools.zosen.link/images/logo/json-editor.png",
+                  "size": 1486073,
+                  "downloadCount": 92,
+                  "updatedAt": 1784502856632
+                }]
+              }],
+              "latest": []
+            }"#;
+            socket
+                .write_all(
+                    format!(
+                        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                        body.len(), body
+                    )
+                    .as_bytes(),
+                )
+                .await
+                .unwrap();
+        });
+
+        let catalog = super::fetch_plugin_market_catalog_from_url(&base_url)
+            .await
+            .expect("ZTools catalog");
+        assert_eq!(catalog.source_kind, super::PluginMarketCatalogSourceKind::Ztools);
+        assert_eq!(catalog.plugins.len(), 1);
+        let plugin = &catalog.plugins[0];
+        assert_eq!(plugin.id, "json-editor");
+        assert_eq!(plugin.name, "JSON Editor");
+        assert_eq!(plugin.downloads, Some(92));
+        assert_eq!(plugin.category.as_deref(), Some("开发工具"));
+        assert_eq!(plugin.package_size, Some(1_486_073));
+        assert!(plugin.download_url.is_none());
+        assert!(plugin
+            .download_resolver_url
+            .as_deref()
+            .is_some_and(|url| url.contains("/api/market/plugins/download?name=json-editor")));
+        assert_eq!(plugin.trust_policy, "official_ztools_confirm");
+    }
+
+    #[test]
+    fn official_ztools_unsigned_install_requires_exact_source_host_and_confirmation() {
+        let temp = tempfile::tempdir().unwrap();
+        let config = atools_core::config::AppConfig::with_base_dir(temp.path().join("atools-data"));
+        let source_kind = super::PluginMarketCatalogSourceKind::Ztools;
+        let official_source = "https://z-tools.top/api/market";
+        let official_package = "https://ztools.zosen.link/clipboard-1.2.7.zip";
+
+        assert!(super::validate_plugin_market_install_trust(
+            &config,
+            None,
+            None,
+            Some(&source_kind),
+            Some(official_source),
+            official_package,
+            true,
+        )
+        .is_ok());
+        assert!(super::validate_plugin_market_install_trust(
+            &config,
+            None,
+            None,
+            Some(&source_kind),
+            Some(official_source),
+            official_package,
+            false,
+        )
+        .is_err());
+        assert!(super::validate_plugin_market_install_trust(
+            &config,
+            None,
+            None,
+            Some(&source_kind),
+            Some("https://example.com/api/market"),
+            official_package,
+            true,
+        )
+        .is_err());
+        assert!(super::validate_plugin_market_install_trust(
+            &config,
+            None,
+            None,
+            Some(&source_kind),
+            Some(official_source),
+            "https://example.com/plugin.zip",
+            true,
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn ztools_market_top30_fixture_installs_activates_and_uninstalls() {
+        fn manifests(root: &std::path::Path, output: &mut Vec<std::path::PathBuf>) {
+            let Ok(entries) = std::fs::read_dir(root) else {
+                return;
+            };
+            let entries = entries.filter_map(Result::ok).collect::<Vec<_>>();
+            if entries
+                .iter()
+                .any(|entry| entry.file_name() == "plugin.json" && entry.path().is_file())
+            {
+                output.push(root.to_path_buf());
+                return;
+            }
+            for entry in entries {
+                if entry.path().is_dir() {
+                    manifests(&entry.path(), output);
+                }
+            }
+        }
+
+        let Some(root) = std::env::var_os("ATOOLS_ZTOOLS_TOP30_ROOT") else {
+            return;
+        };
+        let mut plugin_dirs = Vec::new();
+        manifests(std::path::Path::new(&root), &mut plugin_dirs);
+        plugin_dirs.sort();
+        assert_eq!(plugin_dirs.len(), 30, "Top 30 fixture must contain 30 plugins");
+
+        for plugin_dir in plugin_dirs {
+            let temp = tempfile::tempdir().unwrap();
+            let config = atools_core::config::AppConfig::with_base_dir(temp.path().join("data"));
+            config.ensure_dirs().unwrap();
+            let db = atools_core::db::Database::open(&temp.path().join("atools.db")).unwrap();
+            let plugin = super::install_plugin_from_directory_inner(&db, &config, &plugin_dir)
+                .unwrap_or_else(|error| panic!("{} install failed: {error}", plugin_dir.display()));
+            assert!(plugin.enabled);
+            assert!(std::path::Path::new(&plugin.path).join("plugin.json").is_file());
+            if let Some(feature) = plugin.manifest.features.first() {
+                let action = super::activate_feature_inner(&db, &feature.code, None)
+                    .unwrap_or_else(|error| panic!("{} activation failed: {error}", plugin.id));
+                assert_eq!(action.plugin_id, plugin.id);
+                assert_eq!(action.feature_code, feature.code);
+            }
+            super::uninstall_plugin_inner(&db, &config, &plugin.id)
+                .unwrap_or_else(|error| panic!("{} uninstall failed: {error}", plugin.id));
+            assert!(db.get_plugin(&plugin.id).is_err());
+        }
+    }
+
+    #[tokio::test]
+    async fn packaged_runtime_templates_install_and_execute_equivalent_echo_capability() {
+        let Some(package_dir) = std::env::var_os("ATOOLS_TEMPLATE_PACKAGE_DIR") else {
+            return;
+        };
+        for (file_name, expected_runtime) in [
+            ("atools-rust-echo.zip", "rust"),
+            ("atools-node-echo.zip", "node"),
+            ("atools-web-echo.zip", "web"),
+        ] {
+            let archive_path = std::path::Path::new(&package_dir).join(file_name);
+            let archive = std::fs::read(&archive_path).unwrap();
+            let temp = tempfile::tempdir().unwrap();
+            let config = atools_core::config::AppConfig::with_base_dir(temp.path().join("data"));
+            config.ensure_dirs().unwrap();
+            let db = atools_core::db::Database::open(&temp.path().join("atools.db")).unwrap();
+            let installed = super::install_plugin_from_market_archive_inner(
+                &db,
+                &config,
+                &archive,
+                "https://templates.atools.test/plugin.zip",
+                None,
+            )
+            .unwrap_or_else(|error| panic!("{file_name} install failed: {error}"));
+            assert!(!installed.enabled, "market packages require authorization");
+            let plugin = super::authorize_plugin_permissions_inner(&db, &installed.id).unwrap();
+
+            match plugin.manifest.effective_runtime_kind() {
+                atools_core::PluginRuntimeKind::Rust | atools_core::PluginRuntimeKind::Node => {
+                    let supervisor = atools_plugin::SidecarSupervisor::new();
+                    let spec = atools_plugin::SidecarLaunchSpec::from_manifest(
+                        plugin.id.clone(),
+                        std::path::Path::new(&plugin.path),
+                        &plugin.manifest,
+                    )
+                    .unwrap();
+                    let process = supervisor.start(spec).await.unwrap();
+                    let result = match plugin.manifest.effective_runtime_transport() {
+                        atools_core::PluginRuntimeTransport::JsonRpcStdio => {
+                            atools_plugin::JsonRpcSidecar::new(process)
+                                .unwrap()
+                                .call(
+                                    "tools/call",
+                                    serde_json::json!({"name":"echo", "arguments":{"message":"template smoke"}}),
+                                )
+                                .await
+                                .unwrap()
+                        }
+                        atools_core::PluginRuntimeTransport::McpStdio => {
+                            let client = atools_plugin::McpSidecar::new(process).unwrap();
+                            client.initialize().await.unwrap();
+                            client
+                                .call_tool("echo", serde_json::json!({"message":"template smoke"}))
+                                .await
+                                .unwrap()
+                        }
+                        atools_core::PluginRuntimeTransport::HostBridge => unreachable!(),
+                    };
+                    assert_eq!(result.structured_content.as_ref().unwrap()["message"], "template smoke");
+                    assert_eq!(result.structured_content.as_ref().unwrap()["runtime"], expected_runtime);
+                    supervisor.stop_all().await;
+                }
+                atools_core::PluginRuntimeKind::Web => {
+                    let entry = plugin.manifest.effective_runtime_entry().unwrap();
+                    assert!(std::path::Path::new(&plugin.path).join(entry).is_file());
+                    let preload = std::fs::read_to_string(
+                        std::path::Path::new(&plugin.path).join(plugin.manifest.preload.as_ref().unwrap()),
+                    )
+                    .unwrap();
+                    assert!(preload.contains("registerTool"));
+                    assert_eq!(expected_runtime, "web");
+                }
+            }
+            super::uninstall_plugin_inner(&db, &config, &plugin.id).unwrap();
+        }
     }
 }
 
@@ -4150,19 +8666,7 @@ pub fn read_current_folder_path() -> Result<Option<String>, String> {
 pub fn read_frontmost_app_name() -> Result<Option<String>, String> {
     #[cfg(target_os = "macos")]
     {
-        let output = run_native_command(
-            "osascript",
-            &[
-                "-e".to_string(),
-                macos_frontmost_app_name_script().to_string(),
-            ],
-        )?;
-        let trimmed = output.trim();
-        if trimmed.is_empty() || trimmed == "missing value" {
-            Ok(None)
-        } else {
-            Ok(Some(trimmed.to_string()))
-        }
+        Ok(crate::hotkey::read_foreground_app_name())
     }
 
     #[cfg(not(target_os = "macos"))]
@@ -5239,6 +9743,35 @@ pub async fn sync_webdav_now(
 }
 
 #[tauri::command]
+pub async fn pasteboard_sync_webdav_now(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<crate::pasteboard_sync::PasteboardSyncResult, String> {
+    let raw = state
+        .db
+        .get_setting("settings-general")
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| "WebDAV settings are not configured".to_string())?;
+    let settings: serde_json::Value =
+        serde_json::from_str(&raw).map_err(|error| error.to_string())?;
+    let config = webdav_config_from_settings(&settings)?;
+    let result =
+        crate::pasteboard_sync::sync_pasteboard_vault(&state.db, &state.config, config).await?;
+    state.record_runtime_event(
+        "info",
+        format!(
+            "Encrypted Paste WebDAV sync completed: {} items, {} pinboards, {} blobs",
+            result.items, result.pinboards, result.blobs
+        ),
+    );
+    let _ = app.emit(
+        "pasteboard://changed",
+        serde_json::json!({ "status": "synced" }),
+    );
+    Ok(result)
+}
+
+#[tauri::command]
 pub async fn preview_webdav_backup(
     state: tauri::State<'_, AppState>,
     settings: serde_json::Value,
@@ -5969,6 +10502,7 @@ pub struct FeatureAction {
     pub preload_path: Option<String>,
     pub expand_height: u32,
     pub plugin_permissions: Vec<String>,
+    pub plugin_providers: std::collections::HashMap<String, atools_core::models::ProviderManifest>,
     pub payload: serde_json::Value,
 }
 
@@ -5976,18 +10510,30 @@ pub struct FeatureAction {
 mod tests {
     use super::{
         acquire_plugin_mutation_lock, activate_feature_inner, authorize_plugin_permissions_inner,
-        cancel_plugin_market_operation_inner, default_local_app_roots,
-        download_plugin_market_archive_with_progress, extract_plugin_market_zip,
-        install_plugin_from_directory_inner, install_plugin_from_market_checked_url_inner,
-        install_plugin_from_market_trusted_url_inner, install_plugin_from_market_url_inner,
-        plugin_uninstall_path_allowed, plugin_update_from_path_inner,
-        plugin_update_from_path_with_policy_inner, plugin_window_height,
-        runtime_diagnostics_snapshot, search_local_apps_in_roots, search_local_apps_with_cache,
-        shell_open_target, uninstall_plugin_files_transactionally,
+        calculate_native_sheet_inner, cancel_plugin_market_operation_inner,
+        clear_native_calculation_history_inner, convert_native_color_inner,
+        convert_native_time_inner, decode_unicode_escapes, default_local_app_roots,
+        delete_native_todo_inner, download_plugin_market_archive_with_progress,
+        encode_unicode_escapes, extract_plugin_market_zip, format_native_calculation,
+        generate_native_qr_inner, install_plugin_from_directory_inner,
+        install_plugin_from_market_checked_url_inner, install_plugin_from_market_trusted_url_inner,
+        install_plugin_from_market_url_inner, list_native_calculation_history_inner,
+        list_native_processes_inner, list_native_todos_inner, load_local_app_icons_inner,
+        local_app_icon_data_url, local_app_png_data_url, native_codec_transform_inner,
+        native_http_method, native_http_url, native_ip_snapshot_inner, native_json_transform_inner,
+        parse_google_translation_response, perform_native_http_request_inner,
+        plugin_uninstall_path_allowed,
+        plugin_update_from_path_inner, plugin_update_from_path_with_policy_inner,
+        plugin_window_height, read_native_hosts_inner, runtime_diagnostics_snapshot,
+        save_native_todo_inner, search_local_apps_in_roots, search_local_apps_with_cache,
+        shell_open_target, terminate_native_process_inner, translate_native_text_with_endpoint,
+        uninstall_plugin_files_transactionally,
         update_plugin_from_market_checked_url_inner, update_plugin_from_market_trusted_url_inner,
-        update_plugin_from_market_url_inner, validate_plugin_market_trust, LocalAppSearchCache,
-        PluginMarketProgressContext, PluginPersistencePolicy, RuntimeEvent, ShellOpenTarget,
-        LOCAL_APP_SEARCH_CACHE_TTL,
+        update_plugin_from_market_url_inner, validate_native_hosts_content,
+        validate_plugin_market_trust, validated_translation_language,
+        write_native_hosts_inner, LocalAppSearchCache, NativeHttpRequest,
+        NativeTranslationRequest, PluginMarketProgressContext, PluginPersistencePolicy,
+        RuntimeEvent, ShellOpenTarget, LOCAL_APP_SEARCH_CACHE_TTL,
     };
     use crate::window::{
         floating_ball_enabled_from_settings, floating_ball_initial_url,
@@ -6007,6 +10553,419 @@ mod tests {
     use tempfile::TempDir;
 
     #[test]
+    fn native_ip_snapshot_returns_parseable_local_interfaces() {
+        let snapshot = native_ip_snapshot_inner().expect("native interfaces should be readable");
+        assert!(!snapshot.hostname.trim().is_empty());
+        assert!(!snapshot.addresses.is_empty());
+        assert!(snapshot
+            .addresses
+            .iter()
+            .all(|entry| entry.address.parse::<std::net::IpAddr>().is_ok()));
+        assert!(snapshot.addresses.iter().any(|entry| entry.loopback));
+    }
+
+    #[test]
+    fn native_http_validation_accepts_supported_methods_and_urls() {
+        assert_eq!(
+            native_http_method(" patch ").unwrap(),
+            reqwest::Method::PATCH
+        );
+        assert_eq!(
+            native_http_url("https://example.com/api?q=1")
+                .unwrap()
+                .host_str(),
+            Some("example.com")
+        );
+    }
+
+    #[test]
+    fn native_http_validation_rejects_unsafe_inputs() {
+        assert!(native_http_method("TRACE").is_err());
+        assert!(native_http_url("file:///tmp/secret").is_err());
+        assert!(native_http_url("https://user:secret@example.com/").is_err());
+        assert!(native_http_url("http://").is_err());
+    }
+
+    #[tokio::test]
+    async fn native_http_request_reads_a_bounded_loopback_response() {
+        let url = one_shot_http_url(br#"{"ok":true}"#.to_vec(), "application/json").await;
+        let response = perform_native_http_request_inner(NativeHttpRequest {
+            method: "GET".to_string(),
+            url,
+            headers: Vec::new(),
+            body: None,
+            timeout_ms: Some(2_000),
+            max_response_bytes: Some(1024),
+            follow_redirects: Some(false),
+        })
+        .await
+        .expect("loopback HTTP response should succeed");
+        assert_eq!(response.status, 200);
+        assert_eq!(response.body, r#"{"ok":true}"#);
+        assert_eq!(response.body_encoding, "utf8");
+        assert_eq!(response.body_bytes, 11);
+    }
+
+    #[tokio::test]
+    async fn native_http_request_rejects_an_oversized_response() {
+        let url = one_shot_http_url(vec![b'x'; 2048], "text/plain").await;
+        let error = perform_native_http_request_inner(NativeHttpRequest {
+            method: "GET".to_string(),
+            url,
+            headers: Vec::new(),
+            body: None,
+            timeout_ms: Some(2_000),
+            max_response_bytes: Some(1024),
+            follow_redirects: Some(false),
+        })
+        .await
+        .unwrap_err();
+        assert!(error.contains("response is too large"));
+    }
+
+    #[test]
+    fn native_translation_parses_google_segments_and_detected_language() {
+        let payload = br#"[[["\u4f60\u597d", "hello"], ["\u4e16\u754c", " world"]], null, "en"]"#;
+        let (translated, detected) = parse_google_translation_response(payload).unwrap();
+        assert_eq!(translated, "你好世界");
+        assert_eq!(detected.as_deref(), Some("en"));
+    }
+
+    #[test]
+    fn native_translation_whitelists_languages_and_auto_source_only() {
+        assert_eq!(validated_translation_language(" AUTO ", true).unwrap(), "auto");
+        assert_eq!(validated_translation_language("JA", false).unwrap(), "ja");
+        assert!(validated_translation_language("auto", false).is_err());
+        assert!(validated_translation_language("xx", true).is_err());
+    }
+
+    #[tokio::test]
+    async fn native_translation_posts_form_data_and_returns_bounded_json() {
+        let url = one_shot_http_url(
+            br#"[[["Hello", "\u4f60\u597d"]], null, "zh-CN"]"#.to_vec(),
+            "application/json",
+        )
+        .await;
+        let response = translate_native_text_with_endpoint(
+            NativeTranslationRequest {
+                text: "你好".to_string(),
+                source_lang: "auto".to_string(),
+                target_lang: "en".to_string(),
+            },
+            &url,
+            None,
+        )
+        .await
+        .unwrap();
+        assert_eq!(response.translated_text, "Hello");
+        assert_eq!(response.detected_source_lang.as_deref(), Some("zh-CN"));
+        assert_eq!(response.target_lang, "en");
+        assert_eq!(response.provider, "google-translate");
+    }
+
+    #[tokio::test]
+    async fn native_translation_rejects_empty_same_language_and_oversized_text() {
+        let empty = translate_native_text_with_endpoint(
+            NativeTranslationRequest {
+                text: "  ".to_string(),
+                source_lang: "auto".to_string(),
+                target_lang: "en".to_string(),
+            },
+            "http://127.0.0.1:9/translate",
+            None,
+        )
+        .await
+        .unwrap_err();
+        assert!(empty.contains("required"));
+
+        let same = translate_native_text_with_endpoint(
+            NativeTranslationRequest {
+                text: "hello".to_string(),
+                source_lang: "en".to_string(),
+                target_lang: "en".to_string(),
+            },
+            "http://127.0.0.1:9/translate",
+            None,
+        )
+        .await
+        .unwrap_err();
+        assert!(same.contains("different"));
+
+        let oversized = translate_native_text_with_endpoint(
+            NativeTranslationRequest {
+                text: "x".repeat(super::NATIVE_TRANSLATION_MAX_TEXT_BYTES + 1),
+                source_lang: "auto".to_string(),
+                target_lang: "zh".to_string(),
+            },
+            "http://127.0.0.1:9/translate",
+            None,
+        )
+        .await
+        .unwrap_err();
+        assert!(oversized.contains("too large"));
+    }
+
+    #[test]
+    fn native_hosts_validation_normalizes_valid_content() {
+        let normalized = validate_native_hosts_content(
+            "127.0.0.1 localhost\r\n::1 localhost ip6-localhost\r\n# comment",
+        )
+        .unwrap();
+        assert_eq!(
+            normalized,
+            "127.0.0.1 localhost\n::1 localhost ip6-localhost\n# comment\n"
+        );
+    }
+
+    #[test]
+    fn native_hosts_validation_rejects_invalid_or_empty_content() {
+        assert!(validate_native_hosts_content("# comments only\n").is_err());
+        assert!(validate_native_hosts_content("not-an-ip example.test\n").is_err());
+        assert!(validate_native_hosts_content("127.0.0.1 bad/name\n").is_err());
+        assert!(validate_native_hosts_content("127.0.0.1\n").is_err());
+    }
+
+    #[test]
+    fn native_hosts_read_returns_the_system_file() {
+        let snapshot = read_native_hosts_inner().expect("/etc/hosts should be readable");
+        assert_eq!(snapshot.path, "/etc/hosts");
+        assert_eq!(snapshot.size_bytes, snapshot.content.len());
+        assert!(!snapshot.content.is_empty());
+    }
+
+    #[test]
+    fn native_hosts_write_requires_confirmation_before_any_mutation() {
+        let error = write_native_hosts_inner("127.0.0.1 localhost\n", false).unwrap_err();
+        assert!(error.contains("explicit confirmation"));
+    }
+
+    #[test]
+    fn native_todo_crud_round_trip_uses_sqlite_plugin_data() {
+        let db = Database::in_memory().unwrap();
+        db.save_plugin(&Plugin {
+            id: "plugin_2da3c4bf4b6f981c".to_string(),
+            name: "todo".to_string(),
+            version: "1.0.0".to_string(),
+            path: "resources/plugins/builtin/todo".to_string(),
+            enabled: true,
+            manifest: PluginManifest {
+                name: "todo".to_string(),
+                version: "1.0.0".to_string(),
+                main: Some("index.html".to_string()),
+                logo: Some("logo.svg".to_string()),
+                preload: None,
+                description: None,
+                author: None,
+                homepage: None,
+                plugin_setting: None,
+                features: Vec::new(),
+                development: None,
+                tools: std::collections::HashMap::new(),
+                providers: std::collections::HashMap::new(),
+                permissions: vec!["todo.read".to_string()],
+                runtime: None,
+            },
+            created_at: "2026-07-21T00:00:00Z".to_string(),
+            updated_at: "2026-07-21T00:00:00Z".to_string(),
+        })
+        .unwrap();
+        let created = save_native_todo_inner(&db, None, "  Ship ATools  ", Some(false)).unwrap();
+        assert_eq!(created.title, "Ship ATools");
+        assert!(!created.completed);
+
+        let updated =
+            save_native_todo_inner(&db, Some(&created.id), &created.title, Some(true)).unwrap();
+        assert!(updated.completed);
+        assert_eq!(updated.created_at_ms, created.created_at_ms);
+        assert_eq!(list_native_todos_inner(&db).unwrap(), vec![updated.clone()]);
+
+        assert!(delete_native_todo_inner(&db, &created.id, false).is_err());
+        assert_eq!(
+            delete_native_todo_inner(&db, &created.id, true).unwrap(),
+            updated
+        );
+        assert!(list_native_todos_inner(&db).unwrap().is_empty());
+    }
+
+    #[test]
+    fn native_todo_validation_rejects_empty_and_oversized_titles() {
+        let db = Database::in_memory().unwrap();
+        assert!(save_native_todo_inner(&db, None, "   ", None).is_err());
+        assert!(save_native_todo_inner(&db, None, &"x".repeat(501), None).is_err());
+    }
+
+    #[test]
+    fn native_calculation_sheet_evaluates_and_persists_history() {
+        let db = Database::in_memory().unwrap();
+        db.save_plugin(&Plugin {
+            id: "plugin_calculation_test".to_string(),
+            name: "calculation-paper".to_string(),
+            version: "1.0.0".to_string(),
+            path: "resources/plugins/builtin/calc".to_string(),
+            enabled: true,
+            manifest: PluginManifest {
+                name: "calculation-paper".to_string(),
+                version: "1.0.0".to_string(),
+                main: Some("index.html".to_string()),
+                logo: Some("logo.svg".to_string()),
+                preload: None,
+                description: None,
+                author: None,
+                homepage: None,
+                plugin_setting: None,
+                features: Vec::new(),
+                development: None,
+                tools: std::collections::HashMap::new(),
+                providers: std::collections::HashMap::new(),
+                permissions: vec!["calculation.read".to_string()],
+                runtime: None,
+            },
+            created_at: "2026-07-21T00:00:00Z".to_string(),
+            updated_at: "2026-07-21T00:00:00Z".to_string(),
+        })
+        .unwrap();
+
+        let sheet = calculate_native_sheet_inner(&db, "2 + 3 * 4\nsqrt(16)\n1 / 0\nbad").unwrap();
+        assert_eq!(sheet.lines.len(), 4);
+        assert_eq!(sheet.success_count, 2);
+        assert_eq!(sheet.lines[0].result.as_deref(), Some("14"));
+        assert_eq!(sheet.lines[1].result.as_deref(), Some("4"));
+        assert!(sheet.lines[2].error.is_some());
+        assert!(sheet.lines[3].error.is_some());
+        assert_eq!(list_native_calculation_history_inner(&db).unwrap().len(), 2);
+        assert_eq!(clear_native_calculation_history_inner(&db).unwrap(), 2);
+        assert!(list_native_calculation_history_inner(&db)
+            .unwrap()
+            .is_empty());
+    }
+
+    #[test]
+    fn native_calculation_format_is_stable() {
+        assert_eq!(format_native_calculation(14.0), "14");
+        assert_eq!(format_native_calculation(1.25), "1.25");
+        assert_eq!(format_native_calculation(0.0), "0");
+    }
+
+    #[test]
+    fn native_codec_handles_utf8_url_and_surrogate_pairs() {
+        let base64 = native_codec_transform_inner("base64", "5L2g5aW9").unwrap();
+        assert_eq!(base64.decoded.as_deref(), Some("你好"));
+
+        let url = native_codec_transform_inner("url", "hello world?").unwrap();
+        assert_eq!(url.encoded, "hello%20world%3F");
+
+        assert_eq!(encode_unicode_escapes("A😀"), "\\u0041\\ud83d\\ude00");
+        assert_eq!(
+            decode_unicode_escapes("\\u0041\\ud83d\\ude00").unwrap(),
+            "A😀"
+        );
+        assert!(decode_unicode_escapes("\\ud83d").is_err());
+    }
+
+    #[test]
+    fn native_time_conversion_supports_seconds_milliseconds_and_utc_dates() {
+        let seconds = convert_native_time_inner("timestamp", "0", None).unwrap();
+        assert_eq!(seconds.unix_seconds, 0);
+        assert_eq!(seconds.unix_milliseconds, 0);
+        assert!(seconds.utc.starts_with("1970-01-01 00:00:00"));
+
+        let milliseconds = convert_native_time_inner("timestamp", "1700000000000", None).unwrap();
+        assert_eq!(milliseconds.unix_seconds, 1_700_000_000);
+
+        let datetime =
+            convert_native_time_inner("datetime", "2023-11-14T22:13:20", Some("utc")).unwrap();
+        assert_eq!(datetime.unix_seconds, 1_700_000_000);
+        assert!(convert_native_time_inner("datetime", "bad", Some("utc")).is_err());
+    }
+
+    #[test]
+    fn native_qr_generation_returns_a_bounded_png() {
+        let qr = generate_native_qr_inner("ATools 3.0 中文", Some(256), Some("H")).unwrap();
+        assert_eq!(qr.width, qr.height);
+        assert!((128..=256).contains(&qr.width));
+        assert_eq!(qr.error_correction, "H");
+        let encoded = qr.data_url.strip_prefix("data:image/png;base64,").unwrap();
+        let png = STANDARD.decode(encoded).unwrap();
+        assert_eq!(&png[..8], b"\x89PNG\r\n\x1a\n");
+        assert_eq!(png.len(), qr.png_bytes);
+        assert!(generate_native_qr_inner("", None, None).is_err());
+        assert!(generate_native_qr_inner("text", None, Some("X")).is_err());
+    }
+
+    #[test]
+    fn native_json_transform_formats_compresses_and_counts_items() {
+        let result = native_json_transform_inner(r#"{"a":[1,{"b":true}],"c":null}"#).unwrap();
+        assert_eq!(result.root_type, "object");
+        assert_eq!(result.item_count, 5);
+        assert_eq!(result.compact, r#"{"a":[1,{"b":true}],"c":null}"#);
+        assert!(result.formatted.contains("\n  \"a\""));
+        assert!(native_json_transform_inner("{bad}").is_err());
+        assert!(native_json_transform_inner("   ").is_err());
+    }
+
+    #[test]
+    fn native_color_conversion_supports_hex_rgb_hsl_and_alpha() {
+        let hex = convert_native_color_inner("#3498db").unwrap();
+        assert_eq!(hex.rgb, "rgb(52, 152, 219)");
+        assert_eq!(hex.hsl, "hsl(204, 70%, 53%)");
+
+        let rgb = convert_native_color_inner("rgba(255, 0, 128, 0.5)").unwrap();
+        assert_eq!(rgb.hex, "#ff008080");
+        assert_eq!(rgb.alpha, 0.5);
+
+        let hsl = convert_native_color_inner("hsl(120, 100%, 50%)").unwrap();
+        assert_eq!((hsl.red, hsl.green, hsl.blue), (0, 255, 0));
+        assert!(convert_native_color_inner("rgb(300, 0, 0)").is_err());
+        assert!(convert_native_color_inner("blue").is_err());
+    }
+
+    #[test]
+    fn native_process_list_protects_atools_itself() {
+        let processes = list_native_processes_inner("", 1000).expect("process list should load");
+        let current = processes
+            .iter()
+            .find(|process| process.pid == std::process::id())
+            .expect("current process should be listed");
+        assert!(current.protected);
+        assert_eq!(current.protected_reason.as_deref(), Some("ATools 当前进程"));
+    }
+
+    #[test]
+    fn native_process_termination_requires_confirmation() {
+        let error = terminate_native_process_inner(std::process::id(), false).unwrap_err();
+        assert!(error.contains("explicit confirmation"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn native_process_termination_signals_same_user_child() {
+        let mut child = std::process::Command::new("/bin/sleep")
+            .arg("30")
+            .spawn()
+            .expect("sleep child should start");
+        let pid = child.id();
+        let result = terminate_native_process_inner(pid, true);
+        if result.is_err() {
+            let _ = child.kill();
+        }
+        let result = result.expect("same-user child should be terminable");
+        assert_eq!(result.pid, pid);
+        assert!(result.signal_sent);
+        for _ in 0..50 {
+            if child
+                .try_wait()
+                .expect("child status should be readable")
+                .is_some()
+            {
+                return;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        let _ = child.kill();
+        panic!("terminated child did not exit within one second");
+    }
+
+    #[test]
     fn plugin_window_height_defaults_to_ztools_window_height() {
         assert_eq!(plugin_window_height(None), 541);
     }
@@ -6020,6 +10979,48 @@ mod tests {
     #[test]
     fn plugin_window_height_preserves_smaller_manifest_values() {
         assert_eq!(plugin_window_height(Some(400)), 400);
+    }
+
+    #[test]
+    fn local_app_png_icons_are_resized_and_embedded_for_the_webview() {
+        let image = image::DynamicImage::new_rgba8(128, 96);
+        let mut source = std::io::Cursor::new(Vec::new());
+        image
+            .write_to(&mut source, image::ImageFormat::Png)
+            .unwrap();
+
+        let data_url = local_app_png_data_url(&source.into_inner()).unwrap();
+        let encoded = data_url.strip_prefix("data:image/png;base64,").unwrap();
+        let decoded = STANDARD.decode(encoded).unwrap();
+        let resized =
+            image::load_from_memory_with_format(&decoded, image::ImageFormat::Png).unwrap();
+
+        assert!(resized.width() <= 64);
+        assert!(resized.height() <= 64);
+    }
+
+    #[test]
+    fn local_app_icon_loading_rejects_paths_outside_application_roots() {
+        let temp = TempDir::new().unwrap();
+        let app = temp.path().join("Untrusted.app");
+        std::fs::create_dir_all(&app).unwrap();
+
+        let icons = load_local_app_icons_inner(&[app.to_string_lossy().to_string()]).unwrap();
+
+        assert!(icons.is_empty());
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn local_app_icon_loading_works_off_the_ui_thread() {
+        let app = std::path::PathBuf::from("/System/Applications/Utilities/Script Editor.app");
+        assert!(app.is_dir());
+
+        let icon = std::thread::spawn(move || local_app_icon_data_url(&app))
+            .join()
+            .unwrap();
+
+        assert!(icon.is_some_and(|value| value.starts_with("data:image/png;base64,")));
     }
 
     #[test]
@@ -7199,53 +12200,6 @@ mod tests {
     }
 
     #[test]
-    fn local_app_search_reads_icon_from_info_plist_without_extension() {
-        let temp = TempDir::new().unwrap();
-        let app = temp.path().join("Iconic.app");
-        let contents = app.join("Contents");
-        let resources = contents.join("Resources");
-        std::fs::create_dir_all(&resources).unwrap();
-        std::fs::write(
-            contents.join("Info.plist"),
-            r#"<?xml version="1.0" encoding="UTF-8"?>
-<plist version="1.0">
-<dict>
-  <key>CFBundleIconFile</key>
-  <string>AppIcon</string>
-</dict>
-</plist>"#,
-        )
-        .unwrap();
-        std::fs::write(resources.join("AppIcon.icns"), "icon").unwrap();
-
-        let results = search_local_apps_in_roots(&[temp.path().to_path_buf()], "iconic", 10);
-
-        assert_eq!(results.len(), 1);
-        assert!(results[0]
-            .icon
-            .as_deref()
-            .is_some_and(|icon| icon.ends_with("Iconic.app/Contents/Resources/AppIcon.icns")));
-    }
-
-    #[test]
-    fn local_app_search_leaves_icon_empty_when_declared_resource_is_missing() {
-        let temp = TempDir::new().unwrap();
-        let app = temp.path().join("NoIcon.app");
-        let contents = app.join("Contents");
-        std::fs::create_dir_all(&contents).unwrap();
-        std::fs::write(
-            contents.join("Info.plist"),
-            r#"<plist><dict><key>CFBundleIconFile</key><string>MissingIcon.icns</string></dict></plist>"#,
-        )
-        .unwrap();
-
-        let results = search_local_apps_in_roots(&[temp.path().to_path_buf()], "noicon", 10);
-
-        assert_eq!(results.len(), 1);
-        assert_eq!(results[0].icon, None);
-    }
-
-    #[test]
     fn shell_open_target_detects_urls() {
         assert_eq!(
             shell_open_target("https://example.com"),
@@ -7505,7 +12459,7 @@ fn uninstall_plugin_files_transactionally<T>(
     }
 }
 
-fn unique_plugin_sibling_path(
+pub(crate) fn unique_plugin_sibling_path(
     install_dir: &std::path::Path,
     kind: &str,
 ) -> Result<std::path::PathBuf, String> {
@@ -7551,6 +12505,9 @@ fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> std::io::
         let dst_path = dst.join(entry.file_name());
         let metadata = std::fs::symlink_metadata(&src_path)?;
         if metadata.file_type().is_symlink() {
+            if is_node_modules_bin_entry(&src_path) {
+                continue;
+            }
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
                 format!("Plugin source contains symlink: {}", src_path.display()),
@@ -7572,6 +12529,19 @@ fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> std::io::
         }
     }
     Ok(())
+}
+
+fn is_node_modules_bin_entry(path: &std::path::Path) -> bool {
+    let components = path
+        .components()
+        .filter_map(|component| match component {
+            std::path::Component::Normal(value) => value.to_str(),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    components
+        .windows(2)
+        .any(|parts| parts == ["node_modules", ".bin"])
 }
 
 fn macos_open_reveal_args(path: &str) -> Vec<String> {
@@ -7611,10 +12581,6 @@ tell application "Finder"
   return POSIX path of (target of front Finder window as alias)
 end tell
 "#
-}
-
-fn macos_frontmost_app_name_script() -> &'static str {
-    r#"tell application "System Events" to get name of first application process whose frontmost is true"#
 }
 
 fn run_native_command(program: &str, args: &[String]) -> Result<String, String> {
