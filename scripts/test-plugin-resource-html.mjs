@@ -98,7 +98,7 @@ try {
     readTextFile: async (path) => {
       reads.push(path);
       if (path === "/plugins/sample/pages/scripts/app.js") {
-        return "window.scriptLoaded = true;";
+        return 'if(!e)throw new Error("Automatic publicPath is not supported in this browser"); window.scriptLoaded = true;';
       }
       if (path === "/plugins/sample/pages/styles/site.css") {
         return "@import './theme/base.css'; @import url('../fonts/font.css') screen; .hero { background: url('../assets/bg image.png?size=2'); } .data { mask: url(data:image/png;base64,abc); }";
@@ -111,7 +111,9 @@ try {
     "/plugins/sample/pages/scripts/app.js",
     "/plugins/sample/pages/styles/site.css",
   ]);
-  assert.match(prepared, /<script type="module"\s*>\s*window\.scriptLoaded = true;\s*<\/script>/);
+  assert.match(prepared, /data-atools-plugin-script-src="asset\(\/plugins\/sample\/pages\/scripts\/app\.js\)"/);
+  assert.match(prepared, /if\(!e\)e=new URL\("asset\(\/plugins\/sample\/pages\/scripts\/app\.js\)"/);
+  assert.match(prepared, /window\.scriptLoaded = true;/);
   assert.doesNotMatch(prepared, /src="\.\/scripts\/app\.js"/);
   assert.match(prepared, /<style data-atools-plugin-href="\.\/styles\/site\.css">/);
   assert.doesNotMatch(prepared, /<link rel="stylesheet"/);
@@ -159,7 +161,8 @@ try {
     "/plugins/sample/pages/app/styles/base.css",
   ]);
   assert.match(preparedWithBase, /<base href="asset\(\/plugins\/sample\/pages\/app\/\)" data-atools-plugin-base-href="\.\/app\/">/);
-  assert.match(preparedWithBase, /<script\s*>\s*window\.baseScriptLoaded = true;\s*<\/script>/);
+  assert.match(preparedWithBase, /data-atools-plugin-script-src="asset\(\/plugins\/sample\/pages\/app\/scripts\/base\.js\)"/);
+  assert.match(preparedWithBase, /window\.baseScriptLoaded = true;/);
   assert.doesNotMatch(preparedWithBase, /src="scripts\/base\.js"/);
   assert.match(preparedWithBase, /<style data-atools-plugin-href="styles\/base\.css">/);
   assert.doesNotMatch(preparedWithBase, /<link rel="stylesheet" href="styles\/base\.css"/);

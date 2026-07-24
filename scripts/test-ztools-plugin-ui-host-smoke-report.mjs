@@ -163,6 +163,8 @@ try {
     fixtureOutputDir: join(fixtureRoot, "real-entry-fixtures"),
     fixtureBaseUrl: "http://127.0.0.1:1431/fixtures/",
   });
+  const generatedAlphaFixture = await readFile(report.ui_host_smoke_plans[0].real_entry_fixture.path, "utf8");
+  assert.match(generatedAlphaFixture, /__atoolsNativeWorker/, "real-entry fixtures should install the opaque-origin Worker compatibility wrapper");
   assert.ok(report.summary.real_entry_fixture_bytes > Buffer.byteLength(alphaHtml) + Buffer.byteLength(betaHtml));
   assert.equal(report.summary.real_entry_fixture_matrix_count, 2);
   assert.ok(report.summary.real_entry_fixture_matrix_bytes > 0);
@@ -289,6 +291,10 @@ try {
   assert.match(alphaFixtureHtml, /function safeStorage/, "fixture bridge should provide storage stubs for sandboxed iframe plugins");
   assert.match(alphaFixtureHtml, /installStorageStub\('localStorage'\)/, "fixture bridge should replace inaccessible localStorage");
   assert.match(alphaFixtureHtml, /installStorageStub\('sessionStorage'\)/, "fixture bridge should replace inaccessible sessionStorage");
+  assert.match(alphaFixtureHtml, /once: function\(event, listener\)/, "fixture process bridge should support preload loaded listeners");
+  assert.match(alphaFixtureHtml, /desktopCaptureSources:\s*function/, "fixture bridge should return iterable desktop capture sources");
+  assert.match(alphaFixtureHtml, /window\.fetch = function/, "fixture bridge should provide deterministic offline responses for external activation requests");
+  assert.match(alphaFixtureHtml, /window\.global = window\.global \|\| window/, "fixture bridge should expose the CommonJS global alias");
   assert.match(alphaFixtureHtml, /async function runBridgeApiProbes/, "fixture bridge should execute bridge API probes in-browser");
   assert.match(alphaFixtureHtml, /fixture-bridge-db-storage/, "fixture bridge should probe dbStorage compatibility");
   assert.match(alphaFixtureHtml, /fixture-bridge-web-storage/, "fixture bridge should probe sandbox-safe web storage compatibility");

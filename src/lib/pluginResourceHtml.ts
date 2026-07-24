@@ -122,12 +122,22 @@ async function inlinePluginScripts(
 
       try {
         const scriptContent = await options.readTextFile(scriptPath);
-        return `<script${beforeSrc}${afterSrc}>\n${escapeInlineScript(scriptContent)}\n</script>`;
+        const scriptUrl = options.convertFileSrc(scriptPath);
+        const normalizedScript = normalizeInlinePluginScript(scriptContent, scriptUrl);
+        return `<script${beforeSrc}${afterSrc} data-atools-plugin-script-src="${escapeHtmlAttribute(scriptUrl)}">\n${escapeInlineScript(normalizedScript)}\n</script>`;
       } catch (error) {
         options.warn?.(`Failed to inline script: ${src}`, error);
         return tag;
       }
     },
+  );
+}
+
+function normalizeInlinePluginScript(source: string, sourceUrl: string): string {
+  const fallback = `new URL(${JSON.stringify(sourceUrl)}, document.baseURI).href`;
+  return String(source).replace(
+    /if\(!e\)throw new Error\("Automatic publicPath is not supported in this browser"\);/g,
+    `if(!e)e=${fallback};`,
   );
 }
 

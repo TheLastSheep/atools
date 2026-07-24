@@ -9,6 +9,11 @@ const resourceChecklistRow = "插件 HTML 资源兼容由 `pnpm test:plugin-reso
 
 const bridgeMatch = componentSource.match(/const UTOOLS_BRIDGE = `([\s\S]*?)`;/);
 assert.ok(bridgeMatch, "PluginPanel should define the injected utools bridge");
+assert.match(componentSource, /once: function\(event, listener\)/, "PluginPanel should expose process.once for CommonJS preload compatibility");
+assert.match(componentSource, /nextTick: function\(callback\)/, "PluginPanel should expose process.nextTick for CommonJS preload compatibility");
+assert.match(componentSource, /window\.global = window/, "PluginPanel should expose the CommonJS global alias");
+assert.match(componentSource, /window\.__atoolsNativeWorker/, "PluginPanel should preserve the native Worker constructor");
+assert.match(componentSource, /importScripts\(/, "PluginPanel should bootstrap local classic workers inside the opaque sandbox");
 
 const bridgeSource = bridgeMatch[1]
   .replace(/<\\\/script>/g, "</script>")

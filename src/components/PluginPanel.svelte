@@ -1689,7 +1689,18 @@
     clipboard: _compatElectronClipboard,
     nativeImage: { createFromPath: function(){ return null; }, createFromDataURL: function(){ return null; } }
   };
-  if (!window.process) window.process = { platform: 'darwin', arch: 'arm64', env: {}, versions: { node: 'compat' } };
+  if (!window.process) {
+    var _processListeners = {};
+    window.process = {
+      platform: 'darwin', arch: 'arm64', env: {}, versions: { node: 'compat' },
+      on: function(event, listener) { (_processListeners[event] || (_processListeners[event] = [])).push(listener); return this; },
+      once: function(event, listener) { if (event === 'loaded' && typeof listener === 'function') queueMicrotask(listener); else this.on(event, listener); return this; },
+      off: function(event, listener) { _processListeners[event] = (_processListeners[event] || []).filter(function(item) { return item !== listener; }); return this; },
+      removeListener: function(event, listener) { return this.off(event, listener); },
+      nextTick: function(callback) { return queueMicrotask(callback); }
+    };
+  }
+  if (typeof window.global === 'undefined') window.global = window;
   if (typeof window.__dirname === 'undefined') window.__dirname = _atoolsPluginPath;
   if (typeof window.__filename === 'undefined') window.__filename = _compatPath.join(_atoolsPluginPath, 'preload.js');
   if (typeof window.exports === 'undefined') window.exports = {};
@@ -1734,6 +1745,34 @@
   }
   if (typeof window.setImmediate !== 'function') window.setImmediate = function(callback) { return setTimeout(callback, 0); };
   if (typeof window.clearImmediate !== 'function') window.clearImmediate = function(id) { clearTimeout(id); };
+  if (typeof window.Worker === 'function' && !window.__atoolsNativeWorker) {
+    var _NativeWorker = window.Worker;
+    window.__atoolsNativeWorker = _NativeWorker;
+    window.Worker = function(scriptUrl, options) {
+      var source = String(scriptUrl || '');
+      var parsed = null;
+      try { parsed = new URL(source, document.baseURI); } catch (_error) {}
+      var protocol = parsed ? String(parsed.protocol || '').toLowerCase() : '';
+      var sameDocumentHost = parsed && (protocol === 'http:' || protocol === 'https:')
+        && parsed.host === window.location.host;
+      var localPluginResource = protocol === 'asset:' || protocol === 'tauri:' || sameDocumentHost;
+      if (localPluginResource && (!options || options.type !== 'module')) {
+        var bootstrapUrl = URL.createObjectURL(new Blob([
+          'importScripts(' + JSON.stringify(parsed.href) + ');'
+        ], { type: 'application/javascript' }));
+        var worker = new _NativeWorker(bootstrapUrl, options);
+        var nativeTerminate = worker.terminate.bind(worker);
+        worker.terminate = function() {
+          URL.revokeObjectURL(bootstrapUrl);
+          return nativeTerminate();
+        };
+        return worker;
+      }
+      return new _NativeWorker(scriptUrl, options);
+    };
+    window.Worker.prototype = _NativeWorker.prototype;
+    try { Object.setPrototypeOf(window.Worker, _NativeWorker); } catch (_error) {}
+  }
   try {
     Object.defineProperty(window.navigator, 'serviceWorker', {
       value: {

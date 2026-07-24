@@ -413,6 +413,19 @@ function fixtureBridgeScript(plan, id, title) {
   }
   installStorageStub('localStorage');
   installStorageStub('sessionStorage');
+  var nativeFetch = typeof window.fetch === 'function' ? window.fetch.bind(window) : null;
+  window.fetch = function(input, init) {
+    var url = typeof input === 'string' ? input : input && input.url ? String(input.url) : '';
+    var resolved = url;
+    try { resolved = new URL(url, window.location.href).href; } catch (_error) {}
+    if (!resolved.includes('api3.do') || !/getTimestamp|api=timestamp/i.test(resolved)) {
+      return nativeFetch ? nativeFetch(input, init) : Promise.reject(new Error('fetch unavailable'));
+    }
+    return Promise.resolve(new Response(JSON.stringify({ data: { t: Math.floor(Date.now() / 1000) } }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' }
+    }));
+  };
   function bridgeFunction(name) {
     return function(){ return Promise.resolve(null); };
   }
@@ -515,6 +528,15 @@ function fixtureBridgeScript(plan, id, title) {
     getDisplayNearestPoint: function(){ return this.getPrimaryDisplay(); },
     getDisplayMatching: function(){ return this.getPrimaryDisplay(); },
     getAllDisplays: function(){ return [this.getPrimaryDisplay()]; },
+    desktopCaptureSources: function(){
+      return Promise.resolve([{
+        id: 'screen:1:0',
+        name: 'Primary Display',
+        display_id: '1',
+        thumbnail: { isEmpty: function(){ return false; }, toDataURL: function(){ return 'data:image/png;base64,'; } },
+        appIcon: null
+      }]);
+    },
     clipboard: {
       readText: function(){ return Promise.resolve(''); },
       history: function(){ return Promise.resolve([]); },
@@ -558,6 +580,7 @@ function fixtureBridgeScript(plan, id, title) {
   });
   window.utools = window.utools || bridge;
   window.ztools = window.ztools || window.utools;
+  window.global = window.global || window;
   var compatPath = {
     sep: '/', delimiter: ':',
     join: function(){ return Array.prototype.map.call(arguments, function(value){ var text = String(value || '').split(String.fromCharCode(92)).join('/'); while (text.startsWith('/')) text = text.slice(1); while (text.endsWith('/')) text = text.slice(0, -1); return text; }).filter(Boolean).join('/'); },
@@ -571,7 +594,15 @@ function fixtureBridgeScript(plan, id, title) {
   var compatFs = { promises: fsPromises, existsSync: function(){ return false; }, readFileSync: unsupported('fs.readFileSync'), writeFileSync: unsupported('fs.writeFileSync'), appendFileSync: unsupported('fs.appendFileSync'), readdirSync: function(){ return []; }, mkdirSync: unsupported('fs.mkdirSync'), lstatSync: unsupported('fs.lstatSync'), statSync: unsupported('fs.statSync') };
   var compatIpc = { on: function(){ return compatIpc; }, once: function(){ return compatIpc; }, off: function(){ return compatIpc; }, removeListener: function(){ return compatIpc; }, removeAllListeners: function(){ return compatIpc; }, send: function(){}, sendTo: function(){}, invoke: function(){ return Promise.resolve(null); } };
   var compatElectron = { ipcRenderer: compatIpc, clipboard: { readText: function(){ return ''; }, writeText: function(){}, readImage: function(){ return { isEmpty: function(){ return true; }, toDataURL: function(){ return ''; } }; } }, nativeImage: { createFromPath: function(){ return null; } } };
-  window.process = window.process || { platform: 'darwin', arch: 'arm64', env: {}, versions: { node: 'compat' } };
+  var processListeners = Object.create(null);
+  window.process = window.process || {
+    platform: 'darwin', arch: 'arm64', env: {}, versions: { node: 'compat' },
+    on: function(event, listener){ (processListeners[event] || (processListeners[event] = [])).push(listener); return this; },
+    once: function(event, listener){ if (event === 'loaded' && typeof listener === 'function') queueMicrotask(listener); else this.on(event, listener); return this; },
+    off: function(event, listener){ processListeners[event] = (processListeners[event] || []).filter(function(item){ return item !== listener; }); return this; },
+    removeListener: function(event, listener){ return this.off(event, listener); },
+    nextTick: function(callback){ return queueMicrotask(callback); }
+  };
   window.__dirname = window.__dirname || pluginPath;
   window.__filename = window.__filename || compatPath.join(pluginPath, 'preload.js');
   window.exports = window.exports || {};
@@ -598,6 +629,27 @@ function fixtureBridgeScript(plan, id, title) {
   }
   window.setImmediate = window.setImmediate || function(callback){ return setTimeout(callback, 0); };
   window.clearImmediate = window.clearImmediate || function(id){ clearTimeout(id); };
+  if (typeof window.Worker === 'function' && !window.__atoolsNativeWorker) {
+    var NativeWorker = window.Worker;
+    window.__atoolsNativeWorker = NativeWorker;
+    window.Worker = function(scriptUrl, options) {
+      var source = String(scriptUrl || '');
+      var parsed = null;
+      try { parsed = new URL(source, document.baseURI); } catch (_error) {}
+      var protocol = parsed ? String(parsed.protocol || '').toLowerCase() : '';
+      var sameDocumentHost = parsed && (protocol === 'http:' || protocol === 'https:') && parsed.host === window.location.host;
+      if ((protocol === 'asset:' || protocol === 'tauri:' || sameDocumentHost) && (!options || options.type !== 'module')) {
+        var bootstrapUrl = URL.createObjectURL(new Blob(['importScripts(' + JSON.stringify(parsed.href) + ');'], { type: 'application/javascript' }));
+        var worker = new NativeWorker(bootstrapUrl, options);
+        var nativeTerminate = worker.terminate.bind(worker);
+        worker.terminate = function(){ URL.revokeObjectURL(bootstrapUrl); return nativeTerminate(); };
+        return worker;
+      }
+      return new NativeWorker(scriptUrl, options);
+    };
+    window.Worker.prototype = NativeWorker.prototype;
+    try { Object.setPrototypeOf(window.Worker, NativeWorker); } catch (_error) {}
+  }
   try { Object.defineProperty(window.navigator, 'serviceWorker', { value: { register: function(){ return Promise.resolve({ scope: '', unregister: function(){ return Promise.resolve(true); } }); }, getRegistrations: function(){ return Promise.resolve([]); } }, configurable: true }); } catch (_error) {}
   function kyResponse() {
     return {
@@ -910,13 +962,21 @@ async function realEntryExecutionFixture(plan, id, title, realEntryHtml, realEnt
   let inlinedScripts = 0;
   let inlinedStylesheets = 0;
 
+  function normalizeInlinedScript(source, sourceUrl) {
+    const fallback = `new URL(${jsString(sourceUrl)}, document.baseURI).href`;
+    return String(source).replace(
+      /if\(!e\)throw new Error\("Automatic publicPath is not supported in this browser"\);/g,
+      `if(!e)e=${fallback};`,
+    );
+  }
+
   html = html.replace(/<script\b([^>]*)\bsrc\s*=\s*(["'])([^"']+)\2([^>]*)>\s*<\/script>/gi, (tag, beforeSrc, _quote, src, afterSrc) => {
     if (!isLocalResourceUrl(src)) return tag;
     const resource = resourceByUrl(realEntryResources, "script", src);
     if (!resource) return tag;
     const attrs = `${beforeSrc}${afterSrc}`.replace(/\s(src)\s*=\s*(["'])([^"']*)\2/ig, "");
     inlinedScripts += 1;
-    return `<script${attrs} data-atools-inlined-script-src="${htmlAttribute(src)}">\n${htmlText(readFileSyncCache.get(resource.path))}\n<\/script>`;
+    return `<script${attrs} data-atools-inlined-script-src="${htmlAttribute(src)}">\n${htmlText(normalizeInlinedScript(readFileSyncCache.get(resource.path), src))}\n<\/script>`;
   });
 
   html = html.replace(/<link\b([^>]*)\bhref\s*=\s*(["'])([^"']+)\2([^>]*)>/gi, (tag, beforeHref, _quote, href, afterHref) => {
