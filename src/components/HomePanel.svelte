@@ -35,6 +35,7 @@
   const commandSections = $derived(homeCommandSections(commands, { pinnedRows, recentRows }));
   const visibleCommands = $derived(commandSections.flatMap((section) => section.commands));
   const swatches = ["#d9c7ff", "#d99a00", "#7f8bd9", "#111111", "#6d7fe2", "#8b5cf6", "#2bbd9f", "#33c24d", "#ff941f", "#8b5cf6"];
+  const capabilityRail = import("./HomeCapabilityRail.svelte");
 
   function activateCommand(cmd: typeof visibleCommands[number], index: number) {
     onselectionchange(index);
@@ -65,7 +66,12 @@
   }
 </script>
 
-<section class="home-panel" aria-label="最近使用">
+<section class="home-panel" aria-label="ATools 首页">
+  {#await capabilityRail then module}
+    {@const HomeCapabilityRail = module.default}
+    <HomeCapabilityRail {oncommand} {onpanelchange} />
+  {/await}
+
   {#each commandSections as section}
     <h2>{section.label}</h2>
 
@@ -117,7 +123,7 @@
     height: 100%;
     min-height: 0;
     overflow-y: auto;
-    padding: 8px 12px 10px;
+    padding: 10px 12px 12px;
     background: var(--bg-primary);
     animation: fadeIn 0.12s ease;
   }

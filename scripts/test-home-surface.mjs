@@ -55,12 +55,17 @@ try {
     ["recent", "最近使用", 1],
   ]);
 
-  const [homePanel, app] = await Promise.all([
+  const [homePanel, capabilityRail, app] = await Promise.all([
     readFile(new URL("src/components/HomePanel.svelte", root), "utf8"),
+    readFile(new URL("src/components/HomeCapabilityRail.svelte", root), "utf8"),
     readFile(new URL("src/App.svelte", root), "utf8"),
   ]);
   assert.doesNotMatch(homePanel, /class="quick-actions"/);
-  assert.doesNotMatch(homePanel, /class="home-overview"/);
+  assert.match(homePanel, /import\("\.\/HomeCapabilityRail\.svelte"\)/);
+  assert.match(capabilityRail, /class="capability-rail"/);
+  assert.match(capabilityRail, /onpanelchange\("results"\)/);
+  assert.match(capabilityRail, /list_task_runs/);
+  assert.match(capabilityRail, /list_capabilities/);
   assert.doesNotMatch(homePanel, /class="pinned-empty"/);
   assert.match(homePanel, /resultIconSrc/);
   assert.match(homePanel, /<img src=\{source\} alt="" \/>/);
@@ -135,8 +140,8 @@ try {
     "macOS smoke checklist should mark compact empty-pinned behavior complete",
   );
   assertSmokeChecked(
-    "默认首页只显示搜索、固定指令（存在时）和最近使用，不显示统计卡或管理入口。",
-    "macOS smoke checklist should mark compact search-first home complete",
+    "首页一级展示结果中心、插件生态、Agent / MCP 与 Pasteboard，并显示桌面运行状态。",
+    "macOS smoke checklist should mark the core capability rail complete",
   );
 } finally {
   await rm(outDir, { recursive: true, force: true });

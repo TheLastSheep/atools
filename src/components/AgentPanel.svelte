@@ -67,9 +67,10 @@
 
   type Props = {
     onclose: () => void;
+    view?: "all" | "results";
   };
 
-  let { onclose }: Props = $props();
+  let { onclose, view = "all" }: Props = $props();
   let tools: ToolDefinition[] = $state([]);
   let capabilities: Capability[] = $state([]);
   let audits: AuditLogEntry[] = $state([]);
@@ -938,11 +939,11 @@
   }
 </script>
 
-<section class="agent-panel">
+<section class="agent-panel" class:results-only={view === "results"}>
   <header class="agent-header">
     <div>
-      <h2>Agent</h2>
-      <p>MCP、权限与审计</p>
+      <h2>{view === "results" ? "结果中心" : "Agent"}</h2>
+      <p>{view === "results" ? "TaskRun 任务历史、验收状态与结构化产物" : "MCP、权限与审计"}</p>
     </div>
     <button class="icon-button" onclick={onclose} title="关闭">×</button>
   </header>
@@ -1754,6 +1755,13 @@
     background: var(--bg-primary);
     max-height: 560px;
     overflow: auto;
+  }
+  .agent-panel.results-only > :global(.agent-section:not(.result-center-section)),
+  .agent-panel.results-only > :global(.agent-grid) {
+    display: none;
+  }
+  .agent-panel.results-only .result-center-section {
+    margin-top: 16px;
   }
   .agent-header,
   .section-title,

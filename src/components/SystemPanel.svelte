@@ -80,6 +80,8 @@
     <ZToolsImportPanel />
   {:else if panel === "agent"}
     <AgentPanel onclose={() => onpanelchange("home")} />
+  {:else if panel === "results"}
+    <AgentPanel view="results" onclose={() => onpanelchange("home")} />
   {:else if panel === "plugins"}
     <div class="system-head">
       <div>

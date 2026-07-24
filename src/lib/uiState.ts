@@ -1,6 +1,7 @@
-export type ShellPanel = "home" | "settings" | "plugins" | "import" | "agent";
+export type ShellPanel = "home" | "results" | "settings" | "plugins" | "import" | "agent";
 
 export const SYSTEM_ACTIONS: Array<{ id: ShellPanel; label: string; description: string; aliases?: string[] }> = [
+  { id: "results", label: "结果中心", description: "查看 TaskRun 任务历史、验收状态和结构化产物", aliases: ["results", "result", "history", "taskrun", "任务历史", "运行记录"] },
   { id: "settings", label: "设置", description: "打开通用设置、快捷键、插件市场和本地服务", aliases: ["settings", "config", "preferences"] },
   { id: "plugins", label: "插件管理", description: "查看、启用、禁用已安装插件", aliases: ["plugins", "plugin"] },
   { id: "import", label: "导入 ZTools 插件", description: "扫描 plugin.json 并批量导入", aliases: ["import", "ztools"] },
@@ -18,6 +19,7 @@ export type RecommendedCommand = {
 };
 
 export const RECOMMENDED_COMMANDS: RecommendedCommand[] = [
+  { code: "结果中心", label: "结果中心", explain: "TaskRun 任务历史与结构化产物", panel: "results" },
   { code: "paste-clipboard", label: "Paste剪切板", explain: "本地剪贴板历史与分组" },
   { code: "ip", label: "IP 地址", explain: "查看本机 IP 信息" },
   { code: "process-manager", label: "结束进程", explain: "查看并结束本地进程" },

@@ -15,7 +15,6 @@
   import SearchStatusBar from "./components/SearchStatusBar.svelte";
   import SettingsHeader from "./components/SettingsHeader.svelte";
   import ShellFrame from "./components/ShellFrame.svelte";
-  import SystemPanel from "./components/SystemPanel.svelte";
   import ZMark from "./components/ZMark.svelte";
   import type { FeatureAction, PendingAgentToolRequest, SearchResult, TaskRun } from "./lib/types";
   import { desktopSmokePluginQueueActionActive } from "./lib/desktopSmokePluginQueue";
@@ -206,6 +205,7 @@
   const isPluginDetachWindow = typeof window !== "undefined" && window.location.hash.startsWith("#/plugin-detach");
   const isPasteboardShelfWindow = typeof window !== "undefined" && window.location.hash === "#/pasteboard-shelf";
   const isPasteboardDialogWindow = typeof window !== "undefined" && window.location.hash.startsWith("#/pasteboard-dialog");
+  const systemPanel = import("./components/SystemPanel.svelte");
   const currentWindowLabel = currentTauriWindowLabel();
   const isMainRoute = typeof window !== "undefined"
     && (window.location.hash === "" || window.location.hash === "#/");
@@ -964,7 +964,7 @@
       results = [];
       selectedIndex = 0;
       selectedRecentIndex = 0;
-      await expandPalette(panel === "agent" ? AGENT_WINDOW_HEIGHT : panel === "settings" ? SETTINGS_WINDOW_HEIGHT : defaultWindowHeight);
+      await expandPalette(panel === "agent" || panel === "results" ? AGENT_WINDOW_HEIGHT : panel === "settings" ? SETTINGS_WINDOW_HEIGHT : defaultWindowHeight);
     } else {
       await resetPalette();
       focusSearch();
@@ -2451,7 +2451,10 @@
         />
       </div>
     {:else if activePanel !== "home"}
-      <SystemPanel panel={activePanel} settingsMenu={settingsMenuTarget} onpanelchange={onPanelChange} />
+      {#await systemPanel then module}
+        {@const SystemPanel = module.default}
+        <SystemPanel panel={activePanel} settingsMenu={settingsMenuTarget} onpanelchange={onPanelChange} />
+      {/await}
     {/if}
   </ShellFrame>
 
