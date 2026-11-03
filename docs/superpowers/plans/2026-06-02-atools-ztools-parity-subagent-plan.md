@@ -10,9 +10,11 @@
 
 ---
 
-## 1. 当前完成度总览
+## 1. 历史进度快照（非当前验收率）
 
-| 模块 | 当前完成度 | 已完成 | 主要缺口 | 首版判断 |
+2026-10-25 校正：下表百分比是历史实现进度估算，没有统一的逐项视觉、原生交互和原版插件业务验收分母，不能解读为 UI 已还原 99%/100%。当前采用[Harris UI 交互账本](../../../.scratch/2026-10-23-harris-node-compatibility-goal/issues/21-harris-ui-interactions.md)，逐项记录已运行、失败和暂缓；原生 App 与 uTools 完整对照尚未完成。
+
+| 模块 | 历史估算 | 当时实现记录 | 当时缺口 | 当时判断 |
 | --- | ---: | --- | --- | --- |
 | Tauri/Rust 桌面底座 | 97% | 主窗口、全局快捷键、托盘、窗口高度、设置落库、macOS 自启命令、真实桌面 smoke、主进程运行诊断、数据/调试命令 smoke、热键/托盘/自启 plist smoke、热键唤醒黑名单、前台应用读取命令、opener 路径/URL 打开、panic crash log、crash log 查看/导出/清空命令、feature 索引幂等替换、macOS bundle identifier/entitlements 配置、Tauri shell `osascript -e` scoped command、快捷键注册失败错误透传、AI `/models` 连接测试命令、WebDAV 远端备份上传、manifest 校验、远端备份预览、恢复计划 diff、设置恢复合并命令和剪贴板历史追加导入命令 | 自动更新、签名公证 | macOS 首版可继续收口 |
 | ZTools/uTools 主搜索体验 | 100% | Z 风格搜索框、三笔画圆形 Z 标识、首页图标化常用入口、结果行类型图标、最近使用类型图标磁贴、系统命令、键盘导航、结果分组、结果行来源 detail、匹配标签/tone、选中行上下文 Enter 提示、底部状态栏/按键提示、状态栏上下行分离提示、空格/Tab、网页快开、本地启动、粘贴识别、URL/文本识别、历史、别名、拼音/模糊匹配、本地应用搜索、应用图标、应用 metadata alias、搜索 benchmark | 极端结果量性能持续观察；真实大规模插件生态未回归 | 接近日用 |

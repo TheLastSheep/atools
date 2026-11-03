@@ -11,3 +11,5 @@ src-tauri/gen/
 .playwright-cli/
 .worktrees/
 .superpowers/
+src-tauri/binaries/node-*
+src-tauri/binaries/.node-*

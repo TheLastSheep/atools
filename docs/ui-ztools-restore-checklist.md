@@ -14,7 +14,7 @@
 
 ## Current Checklist
 
-- [x] Empty/home state: import entry visible, no marketing hero, compact command-center feel, and pinned/recent command sections.
+- [x] Empty/home state: plugin-market and plugin-management actions visible, no marketing hero, compact command-center feel, and pinned/recent command sections. Import remains a separate searchable system action; the referenced ZTools home empty state has no direct import/market action.
 - [x] Search results: dense rows, keyboard selection visible, source metadata readable, selected-row `Enter` action chip, and split `↑` / `↓` status hints.
 - [x] Settings navigation: menu includes ZTools parity entries `HTTP 服务` and `关于`.
 - [x] Settings general: hotkey quick presets, custom theme color, current-window wakeup blacklist entry.

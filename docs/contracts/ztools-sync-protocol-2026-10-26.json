@@ -1,0 +1,503 @@
+{
+  "schemaVersion": 1, "contractKind": "source-derived-protocol-inventory",
+  "evidence": {
+    "mode": "static-source-only",
+    "runtimeOrGoTestsRun": false,
+    "compatibilityClaim": "This records the pinned source implementation; it does not establish Axum or full wire compatibility.",
+    "upstreamRootInWorkspace": ".scratch/atools-replication/upstream/ztools-sync-server",
+    "revision": "8ae1e14fd1071b6762fdb59f05162bc0779a5564",
+    "workingTreeCleanAtInspection": true
+  },
+  "upstream": {
+    "repository": "https://github.com/ZToolsCenter/ztools-sync-server.git",
+    "commit": "8ae1e14fd1071b6762fdb59f05162bc0779a5564",
+    "describe": "8ae1e14",
+    "releaseVersion": null,
+    "versionNote": "No semantic release version is declared in go.mod; the pinned commit is the version identity for this contract.",
+    "goVersion": "1.23",
+    "license": "MPL-2.0",
+    "protocolVersion": 2,
+    "licenseSource": {
+      "sourceFile": "LICENSE",
+      "line": 1,
+      "sourceSha256": "3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04"
+    }
+  },
+  "transport": {
+    "server": {
+      "listenAddress": ":23517",
+      "bindMeaning": "All local interfaces; main constructs ':' + PORT.",
+      "readHeaderTimeoutSeconds": 10,
+      "idleTimeoutSeconds": 90,
+      "tlsTerminatedHere": false,
+      "sourceFile": "cmd/ztools-sync-server/main.go",
+      "line": [66, 70],
+      "sourceSha256": "34207e6864184e396c3d0a832f162ddc17191066185bce0573c9cceb48270dc7"
+    },
+    "routes": [
+      {
+        "id": "root-index",
+        "path": "/",
+        "method": "any non-WebSocket-upgrade request",
+        "authentication": "none",
+        "success": {
+          "status": 200,
+          "contentType": "application/json",
+          "body": {"name": "ZTools Sync Server", "edition": "standalone", "protocolVersion": 2}
+        },
+        "sourceFile": "transport/router.go",
+        "line": [57, 71],
+        "sourceSha256": "804e3a8f499ac2248f251e9b6ead462b781b3d4d3a83ab2c07737c556b06d160"
+      },
+      {
+        "id": "health",
+        "path": "/health",
+        "method": "any",
+        "authentication": "none",
+        "success": {
+          "status": 200,
+          "contentType": "application/json",
+          "body": {"status": "ok", "edition": "standalone", "connections": "active authenticated WebSocket connections"}
+        },
+        "sourceFile": "transport/router.go",
+        "line": [53, 79, 85],
+        "sourceSha256": "804e3a8f499ac2248f251e9b6ead462b781b3d4d3a83ab2c07737c556b06d160"
+      },
+      {
+        "id": "auth",
+        "path": "/api/auth",
+        "method": "POST",
+        "authentication": "credentials in JSON body",
+        "request": {"uid": "string required", "password": "string required", "captchaVerifyParam": "string optional; currently ignored"},
+        "responses": [
+          {"status": 200, "body": {"token": "string", "refreshToken": "string", "isNew": "boolean"}},
+          {"status": 400, "body": {"error": "uid and password required"}, "when": "invalid JSON or either required field missing"},
+          {"status": 400, "body": {"error": "captcha error"}, "when": "captcha verification error; current verifier returns nil"},
+          {"status": 401, "body": {"error": "密码错误"}, "when": "login/AuthOrCreate failure"},
+          {"status": 404, "body": {"error": "Not found"}, "when": "method other than POST"}
+        ],
+        "registrationMode": "When ALLOW_REGISTRATION=true, AuthOrCreate creates a missing user; otherwise it only logs in and isNew is false.",
+        "sourceFile": "transport/auth_handler.go",
+        "line": [28, 55],
+        "sourceSha256": "4aa4006d493fb7366da6f02ef9fbe6c3728efa02540547074db2732c6fc78976"
+      },
+      {
+        "id": "captcha-config",
+        "path": "/api/auth/captcha-config",
+        "method": "GET",
+        "authentication": "none",
+        "responses": [
+          {"status": 200, "body": {"enabled": false}},
+          {"status": 404, "body": {"error": "Not found"}, "when": "method other than GET"}
+        ],
+        "sourceFile": "transport/auth_handler.go",
+        "line": [57, 63],
+        "sourceSha256": "4aa4006d493fb7366da6f02ef9fbe6c3728efa02540547074db2732c6fc78976"
+      },
+      {
+        "id": "refresh",
+        "path": "/api/auth/refresh",
+        "method": "POST",
+        "authentication": "refreshToken in JSON body",
+        "request": {"refreshToken": "string required"},
+        "responses": [
+          {"status": 200, "body": {"token": "string", "refreshToken": "rotated string"}},
+          {"status": 400, "body": {"error": "refreshToken required"}, "when": "invalid JSON or missing/empty field"},
+          {"status": 401, "body": {"error": "Invalid refresh token"}, "when": "unknown, expired, used, or revoked token"},
+          {"status": 404, "body": {"error": "Not found"}, "when": "method other than POST"}
+        ],
+        "sourceFile": "transport/auth_handler.go",
+        "line": [125, 141],
+        "sourceSha256": "4aa4006d493fb7366da6f02ef9fbe6c3728efa02540547074db2732c6fc78976"
+      },
+      {
+        "id": "login",
+        "path": "/api/login",
+        "method": "POST",
+        "authentication": "credentials in JSON body",
+        "request": {"uid": "string required", "password": "string required", "captchaVerifyParam": "string optional; currently ignored"},
+        "responses": [
+          {"status": 200, "body": {"token": "string", "refreshToken": "string"}},
+          {"status": 400, "body": {"error": "decoder error or uid and password required"}},
+          {"status": 401, "body": {"error": "Invalid credentials"}},
+          {"status": 404, "body": {"error": "Not found"}, "when": "method other than POST"}
+        ],
+        "sourceFile": "transport/auth_handler.go",
+        "line": [95, 119],
+        "sourceSha256": "4aa4006d493fb7366da6f02ef9fbe6c3728efa02540547074db2732c6fc78976"
+      },
+      {
+        "id": "register",
+        "path": "/api/register",
+        "method": "POST",
+        "availability": "Mounted only when ALLOW_REGISTRATION=true; default standalone config is false.",
+        "authentication": "credentials in JSON body",
+        "request": {"uid": "string required", "password": "string required", "captchaVerifyParam": "string optional; currently ignored"},
+        "responses": [
+          {"status": 200, "body": {"token": "string", "refreshToken": "string"}},
+          {"status": 400, "body": {"error": "validation, captcha, or CreateUser error"}},
+          {"status": 401, "body": {"error": "Invalid credentials"}},
+          {"status": 404, "body": "ServeMux plain-text 404 page not found when route is not mounted; JSON {error: Not found} only when mounted and method is not POST"}
+        ],
+        "sourceFile": "transport/router.go",
+        "line": [44, 50],
+        "sourceSha256": "804e3a8f499ac2248f251e9b6ead462b781b3d4d3a83ab2c07737c556b06d160",
+        "handlerSourceFile": "transport/auth_handler.go",
+        "handlerLine": [65, 93],
+        "handlerSourceSha256": "4aa4006d493fb7366da6f02ef9fbe6c3728efa02540547074db2732c6fc78976"
+      },
+      {
+        "id": "attachment-list",
+        "path": "/api/sync/attachments",
+        "method": "GET",
+        "authentication": "Authorization: Bearer <access JWT>",
+        "success": {"status": 200, "body": "array of current winning revision attachments; snake_case fields uid, doc_id, rev, name, digest, md5, content_type, length, size, revpos, created_at"},
+        "errors": [
+          {"status": 401, "body": {"error": "Unauthorized"}},
+          {"status": 404, "body": {"error": "Not found"}, "when": "method other than GET unless POST action=compact"},
+          {"status": 500, "body": {"error": "database error text"}}
+        ],
+        "sourceFile": "transport/router.go",
+        "line": [51, 52],
+        "sourceSha256": "804e3a8f499ac2248f251e9b6ead462b781b3d4d3a83ab2c07737c556b06d160",
+        "handlerSourceFile": "transport/attachment_handler.go",
+        "handlerLine": [25, 61],
+        "handlerSourceSha256": "b21cfc5ef7ba4db9fecac97f05d9e4bc48cd61867addbba15d6f6cab06da56e0",
+        "listingSourceFile": "repository/repository.go",
+        "listingLine": [106, 115, 220, 226],
+        "listingSourceSha256": "0c50bc9c00d7efaaf9bacbaef98b4f47a101fefaf5b01c9f7971590efe140727"
+      },
+      {
+        "id": "attachment-compact",
+        "path": "/api/sync/attachments?action=compact[&graceMs=<nonnegative integer>]",
+        "method": "POST",
+        "authentication": "Authorization: Bearer <access JWT>",
+        "defaultGraceMs": 86400000,
+        "responses": [
+          {"status": 200, "body": {"ok": true, "deleted": "integer"}},
+          {"status": 400, "body": {"error": "invalid graceMs"}, "when": "malformed or negative graceMs"},
+          {"status": 401, "body": {"error": "Unauthorized"}},
+          {"status": 404, "body": {"error": "Not found"}, "when": "action is not compact or method/path does not match"},
+          {"status": 500, "body": {"error": "database error text"}}
+        ],
+        "sourceFile": "transport/attachment_handler.go",
+        "line": [25, 28, 167, 188],
+        "sourceSha256": "b21cfc5ef7ba4db9fecac97f05d9e4bc48cd61867addbba15d6f6cab06da56e0"
+      },
+      {
+        "id": "attachment-blob",
+        "path": "/api/sync/attachments/blobs/{digest}",
+        "methods": ["PUT", "GET", "HEAD"],
+        "authentication": "Authorization: Bearer <access JWT>",
+        "constraints": {"maxUploadBytes": 10485760, "digest": "MD5 hex with optional md5- prefix; supplied digest must match body", "contentTypeDefault": "application/octet-stream"},
+        "responses": [
+          {"method": "PUT", "status": 200, "body": {"ok": true, "digest": "md5-<lowercase hex>", "length": "integer"}},
+          {"method": "PUT", "status": 400, "body": {"error": "request read error or attachment digest mismatch"}},
+          {"method": "PUT", "status": 413, "body": {"error": "Attachment exceeds 10M"}},
+          {"method": "GET", "status": 200, "body": "raw attachment bytes", "headers": ["Content-Type", "Content-Length", "X-Attachment-Digest", "X-Attachment-Md5"]},
+          {"method": "HEAD", "status": 200, "body": "empty", "headers": ["Content-Type", "Content-Length", "X-Attachment-Digest"]},
+          {"method": "GET or HEAD", "status": 404, "body": {"error": "Attachment blob not found"}, "when": "GET JSON body; HEAD has no JSON body"},
+          {"method": "any", "status": 401, "body": {"error": "Unauthorized"}},
+          {"method": "other", "status": 404, "body": {"error": "Not found"}}
+        ],
+        "sourceFile": "transport/attachment_handler.go",
+        "line": [63, 75, 77, 144],
+        "sourceSha256": "b21cfc5ef7ba4db9fecac97f05d9e4bc48cd61867addbba15d6f6cab06da56e0",
+        "serviceSourceFile": "sync/service.go",
+        "serviceLine": [20, 26, 396, 415],
+        "serviceSourceSha256": "dd8fb951f57876422b84783f18aeeb58611f90dacd4acbaee2444588585da6f1"
+      },
+      {
+        "id": "attachment-blob-meta",
+        "path": "/api/sync/attachments/blobs/{digest}/meta",
+        "method": "GET",
+        "authentication": "Authorization: Bearer <access JWT>",
+        "success": {"status": 200, "body": {"digest": "md5-<lowercase hex>", "content_type": "string", "length": "integer"}},
+        "errors": [
+          {"status": 401, "body": {"error": "Unauthorized"}},
+          {"status": 404, "body": {"error": "Attachment blob not found"}},
+          {"status": 404, "body": {"error": "Not found"}, "when": "method other than GET"},
+          {"status": 500, "body": {"error": "database error text"}}
+        ],
+        "sourceFile": "transport/attachment_handler.go",
+        "line": [63, 75, 82, 85, 146, 165],
+        "sourceSha256": "b21cfc5ef7ba4db9fecac97f05d9e4bc48cd61867addbba15d6f6cab06da56e0"
+      },
+      {
+        "id": "websocket-sync",
+        "path": ["/ws", "/"],
+        "method": "WebSocket upgrade",
+        "authentication": "first message type auth; bearer access JWT in message token",
+        "sourceFile": "transport/router.go",
+        "line": [53, 55, 57, 77],
+        "sourceSha256": "804e3a8f499ac2248f251e9b6ead462b781b3d4d3a83ab2c07737c556b06d160",
+        "handlerSourceFile": "transport/ws_handler.go",
+        "handlerLine": [88, 165],
+        "handlerSourceSha256": "6ae8d1829ca1477df29236deefdf77207192e7dd10a8807d8d6dc6d30f4d0e80"
+      },
+      {
+        "id": "unknown-http-route",
+        "path": "unregistered paths",
+        "method": "any",
+        "result": "Go ServeMux default 404; no application JSON error wrapper",
+        "sourceFile": "transport/router.go",
+        "line": [57, 71],
+        "sourceSha256": "804e3a8f499ac2248f251e9b6ead462b781b3d4d3a83ab2c07737c556b06d160"
+      }
+    ],
+    "jsonResponse": {
+      "contentType": "application/json",
+      "encoding": "encoding/json Encoder, newline-terminated",
+      "bodyLimit": "No application-level request-body limit is configured by readJSON.",
+      "sourceFile": "transport/json.go",
+      "line": [11, 20],
+      "sourceSha256": "7bef7e9f16795ab677eda2dc3246b64b2efd1df890046f10d458c6a8f741ce59"
+    }
+  },
+  "authentication": {
+    "bearer": {"header": "Authorization", "prefix": "Bearer ", "prefixMatch": "exact case-sensitive string prefix"},
+    "accessToken": {"algorithmIssued": "HS256", "claims": ["uid", "ver", "exp", "iat"], "lifetimeHours": 48},
+    "refreshToken": {"bytesBeforeBase64Url": 32, "encoding": "Raw URL-safe Base64", "storedAs": "SHA-256 hex digest", "lifetimeDays": 30, "singleUse": true, "rotation": "refresh marks current row used and inserts a successor in one DB transaction"},
+    "captcha": {"configEnabled": false, "verificationCurrently": "no-op"},
+    "sourceFile": "auth/auth.go",
+    "sourceLine": [104, 140, 143, 225, 240, 251],
+    "sourceSha256": "9061e1fecb67168298b07eff882b227a7f43e4140955df7c3101efadbfa98d6a",
+    "bearerParserSourceFile": "transport/json.go",
+    "bearerParserLine": [22, 35],
+    "bearerParserSha256": "7bef7e9f16795ab677eda2dc3246b64b2efd1df890046f10d458c6a8f741ce59"
+  },
+  "websocketProtocol": {
+    "serverProtocolVersion": 2,
+    "upgrade": {"originCheck": "always accepts origin", "authDeadlineSeconds": 30, "preAuthQueueCapacity": 4, "explicitReadLimitConfigured": false},
+    "clientMessageFields": {
+      "sourceFile": "sync/types.go",
+      "line": [40, 51],
+      "sourceSha256": "2202d56f7c9ef24312b86676cc46315a34f8bee6834971440c079342c37f8eaa",
+      "fields": {"type": "string", "token": "string?", "deviceId": "string?", "deviceName": "string?", "since": "integer?", "snapshot": "boolean?", "checkpoint": "CheckpointPayload?", "checkpointId": "string?", "changes": "FullChangeEntry[]?", "protocolVersion": "integer?"}
+    },
+    "serverMessageFields": {
+      "sourceFile": "sync/types.go",
+      "line": [53, 68],
+      "sourceSha256": "2202d56f7c9ef24312b86676cc46315a34f8bee6834971440c079342c37f8eaa",
+      "fields": {"type": "string", "serverInstanceId": "string?", "serverSeq": "integer always serialized", "protocolVersion": "integer always serialized", "syncEpoch": "integer always serialized", "features": "map<string, boolean>?", "changes": "FullChangeEntry[] or null; always serialized", "seq": "integer always serialized", "snapshot": "boolean?", "reset": "boolean?", "change": "FullChangeEntry?", "checkpoint": "CheckpointPayload?", "message": "string?", "missingDigests": "string[]?"}
+    },
+    "changeEntry": {
+      "sourceFile": "sync/types.go",
+      "line": [7, 25],
+      "sourceSha256": "2202d56f7c9ef24312b86676cc46315a34f8bee6834971440c079342c37f8eaa",
+      "fields": {"seq": "integer", "docId": "string", "rev": "string", "parentRev": "string?", "revisionHistory": "string[]?", "deleted": "boolean", "timestamp": "integer milliseconds", "doc": "raw JSON", "docType": "string?", "winnerRev": "string?", "isWinner": "boolean?", "resolution": "{retireOtherLeaves?: boolean}?", "protocolVersion": "integer?"}
+    },
+    "checkpointPayload": {
+      "sourceFile": "sync/types.go",
+      "line": [27, 38],
+      "sourceSha256": "2202d56f7c9ef24312b86676cc46315a34f8bee6834971440c079342c37f8eaa",
+      "fields": {"id": "string", "sourceId": "string?", "targetId": "string?", "lastSeq": "integer", "remotePullSeq": "integer?", "localPushSeq": "integer?", "syncEpoch": "integer?", "protocolVersion": "integer?", "updatedAt": "integer?", "data": "raw JSON?"}
+    },
+    "events": [
+      {"type": "auth", "direction": "client-to-server", "purpose": "authenticate socket; empty deviceId becomes unknown; positive protocolVersion is negotiated, otherwise minimum 1", "sourceFile": "transport/ws_handler.go", "line": [130, 165], "sourceSha256": "6ae8d1829ca1477df29236deefdf77207192e7dd10a8807d8d6dc6d30f4d0e80"},
+      {"type": "pull", "direction": "client-to-server", "purpose": "stream incremental or snapshot changes using since/snapshot; protocol negotiation comes from auth, not ClientMessage.protocolVersion", "sourceFile": "transport/ws_handler.go", "line": [107, 110, 145, 166, 174], "sourceSha256": "6ae8d1829ca1477df29236deefdf77207192e7dd10a8807d8d6dc6d30f4d0e80"},
+      {"type": "get_checkpoint", "direction": "client-to-server", "purpose": "read one checkpoint by checkpointId", "sourceFile": "transport/ws_handler.go", "line": [175, 188], "sourceSha256": "6ae8d1829ca1477df29236deefdf77207192e7dd10a8807d8d6dc6d30f4d0e80"},
+      {"type": "put_checkpoint", "direction": "client-to-server", "purpose": "upsert checkpoint object", "sourceFile": "transport/ws_handler.go", "line": [189, 203], "sourceSha256": "6ae8d1829ca1477df29236deefdf77207192e7dd10a8807d8d6dc6d30f4d0e80"},
+      {"type": "push", "direction": "client-to-server", "purpose": "upload revisions; change protocolVersion overrides negotiated version when positive", "sourceFile": "transport/ws_handler.go", "line": [204, 236], "sourceSha256": "6ae8d1829ca1477df29236deefdf77207192e7dd10a8807d8d6dc6d30f4d0e80"},
+      {"type": "ping", "direction": "client-to-server", "purpose": "returns pong, even before auth", "sourceFile": "transport/ws_handler.go", "line": [237, 238], "sourceSha256": "6ae8d1829ca1477df29236deefdf77207192e7dd10a8807d8d6dc6d30f4d0e80"},
+      {"type": "auth_ok", "direction": "server-to-client", "payload": ["serverInstanceId", "serverSeq", "protocolVersion", "syncEpoch", "features.revisionRetention", "features.snapshotPull"], "sourceFile": "transport/ws_handler.go", "line": [155, 165], "sourceSha256": "6ae8d1829ca1477df29236deefdf77207192e7dd10a8807d8d6dc6d30f4d0e80"},
+      {"type": "changes", "direction": "server-to-client", "payload": ["changes", "seq", "syncEpoch", "snapshot", "reset"], "sourceFile": "transport/ws_pull.go", "line": [124, 149], "sourceSha256": "c130647d825ce1a62846a302059d7e08959944d05155dfe597c74d1e8e8e2164"},
+      {"type": "checkpoint", "direction": "server-to-client", "payload": ["checkpoint"], "sourceFile": "transport/ws_handler.go", "line": [175, 188], "sourceSha256": "6ae8d1829ca1477df29236deefdf77207192e7dd10a8807d8d6dc6d30f4d0e80"},
+      {"type": "checkpoint_ok", "direction": "server-to-client", "payload": ["checkpoint"], "sourceFile": "transport/ws_handler.go", "line": [189, 203], "sourceSha256": "6ae8d1829ca1477df29236deefdf77207192e7dd10a8807d8d6dc6d30f4d0e80"},
+      {"type": "push_ok", "direction": "server-to-client", "payload": ["seq"], "sourceFile": "transport/ws_handler.go", "line": [209, 212, 234, 236], "sourceSha256": "6ae8d1829ca1477df29236deefdf77207192e7dd10a8807d8d6dc6d30f4d0e80"},
+      {"type": "push_missing", "direction": "server-to-client", "payload": ["message=Missing attachment blobs", "missingDigests"], "sourceFile": "transport/ws_handler.go", "line": [230, 232], "sourceSha256": "6ae8d1829ca1477df29236deefdf77207192e7dd10a8807d8d6dc6d30f4d0e80"},
+      {"type": "change", "direction": "server-to-client", "payload": ["change"], "sourceFile": "transport/hub.go", "line": [116, 131], "sourceSha256": "4dd0c33adbeddf531ee6be4f9ffbe7c86f33ed8dccb321b7c0015f448db9d914"},
+      {"type": "pong", "direction": "server-to-client", "payload": [], "sourceFile": "transport/ws_handler.go", "line": [237, 238], "sourceSha256": "6ae8d1829ca1477df29236deefdf77207192e7dd10a8807d8d6dc6d30f4d0e80"},
+      {"type": "error", "direction": "server-to-client", "payload": ["message"], "cases": ["authentication timeout", "invalid token", "not authenticated", "checkpoint failures", "missing checkpoint", "push failures", "unknown message type"], "sourceFile": "transport/ws_handler.go", "line": [108, 112, 130, 140, 168, 203, 227, 240], "sourceSha256": "6ae8d1829ca1477df29236deefdf77207192e7dd10a8807d8d6dc6d30f4d0e80"}
+    ],
+    "connectionBehavior": {
+      "authTimeoutSeconds": 30,
+      "inboundQueueCapacity": 4,
+      "overflow": "non-ping message closes reader/connection; ping may be discarded",
+      "originCheck": "always true",
+      "pullError": "sendPull error returns from the handler and closes the socket; it is not converted into an error event",
+      "pullResponseIntegrity": "streaming pull aborts the socket on partial write/error; incomplete JSON never ends as a complete message",
+      "pullSourceFile": "transport/ws_pull.go",
+      "pullSourceLine": [33, 68, 124, 149],
+      "pullSourceSha256": "c130647d825ce1a62846a302059d7e08959944d05155dfe597c74d1e8e8e2164",
+      "readerSourceFile": "transport/ws_read.go",
+      "readerSourceLine": [9, 35],
+      "readerSourceSha256": "9cfcd08e3ea2a89aba086cfa3da6afdf629708b96a585dcbd9107dabf3644096"
+    }
+  },
+  "syncConstraints": {
+    "push": {
+      "maxChangesPerTransaction": 20,
+      "transactionAttemptsMax": 3,
+      "standaloneRetries": "disabled: standalone main leaves RetryableTransactionError nil and NewServiceWithOptions defaults the predicate to false",
+      "standaloneConcurrentPushes": 1,
+      "defaultConcurrentPulls": 4,
+      "emptyPush": "push_ok seq=0",
+      "partialCommit": "committed earlier chunks are broadcast and their last seq is retained even if a later chunk fails",
+      "sourceFile": "sync/service.go",
+      "line": [20, 24, 136, 153, 254, 284, 295, 342],
+      "sourceSha256": "dd8fb951f57876422b84783f18aeeb58611f90dacd4acbaee2444588585da6f1",
+      "standaloneSourceFile": "cmd/ztools-sync-server/main.go",
+      "standaloneLine": [54, 57],
+      "standaloneSha256": "34207e6864184e396c3d0a832f162ddc17191066185bce0573c9cceb48270dc7"
+    },
+    "revision": {
+      "emptyRev": "ignored as a no-op; no explicit docId validation is present in insertRevisionChange",
+      "timestamp": "positive client timestamp used, otherwise current milliseconds",
+      "doc": "deleted, empty, or JSON null is persisted as {}",
+      "history": "revisionHistory is normalized with current rev first; parentRev wins when non-empty, otherwise history[1] is inferred as parent",
+      "duplicateRev": "does not create a new changelog entry; may repair ancestry stubs/parent/projection",
+      "winner": "prefer non-deleted leaf revisions; compare parsed generation then revision string",
+      "sourceFile": "sync/revisions.go",
+      "line": [16, 42, 44, 49, 206, 233, 301, 402],
+      "sourceSha256": "098f221bedd7a27bfd2348af6f7bc5c236d17d7abdfd06aa9c8a565f30374481"
+    },
+    "pull": {
+      "pageSize": 128,
+      "maxDurationSeconds": 300,
+      "automaticSnapshot": {"onlyClientProtocolAtLeast": 2, "triggerWhenChangesGreaterThan": 512, "orBodyBytesGreaterThan": 33554432, "onlyIfSnapshotBytesAtMost": 16777216, "andSnapshotDocumentCountNotGreaterThanIncrementalCount": true, "andCandidateLeafRowsBetween1AndIncrementalCount": true, "explicitSnapshotRequestCanBypassAutomaticVersionGate": true},
+      "snapshot": "contains current leaf revisions and tombstones with ancestry; outer seq is captured before enumeration; per-entry seq is zero",
+      "incrementalLegacyFilter": "for protocol < 2, StreamChanges skips changelog entries whose stored protocolVersion is also < 2",
+      "revisionHistoryLimits": {"pageSize": 4096, "maxCachedParentLinks": 250000, "maxCachedDocuments": 64, "overLimitError": "document revision history exceeds the server safety limit"},
+      "checkpointAdvance": "streaming pull does not advance device/checkpoint state; client must persist acknowledgement separately",
+      "sourceFile": "sync/pull.go",
+      "line": [14, 18, 26, 46, 48, 89, 91, 159],
+      "sourceSha256": "0c7400ac00f15592e586b69b34fbf6baf0708996f49b9285a432007583533184",
+      "historySourceFile": "sync/revision_history.go",
+      "historyLine": [12, 16, 50, 82, 85, 121],
+      "historySha256": "75a4a1e09bca98a323da728390efc7bbbeb8cfc69e1b03b7a0715676f0f70e0c"
+    },
+    "checkpoint": {
+      "scope": "unique by uid + checkpoint id",
+      "validation": "id must be non-empty; if lastSeq is zero and remotePullSeq > 0, lastSeq becomes remotePullSeq; sourceId/targetId otherwise not validated here",
+      "updatedAt": "server Unix milliseconds",
+      "readMissing": "returns checkpoint payload containing requested id and zero values",
+      "serverDoesNotAdvanceOnPull": true,
+      "sourceFile": "sync/service.go",
+      "line": [196, 244],
+      "sourceSha256": "dd8fb951f57876422b84783f18aeeb58611f90dacd4acbaee2444588585da6f1"
+    },
+    "deviceState": {
+      "authUpsert": "sets lastSeq=0 and upserts the row for (uid,deviceId) on each auth",
+      "pushUpdate": "successful push stores lastSeq and lastSeen; a partially committed push error stores lastSeq when positive",
+      "sourceFile": "sync/service.go",
+      "line": [182, 194, 223, 236],
+      "sourceSha256": "dd8fb951f57876422b84783f18aeeb58611f90dacd4acbaee2444588585da6f1",
+      "repositorySourceFile": "repository/repository.go",
+      "repositoryLine": [42, 55],
+      "repositorySha256": "0c50bc9c00d7efaaf9bacbaef98b4f47a101fefaf5b01c9f7971590efe140727"
+    },
+    "attachments": {
+      "maxBlobBytes": 10485760,
+      "digest": "MD5; canonical stored spelling md5-<lowercase hex>",
+      "documentReference": "_attachments values become revision_attachments rows; references use digest/content_type/length/revpos and are emitted as stubs on pull",
+      "pushGate": "before any revision write, non-deleted changes are scanned and push_missing returns sorted missing digests if any blob is absent for that uid",
+      "blobScope": "uid + digest",
+      "listScope": "attachments referenced by current winning revisions",
+      "sourceFile": "sync/attachments.go",
+      "line": [17, 44, 46, 83, 85, 109, 111, 122],
+      "sourceSha256": "b7c671ff53bfa22f38b3464d470d1c001673a6bdecb62097331bdcbbc8344559",
+      "pushGateSourceFile": "sync/service.go",
+      "pushGateLine": [438, 471],
+      "pushGateSha256": "dd8fb951f57876422b84783f18aeeb58611f90dacd4acbaee2444588585da6f1",
+      "pullStubSourceFile": "sync/revisions.go",
+      "pullStubLine": [61, 73],
+      "pullStubSha256": "098f221bedd7a27bfd2348af6f7bc5c236d17d7abdfd06aa9c8a565f30374481"
+    }
+  },
+  "environment": [
+    {"name": "PORT", "default": "23517", "sourceFile": "config/config.go", "line": [57, 65], "sourceSha256": "1a4c22ee0e217e64c90d68681a40b87021542fd27c3757075625af66a1e8d314"},
+    {"name": "DATA_DIR", "default": "data/standalone", "sourceFile": "config/config.go", "line": [26, 30], "sourceSha256": "1a4c22ee0e217e64c90d68681a40b87021542fd27c3757075625af66a1e8d314"},
+    {"name": "DB_DRIVER", "default": "sqlite", "values": ["sqlite", "mysql"], "sourceFile": "config/config.go", "line": [32, 41], "sourceSha256": "1a4c22ee0e217e64c90d68681a40b87021542fd27c3757075625af66a1e8d314"},
+    {"name": "SQLITE_PATH", "default": "$DATA_DIR/ztools.db", "sourceFile": "config/config.go", "line": [34, 37], "sourceSha256": "1a4c22ee0e217e64c90d68681a40b87021542fd27c3757075625af66a1e8d314"},
+    {"name": "MYSQL_DSN", "default": "assembled from MYSQL_* values", "sourceFile": "config/config.go", "line": [106, 115], "sourceSha256": "1a4c22ee0e217e64c90d68681a40b87021542fd27c3757075625af66a1e8d314"},
+    {"name": "MYSQL_USER", "default": "root", "sourceFile": "config/config.go", "line": [106, 115], "sourceSha256": "1a4c22ee0e217e64c90d68681a40b87021542fd27c3757075625af66a1e8d314"},
+    {"name": "MYSQL_PASSWORD", "default": "empty", "sourceFile": "config/config.go", "line": [106, 115], "sourceSha256": "1a4c22ee0e217e64c90d68681a40b87021542fd27c3757075625af66a1e8d314"},
+    {"name": "MYSQL_HOST", "default": "127.0.0.1", "sourceFile": "config/config.go", "line": [106, 115], "sourceSha256": "1a4c22ee0e217e64c90d68681a40b87021542fd27c3757075625af66a1e8d314"},
+    {"name": "MYSQL_PORT", "default": "3306", "sourceFile": "config/config.go", "line": [106, 115], "sourceSha256": "1a4c22ee0e217e64c90d68681a40b87021542fd27c3757075625af66a1e8d314"},
+    {"name": "MYSQL_DATABASE", "default": "ztools_sync", "sourceFile": "config/config.go", "line": [106, 115], "sourceSha256": "1a4c22ee0e217e64c90d68681a40b87021542fd27c3757075625af66a1e8d314"},
+    {"name": "JWT_SECRET", "default": "load or create 32 random bytes as hex under DATA_DIR/server-secret", "sourceFile": "config/config.go", "line": [68, 92], "sourceSha256": "1a4c22ee0e217e64c90d68681a40b87021542fd27c3757075625af66a1e8d314"},
+    {"name": "ALLOW_REGISTRATION", "default": "false", "sourceFile": "config/config.go", "line": [47, 50], "sourceSha256": "1a4c22ee0e217e64c90d68681a40b87021542fd27c3757075625af66a1e8d314"},
+    {"name": "ZTOOLS_USERNAME", "default": "empty; bootstrap owner username", "sourceFile": "config/config.go", "line": [51, 55], "sourceSha256": "1a4c22ee0e217e64c90d68681a40b87021542fd27c3757075625af66a1e8d314"},
+    {"name": "ZTOOLS_PASSWORD", "default": "empty; must be configured together with ZTOOLS_USERNAME", "sourceFile": "config/config.go", "line": [51, 55], "sourceSha256": "1a4c22ee0e217e64c90d68681a40b87021542fd27c3757075625af66a1e8d314"}
+  ],
+  "database": {
+    "defaultDriver": "sqlite",
+    "protocolMetadata": {"protocol_version": "2 if missing", "sync_epoch": "max changelog seq at initial creation; source only initializes it if missing", "server_instance_id": "random 16 bytes as 32 lowercase hex chars, persisted if missing"},
+    "sqlite": {
+      "connectionPool": {"maxOpen": 1, "maxIdle": 1},
+      "pragmas": ["journal_mode=WAL", "busy_timeout=5000", "foreign_keys=ON", "synchronous=NORMAL"],
+      "migrationSourceFile": "store/migrations/sqlite/V001__sync_schema.sql",
+      "migrationLine": [1, 128],
+      "migrationSha256": "132ecb3ceb0528dd9dbb40a2521b06ede79b7d2fc69fad087acaa334a3fd7339",
+      "documentBytesMigrationSourceFile": "store/migrations/sqlite/V002__document_json_bytes.sql",
+      "documentBytesMigrationLine": [1, 5],
+      "documentBytesMigrationSha256": "fcb995ce7eb777b200a94dc847d12ea7f5dba9721e6e5ac4b2ef2ba454299d6a"
+    },
+    "mysql": {
+      "connectionPool": {"maxOpen": 32, "maxIdle": 8, "maxLifetimeMinutes": 30},
+      "migrationSourceFile": "store/migrations/mysql/V001__sync_schema.sql",
+      "migrationLine": [1, 123],
+      "migrationSha256": "a0c28380f3e9759c77486eb03db97d130d9839194b02ca8791509b57ca8686f6",
+      "documentBytesMigrationSourceFile": "store/migrations/mysql/V002__document_json_bytes.sql",
+      "documentBytesMigrationLine": [1, 5],
+      "documentBytesMigrationSha256": "76fd7927c09f8133c37fff74f92da6a07c6b4fd98175e731d700a67de8a620c8"
+    },
+    "tables": [
+      {"name": "users", "columns": "uid PK, nickname, password_hash, avatar_url, created_at", "sourceFile": "store/migrations/sqlite/V001__sync_schema.sql", "line": [1, 7], "sourceSha256": "132ecb3ceb0528dd9dbb40a2521b06ede79b7d2fc69fad087acaa334a3fd7339"},
+      {"name": "refresh_tokens", "columns": "id PK, uid, token_hash unique, expires_at, used_at, revoked_at, created_at; index uid", "sourceFile": "store/migrations/sqlite/V001__sync_schema.sql", "line": [9, 20], "sourceSha256": "132ecb3ceb0528dd9dbb40a2521b06ede79b7d2fc69fad087acaa334a3fd7339"},
+      {"name": "documents", "columns": "uid+doc_id PK, doc_json, rev, last_modified, deleted, doc_json_bytes added by V002; deleted/doc_json_bytes index", "sourceFile": "store/migrations/sqlite/V001__sync_schema.sql", "line": [22, 30], "sourceSha256": "132ecb3ceb0528dd9dbb40a2521b06ede79b7d2fc69fad087acaa334a3fd7339", "extensionSourceFile": "store/migrations/sqlite/V002__document_json_bytes.sql", "extensionLine": [1, 4], "extensionSha256": "fcb995ce7eb777b200a94dc847d12ea7f5dba9721e6e5ac4b2ef2ba454299d6a"},
+      {"name": "document_revisions", "columns": "uid+doc_id+rev PK, parent_rev, doc_json, deleted, last_modified, created_at, device_id, generation, is_leaf, is_winner; indexes uid+doc and uid+doc+leaf", "sourceFile": "store/migrations/sqlite/V001__sync_schema.sql", "line": [32, 50], "sourceSha256": "132ecb3ceb0528dd9dbb40a2521b06ede79b7d2fc69fad087acaa334a3fd7339"},
+      {"name": "document_write_locks", "columns": "uid+doc_id PK, updated_at", "sourceFile": "store/migrations/sqlite/V001__sync_schema.sql", "line": [51, 56], "sourceSha256": "132ecb3ceb0528dd9dbb40a2521b06ede79b7d2fc69fad087acaa334a3fd7339"},
+      {"name": "changelog", "columns": "seq PK autoincrement, uid, doc_id, rev, deleted, timestamp, device_id, doc_type, attachment_meta, parent_rev, winner_rev, protocol_version, resolution, doc_json_bytes; index uid+seq", "sourceFile": "store/migrations/sqlite/V001__sync_schema.sql", "line": [58, 75], "sourceSha256": "132ecb3ceb0528dd9dbb40a2521b06ede79b7d2fc69fad087acaa334a3fd7339"},
+      {"name": "device_sync_state", "columns": "uid+device_id PK, last_seq, last_seen, device_name", "sourceFile": "store/migrations/sqlite/V001__sync_schema.sql", "line": [77, 84], "sourceSha256": "132ecb3ceb0528dd9dbb40a2521b06ede79b7d2fc69fad087acaa334a3fd7339"},
+      {"name": "attachment_blobs", "columns": "uid+digest PK, content_type, length, data BLOB, created_at", "sourceFile": "store/migrations/sqlite/V001__sync_schema.sql", "line": [86, 94], "sourceSha256": "132ecb3ceb0528dd9dbb40a2521b06ede79b7d2fc69fad087acaa334a3fd7339"},
+      {"name": "revision_attachments", "columns": "uid+doc_id+rev+name PK, digest, content_type, length, revpos, created_at; uid+digest and uid+doc indexes", "sourceFile": "store/migrations/sqlite/V001__sync_schema.sql", "line": [96, 110], "sourceSha256": "132ecb3ceb0528dd9dbb40a2521b06ede79b7d2fc69fad087acaa334a3fd7339"},
+      {"name": "sync_meta", "columns": "key PK, value", "sourceFile": "store/migrations/sqlite/V001__sync_schema.sql", "line": [112, 115], "sourceSha256": "132ecb3ceb0528dd9dbb40a2521b06ede79b7d2fc69fad087acaa334a3fd7339"},
+      {"name": "sync_checkpoints", "columns": "uid+checkpoint_id PK, source_id, target_id, last_seq, checkpoint_json, updated_at; uid+updated_at index", "sourceFile": "store/migrations/sqlite/V001__sync_schema.sql", "line": [117, 128], "sourceSha256": "132ecb3ceb0528dd9dbb40a2521b06ede79b7d2fc69fad087acaa334a3fd7339"},
+      {"name": "ztools_core_migrations", "columns": "version PK, name, checksum, applied_at; migration bookkeeping table", "sourceFile": "store/migrator.go", "line": [54, 67], "sourceSha256": "5ea096ca64c438a587aa6d526dc9822a5220351b8e3e540798061c5657d59b74"}
+    ],
+    "schemaCaveat": "models/models.go also declares daily_activity and daily_activity_stats, but they are not in these standalone SQLite/MySQL migrations or the required-table list; do not infer them as standalone sync tables.",
+    "sourceFile": "store/store.go",
+    "sourceLine": [23, 47, 81, 84, 110, 137, 175],
+    "sourceSha256": "6d07081bc5da71f51ada3cd2eb5d053cb29f95afd45e4bc3a6b9f39ea08b55e3",
+    "modelsSourceFile": "models/models.go",
+    "modelsSourceLine": [3, 161],
+    "modelsSourceSha256": "eddbd789656fef2581ca15c7238e8391483a326c24f5063a6696a812c90c4e50"
+  },
+  "futureAxumSlice": {
+    "firstVerticalSlice": ["standalone config+startup", "SQLite schema/migrations without heed substitution", "GET /health and GET / identity", "credential login + Bearer JWT verification", "WebSocket upgrade + auth/auth_ok"],
+    "secondSliceDependencies": ["exact ClientMessage/ServerMessage/FullChangeEntry JSON fields", "per-user changelog/revision transactions", "pull streaming and snapshot/epoch rules", "checkpoint API", "attachment blob/missingDigest loop"],
+    "dataStoreDecision": "The source's default persistence is SQLite WAL and supports MySQL. Do not replace it with heed without an explicit migration/snapshot acceptance proving existing users, revisions, changelog sequence, checkpoints, attachment blobs/references, reopen/recovery, and round-trip equality.",
+    "compatibilityLimit": "A matching schema or type list alone is not runtime interoperability. Later Axum implementation needs tests against this frozen contract and, separately, data migration evidence."
+  },
+  "sourceFiles": [
+    {"file": "transport/router.go", "sha256": "804e3a8f499ac2248f251e9b6ead462b781b3d4d3a83ab2c07737c556b06d160"},
+    {"file": "transport/auth_handler.go", "sha256": "4aa4006d493fb7366da6f02ef9fbe6c3728efa02540547074db2732c6fc78976"},
+    {"file": "transport/attachment_handler.go", "sha256": "b21cfc5ef7ba4db9fecac97f05d9e4bc48cd61867addbba15d6f6cab06da56e0"},
+    {"file": "transport/json.go", "sha256": "7bef7e9f16795ab677eda2dc3246b64b2efd1df890046f10d458c6a8f741ce59"},
+    {"file": "transport/ws_handler.go", "sha256": "6ae8d1829ca1477df29236deefdf77207192e7dd10a8807d8d6dc6d30f4d0e80"},
+    {"file": "transport/hub.go", "sha256": "4dd0c33adbeddf531ee6be4f9ffbe7c86f33ed8dccb321b7c0015f448db9d914"},
+    {"file": "transport/ws_read.go", "sha256": "9cfcd08e3ea2a89aba086cfa3da6afdf629708b96a585dcbd9107dabf3644096"},
+    {"file": "transport/ws_pull.go", "sha256": "c130647d825ce1a62846a302059d7e08959944d05155dfe597c74d1e8e8e2164"},
+    {"file": "auth/auth.go", "sha256": "9061e1fecb67168298b07eff882b227a7f43e4140955df7c3101efadbfa98d6a"},
+    {"file": "config/config.go", "sha256": "1a4c22ee0e217e64c90d68681a40b87021542fd27c3757075625af66a1e8d314"},
+    {"file": "cmd/ztools-sync-server/main.go", "sha256": "34207e6864184e396c3d0a832f162ddc17191066185bce0573c9cceb48270dc7"},
+    {"file": "sync/types.go", "sha256": "2202d56f7c9ef24312b86676cc46315a34f8bee6834971440c079342c37f8eaa"},
+    {"file": "sync/service.go", "sha256": "dd8fb951f57876422b84783f18aeeb58611f90dacd4acbaee2444588585da6f1"},
+    {"file": "sync/pull.go", "sha256": "0c7400ac00f15592e586b69b34fbf6baf0708996f49b9285a432007583533184"},
+    {"file": "sync/revisions.go", "sha256": "098f221bedd7a27bfd2348af6f7bc5c236d17d7abdfd06aa9c8a565f30374481"},
+    {"file": "sync/revision_history.go", "sha256": "75a4a1e09bca98a323da728390efc7bbbeb8cfc69e1b03b7a0715676f0f70e0c"},
+    {"file": "sync/attachments.go", "sha256": "b7c671ff53bfa22f38b3464d470d1c001673a6bdecb62097331bdcbbc8344559"},
+    {"file": "repository/repository.go", "sha256": "0c50bc9c00d7efaaf9bacbaef98b4f47a101fefaf5b01c9f7971590efe140727"},
+    {"file": "models/models.go", "sha256": "eddbd789656fef2581ca15c7238e8391483a326c24f5063a6696a812c90c4e50"},
+    {"file": "store/store.go", "sha256": "6d07081bc5da71f51ada3cd2eb5d053cb29f95afd45e4bc3a6b9f39ea08b55e3"},
+    {"file": "store/migrator.go", "sha256": "5ea096ca64c438a587aa6d526dc9822a5220351b8e3e540798061c5657d59b74"},
+    {"file": "store/migrations/sqlite/V001__sync_schema.sql", "sha256": "132ecb3ceb0528dd9dbb40a2521b06ede79b7d2fc69fad087acaa334a3fd7339"},
+    {"file": "store/migrations/sqlite/V002__document_json_bytes.sql", "sha256": "fcb995ce7eb777b200a94dc847d12ea7f5dba9721e6e5ac4b2ef2ba454299d6a"},
+    {"file": "store/migrations/mysql/V001__sync_schema.sql", "sha256": "a0c28380f3e9759c77486eb03db97d130d9839194b02ca8791509b57ca8686f6"},
+    {"file": "store/migrations/mysql/V002__document_json_bytes.sql", "sha256": "76fd7927c09f8133c37fff74f92da6a07c6b4fd98175e731d700a67de8a620c8"},
+    {"file": "go.mod", "sha256": "010a8482ae912c05bd4d0ce9323b446cca0779730f104667d3f46bcf2f845f3b"},
+    {"file": "LICENSE", "sha256": "3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04"}
+  ]
+}

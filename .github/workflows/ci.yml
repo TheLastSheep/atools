@@ -58,6 +58,10 @@ jobs:
             echo "::error title=Fast-tier diagnostics::$diagnostic"
             exit 1
           }
+      - name: Verify compressed-runtime release profile contract without signing inputs
+        run: |
+          pnpm test:node-runtime-compressed-payload
+          pnpm test:node-runtime-compressed-bundle
       - run: pnpm check
 
   browser-and-desktop:
@@ -206,13 +210,95 @@ jobs:
         with:
           shared-key: runtime-performance
       - run: pnpm install --frozen-lockfile
-      - name: Build unsigned release app for measurement
-        run: pnpm tauri build --bundles app --config '{"bundle":{"createUpdaterArtifacts":false}}'
+      - name: Prepare raw developer-profile Node runtime for diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="$(rustc -vV | sed -n 's/^host: //p')"
+          test -n "$target"
+          node scripts/prepare-node-runtime.mjs --target "$target"
+      - name: Stage and pin built-in plugin resources for bundle measurement
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="$(rustc -vV | sed -n 's/^host: //p')"
+          stage_id="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          case "$target" in
+            aarch64-apple-darwin) arch=arm64 ;;
+            x86_64-apple-darwin) arch=x64 ;;
+            *) echo "Unsupported Node bundle target: $target" >&2; exit 1 ;;
+          esac
+          node scripts/prepare-builtin-runtime-resources.mjs --write --apply-candidate-rules \
+            --output "target/builtin-runtime-staging/$stage_id/$target" --target-platform darwin --target-arch "$arch"
+      - name: Exercise staged PDF merge inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo_root="$(pwd -P)"
+          runner_temp="$(cd "$RUNNER_TEMP" && pwd -P)"
+          target="$(rustc -vV | sed -n 's/^host: //p')"
+          stage_id="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          staged_root="$repo_root/target/builtin-runtime-staging/$stage_id/$target"
+          pdf_temp_parent=""
+          pdf_temp_identity=""
+          cleanup_pdf_temp() {
+            status=$?
+            trap - EXIT
+            if [[ -z "$pdf_temp_parent" ]]; then exit "$status"; fi
+            case "$pdf_temp_parent" in
+              "$runner_temp"/atools-pdf-stage-smoke.*) ;;
+              *) echo "PDF smoke cleanup path escaped runner temp" >&2; if [[ "$status" -eq 0 ]]; then status=1; fi; exit "$status" ;;
+            esac
+            if [[ -L "$pdf_temp_parent" || ! -d "$pdf_temp_parent" ]]; then
+              echo "PDF smoke cleanup refused a replaced temporary directory" >&2
+              if [[ "$status" -eq 0 ]]; then status=1; fi
+              exit "$status"
+            fi
+            if ! current_identity="$(stat -f '%d:%i:%u:%Lp' "$pdf_temp_parent" 2>/dev/null)"; then
+              current_identity=""
+            fi
+            if [[ -z "$pdf_temp_identity" || "$current_identity" != "$pdf_temp_identity" ]]; then
+              echo "PDF smoke cleanup refused an unverified temporary directory" >&2
+              if [[ "$status" -eq 0 ]]; then status=1; fi
+              exit "$status"
+            fi
+            if ! rm -rf "$pdf_temp_parent"; then
+              echo "PDF smoke temporary directory cleanup failed" >&2
+              if [[ "$status" -eq 0 ]]; then status=1; fi
+            fi
+            exit "$status"
+          }
+          pdf_temp_parent="$(mktemp -d "$runner_temp/atools-pdf-stage-smoke.XXXXXX")"
+          if ! pdf_temp_identity="$(stat -f '%d:%i:%u:%Lp' "$pdf_temp_parent")"; then
+            if [[ ! -L "$pdf_temp_parent" && -d "$pdf_temp_parent" ]]; then
+              rmdir "$pdf_temp_parent" || echo "Could not remove empty PDF smoke temp directory" >&2
+            fi
+            exit 1
+          fi
+          trap cleanup_pdf_temp EXIT
+          node scripts/test-builtin-runtime-staging-pdf.mjs --staged-root "$staged_root" --owned-temp-parent "$pdf_temp_parent"
+      - name: Build raw Node developer-profile app for diagnostic measurement
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="$(rustc -vV | sed -n 's/^host: //p')"
+          stage_id="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          node scripts/prepare-node-runtime-benchmark-config.mjs --target "$target" --stage-id "$stage_id" \
+            > "$RUNNER_TEMP/tauri.node-runtime-benchmark.conf.json"
+          pnpm tauri build --bundles app --config "$RUNNER_TEMP/tauri.node-runtime-benchmark.conf.json"
+          app_path="$PWD/target/release/bundle/macos/ATools 3.0.app"
+          if [[ ! -d "$app_path" ]]; then
+            app_path="$PWD/src-tauri/target/release/bundle/macos/ATools 3.0.app"
+          fi
+          test -d "$app_path"
+          node scripts/verify-builtin-runtime-bundle.mjs --app "$app_path" --target "$target"
+          node scripts/verify-node-runtime-bundle.mjs --app "$app_path" --target "$target"
+          echo "ATOOLS_RUNTIME_BENCHMARK_APP=$app_path" >> "$GITHUB_ENV"
       - name: Record package, launch, and resource evidence
         shell: bash
         run: |
           set -o pipefail
-          pnpm benchmark:runtime:ci 2>&1 | tee runtime-performance.log || {
+          pnpm run benchmark:runtime:ci -- --app "$ATOOLS_RUNTIME_BENCHMARK_APP" 2>&1 | tee runtime-performance.log || {
             diagnostic="$(tail -n 80 runtime-performance.log)"
             diagnostic="${diagnostic//'%'/'%25'}"
             diagnostic="${diagnostic//$'\r'/'%0D'}"
@@ -221,6 +307,7 @@ jobs:
             exit 1
           }
       - name: Upload reproducible runtime report
+        if: always() && hashFiles('artifacts/performance/macos-runtime.json') != ''
         uses: actions/upload-artifact@v7
         with:
           name: macos-runtime-performance-${{ github.sha }}

@@ -27,6 +27,8 @@ export default defineConfig({
     chunkSizeWarningLimit: 640,
     rollupOptions: {
       output: {
+        // A named lazy chunk must not absorb shared launcher dependencies.
+        onlyExplicitManualChunks: true,
         manualChunks(id) {
           if (id.includes("node_modules/pinyin-pro")) return "pinyin-engine";
           if (id.endsWith("/src/components/PluginPanel.svelte")) return "plugin-panel";

@@ -38,7 +38,13 @@ pnpm benchmark:runtime:ci
 
 基准记录 `.app` 目录与主可执行文件的原始字节数，并连续启动 20 个全新应用进程。每轮采集 LaunchServices 调用到进程出现、首份前端 release-smoke 报告、完整 smoke 的耗时，以及完成 smoke 时的 RSS/CPU 点样本；同一轮会首次调用内置计算器的 `activate_feature`，在插件主 iframe 触发宿主原生 `load` 事件时结束计时，由此生成插件冷启动 P50/P95/P99。随后再启动第 21 个独立进程，等完整 release-smoke 结束后保持 300 秒，确认进程仍存活，再记录稳定空闲 RSS/CPU 点样本。报告使用 `schema_version: 3`，保存为 `macos-runtime-performance-<commit>` artifact 30 天，文件路径为 `artifacts/performance/macos-runtime.json`。
 
-首份 release-smoke 报告证明 Tauri bridge、前端入口和原生 command 已经可以交互，因此是可自动复现的“启动到首个前端交互报告”代理指标，不等同于重启机器后的冷启动首帧。插件激活指标覆盖后端 feature 激活、PluginPanel 首次懒加载、插件 HTML/bridge 注入和主 iframe 全部资源 load；完成点由宿主原生事件确认，不依赖插件自报，但仍不等同于复杂第三方重型插件或同机竞品数据。常规 20 轮 RSS/CPU 是 smoke 完成时点样本；`idle_sample` 才是启动完成并稳定 5 分钟后的存活与资源点样本，但仍不等同于连续采样、漂移分析或同机竞品对比。当前 5 秒首报告、300 MiB RSS、100 MiB `.app` 仅作为共享 runner 的软告警线；先积累真实数据，形成稳定基线后才能升级为阻断门槛。
+首份 release-smoke 报告证明 Tauri bridge、前端入口和原生 command 已经可以交互，因此是可自动复现的“启动到首个前端交互报告”代理指标，不等同于重启机器后的冷启动首帧。插件激活指标覆盖后端 feature 激活、PluginPanel 首次懒加载、插件 HTML/bridge 注入和主 iframe 全部资源 load；完成点由宿主原生事件确认，不依赖插件自报，但仍不等同于复杂第三方重型插件或同机竞品数据。常规 20 轮 RSS/CPU 是 smoke 完成时点样本；`idle_sample` 才是启动完成并稳定 5 分钟后的存活与资源点样本，但仍不等同于连续采样、漂移分析或同机竞品对比。5 秒首报告、300 MiB RSS、100 MiB `.app` 在报告中标为 `warn`；当前 CI 命令显式传入 `--fail-on-threshold`，因此本 job 会在任一阈值超出时以非零状态结束。不要把“报告级 warn”误读为“CI 不阻断”。
+
+## Node runtime release-profile bundle gate
+
+运行时性能 job 现在先按 `resources/node-runtime/pin.json` 准备目标架构 Node，再从 `src-tauri/tauri.node-runtime.conf.json` 生成只增加 `createUpdaterArtifacts: false` 的单一临时配置，构建与发布一致的 Node-bearing `.app`，验证包内 Node 后才运行 100 MiB gate。配置 helper 会保留 canonical overlay 的所有字段；移除或变更 `externalBin`、runtime metadata 或 macOS minimum version 会让准备失败。
+
+当前 arm64 Node pin 为 112,925,600 bytes（107.69 MiB），单个文件已超过 100 MiB 原始 `.app` 阈值 8,068,000 bytes；x64 pin 也超过阈值。因而该 gate 应公开报告这项预算冲突，而不能通过省略 sidecar、使用压缩 DMG 字节数、跳过失败或放宽阈值来变绿。后续独立的生产 profile 测量已补上实际 `.app` 尺寸：source freeze v27 上的 unsigned arm64 Node-bearing app 为 193,562,413 bytes（184.5955 MiB），比 100 MiB gate 高 88,704,813 bytes；包内 Node 为 112,925,600 bytes，原生可执行文件为 25,026,160 bytes，其他资源（不含 `Info.plist`）为 55,609,439 bytes。该报告只证明构建产物字节数与 Node 包校验，未启动应用，也未验证签名、公证、DMG 或运行时可用性。参见[生产 app v27 报告](../output/plugin-input-2026-10-20/batch230-root-evidence-v1/reports/production-app-v27.json)。这项实测仍未改变 100 MiB gate 的失败状态；DMG 压缩大小也不是当前 gate 的测量对象。
 
 ## 同机竞品对比
 

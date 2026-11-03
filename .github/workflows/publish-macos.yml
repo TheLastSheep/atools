@@ -140,6 +140,81 @@ jobs:
         with:
           shared-key: publish-${{ matrix.target }}
       - run: pnpm install --frozen-lockfile
+      - uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.APPLE_CERTIFICATE }}
+          p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      - name: Stage and pin built-in plugin resources
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="${{ matrix.target }}"
+          stage_id="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          case "$target" in
+            aarch64-apple-darwin) arch=arm64 ;;
+            x86_64-apple-darwin) arch=x64 ;;
+            *) echo "Unsupported Node bundle target: $target" >&2; exit 1 ;;
+          esac
+          node scripts/prepare-builtin-runtime-resources.mjs --write --apply-candidate-rules \
+            --output "target/builtin-runtime-staging/$stage_id/$target" --target-platform darwin --target-arch "$arch"
+      - name: Exercise staged PDF merge inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo_root="$(pwd -P)"
+          runner_temp="$(cd "$RUNNER_TEMP" && pwd -P)"
+          target="${{ matrix.target }}"
+          stage_id="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          staged_root="$repo_root/target/builtin-runtime-staging/$stage_id/$target"
+          pdf_temp_parent=""
+          pdf_temp_identity=""
+          cleanup_pdf_temp() {
+            status=$?
+            trap - EXIT
+            if [[ -z "$pdf_temp_parent" ]]; then exit "$status"; fi
+            case "$pdf_temp_parent" in
+              "$runner_temp"/atools-pdf-stage-smoke.*) ;;
+              *) echo "PDF smoke cleanup path escaped runner temp" >&2; if [[ "$status" -eq 0 ]]; then status=1; fi; exit "$status" ;;
+            esac
+            if [[ -L "$pdf_temp_parent" || ! -d "$pdf_temp_parent" ]]; then
+              echo "PDF smoke cleanup refused a replaced temporary directory" >&2
+              if [[ "$status" -eq 0 ]]; then status=1; fi
+              exit "$status"
+            fi
+            if ! current_identity="$(stat -f '%d:%i:%u:%Lp' "$pdf_temp_parent" 2>/dev/null)"; then
+              current_identity=""
+            fi
+            if [[ -z "$pdf_temp_identity" || "$current_identity" != "$pdf_temp_identity" ]]; then
+              echo "PDF smoke cleanup refused an unverified temporary directory" >&2
+              if [[ "$status" -eq 0 ]]; then status=1; fi
+              exit "$status"
+            fi
+            if ! rm -rf "$pdf_temp_parent"; then
+              echo "PDF smoke temporary directory cleanup failed" >&2
+              if [[ "$status" -eq 0 ]]; then status=1; fi
+            fi
+            exit "$status"
+          }
+          pdf_temp_parent="$(mktemp -d "$runner_temp/atools-pdf-stage-smoke.XXXXXX")"
+          if ! pdf_temp_identity="$(stat -f '%d:%i:%u:%Lp' "$pdf_temp_parent")"; then
+            if [[ ! -L "$pdf_temp_parent" && -d "$pdf_temp_parent" ]]; then
+              rmdir "$pdf_temp_parent" || echo "Could not remove empty PDF smoke temp directory" >&2
+            fi
+            exit 1
+          fi
+          trap cleanup_pdf_temp EXIT
+          node scripts/test-builtin-runtime-staging-pdf.mjs --staged-root "$staged_root" --owned-temp-parent "$pdf_temp_parent"
+      - name: Sign, compress, verify, and configure the pinned Node payload
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="${{ matrix.target }}"
+          stage_id="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          node scripts/prepare-node-runtime-compressed-release.mjs --target "$target" --stage-id "$stage_id" \
+            > "$RUNNER_TEMP/tauri.node-runtime-release.conf.json"
       - name: Build, sign, notarize, and upload
         uses: tauri-apps/tauri-action@v0
         env:
@@ -159,7 +234,7 @@ jobs:
           releaseDraft: true
           uploadUpdaterJson: true
           retryAttempts: 2
-          args: --target ${{ matrix.target }} --bundles app,dmg
+          args: --target ${{ matrix.target }} --features compressed-node-runtime --bundles app,dmg --config ${{ runner.temp }}/tauri.node-runtime-release.conf.json
 
   verify-release:
     needs: [prepare-draft, publish-macos]
@@ -219,6 +294,8 @@ jobs:
           mkdir -p release-assets
           gh release download "$GITHUB_REF_NAME" --dir release-assets
       - name: Verify signed and notarized bundle
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           set -euo pipefail
           shopt -s nullglob
@@ -234,6 +311,8 @@ jobs:
           codesign --verify --deep --strict "$app_path"
           spctl --assess --type execute "$app_path"
           xcrun stapler validate "$app_path"
+          node scripts/verify-compressed-node-runtime-bundle.mjs --app "$app_path" --target ${{ matrix.target }} --team-id "$APPLE_TEAM_ID" --execute
+          node scripts/verify-builtin-runtime-bundle.mjs --app "$app_path" --target ${{ matrix.target }} --enforce-100mib
           pnpm smoke:macos-release-app -- --app "$app_path" --strict --strict-gatekeeper
       - name: Detach release DMG
         if: always()
