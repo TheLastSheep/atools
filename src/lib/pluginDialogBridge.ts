@@ -8,6 +8,7 @@ export function normalizeDialogBridgeOptions(options: unknown): Record<string, u
 export function pluginDialogSmokeGuardEnabled(
   env: Record<string, unknown> = import.meta.env as Record<string, unknown>,
 ): boolean {
+  if (env.VITE_ATOOLS_NATIVE_DIALOG_ACCEPTANCE === "true") return false;
   const value = env.VITE_ATOOLS_DESKTOP_SMOKE;
   if (value === true) return true;
   if (typeof value !== "string") return false;

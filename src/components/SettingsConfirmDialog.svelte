@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { settingsConfirmFocus } from "../lib/settingsConfirmFocus";
+  import { modalFocusOwner } from "../lib/modalFocusOwner";
   type Props = {
     title: string;
     message: string;
@@ -24,6 +26,7 @@
   }
 
   function onWindowKeydown(event: KeyboardEvent) {
+    if (event.isComposing || event.keyCode === 229 || !modalFocusOwner()?.classList.contains("confirm-panel")) return;
     if (event.key === "Escape") {
       event.preventDefault();
       event.stopImmediatePropagation();
@@ -39,6 +42,8 @@
   <button class="confirm-scrim" aria-label={cancelLabel} onclick={oncancel}></button>
   <div
     class="confirm-panel"
+    tabindex="-1"
+    use:settingsConfirmFocus={{ cancel: () => oncancel() }}
     class:danger={tone === "danger"}
     role="dialog"
     aria-modal="true"
@@ -60,7 +65,7 @@
       </div>
     </div>
     <div class="confirm-actions">
-      <button class="confirm-button" onclick={oncancel}>{cancelLabel}</button>
+      <button class="confirm-button" data-confirm-cancel onclick={oncancel}>{cancelLabel}</button>
       <button class="confirm-button primary" class:danger={tone === "danger"} onclick={onconfirm}>
         {confirmLabel}
       </button>
@@ -94,10 +99,12 @@
     grid-template-columns: 44px minmax(0, 1fr);
     gap: 14px;
     padding: 18px;
-    border: 1px solid rgba(0, 0, 0, 0.12);
+    max-height: calc(100dvh - 48px);
+    overflow: auto;
+    border: 1px solid var(--border-strong);
     border-radius: 12px;
-    color: #303236;
-    background: color-mix(in srgb, var(--bg-primary) 96%, white);
+    color: var(--text-primary);
+    background: var(--bg-elevated);
     box-shadow: 0 26px 70px rgba(0, 0, 0, 0.28);
   }
 
@@ -124,7 +131,7 @@
 
   .confirm-copy h3 {
     margin: 0 0 8px;
-    color: #303236;
+    color: var(--text-primary);
     font-size: 17px;
     font-weight: 800;
     line-height: 1.25;
@@ -138,7 +145,8 @@
 
   .confirm-message p {
     margin: 0;
-    color: rgba(48, 50, 54, 0.68);
+    color: var(--text-secondary);
+    overflow-wrap: anywhere;
     font-size: 13px;
     line-height: 1.45;
   }
@@ -155,22 +163,27 @@
     min-width: 86px;
     min-height: 40px;
     padding: 0 16px;
-    border: 1px solid rgba(0, 0, 0, 0.12);
+    border: 1px solid var(--border-strong);
     border-radius: 8px;
-    color: #303236;
-    background: rgba(0, 0, 0, 0.035);
+    color: var(--text-primary);
+    background: var(--bg-secondary);
     font-size: 14px;
     font-weight: 700;
   }
 
   .confirm-button:hover {
     color: var(--accent);
-    border-color: color-mix(in srgb, var(--accent) 42%, rgba(0, 0, 0, 0.12));
+    border-color: color-mix(in srgb, var(--accent) 42%, var(--border-strong));
     background: var(--accent-subtle);
   }
 
+  .confirm-button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
   .confirm-button.primary {
-    color: #fff;
+    color: var(--accent-foreground);
     border-color: var(--accent);
     background: var(--accent);
   }
@@ -181,35 +194,4 @@
     background: #dc2626;
   }
 
-  @media (prefers-color-scheme: dark) {
-    .confirm-scrim {
-      background: rgba(0, 0, 0, 0.38);
-    }
-
-    .confirm-panel {
-      border-color: rgba(255, 255, 255, 0.12);
-      color: #f2f3f5;
-      background: rgba(48, 49, 51, 0.98);
-      box-shadow: 0 26px 70px rgba(0, 0, 0, 0.46);
-    }
-
-    .confirm-copy h3,
-    .confirm-button {
-      color: #f2f3f5;
-    }
-
-    .confirm-message p {
-      color: rgba(242, 243, 245, 0.66);
-    }
-
-    .confirm-button {
-      border-color: rgba(255, 255, 255, 0.14);
-      background: rgba(255, 255, 255, 0.06);
-    }
-
-    .confirm-button.primary,
-    .confirm-button.danger {
-      color: #fff;
-    }
-  }
 </style>

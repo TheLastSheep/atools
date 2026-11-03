@@ -1,7 +1,7 @@
 import type { FeatureAction, PluginItem } from "./types";
 import { pluginBridgeRuntimeDetail } from "./pluginBridgeCapabilities";
 
-export type PluginHostBodyMode = "loading" | "error" | "iframe" | "output";
+export type PluginHostBodyMode = "loading" | "error" | "retrying" | "iframe" | "output";
 
 export type PluginHostAction = {
   id: "back" | "settings" | "detach";
@@ -29,8 +29,8 @@ export type PluginHostView = {
   chrome: {
     title: string;
     feature: string;
-    source: string;
   };
+  diagnostics: { featureCode: string; source: string };
   actions: PluginHostAction[];
   layoutSlots: Array<"titlebar" | "runtime" | "subinput" | "body">;
   bodyMode: PluginHostBodyMode;
@@ -46,6 +46,8 @@ export function pluginHostView(
   state: {
     subInputVisible: boolean;
     iframeReady: boolean;
+    settingsAvailable?: boolean;
+    retryBusy?: boolean;
     outputItems: PluginItem[];
     selectedIndex: number;
     loadError?: string | null;
@@ -61,20 +63,23 @@ export function pluginHostView(
   },
 ): PluginHostView {
   const loadError = state.loadError || "";
+  const title = action.plugin_name || action.plugin_id;
+  const featureLabel = typeof action.feature_label === "string" ? action.feature_label.trim() : "";
   const bodyMode = pluginHostBodyMode({
     loadError,
+    retryBusy: state.retryBusy ?? false,
     iframeReady: state.iframeReady,
     outputCount: state.outputItems.length,
   });
   return {
     chrome: {
-      title: action.plugin_name || action.plugin_id,
-      feature: action.feature_code,
-      source: action.plugin_id,
+      title,
+      feature: featureLabel === title.trim() ? "" : featureLabel,
     },
+    diagnostics: { featureCode: action.feature_code, source: action.plugin_id },
     actions: [
       { id: "back", label: "返回", available: true },
-      { id: "settings", label: "设置", available: false },
+      { id: "settings", label: "设置", available: state.settingsAvailable ?? false },
       { id: "detach", label: "分离", available: true },
     ],
     layoutSlots: state.subInputVisible ? ["titlebar", "runtime", "subinput", "body"] : ["titlebar", "runtime", "body"],
@@ -228,11 +233,11 @@ export function normalizePluginOutputItems(value: unknown): PluginItem[] {
 }
 
 function runtimeModeChip(bodyMode: PluginHostBodyMode): PluginHostRuntimeChip {
-  if (bodyMode === "error") {
+  if (bodyMode === "error" || bodyMode === "retrying") {
     return {
       label: "运行状态",
-      value: "加载失败",
-      detail: "查看错误信息后返回重试",
+      value: bodyMode === "retrying" ? "正在重试" : "加载失败",
+      detail: bodyMode === "retrying" ? "正在重新加载当前插件" : "查看插件加载错误信息",
       tone: "error",
     };
   }
@@ -262,10 +267,14 @@ function runtimeModeChip(bodyMode: PluginHostBodyMode): PluginHostRuntimeChip {
 
 function pluginHostBodyMode(state: {
   loadError: string;
+  retryBusy: boolean;
   iframeReady: boolean;
   outputCount: number;
 }): PluginHostBodyMode {
-  if (state.loadError) return "error";
+  if (state.loadError) {
+    if (state.retryBusy && state.iframeReady) return "retrying";
+    return "error";
+  }
   if (state.outputCount > 0) return "output";
   if (state.iframeReady) return "iframe";
   return "loading";

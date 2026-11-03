@@ -7,17 +7,20 @@
     expanded?: boolean;
     contentVisible?: boolean;
     targetHeight?: number;
+    searchVisible?: boolean;
     search: Snippet;
     children: Snippet;
   };
 
-  let { activePanel, expanded = false, contentVisible = false, targetHeight = 600, search, children }: Props = $props();
+  let { activePanel, expanded = false, contentVisible = false, targetHeight = 600, searchVisible = true, search, children }: Props = $props();
 </script>
 
 <div class="shell-frame" class:expanded style={`--shell-target-height: ${targetHeight}px`}>
-  <header class="shell-search">
-    {@render search()}
-  </header>
+  {#if searchVisible}
+    <header class="shell-search">
+      {@render search()}
+    </header>
+  {/if}
 
   {#if contentVisible}
     <main class="shell-content" class:panel={activePanel !== "home"}>

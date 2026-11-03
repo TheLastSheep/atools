@@ -8,6 +8,8 @@ export type SearchResult = {
   explain: string;
   score: number;
   match_type: string;
+  /** Search terms returned only by the fixed-content candidate commands. */
+  content_search_terms?: string[];
 };
 
 /** Mirrors Rust `FeatureAction` struct in src-tauri/src/commands.rs */
@@ -15,6 +17,8 @@ export type FeatureAction = {
   plugin_id: string;
   plugin_name: string;
   feature_code: string;
+  feature_label?: string | null;
+  feature_label_source?: "declared" | "explain" | "command_label" | "command" | null;
   main_url: string;
   plugin_path: string;
   preload_path?: string;
@@ -26,6 +30,8 @@ export type FeatureAction = {
     description?: string;
   }>;
   payload: unknown;
+  entry_type?: "regex" | "over" | "files" | "img";
+  auto_detach?: boolean;
 };
 
 /** A single output item from a plugin, displayed in the result list */
@@ -348,66 +354,13 @@ export type SkillDefinition = {
   updatedAt: string;
 };
 
-export type InstalledPlugin = {
-  id: string;
-  name: string;
-  version: string;
-  path: string;
-  enabled: boolean;
-  manifest: {
-    description?: string | null;
-    features?: Array<{
-      code: string;
-      label?: string | null;
-      explain: string;
-    }>;
-    [key: string]: unknown;
-  };
-  created_at: string;
-  updated_at: string;
-};
-
-export type PluginProviderDescriptor = {
-  id: string;
-  pluginId: string;
-  key: string;
-  type: "translation" | "ocr";
-  label: string;
-  description?: string | null;
-  source: "plugin";
-  pluginName: string;
-  pluginPath: string;
-  pluginLogo?: string | null;
-  enabled: boolean;
-  isDefault: boolean;
-};
-
-export type ZToolsImportCandidate = {
-  path: string;
-  source_type: "directory" | "zpx" | "asar";
-  name: string;
-  title: string | null;
-  version: string;
-  features_count: number;
-  platform_supported: boolean;
-  main_exists: boolean;
-  preload_exists: boolean;
-  logo_exists: boolean;
-  unsupported_cmd_types: string[];
-  warnings: string[];
-  errors: string[];
-};
-
-export type ZToolsImportFailure = {
-  path: string;
-  error: string;
-};
-
-export type ZToolsImportReport = {
-  imported: string[];
-  skipped: ZToolsImportCandidate[];
-  failed: ZToolsImportFailure[];
-};
+export type {
+  InstalledPlugin,
+  PluginProviderDescriptor,
+  ZToolsImportCandidate,
+  ZToolsImportFailure,
+  ZToolsImportReport,
+} from "./pluginTypes";
 
 export type WebdavUploadedFile = {
   name: string;

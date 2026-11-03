@@ -38,7 +38,18 @@ const BRIDGE_CAPABILITY_GROUPS: PluginBridgeCapabilityGroup[] = [
     id: "clipboard",
     label: "剪贴板",
     status: "partial",
-    methods: ["copyText", "copyFile", "copyImage", "getCopyedFiles", "getCopiedFiles"],
+    methods: [
+      "copyText",
+      "clipboard.getHistory/getContent (text/image/file entries; ClipboardRead)",
+      "clipboard.delete/clear (text/image/file history; ClipboardDelete)",
+      "clipboard.write/writeContent (permissioned-host text/HTML/image/file copy/paste; HTML history unsupported; PNG writes capped at 512 KiB, image paths use bounded file reads)",
+      "clipboard.search (bounded text/image/file history)",
+      "clipboard.onChange (text/image/file history); HTML history unsupported",
+      "copyFile",
+      "copyImage",
+      "getCopyedFiles",
+      "getCopiedFiles",
+    ],
   },
   {
     id: "input",
@@ -54,7 +65,7 @@ const BRIDGE_CAPABILITY_GROUPS: PluginBridgeCapabilityGroup[] = [
   {
     id: "dialog",
     label: "对话框",
-    status: "ready",
+    status: "partial",
     methods: ["showOpenDialog", "showSaveDialog"],
   },
   {
@@ -82,6 +93,7 @@ const BRIDGE_CAPABILITY_GROUPS: PluginBridgeCapabilityGroup[] = [
       "redirectAiModelsSetting",
       "createBrowserWindow",
       "sendToParent",
+      "getWebContentsId",
     ],
   },
   {

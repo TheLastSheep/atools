@@ -1,5 +1,6 @@
 <script lang="ts">
-  import ZMark from "./ZMark.svelte";
+  import { onDestroy, tick } from "svelte";
+  import AToolsMark from "./AToolsMark.svelte";
 
   type Props = {
     onclose?: () => void;
@@ -9,31 +10,47 @@
 
   let showMoreMenu = $state(false);
   let moreMenuStatus = $state("");
+  let moreTrigger = $state<HTMLButtonElement>();
+  let moreMenu = $state<HTMLDivElement>();
+  let menuGeneration = 0;
+  let disposed = false;
 
-  function toggleMoreMenu(event: MouseEvent) {
+  async function toggleMoreMenu(event: MouseEvent) {
     event.stopPropagation();
+    if (showMoreMenu) {
+      closeMoreMenu();
+      return;
+    }
     moreMenuStatus = "";
-    showMoreMenu = !showMoreMenu;
+    const generation = ++menuGeneration;
+    showMoreMenu = true;
+    await tick();
+    if (!disposed && showMoreMenu && generation === menuGeneration) {
+      moreMenu?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+    }
   }
 
-  function closeMoreMenu() {
+  function closeMoreMenu(returnFocus = false) {
+    menuGeneration++;
     showMoreMenu = false;
+    if (returnFocus) moreTrigger?.focus();
   }
 
   function closeAndReturnHome() {
-    showMoreMenu = false;
+    closeMoreMenu();
     onclose();
   }
 
   async function copyRuntimeInfo() {
+    const generation = menuGeneration;
     try {
       if (!navigator.clipboard?.writeText) {
         throw new Error("clipboard unavailable");
       }
       await navigator.clipboard.writeText(runtimeInfoText());
-      moreMenuStatus = "已复制运行信息";
+      if (!disposed && showMoreMenu && generation === menuGeneration) moreMenuStatus = "已复制运行信息";
     } catch {
-      moreMenuStatus = "复制失败";
+      if (!disposed && showMoreMenu && generation === menuGeneration) moreMenuStatus = "复制失败";
     }
   }
 
@@ -52,46 +69,82 @@
     closeMoreMenu();
   }
 
-  function onWindowKeydown(event: KeyboardEvent) {
-    if (!showMoreMenu || event.key !== "Escape") return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    event.stopPropagation();
-    closeMoreMenu();
+  function composing(event: KeyboardEvent) {
+    return event.isComposing || event.keyCode === 229;
   }
+
+  function activationKey(key: string) {
+    return key === "Enter" || key === " ";
+  }
+
+  function onMoreTriggerKeydown(event: KeyboardEvent) {
+    if (composing(event) && activationKey(event.key)) event.preventDefault();
+  }
+
+  function onMoreTriggerKeyup(event: KeyboardEvent) {
+    if (composing(event) && activationKey(event.key)) event.preventDefault();
+  }
+
+  function onMoreMenuKeydown(event: KeyboardEvent) {
+    if (!showMoreMenu) return;
+    if (composing(event)) {
+      if (activationKey(event.key)) event.preventDefault();
+      return;
+    }
+    const items = Array.from(moreMenu?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? []);
+    if (!items.length) return;
+    const activeIndex = items.indexOf(document.activeElement as HTMLButtonElement);
+    let nextIndex: number | undefined;
+    if (event.key === "ArrowDown") nextIndex = (activeIndex + 1 + items.length) % items.length;
+    else if (event.key === "ArrowUp") nextIndex = (activeIndex - 1 + items.length) % items.length;
+    else if (event.key === "Home") nextIndex = 0;
+    else if (event.key === "End") nextIndex = items.length - 1;
+    if (nextIndex !== undefined) {
+      event.preventDefault();
+      items[nextIndex]?.focus();
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      closeMoreMenu(true);
+      return;
+    }
+    if (event.key === "Tab") {
+      // Remove popup actions from the native tab sequence, then resume from its trigger.
+      items.forEach((item) => { item.tabIndex = -1; });
+      closeMoreMenu();
+      moreTrigger?.focus();
+    }
+  }
+
+  onDestroy(() => {
+    disposed = true;
+    menuGeneration++;
+  });
 </script>
 
-<svelte:window onclick={onWindowClick} onkeydown={onWindowKeydown} />
+<svelte:window onclick={onWindowClick} />
 
 <header class="settings-header">
-  <div class="tab active-tab">
-    <ZMark size="small" />
-    <span>设置</span>
+  <div class="settings-title">
+    <AToolsMark size="small" />
+    <h1>设置</h1>
   </div>
-
-  <div class="tab secondary-tab">
-    <span>设置</span>
-    <button class="tab-close" aria-label="关闭设置" title="关闭设置" onclick={onclose}>×</button>
-  </div>
-
-  <div class="spacer"></div>
-
-  <div class="more-wrapper">
-    <button
-      class="more-btn"
-      aria-label="更多操作"
-      title="更多操作"
-      aria-haspopup="menu"
-      aria-expanded={showMoreMenu}
-      aria-controls="settings-more-menu"
-      onclick={toggleMoreMenu}
-    >
-      <span></span>
-      <span></span>
-      <span></span>
+  <div class="header-actions">
+    <button class="return-button" aria-label="回到主搜索" title="回到主搜索" onclick={closeAndReturnHome}>
+      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m7 4-4 4 4 4M3 8h10" /></svg>
+      <span>返回搜索</span>
     </button>
+    <div class="more-wrapper">
+      <button bind:this={moreTrigger} class="more-btn" aria-label="更多操作" title="更多操作" aria-haspopup="menu"
+        aria-expanded={showMoreMenu} aria-controls="settings-more-menu" onclick={toggleMoreMenu}
+        onkeydown={onMoreTriggerKeydown} onkeyup={onMoreTriggerKeyup}>
+        <span></span><span></span><span></span>
+      </button>
     {#if showMoreMenu}
-      <div class="more-menu" id="settings-more-menu" role="menu" aria-label="设置更多操作">
+      <div bind:this={moreMenu} class="more-menu" id="settings-more-menu" role="menu" tabindex="-1" aria-label="设置更多操作"
+        onkeydown={onMoreMenuKeydown}>
         <button class="more-menu-item" role="menuitem" onclick={closeAndReturnHome}>回到主搜索</button>
         <button
           class="more-menu-item"
@@ -108,121 +161,104 @@
         {/if}
       </div>
     {/if}
+    </div>
   </div>
-  <ZMark size="large" label="设置" />
 </header>
 
 <style>
   .settings-header {
-    height: 94px;
+    height: 56px;
+    flex-shrink: 0;
     display: flex;
-    align-items: flex-start;
-    gap: 0;
-    padding: 20px 22px 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 0 20px;
     color: var(--text-primary);
     background: var(--bg-primary);
     -webkit-app-region: drag;
   }
-
-  .tab {
-    height: 72px;
-    display: inline-flex;
+  .settings-title {
+    display: flex;
     align-items: center;
-    gap: 14px;
-    padding: 0 24px;
-    color: #303236;
-    font-size: 26px;
-    font-weight: 700;
-    line-height: 1;
+    gap: 10px;
+    min-width: 0;
+  }
+  h1 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 650;
+    line-height: 1.25;
+    letter-spacing: -.2px;
+  }
+  .settings-header :global(.atools-mark.small) {
+    --mark-size: 30px;
+    --mark-radius: 9px;
+  }
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     -webkit-app-region: no-drag;
   }
-
-  .active-tab {
-    min-width: 196px;
-    border-radius: 36px 0 0 36px;
-    background: rgba(0, 0, 0, 0.08);
-    clip-path: polygon(0 0, 100% 0, calc(100% - 28px) 100%, 0 100%);
-  }
-
-  .secondary-tab {
-    min-width: 154px;
-    margin-left: -28px;
-    padding-left: 42px;
-    border-radius: 0 36px 36px 0;
-    color: rgba(48, 50, 54, 0.62);
-    background: rgba(0, 0, 0, 0.035);
-    font-weight: 650;
-  }
-
-  .tab-close {
-    width: 28px;
-    height: 28px;
+  .return-button, .more-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    margin-left: 0;
-    border-radius: 50%;
-    color: rgba(48, 50, 54, 0.46);
-    font-size: 30px;
-    font-weight: 300;
-    line-height: 1;
+    height: 32px;
+    border-radius: 6px;
+    color: var(--text-secondary, #61616d);
     -webkit-app-region: no-drag;
   }
-
-  .tab-close:hover {
-    color: rgba(48, 50, 54, 0.8);
-    background: rgba(0, 0, 0, 0.08);
+  .return-button {
+    gap: 5px;
+    padding: 0 9px;
+    font-size: 12px;
   }
-
-  .spacer {
-    flex: 1;
+  .return-button svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
-
+  .return-button:hover, .more-btn:hover {
+    color: var(--text-primary);
+    background: var(--accent-subtle, rgba(118, 80, 214, .08));
+  }
+  button:focus-visible {
+    outline: 2px solid var(--accent, #7650d6);
+    outline-offset: 2px;
+  }
   .more-wrapper {
     position: relative;
-    height: 72px;
-    margin: 0 12px 0 0;
     -webkit-app-region: no-drag;
   }
-
   .more-btn {
     width: 32px;
-    height: 72px;
-    display: inline-flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 7px;
-    color: rgba(48, 50, 54, 0.32);
-    -webkit-app-region: no-drag;
+    gap: 3px;
   }
-
   .more-btn span {
-    width: 5px;
-    height: 5px;
+    width: 3px;
+    height: 3px;
     display: block;
     border-radius: 50%;
     background: currentColor;
   }
-
-  .more-btn:hover {
-    color: rgba(48, 50, 54, 0.56);
-  }
-
   .more-menu {
     position: absolute;
-    top: 64px;
+    top: 38px;
     right: 12px;
     z-index: 30;
     width: 174px;
     padding: 6px;
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border-color, rgba(0, 0, 0, .1));
     border-radius: 8px;
-    background: color-mix(in srgb, var(--bg-primary) 96%, white);
-    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.16);
+    background: var(--bg-primary);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, .16);
     -webkit-app-region: no-drag;
   }
-
   .more-menu-item {
     width: 100%;
     min-height: 42px;
@@ -230,122 +266,25 @@
     align-items: center;
     padding: 0 12px;
     border-radius: 6px;
-    color: #303236;
+    color: var(--text-primary);
     font-size: 13px;
-    font-weight: 650;
+    font-weight: 550;
     text-align: left;
   }
-
   .more-menu-item:hover {
     color: var(--accent);
     background: var(--accent-subtle);
   }
-
+  .more-menu-item:active { background: var(--accent-subtle); }
   .more-status {
     display: block;
     padding: 6px 10px 4px;
-    color: rgba(48, 50, 54, 0.58);
+    color: var(--text-secondary, #61616d);
     font-size: 11px;
     line-height: 1.3;
   }
-
-  @media (max-width: 1000px) {
-    .settings-header {
-      height: 58px;
-      align-items: flex-start;
-      padding: 8px 12px 0;
-    }
-
-    .tab {
-      height: 44px;
-      gap: 8px;
-      padding: 0 14px;
-      font-size: 16px;
-    }
-
-    .active-tab {
-      min-width: 126px;
-      border-radius: 22px 0 0 22px;
-      clip-path: polygon(0 0, 100% 0, calc(100% - 18px) 100%, 0 100%);
-    }
-
-    .secondary-tab {
-      min-width: 100px;
-      margin-left: -18px;
-      padding-left: 26px;
-      border-radius: 0 22px 22px 0;
-    }
-
-    .tab-close {
-      width: 22px;
-      height: 22px;
-      font-size: 22px;
-    }
-
-    .more-wrapper,
-    .more-btn {
-      height: 44px;
-    }
-
-    .more-wrapper {
-      margin-right: 6px;
-    }
-
-    .more-btn span {
-      width: 4px;
-      height: 4px;
-    }
-
-    .more-menu {
-      top: 42px;
-      right: 4px;
-    }
-
-    .settings-header :global(.z-mark.small),
-    .settings-header :global(.z-mark.large) {
-      --mark-size: 42px;
-      --stroke-height: 5px;
-      --stroke-width: 24px;
-      --stroke-left: 9px;
-      --stroke-top: 12px;
-      --stroke-bottom: 12px;
-      --diagonal-width: 29px;
-      --diagonal-left: 7px;
-      --diagonal-top: 19px;
-    }
-  }
-
-  @media (prefers-color-scheme: dark) {
-    .tab {
-      color: #f2f3f5;
-    }
-
-    .active-tab {
-      background: rgba(255, 255, 255, 0.12);
-    }
-
-    .secondary-tab {
-      color: rgba(242, 243, 245, 0.58);
-      background: rgba(255, 255, 255, 0.07);
-    }
-
-    .tab-close,
-    .more-btn {
-      color: rgba(242, 243, 245, 0.48);
-    }
-
-    .more-menu {
-      border-color: rgba(255, 255, 255, 0.12);
-      background: rgba(48, 49, 51, 0.98);
-      box-shadow: 0 16px 32px rgba(0, 0, 0, 0.32);
-    }
-
-    .more-menu-item {
-      color: #f2f3f5;
-    }
-
-    .more-status {
-      color: rgba(242, 243, 245, 0.58);
-    }
+  @media (max-width: 540px) {
+    .settings-header { padding: 0 14px; }
+    .header-actions { gap: 4px; }
   }
 </style>

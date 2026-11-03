@@ -2,6 +2,12 @@
   import { onMount } from "svelte";
   import { convertFileSrc, invoke } from "@tauri-apps/api/core";
   import {
+    generalSettingsSnapshotFromRaw,
+    readGeneralSettingsSnapshot,
+    saveGeneralSettings,
+    type GeneralSettingsSnapshot,
+  } from "../lib/generalSettingsStore";
+  import {
     pasteboardKindLabel,
     type PasteboardDockEdge,
     type PasteboardPreview,
@@ -14,14 +20,20 @@
   let itemId = $state(dialogItemId());
   let preview = $state<PasteboardPreview | null>(null);
   let errorMessage = $state("");
-  let saved = $state(false);
   let dockEdge = $state<PasteboardDockEdge>("bottom");
   let compact = $state(false);
-  let retentionDays = $state(90);
+  let retentionDays = $state(180);
   let budgetValue = $state(1);
   let budgetUnit = $state<BudgetUnit>("GB");
   let sensitiveFilter = $state(true);
-  let settings = $state<Record<string, unknown>>({});
+  let settingsSnapshot = $state<GeneralSettingsSnapshot | null>(null);
+  let settingsLoading = $state(false);
+  let settingsSaving = $state(false);
+  let settingsNeedsReload = $state(false);
+  let saved = $state(false);
+  let notificationWarning = $state(false);
+  let layoutError = $state("");
+  let layoutRetryBusy = $state(false);
   let ocrBusy = $state(false);
   let editorTitle = $state("");
   let editorText = $state("");
@@ -29,8 +41,11 @@
   let syncBusy = $state(false);
   let syncMessage = $state("");
   let syncFailed = $state(false);
+  let loadGeneration = 0;
+  let mounted = false;
 
   onMount(() => {
+    mounted = true;
     const onHashChange = () => {
       mode = dialogMode();
       itemId = dialogItemId();
@@ -38,17 +53,25 @@
     };
     window.addEventListener("hashchange", onHashChange);
     void load();
-    return () => window.removeEventListener("hashchange", onHashChange);
+    return () => {
+      mounted = false;
+      loadGeneration += 1;
+      window.removeEventListener("hashchange", onHashChange);
+    };
   });
 
   async function load() {
+    const generation = ++loadGeneration;
     errorMessage = "";
     saved = false;
+    notificationWarning = false;
+    layoutError = "";
     if (mode === "preview" && itemId) {
       try {
-        preview = await invoke<PasteboardPreview>("pasteboard_item_preview", { itemId });
+        const loadedPreview = await invoke<PasteboardPreview>("pasteboard_item_preview", { itemId });
+        if (isCurrentLoad(generation, "preview")) preview = loadedPreview;
       } catch (error) {
-        errorMessage = String(error);
+        if (isCurrentLoad(generation, "preview")) errorMessage = String(error);
       }
       return;
     }
@@ -60,48 +83,112 @@
         return;
       }
       try {
-        preview = await invoke<PasteboardPreview>("pasteboard_item_preview", { itemId });
-        editorTitle = preview.title || "";
-        editorText = preview.text || "";
+        const loadedPreview = await invoke<PasteboardPreview>("pasteboard_item_preview", { itemId });
+        if (!isCurrentLoad(generation, "editor")) return;
+        preview = loadedPreview;
+        editorTitle = loadedPreview.title || "";
+        editorText = loadedPreview.text || "";
       } catch (error) {
-        errorMessage = String(error);
+        if (isCurrentLoad(generation, "editor")) errorMessage = String(error);
       }
       return;
     }
+    if (mode !== "settings") return;
+    settingsLoading = true;
     try {
-      const raw = await invoke<string | null>("get_setting", { key: "settings-general" });
-      settings = raw ? JSON.parse(raw) as Record<string, unknown> : {};
-      const edge = settings.pasteboardDockEdge;
-      if (edge === "top" || edge === "bottom" || edge === "left" || edge === "right") dockEdge = edge;
-      compact = settings.pasteboardCompact === true;
-      retentionDays = numberSetting(settings.clipboardRetentionDays, 90, 1, 3650);
-      const bytes = numberSetting(settings.pasteboardAttachmentBudgetBytes, 1_073_741_824, 16 * 1024 * 1024, 1024 ** 4);
-      ({ value: budgetValue, unit: budgetUnit } = displayBudget(bytes));
-      sensitiveFilter = settings.pasteboardExcludeSensitiveContent !== false;
+      const snapshot = await readGeneralSettingsSnapshot();
+      if (isCurrentLoad(generation, "settings")) applySettingsSnapshot(snapshot);
     } catch (error) {
-      errorMessage = String(error);
+      if (isCurrentLoad(generation, "settings")) errorMessage = String(error);
+    } finally {
+      if (isCurrentLoad(generation, "settings")) settingsLoading = false;
     }
   }
 
   async function saveSettings() {
+    if (!settingsSnapshot || settingsLoading || settingsSaving || settingsNeedsReload) return;
+    const snapshot = settingsSnapshot;
+    const generation = loadGeneration;
     const bytes = budgetBytes(budgetValue, budgetUnit);
-    const next = {
-      ...settings,
+    const changes = {
       pasteboardDockEdge: dockEdge,
       pasteboardCompact: compact,
       clipboardRetentionDays: Math.max(1, Math.min(3650, Math.round(retentionDays))),
       pasteboardAttachmentBudgetBytes: bytes,
       pasteboardExcludeSensitiveContent: sensitiveFilter,
     };
+    settingsSaving = true;
+    saved = false;
+    notificationWarning = false;
+    errorMessage = "";
+    layoutError = "";
+    let receipt: Awaited<ReturnType<typeof saveGeneralSettings>>;
     try {
-      await invoke("set_setting", { key: "settings-general", value: JSON.stringify(next) });
-      await invoke("reposition_pasteboard_shelf_window");
-      settings = next;
-      saved = true;
-      setTimeout(() => { saved = false; }, 1600);
+      receipt = await saveGeneralSettings(snapshot, changes, { applyNative: false });
     } catch (error) {
-      errorMessage = String(error);
+      if (mounted && isCurrentLoad(generation, "settings")) {
+        settingsNeedsReload = true;
+        errorMessage = `保存结果未确认。请重新读取当前设置后再操作。${String(error)}`;
+      } else if (mounted && mode === "settings") {
+        settingsNeedsReload = true;
+        void load();
+      }
+      if (mounted) settingsSaving = false;
+      return;
     }
+
+    const committedSnapshot = generalSettingsSnapshotFromRaw(receipt.raw);
+    if (mounted && isCurrentLoad(generation, "settings")) {
+      applySettingsSnapshot(committedSnapshot);
+      saved = true;
+      notificationWarning = !receipt.notificationDelivered;
+      window.setTimeout(() => {
+        if (mounted && isCurrentLoad(generation, "settings")) saved = false;
+      }, 1600);
+    } else if (mounted && mode === "settings") {
+      // A newer settings view may have read before this commit completed.
+      // Refresh after commit so its snapshot cannot remain behind the write.
+      void load();
+    }
+
+    try {
+      await invoke("reposition_pasteboard_shelf_window");
+    } catch (error) {
+      if (mounted && isCurrentLoad(generation, "settings")) layoutError = String(error);
+    } finally {
+      if (mounted) settingsSaving = false;
+    }
+  }
+
+  async function retryLayout() {
+    if (layoutRetryBusy) return;
+    const generation = loadGeneration;
+    layoutRetryBusy = true;
+    try {
+      await invoke("reposition_pasteboard_shelf_window");
+      if (isCurrentLoad(generation, "settings")) layoutError = "";
+    } catch (error) {
+      if (isCurrentLoad(generation, "settings")) layoutError = String(error);
+    } finally {
+      if (mounted) layoutRetryBusy = false;
+    }
+  }
+
+  function isCurrentLoad(generation: number, expectedMode: DialogMode) {
+    return mounted && loadGeneration === generation && mode === expectedMode;
+  }
+
+  function applySettingsSnapshot(snapshot: GeneralSettingsSnapshot) {
+    settingsSnapshot = snapshot;
+    settingsNeedsReload = false;
+    const settings = snapshot.value;
+    const edge = settings.pasteboardDockEdge;
+    if (edge === "top" || edge === "bottom" || edge === "left" || edge === "right") dockEdge = edge;
+    compact = settings.pasteboardCompact === true;
+    retentionDays = numberSetting(settings.clipboardRetentionDays, 180, 1, 3650);
+    const bytes = numberSetting(settings.pasteboardAttachmentBudgetBytes, 1_073_741_824, 16 * 1024 * 1024, 1024 ** 4);
+    ({ value: budgetValue, unit: budgetUnit } = displayBudget(bytes));
+    sensitiveFilter = settings.pasteboardExcludeSensitiveContent !== false;
   }
 
   async function close() {
@@ -262,7 +349,23 @@
           <p class="hint">达到预算后只清理最旧、未固定且不属于分组的附件。</p>
           <label class="switch"><span><strong>过滤敏感内容</strong><small>私钥、访问令牌和支付卡在写入本地前排除</small></span><input type="checkbox" bind:checked={sensitiveFilter} /></label>
         </section>
-        <footer><span>{saved ? "已保存" : "更改只保存在本机"}</span><button onclick={saveSettings}>保存设置</button></footer>
+        {#if layoutError}
+          <div class="layout-error" role="alert">
+            <span>设置已保存，但货架布局调整失败：{layoutError}</span>
+            <button onclick={retryLayout} disabled={layoutRetryBusy}>{layoutRetryBusy ? "重试中…" : "重试布局"}</button>
+          </div>
+        {/if}
+        <footer>
+          <span>{settingsLoading ? "正在读取设置…" : settingsNeedsReload ? "保存状态未确认" : saved ? notificationWarning ? "已保存，更新通知未送达" : "已保存" : "更改只保存在本机"}</span>
+          <div class="settings-actions">
+            {#if !settingsSnapshot || settingsNeedsReload}
+              <button class="secondary" onclick={() => void load()} disabled={settingsLoading || settingsSaving}>重新读取</button>
+            {/if}
+            <button onclick={saveSettings} disabled={!settingsSnapshot || settingsLoading || settingsSaving || settingsNeedsReload}>
+              {settingsSaving ? "保存中…" : "保存设置"}
+            </button>
+          </div>
+        </footer>
       </div>
     {:else}
       <div class="sync-body">
@@ -302,6 +405,11 @@
   .field > div { display: flex; align-items: center; gap: 6px; } .field input, .field select { height: 34px; border: 1px solid #dcdbe4; border-radius: 9px; background: #fff; padding: 0 9px; outline: none; } .field input { width: 110px; } .field em { color: #888; font-style: normal; font-size: 12px; }
   .hint { margin: -2px 0 6px; }
   .settings-body footer { display: flex; align-items: center; justify-content: space-between; padding-top: 16px; color: #858590; font-size: 11px; } .settings-body footer button, .sync-body button { height: 38px; border: 0; border-radius: 10px; padding: 0 18px; background: #7250dd; color: #fff; font-weight: 600; cursor: pointer; }
+  .settings-actions { display: flex; align-items: center; gap: 8px; }
+  .settings-body footer button.secondary { background: #e9e7ef; color: #575361; }
+  .settings-body footer button:disabled, .layout-error button:disabled { opacity: .55; cursor: wait; }
+  .layout-error { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding: 9px 11px; border-radius: 9px; color: #8a5c08; background: #fff3d4; font-size: 11px; }
+  .layout-error button { flex: none; height: 30px; border: 0; border-radius: 8px; padding: 0 10px; background: #fff; color: #75500b; cursor: pointer; }
   .sync-body { height: calc(100% - 64px); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 34px 56px; text-align: center; } .sync-icon { width: 72px; height: 72px; display: grid; place-items: center; border-radius: 22px; color: #fff; background: linear-gradient(145deg,#8762ff,#3d78ef); font-size: 34px; box-shadow: 0 15px 35px rgba(80,67,190,.28); } .sync-body h2 { margin: 22px 0 8px; font-size: 20px; } .sync-body p { margin: 0 0 24px; color: #74747f; font-size: 13px; line-height: 1.65; } .sync-body button:disabled { opacity: .55; cursor: wait; } .sync-body .sync-message { max-width: 420px; margin: 14px 0 0; font-size: 11px; } .sync-body .sync-message.sync-error { color: #b8404c; } .sync-body small { margin-top: 18px; color: #9696a0; }
   @media (prefers-color-scheme: dark) { main { color: #f1eff5; } .dialog { background: #202026; border-color: rgba(255,255,255,.12); } header, .settings-body section { border-color: rgba(255,255,255,.08); } header button { background: #303038; color: #bbb; } .preview-body pre, .edge-grid button, .field input, .field select { background: #292930; border-color: #3b3b45; color: #f1eff5; } .switch small, .hint, .sync-body p { color: #9b99a5; } }
 </style>

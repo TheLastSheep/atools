@@ -83,11 +83,15 @@ function desktopBrowserWindowIsolationProbeRuntime(
   config: DesktopBrowserWindowIsolationRuntimeConfig,
 ) {
   const mainRuntimeWindow = window as typeof window & {
+    require?: (name: string) => { ipcRenderer?: {
+      on: (channel: string, listener: (...args: unknown[]) => void) => unknown;
+      off: (channel: string, listener: (...args: unknown[]) => void) => unknown;
+    } };
     utools?: {
       createBrowserWindow?: (
         url: string,
         options: { show: boolean },
-        callback: (channel: unknown, payload: unknown) => void,
+        callback: () => void,
       ) => Promise<unknown> | unknown;
     };
   };
@@ -102,6 +106,8 @@ function desktopBrowserWindowIsolationProbeRuntime(
     executeJavascriptChecked: false,
     ipcRoundtripChecked: false,
     cleanupChecked: false,
+    synchronousHandleChecked: false,
+    readyCallbackCount: 0,
   };
   let browserWindow: {
     id?: string;
@@ -113,6 +119,10 @@ function desktopBrowserWindowIsolationProbeRuntime(
     };
     close?: () => Promise<unknown> | unknown;
     isDestroyed?: () => boolean;
+    ready?: Promise<unknown>;
+    setAlwaysOnTop?: (flag: boolean) => unknown;
+    setSkipTaskbar?: (flag: boolean) => unknown;
+    setFullScreen?: (flag: boolean) => unknown;
   } | null = null;
   let closePromise: Promise<boolean> | null = null;
   let finishing = false;
@@ -186,6 +196,11 @@ function desktopBrowserWindowIsolationProbeRuntime(
   const ipcRoundtripPromise = new Promise<boolean>((resolve) => {
     resolveIpcRoundtrip = resolve;
   });
+  const ipc = mainRuntimeWindow.require?.("electron").ipcRenderer;
+  const onChildSend = (_event: unknown, payload: unknown) => handleChildMessage(config.sendChannel, payload);
+  const onChildPong = (_event: unknown, payload: unknown) => handleChildMessage(config.ipcPongChannel, payload);
+  ipc?.on(config.sendChannel, onChildSend);
+  ipc?.on(config.ipcPongChannel, onChildPong);
 
   function handleChildMessage(channel: unknown, payload: unknown) {
     const record = payload && typeof payload === "object"
@@ -340,16 +355,23 @@ function desktopBrowserWindowIsolationProbeRuntime(
       if (!mainRuntimeWindow.utools || typeof mainRuntimeWindow.utools.createBrowserWindow !== "function") {
         throw new Error("utools.createBrowserWindow is unavailable");
       }
-      return mainRuntimeWindow.utools.createBrowserWindow(
+      const created = mainRuntimeWindow.utools.createBrowserWindow(
         config.mainUrl,
         { show: false },
-        handleChildMessage,
-      );
+        () => { state.readyCallbackCount++; },
+      ) as typeof browserWindow;
+      browserWindow = created;
+      state.synchronousHandleChecked = Boolean(created && typeof created.isDestroyed === "function"
+        && created.isDestroyed() === false && typeof created.setAlwaysOnTop === "function"
+        && typeof created.setSkipTaskbar === "function" && typeof created.setFullScreen === "function"
+        && typeof created.close === "function" && created.ready instanceof Promise);
+      if (!state.synchronousHandleChecked || !created?.ready) throw new Error("createBrowserWindow did not return its synchronous pending handle");
+      return created.ready.then(() => created);
     })
     .then((createdWindow) => {
       browserWindow = createdWindow as typeof browserWindow;
       state.created = Boolean(
-        browserWindow
+        state.synchronousHandleChecked && state.readyCallbackCount === 1 && browserWindow
         && browserWindow.id
         && browserWindow.type === "browserWindow"
         && browserWindow.windowType === "browserWindow"
@@ -406,6 +428,8 @@ function desktopBrowserWindowIsolationProbeRuntime(
     })
     .finally(() => {
       finishing = true;
+      ipc?.off(config.sendChannel, onChildSend);
+      ipc?.off(config.ipcPongChannel, onChildPong);
       return closeBrowserWindow().then((cleanupChecked) => {
         state.cleanupChecked = cleanupChecked === true;
       });

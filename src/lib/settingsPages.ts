@@ -843,7 +843,7 @@ export function generalUnsupportedCapabilities(): CapabilityStatus[] {
 export function generalOverviewCards(input: {
   hotkey: string;
   saveLabel: string;
-  launchAtLogin: boolean;
+  launchAtLogin: boolean | null;
   showTrayIcon: boolean;
   localAppSearch: boolean;
   localLaunchSearch: boolean;
@@ -851,6 +851,9 @@ export function generalOverviewCards(input: {
 }): GeneralOverviewCard[] {
   const searchEnabledCount = [input.localAppSearch, input.localLaunchSearch].filter(Boolean).length;
   const unsupportedCount = Math.max(0, Math.floor(input.unsupportedCount));
+  const launchStatus = input.launchAtLogin === null
+    ? "启动状态未知"
+    : input.launchAtLogin ? "开机启动" : "手动启动";
   return [
     {
       label: "呼出快捷键",
@@ -860,9 +863,13 @@ export function generalOverviewCards(input: {
     },
     {
       label: "系统入口",
-      value: `${input.launchAtLogin ? "开机启动" : "手动启动"} / ${input.showTrayIcon ? "托盘显示" : "托盘关闭"}`,
-      detail: input.launchAtLogin ? "登录时启动；托盘显示可单独控制" : "登录时不自动启动；托盘显示可单独控制",
-      tone: input.launchAtLogin || input.showTrayIcon ? "ready" : "normal",
+      value: `${launchStatus} / ${input.showTrayIcon ? "托盘显示" : "托盘关闭"}`,
+      detail: input.launchAtLogin === null
+        ? "系统启动项尚未确认；托盘显示可单独控制"
+        : input.launchAtLogin ? "登录时启动；托盘显示可单独控制" : "登录时不自动启动；托盘显示可单独控制",
+      tone: input.launchAtLogin === null
+        ? "warning"
+        : input.launchAtLogin || input.showTrayIcon ? "ready" : "normal",
     },
     {
       label: "搜索来源",

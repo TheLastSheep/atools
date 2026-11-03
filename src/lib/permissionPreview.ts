@@ -11,8 +11,11 @@ export type PermissionRequestPreview = {
 };
 
 const SCOPE_LABELS: Record<string, string> = {
-  clipboard_read: "读取剪贴板",
+  clipboard_read: "读取剪贴板内容及历史",
+  clipboard_delete: "删除剪贴板历史（含清空）",
+  display_read: "读取显示器信息",
   clipboard_write: "写入剪贴板",
+  input_keyboard: "向当前前台应用发送按键",
   file_read: "读取文件",
   file_write: "修改文件",
   network: "网络访问",
@@ -20,10 +23,13 @@ const SCOPE_LABELS: Record<string, string> = {
   screenshot: "屏幕截图",
   browser_context: "浏览器上下文",
   plugin_data: "插件数据",
+  plugin_window: "管理当前插件自己的独立窗口",
+  plugin_background: "允许插件在后台持续运行",
+  secret_storage: "加密存储插件凭据",
   system_settings: "系统设置",
 };
 
-const HIGH_RISK_SCOPES = new Set(["shell", "system_settings", "screenshot"]);
+const HIGH_RISK_SCOPES = new Set(["shell", "system_settings", "screenshot", "clipboard_delete", "secret_storage", "input_keyboard", "plugin_background"]);
 const MEDIUM_RISK_SCOPES = new Set(["file_write", "clipboard_write", "network"]);
 const PATH_KEYS = new Set([
   "path",

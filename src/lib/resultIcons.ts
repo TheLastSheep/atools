@@ -3,6 +3,9 @@ import type { SearchResult } from "./types";
 export type ConvertFileSrc = (path: string) => string;
 export type ResultFallbackIcon =
   | "system"
+  | "settings"
+  | "results"
+  | "agent"
   | "app"
   | "folder"
   | "web"
@@ -42,11 +45,15 @@ export function hasTauriAssetRuntime(): boolean {
 }
 
 export function resultFallbackIcon(result: SearchResult): ResultFallbackIcon {
-  if (result.plugin_id === "system") return "system";
+  if (result.plugin_id === "system" && !result.code.startsWith("system:")) return "system";
   return resultFallbackIconForCode(result.code);
 }
 
 export function resultFallbackIconForCode(code: string): ResultFallbackIcon {
+  if (code === "system:settings") return "settings";
+  if (code === "system:results") return "results";
+  if (code === "system:agent") return "agent";
+  if (code === "system:plugins" || code === "system:import") return "plugin";
   if (code.startsWith("system:")) return "system";
   if (code.startsWith("local-app:")) return "app";
   if (code.startsWith("local:")) return "folder";

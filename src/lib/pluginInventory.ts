@@ -1,4 +1,5 @@
 import type { InstalledPlugin } from "./types";
+import { summarizePluginInventoryFeatures, type PluginInventoryFeatureTarget } from "./pluginInventoryFeatureSearch";
 
 export type PluginInventoryRow = {
   id: string;
@@ -7,10 +8,11 @@ export type PluginInventoryRow = {
   description: string;
   path: string;
   enabled: boolean;
-  sourceLabel: "内置" | "导入";
+  sourceLabel: "内置" | "导入" | "外部" | "待确认";
   featureCount: number;
   featurePreview: string;
   searchText: string;
+  queryFeatureTarget: PluginInventoryFeatureTarget | null;
   hasMoreFeatures: boolean;
   updatedAt: string;
 };
@@ -46,7 +48,7 @@ export type PluginInventoryDetail = {
   title: string;
   statusLabel: string;
   versionLabel: string;
-  sourceLabel: "内置" | "导入";
+  sourceLabel: "内置" | "导入" | "外部" | "待确认";
   description: string;
   path: string;
   updatedAt: string;
@@ -86,6 +88,7 @@ export function pluginInventoryOverviewCards(input: {
 }): PluginInventoryOverviewCard[] {
   const builtinCount = input.inventory.rows.filter((row) => row.sourceLabel === "内置").length;
   const importedCount = input.inventory.rows.filter((row) => row.sourceLabel === "导入").length;
+  const externalCount = input.inventory.rows.filter((row) => row.sourceLabel === "外部").length;
   const desktopValue = input.hasTauriRuntime ? "" : "桌面端读取";
 
   return [
@@ -94,7 +97,7 @@ export function pluginInventoryOverviewCards(input: {
       value: desktopValue || `${input.inventory.summary.total} 个`,
       detail: desktopValue
         ? "已安装插件清单、路径和启用状态需在桌面应用中读取"
-        : `${builtinCount} 内置 / ${importedCount} 导入；可在下方查看来源、路径和详情`,
+        : `${builtinCount} 内置 / ${importedCount} 导入 / ${externalCount} 外部；可在下方查看来源、路径和详情`,
       tone: desktopValue ? "desktop" : input.inventory.summary.total > 0 ? "ready" : "warning",
     },
     {
@@ -125,14 +128,15 @@ export function pluginInventoryOverviewCards(input: {
 }
 
 export function pluginInventory(plugins: InstalledPlugin[], options: PluginInventoryOptions = {}): PluginInventory {
-  const allRows = plugins.map(pluginInventoryRow);
+  const query = (options.query ?? "").trim().toLowerCase();
+  const allRows = plugins.map((plugin) => pluginInventoryRow(plugin, query));
   const rows = allRows.filter((row) => pluginRowMatches(row, options)).sort((a, b) => {
     if (a.enabled !== b.enabled) return a.enabled ? -1 : 1;
     return a.name.localeCompare(b.name, "zh-Hans-CN");
   });
   const selectedRow = rows.find((row) => row.id === options.selectedPluginId) ?? rows[0] ?? null;
   const selectedPlugin = selectedRow
-    ? pluginInventoryDetail(plugins.find((plugin) => plugin.id === selectedRow.id) ?? null)
+    ? pluginInventoryDetail(plugins.find((plugin) => plugin.id === selectedRow.id) ?? null, selectedRow)
     : null;
 
   return {
@@ -144,6 +148,16 @@ export function pluginInventory(plugins: InstalledPlugin[], options: PluginInven
       ? "暂无已安装插件，可以先使用本地导入。"
       : "没有匹配的插件，调整筛选条件后重试。",
   };
+}
+
+/** Re-derives just one clicked plugin against fresh query/filter inputs before opening it. */
+export function pluginInventoryRowForQuery(
+  plugin: InstalledPlugin,
+  options: PluginInventoryOptions = {},
+): PluginInventoryRow | null {
+  const query = (options.query ?? "").trim().toLowerCase();
+  const row = pluginInventoryRow(plugin, query);
+  return pluginRowMatches(row, options) ? row : null;
 }
 
 function pluginInventorySummary(rows: PluginInventoryRow[]) {
@@ -178,36 +192,41 @@ function pluginRowMatches(row: PluginInventoryRow, options: PluginInventoryOptio
   ].some((value) => value.toLowerCase().includes(query));
 }
 
-function pluginInventoryRow(plugin: InstalledPlugin): PluginInventoryRow {
+function pluginInventoryRow(plugin: InstalledPlugin, query = ""): PluginInventoryRow {
   const features = plugin.manifest.features ?? [];
-  const previewItems = features.slice(0, 3).map((feature) => {
-    if (feature.label === "") return feature.code;
-    return feature.label || feature.explain || feature.code;
-  });
+  const name = plugin.manifest.title?.trim() || plugin.name || plugin.id;
+  const versionLabel = plugin.version || "0.0.0";
+  const description = plugin.manifest.description || "暂无描述";
+  const sourceLabel = pluginSourceLabel(plugin);
+  const metadataMatches = Boolean(query) && [
+    plugin.id, name, plugin.name, versionLabel, description, plugin.path, sourceLabel,
+  ].some((value) => value.toLowerCase().includes(query));
+  const featureSummary = summarizePluginInventoryFeatures(plugin.name, features, query, metadataMatches);
   return {
     id: plugin.id,
-    name: plugin.name || plugin.id,
-    versionLabel: plugin.version || "0.0.0",
-    description: plugin.manifest.description || "暂无描述",
+    name,
+    versionLabel,
+    description,
     path: plugin.path,
     enabled: plugin.enabled,
-    sourceLabel: builtinPluginPath(plugin.path) ? "内置" : "导入",
+    sourceLabel,
     featureCount: features.length,
-    featurePreview: previewItems.join(" / ") || "暂无 feature",
-    searchText: features.map((feature) => [
-      feature.code,
-      feature.label ?? "",
-      feature.explain,
-    ].join(" ")).join(" "),
-    hasMoreFeatures: features.length > previewItems.length,
+    featurePreview: featureSummary.featurePreview,
+    searchText: featureSummary.searchText,
+    queryFeatureTarget: featureSummary.target,
+    hasMoreFeatures: features.length > Math.min(3, features.length),
     updatedAt: plugin.updated_at || plugin.created_at || "未知",
   };
 }
 
-function pluginInventoryDetail(plugin: InstalledPlugin | null): PluginInventoryDetail | null {
+function pluginInventoryDetail(plugin: InstalledPlugin | null, row: PluginInventoryRow): PluginInventoryDetail | null {
   if (!plugin) return null;
-  const row = pluginInventoryRow(plugin);
-  const imported = row.sourceLabel === "导入";
+  const canManageFiles = plugin.source_kind === "imported";
+  const cannotManageReason = plugin.source_kind === "external"
+    ? "插件位于 ATools 管理目录之外，不能从设置页更新或卸载"
+    : plugin.source_kind === undefined
+      ? "插件来源尚未由桌面清单验证，请刷新插件清单"
+      : "内置插件随应用更新，不能从设置页管理";
   return {
     id: row.id,
     title: row.name,
@@ -220,33 +239,40 @@ function pluginInventoryDetail(plugin: InstalledPlugin | null): PluginInventoryD
     features: (plugin.manifest.features ?? []).map((feature) => ({
       code: feature.code,
       label: feature.label || feature.explain || feature.code,
-      explain: feature.explain,
+      explain: feature.explain ?? "",
     })),
     permissionRows: pluginInventoryPermissionRows(plugin, row),
     actions: [
       { label: "打开目录", available: true, reason: "在 Finder 中定位插件目录" },
-      ...(!row.enabled && imported ? [{
+      ...(!row.enabled && plugin.source_kind !== "builtin" ? [{
         label: "授权启用",
         available: true,
         reason: "确认 manifest 权限后启用插件并同步 Agent tools 白名单",
       }] satisfies PluginInventoryAction[] : []),
       {
         label: "更新插件",
-        available: imported,
-        reason: imported
-          ? "选择本地目录更新同一插件"
-          : "内置插件随应用更新，不能从设置页替换",
+        available: canManageFiles,
+        reason: canManageFiles ? "选择本地目录更新同一插件"
+          : plugin.source_kind === "builtin" ? "内置插件随应用更新，不能从设置页替换"
+            : cannotManageReason,
       },
       {
         label: "卸载插件",
-        available: imported,
-        reason: imported
-          ? "删除插件本体、指令索引和插件数据"
-          : "内置插件不可卸载，可停用以隐藏指令",
+        available: canManageFiles,
+        reason: canManageFiles ? "删除插件本体、指令索引和插件数据"
+          : plugin.source_kind === "builtin" ? "内置插件不可卸载，可停用以隐藏指令"
+            : cannotManageReason,
       },
       { label: "插件权限", available: true, reason: "查看 manifest 声明的本地能力和 Agent tools" },
     ],
   };
+}
+
+function pluginSourceLabel(plugin: InstalledPlugin): PluginInventoryRow["sourceLabel"] {
+  if (plugin.source_kind === "builtin") return "内置";
+  if (plugin.source_kind === "imported") return "导入";
+  if (plugin.source_kind === "external") return "外部";
+  return "待确认";
 }
 
 function pluginInventoryPermissionRows(plugin: InstalledPlugin, row: PluginInventoryRow): PluginInventoryPermissionRow[] {
@@ -344,11 +370,4 @@ function pluginPermissionNames(value: unknown): string[] {
   return value
     .map((item) => typeof item === "string" ? item.trim() : "")
     .filter(Boolean);
-}
-
-function builtinPluginPath(path: string): boolean {
-  const normalized = path.replaceAll("\\", "/").toLowerCase();
-  return normalized.includes("/resources/plugins/")
-    || normalized.includes("/builtin")
-    || normalized.includes("/builtins/");
 }

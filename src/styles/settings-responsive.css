@@ -1,0 +1,73 @@
+/* Compact settings navigation is intentionally separate from SettingsPanel's large feature stylesheet. */
+@media (max-width: 640px) {
+  .settings-panel {
+    min-width: 0;
+    flex-direction: column;
+  }
+
+  .settings-panel.settings-panel > .settings-sidebar {
+    width: 100%;
+    min-width: 0;
+    max-height: 64px;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 8px 10px;
+    border-right: 0;
+    border-bottom: 1px solid var(--settings-divider, rgba(0, 0, 0, 0.1));
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+    --settings-overflow-cover: rgba(244, 244, 244, 0.72);
+    background-image:
+      linear-gradient(to right, var(--settings-overflow-cover) 28%, transparent),
+      linear-gradient(to left, var(--settings-overflow-cover) 28%, transparent),
+      radial-gradient(ellipse 10px 50% at left center, rgba(0, 0, 0, 0.2), transparent),
+      radial-gradient(ellipse 10px 50% at right center, rgba(0, 0, 0, 0.2), transparent);
+    background-position: left center, right center, left center, right center;
+    background-size: 20px 100%, 20px 100%, 10px 100%, 10px 100%;
+    background-repeat: no-repeat;
+    background-attachment: local, local, scroll, scroll;
+  }
+
+  :root[data-atools-theme="dark"] .settings-panel.settings-panel > .settings-sidebar {
+    --settings-overflow-cover: rgba(48, 49, 51, 0.92);
+  }
+
+  .settings-panel.settings-panel > .settings-sidebar .menu-item {
+    width: auto;
+    min-width: max-content;
+    min-height: 40px;
+    flex: 0 0 auto;
+    gap: 6px;
+    margin: 0;
+    padding: 7px 10px;
+    border-radius: 10px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .settings-panel.settings-panel > .settings-sidebar .menu-icon {
+    width: 16px;
+    height: 16px;
+    flex-basis: 16px;
+  }
+
+  .settings-panel.settings-panel > .settings-sidebar .save-status {
+    display: none;
+  }
+
+  .settings-panel.settings-panel > .settings-content {
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    flex: 1 1 auto;
+  }
+
+  .settings-panel.settings-panel > .settings-content .content-panel {
+    min-width: 0;
+    padding: 14px 12px 18px;
+  }
+}

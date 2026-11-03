@@ -1,13 +1,11 @@
-export type PluginFrameIdentity =
-  | { kind: "main"; generation: number }
-  | { kind: "child"; windowId: string; generation: number };
-
-type PluginMessageSource = object;
-
-type PluginFrameSourceEntry = {
-  source: PluginMessageSource;
-  generation: number;
-};
+import {
+  PluginFrameSourceRegistry, runPluginFrameOperation,
+  type PluginFrameIdentity,
+} from "./pluginFrameDocumentIdentity";
+export {
+  PluginFrameSourceRegistry, identifyPluginMessageEvent, runPluginFrameOperation, postPluginFrameMessageIfCurrent,
+  type PluginFrameIdentity,
+} from "./pluginFrameDocumentIdentity";
 
 export type PluginInvokeCommand =
   | "get_plugin_data"
@@ -26,79 +24,6 @@ export type ResolvedPluginInvokeRequest = {
   args: Record<string, unknown>;
   permission: string;
 };
-
-export class PluginFrameSourceRegistry {
-  private mainSource: PluginFrameSourceEntry | null = null;
-  private readonly childSources = new Map<string, PluginFrameSourceEntry>();
-  private generation = 0;
-
-  private nextGeneration() {
-    if (this.generation >= Number.MAX_SAFE_INTEGER) {
-      throw new Error("Plugin frame source generation exhausted");
-    }
-    this.generation += 1;
-    return this.generation;
-  }
-
-  setMain(source: unknown) {
-    this.mainSource = isMessageSource(source)
-      ? { source, generation: this.nextGeneration() }
-      : null;
-  }
-
-  unregisterMain(expectedSource?: unknown) {
-    if (expectedSource !== undefined && this.mainSource?.source !== expectedSource) return;
-    this.mainSource = null;
-  }
-
-  registerChild(windowId: string, source: unknown) {
-    const id = windowId.trim();
-    if (!id || !isMessageSource(source)) return;
-    for (const [registeredId, registeredEntry] of this.childSources) {
-      if (registeredEntry.source === source && registeredId !== id) {
-        this.childSources.delete(registeredId);
-      }
-    }
-    this.childSources.set(id, { source, generation: this.nextGeneration() });
-  }
-
-  unregisterChild(windowId: string, expectedSource?: unknown) {
-    const id = windowId.trim();
-    const registered = this.childSources.get(id);
-    if (!registered) return;
-    if (expectedSource !== undefined && registered.source !== expectedSource) return;
-    this.childSources.delete(id);
-  }
-
-  identify(source: unknown): PluginFrameIdentity | null {
-    if (!isMessageSource(source)) return null;
-    if (source === this.mainSource?.source) {
-      return { kind: "main", generation: this.mainSource.generation };
-    }
-    for (const [windowId, registeredEntry] of this.childSources) {
-      if (source === registeredEntry.source) {
-        return { kind: "child", windowId, generation: registeredEntry.generation };
-      }
-    }
-    return null;
-  }
-
-  isCurrent(source: unknown, identity: PluginFrameIdentity) {
-    return sameFrameIdentity(this.identify(source), identity);
-  }
-
-  clear() {
-    this.mainSource = null;
-    this.childSources.clear();
-  }
-}
-
-export function identifyPluginMessageEvent(
-  sources: PluginFrameSourceRegistry,
-  event: Pick<MessageEvent, "source">,
-): PluginFrameIdentity | null {
-  return sources.identify(event.source);
-}
 
 const NATIVE_PLUGIN_PERMISSIONS = {
   showOpenDialog: "dialog.open",
@@ -143,6 +68,7 @@ const NATIVE_PLUGIN_PERMISSIONS = {
   startDrag: "file.drag",
   createBrowserWindow: "browserWindow",
   sendToParent: "browserWindow",
+  sendTo: "browserWindow",
   browserWindowAction: "browserWindow",
   redirect: "settings.redirect",
   redirectHotKeySetting: "settings.redirect",
@@ -184,16 +110,6 @@ export function pluginPermissionListAllows(permissions: unknown, permission: unk
     if (allowed === "*" || allowed === value || allowed === group) return true;
     return allowed.endsWith(".*") && value.startsWith(allowed.slice(0, -1));
   });
-}
-
-function isMessageSource(value: unknown): value is PluginMessageSource {
-  return value !== null && (typeof value === "object" || typeof value === "function");
-}
-
-function sameFrameIdentity(current: PluginFrameIdentity | null, expected: PluginFrameIdentity) {
-  if (!current || current.kind !== expected.kind || current.generation !== expected.generation) return false;
-  return current.kind === "main"
-    || (expected.kind === "child" && current.windowId === expected.windowId);
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
@@ -351,61 +267,17 @@ export function resolvePluginInvokeRequest(message: unknown, pluginId: string): 
   return { reqId: message.reqId, command, ...resolved };
 }
 
-function assertPluginFrameSourceCurrent(
-  sources: PluginFrameSourceRegistry,
-  source: unknown,
-  identity: PluginFrameIdentity,
-) {
-  if (!sources.isCurrent(source, identity)) {
-    throw new Error("Plugin message source is no longer active");
-  }
-}
-
-export async function runPluginFrameOperation<T>(options: {
-  source: unknown;
-  identity: PluginFrameIdentity;
-  sources: PluginFrameSourceRegistry;
-  operation: () => Promise<T>;
-}): Promise<T> {
-  assertPluginFrameSourceCurrent(options.sources, options.source, options.identity);
-  try {
-    const result = await options.operation();
-    assertPluginFrameSourceCurrent(options.sources, options.source, options.identity);
-    return result;
-  } catch (error) {
-    assertPluginFrameSourceCurrent(options.sources, options.source, options.identity);
-    throw error;
-  }
-}
-
-export function postPluginFrameMessageIfCurrent(options: {
-  source: unknown;
-  identity: PluginFrameIdentity;
-  sources: PluginFrameSourceRegistry;
-  message: unknown;
-  targetOrigin?: string;
-}) {
-  if (!options.sources.isCurrent(options.source, options.identity)) return false;
-  const target = options.source as { postMessage?: (message: unknown, targetOrigin: string) => void };
-  if (typeof target?.postMessage !== "function") return false;
-  try {
-    target.postMessage(options.message, options.targetOrigin ?? "*");
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export async function dispatchPluginInvokeMessage(options: {
   source: unknown;
   message: unknown;
   sources: PluginFrameSourceRegistry;
+  identity?: PluginFrameIdentity;
   pluginId: string;
   authorize: (permission: string, identity: PluginFrameIdentity) => Promise<void>;
   invoke: (command: PluginInvokeCommand, args: Record<string, unknown>) => Promise<unknown>;
 }) {
-  const identity = options.sources.identify(options.source);
-  if (!identity) return { handled: false } as const;
+  const identity = options.identity ?? options.sources.identify(options.source);
+  if (!identity || !options.sources.isCurrent(options.source, identity)) return { handled: false } as const;
   const request = resolvePluginInvokeRequest(options.message, options.pluginId);
   await options.authorize(request.permission, identity);
   const result = await runPluginFrameOperation({
@@ -438,12 +310,23 @@ export function bindNativeBridgeArgsToSource(
   method: unknown,
   args: unknown,
   identity: PluginFrameIdentity,
+  options: { authorizeBrowserWindowTarget?: (targetId: string, identity: PluginFrameIdentity) => boolean } = {},
 ): Record<string, unknown> {
   if (!isPlainRecord(args)) throw new Error("Native bridge args must be a plain object");
   if (method === "browserWindowAction") {
-    const id = identity.kind === "child"
-      ? identity.windowId
-      : requiredString(args, "id", "browserWindowAction");
+    const suppliedId = typeof args.id === "string" && args.id.trim() ? args.id.trim() : "";
+    let id: string;
+    if (identity.kind === "child") {
+      if (!suppliedId || suppliedId === identity.windowId) id = identity.windowId;
+      else if (!options.authorizeBrowserWindowTarget) id = identity.windowId;
+      else if (options.authorizeBrowserWindowTarget(suppliedId, identity)) id = suppliedId;
+      else throw new Error("browserWindowAction target is not owned by this current plugin frame");
+    } else {
+      id = requiredString(args, "id", "browserWindowAction");
+      if (options.authorizeBrowserWindowTarget && !options.authorizeBrowserWindowTarget(id, identity)) {
+        throw new Error("browserWindowAction target is not owned by this current plugin frame");
+      }
+    }
     const action = requiredString(args, "action", "browserWindowAction");
     if (!Array.isArray(args.args)) invalidInvokeArgs("browserWindowAction", "args must be an array");
     return {

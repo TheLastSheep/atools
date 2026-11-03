@@ -16,6 +16,8 @@ export type PluginMarketStatusInput = {
   hasTauriRuntime: boolean;
   customMarketEnabled?: boolean;
   customMarketUrl?: string;
+  activeSourceUrl?: string;
+  activeSourceKind?: "atools" | "ztools" | "legacy";
   remoteCatalogLoaded?: boolean;
   remotePluginCount?: number;
   remoteRatedPluginCount?: number;
@@ -32,6 +34,8 @@ export type PluginMarketStatus = {
   networkMarketAvailable: boolean;
   customMarketConfigured: boolean;
   customMarketUrl: string;
+  activeSourceUrl: string;
+  activeSourceLabel: string;
   remoteCatalogLoaded: boolean;
   remotePluginCount: number;
   remoteRatedPluginCount: number;
@@ -41,11 +45,23 @@ export type PluginMarketStatus = {
   remoteCapabilities: PluginMarketCapability[];
 };
 
+export function isOfficialZtoolsMarketSource(value: string): boolean {
+  try {
+    const url = new URL(value);
+    const pathname = url.pathname.replace(/\/+$/, "");
+    return url.protocol === "https:" && url.hostname === "z-tools.top" && !url.username && !url.password
+      && (pathname === "/api/market" || pathname === "/api/market/plugins");
+  } catch { return false; }
+}
+
 export function pluginMarketStatus(input: PluginMarketStatusInput): PluginMarketStatus {
   const installedPluginCount = Math.max(0, Math.floor(input.installedPluginCount));
   const customMarketUrl = typeof input.customMarketUrl === "string" ? input.customMarketUrl.trim() : "";
   const customMarketConfigured = Boolean(input.customMarketEnabled && customMarketUrl);
-  const remoteCatalogLoaded = Boolean(customMarketConfigured && input.remoteCatalogLoaded);
+  const activeSourceUrl = input.activeSourceUrl?.trim() || (customMarketConfigured ? customMarketUrl : "https://z-tools.top/api/market");
+  const official = isOfficialZtoolsMarketSource(activeSourceUrl);
+  const activeSourceLabel = official ? "ZTools 官方市场" : "自定义市场";
+  const remoteCatalogLoaded = Boolean(input.remoteCatalogLoaded);
   const remotePluginCount = remoteCatalogLoaded
     ? Math.max(0, Math.floor(input.remotePluginCount ?? 0))
     : 0;
@@ -59,11 +75,11 @@ export function pluginMarketStatus(input: PluginMarketStatusInput): PluginMarket
     ? Math.min(remoteSignedPluginCount, Math.max(0, Math.floor(input.remoteTrustedPluginCount ?? 0)))
     : 0;
   const summary = remoteCatalogLoaded
-    ? `已读取自定义市场目录 ${remotePluginCount} 个插件；可查看远程详情${remoteRatedPluginCount ? `和 ${remoteRatedPluginCount} 个评分条目` : ""}，从远程 ZIP 安装或更新插件并显示进度，执行前需确认，并校验目录提供的 SHA-256。目录包含 ${remoteSignedPluginCount} 个签名条目，其中 ${remoteTrustedPluginCount} 个公钥已被本地信任。`
+    ? `已读取${activeSourceLabel}目录 ${remotePluginCount} 个插件；可查看远程详情${remoteRatedPluginCount ? `和 ${remoteRatedPluginCount} 个评分条目` : ""}，从远程 ZIP 安装或更新插件并显示进度，执行前需确认，并校验目录提供的 SHA-256。目录包含 ${remoteSignedPluginCount} 个签名条目，其中 ${remoteTrustedPluginCount} 个公钥已被本地信任。`
     : customMarketConfigured
       ? `自定义市场地址已保存：${customMarketUrl}。点击刷新可读取远程目录，读取后可确认安装或更新远程 ZIP、显示进度、取消/重试并校验 SHA-256 和 Ed25519 签名。`
       : input.hasTauriRuntime
-      ? "网络插件市场下载安装更新需先配置并读取自定义目录；首版请使用内置插件、本地导入和已安装插件管理。"
+      ? "默认使用 ZTools 官方市场。读取目录后可搜索本次返回的条目，安装或更新前仍需确认来源与权限。"
       : "插件数量、本地数据和远程 ZIP 安装/更新需在桌面应用中查看。";
 
   return {
@@ -75,6 +91,8 @@ export function pluginMarketStatus(input: PluginMarketStatusInput): PluginMarket
     networkMarketAvailable: remoteCatalogLoaded,
     customMarketConfigured,
     customMarketUrl,
+    activeSourceUrl,
+    activeSourceLabel,
     remoteCatalogLoaded,
     remotePluginCount,
     remoteRatedPluginCount,
@@ -98,14 +116,14 @@ export function pluginMarketStatus(input: PluginMarketStatusInput): PluginMarket
         label: "目录读取",
         description: remoteCatalogLoaded
           ? `已读取 ${remotePluginCount} 个远程插件条目`
-          : "自定义市场 JSON 目录尚未读取",
+          : "当前来源目录尚未读取",
         available: remoteCatalogLoaded,
       },
       {
         label: "市场搜索",
         description: remoteCatalogLoaded
-          ? "可在已读取的远程目录中查看插件名称和描述"
-          : "远程插件名称、描述和作者搜索暂未接入",
+          ? "可按名称、ID、描述或作者筛选本次返回的条目，未读取的分页不在搜索范围"
+          : "读取当前来源目录后可筛选本次返回的条目",
         available: remoteCatalogLoaded,
       },
       {
@@ -183,17 +201,15 @@ export function pluginMarketOverviewCards(status: PluginMarketStatus): PluginMar
       label: "市场状态",
       value: status.label,
       detail: status.remoteCatalogLoaded
-        ? "自定义远程目录已接入展示、远程详情、评分展示、ZIP 安装/更新、下载进度、SHA-256 校验、Ed25519 签名校验和安装确认"
-        : "网络市场、下载安装更新、进度、取消/重试、校验、确认、评分、远程详情和签名信任需先读取自定义目录",
+        ? "当前来源目录已读取；安装前仍需确认来源与权限，实际兼容性以插件运行验证为准"
+        : "网络市场目录尚未读取；本地导入、已安装插件管理仍可使用",
       tone: status.remoteCatalogLoaded ? "ready" : "warning",
     },
     {
       label: "市场地址",
-      value: status.customMarketConfigured ? "已配置" : "未配置",
-      detail: status.customMarketConfigured
-        ? status.customMarketUrl
-        : "可在通用设置保存外部市场地址",
-      tone: status.customMarketConfigured ? "ready" : "warning",
+      value: status.activeSourceLabel,
+      detail: status.activeSourceUrl,
+      tone: "ready",
     },
     {
       label: "本地入口",
@@ -214,7 +230,7 @@ export function pluginMarketOverviewCards(status: PluginMarketStatus): PluginMar
       value: `${remoteAvailable}/${status.remoteCapabilities.length} 可用`,
       detail: status.remoteCatalogLoaded
         ? "目录读取、市场搜索、ZIP 安装/更新、下载进度、取消/重试、SHA-256 校验、安装确认和远程详情可用；有评分或签名条目时展示市场评分和签名信任"
-        : "目录读取、市场搜索、下载安装更新、进度、取消/重试、校验、确认、评分详情和签名信任需读取自定义目录",
+        : "目录读取、市场搜索、下载安装更新、进度、取消/重试、校验、确认、评分详情和签名信任需先读取当前来源目录",
       tone: remoteAvailable > 0 ? "ready" : "warning",
     },
   ];

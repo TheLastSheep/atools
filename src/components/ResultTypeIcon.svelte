@@ -9,7 +9,19 @@
 </script>
 
 <span class={`result-type-icon tone-${icon}`} aria-hidden="true">
-  {#if icon === "system"}
+  {#if icon === "settings"}
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="m9 3-1 3-3 1v4l-2 1 2 1v4l3 1 1 3h6l1-3 3-1v-4l2-1-2-1V7l-3-1-1-3Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  {:else if icon === "results"}
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="4" y="3" width="16" height="18" rx="2" />
+      <path d="M8 8h8M8 12h8M8 16h5" />
+    </svg>
+  {:else if icon === "agent"}
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 8-5 4 5 4m8-8 5 4-5 4M14 4l-4 16" /></svg>
+  {:else if icon === "system"}
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <circle cx="12" cy="12" r="3" />
       <path d="M12 3v2" />

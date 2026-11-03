@@ -1,6 +1,7 @@
 import type { SearchResult } from "./types";
 import type { RecommendedCommand } from "./uiState";
 import { searchMatchForQuery, sortSearchMatches } from "./searchMatch";
+import { commandIdentityKey, sameCommandIdentity } from "./commandHistoryIdentity";
 
 export type CommandHistoryEntry = {
   code: string;
@@ -17,6 +18,7 @@ export type CommandHistoryEntry = {
 export type CommandHistoryPayload = {
   code: string;
   input: string;
+  plugin_id?: string;
 };
 
 export const COMMAND_HISTORY_STORAGE_KEY = "atools:command-history";
@@ -62,15 +64,17 @@ export function clearCommandHistoryStorage(): number {
   return count;
 }
 
-export function removeCommandHistoryEntry(history: CommandHistoryEntry[], code: string): CommandHistoryEntry[] {
+export function removeCommandHistoryEntry(history: CommandHistoryEntry[], code: string, pluginId?: string): CommandHistoryEntry[] {
   const targetCode = code.trim();
   if (!targetCode) return normalizeCommandHistory(history);
-  return normalizeCommandHistory(history).filter((entry) => entry.code !== targetCode);
+  return normalizeCommandHistory(history).filter((entry) => pluginId
+    ? entry.code !== targetCode || entry.plugin_id !== pluginId
+    : entry.code !== targetCode);
 }
 
-export function removeCommandHistoryEntryStorage(code: string): number {
+export function removeCommandHistoryEntryStorage(code: string, pluginId?: string): number {
   const current = loadCommandHistory();
-  const next = removeCommandHistoryEntry(current, code);
+  const next = removeCommandHistoryEntry(current, code, pluginId);
   const removed = current.length - next.length;
   if (removed <= 0) return 0;
   try {
@@ -87,6 +91,51 @@ export function filterCommandHistoryByCodeAvailability(
   isAvailable: (code: string) => boolean,
 ): CommandHistoryEntry[] {
   return normalizeCommandHistory(entries).filter((entry) => isAvailable(entry.code));
+}
+
+export function filterCommandHistoryByAvailability(
+  entries: CommandHistoryEntry[],
+  isAvailable: (entry: CommandHistoryEntry) => boolean,
+): CommandHistoryEntry[] {
+  return normalizeCommandHistory(entries).filter(isAvailable);
+}
+
+/** Refresh presentation metadata only when both plugin identity and feature code match. */
+export function refreshCommandHistoryMetadata(
+  entries: CommandHistoryEntry[],
+  catalog: SearchResult[],
+): CommandHistoryEntry[] {
+  const byIdentity = new Map(catalog.map((feature) => [commandIdentityKey(feature), feature]));
+  return normalizeCommandHistory(entries).map((entry) => {
+    const feature = byIdentity.get(commandIdentityKey(entry));
+    if (!feature) return entry;
+    return {
+      ...entry,
+      label: feature.label.trim() || entry.label,
+      explain: feature.explain.trim() || entry.explain,
+      plugin_name: feature.plugin_name.trim() || entry.plugin_name,
+      icon: feature.icon?.trim() || "",
+    };
+  });
+}
+
+export function commandHistoryListsEqual(
+  left: CommandHistoryEntry[],
+  right: CommandHistoryEntry[],
+): boolean {
+  return left.length === right.length && left.every((entry, index) => {
+    const other = right[index];
+    if (!other) return false;
+    return entry.code === other.code
+      && entry.plugin_id === other.plugin_id
+      && entry.label === other.label
+      && entry.explain === other.explain
+      && entry.plugin_name === other.plugin_name
+      && entry.icon === other.icon
+      && entry.input === other.input
+      && entry.usedAt === other.usedAt
+      && entry.useCount === other.useCount;
+  });
 }
 
 export function commandHistoryStats(entries: CommandHistoryEntry[]) {
@@ -139,13 +188,14 @@ export function recordCommandUse(
   if (!nextEntry) return normalizeCommandHistory(history);
 
   const normalized = normalizeCommandHistory(history);
-  const existing = normalized.find((entry) => entry.code === nextEntry.code);
+  const existing = normalized.find((entry) => sameCommandIdentity(entry, nextEntry));
   const updated: CommandHistoryEntry = {
     ...nextEntry,
     useCount: Math.max(1, (existing?.useCount ?? 0) + 1),
   };
 
-  return [updated, ...normalized.filter((entry) => entry.code !== updated.code)].slice(0, MAX_HISTORY_SIZE);
+  return [updated, ...normalized.filter((entry) => !sameCommandIdentity(entry, updated))]
+    .slice(0, MAX_HISTORY_SIZE);
 }
 
 export function normalizeCommandHistory(value: unknown): CommandHistoryEntry[] {
@@ -154,9 +204,10 @@ export function normalizeCommandHistory(value: unknown): CommandHistoryEntry[] {
   for (const item of value) {
     const entry = normalizeCommandHistoryEntry(item);
     if (!entry) continue;
-    const existing = byCode.get(entry.code);
+    const identity = commandIdentityKey(entry);
+    const existing = byCode.get(identity);
     if (!existing || entry.usedAt.localeCompare(existing.usedAt) >= 0) {
-      byCode.set(entry.code, entry);
+      byCode.set(identity, entry);
     }
   }
   return [...byCode.values()]
@@ -191,6 +242,7 @@ export function homeCommandsFor(
     seenLabels.add(labelKey);
     commands.push({
       code: entry.code,
+      plugin_id: entry.plugin_id,
       label: entry.label,
       explain: entry.explain || entry.input,
       icon: entry.icon || null,
@@ -232,10 +284,12 @@ export function commandHistoryPayloadFromCode(code: string): CommandHistoryPaylo
   try {
     const payload = JSON.parse(decodeURIComponent(code.slice(HISTORY_CODE_PREFIX.length))) as CommandHistoryPayload;
     if (!payload || typeof payload.code !== "string" || typeof payload.input !== "string") return null;
+    if (payload.plugin_id !== undefined && typeof payload.plugin_id !== "string") return null;
     if (!isReplayableCode(payload.code)) return null;
     return {
       code: payload.code,
       input: payload.input,
+      ...(payload.plugin_id?.trim() ? { plugin_id: payload.plugin_id.trim() } : {}),
     };
   } catch {
     return null;
@@ -246,13 +300,14 @@ function historyResultForEntry(entry: CommandHistoryEntry, matchType: string, sc
   const payload: CommandHistoryPayload = {
     code: entry.code,
     input: entry.input,
+    plugin_id: entry.plugin_id,
   };
   return {
     code: `${HISTORY_CODE_PREFIX}${encodeURIComponent(JSON.stringify(payload))}`,
     plugin_id: "command-history",
     plugin_name: "最近使用",
     label: entry.label,
-    icon: null,
+    icon: entry.icon || null,
     explain: `最近使用 · ${entry.explain || entry.input}`,
     score,
     match_type: matchType,
@@ -305,3 +360,4 @@ function stringValue(value: unknown): string {
 function normalizedLabelKey(label: string): string {
   return label.trim().toLowerCase();
 }
+

@@ -631,6 +631,7 @@
       await invoke("grant_agent_tool", {
         clientId: request.client_id,
         toolName: request.tool_name,
+        requestId: request.id,
       });
       await invoke("dismiss_pending_agent_request", { requestId: request.id });
       await refresh();

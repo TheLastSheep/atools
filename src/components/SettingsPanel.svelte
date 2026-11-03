@@ -1,12 +1,20 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
-  import { listen } from "@tauri-apps/api/event";
+  import SettingsLaunchAtLoginControl from "./SettingsLaunchAtLoginControl.svelte";
   import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
+  import LauncherTabTargetPicker from "./LauncherTabTargetPicker.svelte";
   import SettingsConfirmDialog from "./SettingsConfirmDialog.svelte";
+  import PluginInventoryPanel from "./PluginInventoryPanel.svelte";
+  import { createPluginInventoryBrowseState, type PluginInventoryBrowseState } from "../lib/pluginInventoryBrowseState";
+  import AToolsMark from "./AToolsMark.svelte";
+  import PluginMarketPanel from "./PluginMarketPanel.svelte";
+  import PluginMarketSourceAction from "./PluginMarketSourceAction.svelte";
+  import { preferredMarketUrl } from "../lib/pluginMarketView";
+  import type { PluginMarketRequest } from "../lib/pluginMarketNavigation";
   import {
     applyAToolsAppearance,
-    applyAndSaveAToolsSettings,
+    createAToolsSettingsWriter,
     DEFAULT_ATOOLS_SETTINGS,
     dispatchAToolsSettings,
     loadAToolsSettings,
@@ -21,7 +29,7 @@
     type WindowPositionStrategy,
   } from "../lib/settings";
   import { registerSettingsSaveFlushOnDestroy } from "../lib/settingsLifecycle";
-  import { dispatchPluginOpenRequest, firstOpenablePluginFeature } from "../lib/pluginOpen";
+  import "../styles/settings-responsive.css";
   import type {
     AgentScopePolicy,
     AgentToolGrant,
@@ -33,9 +41,6 @@
     InstalledPlugin,
     McpServerStatus,
     PendingAgentToolRequest,
-    PluginMarketCatalog,
-    PluginMarketCatalogPlugin,
-    PluginMarketResolvedDownload,
     PluginProviderDescriptor,
     RuntimeDiagnostics,
     ToolDefinition,
@@ -115,16 +120,6 @@
     type DebugDiagnosticRow,
   } from "../lib/debugDiagnostics";
   import { auditDataOverview } from "../lib/auditView";
-  import { pluginInventory as buildPluginInventory, pluginInventoryOverviewCards } from "../lib/pluginInventory";
-  import {
-    PLUGIN_RUNTIME_PERMISSION_GRANTS_UPDATED_EVENT,
-    clearPluginRuntimePermissionGrants,
-    pluginRuntimePermissionGrantList,
-  } from "../lib/pluginRuntimePermissions";
-  import {
-    pluginMarketOverviewCards,
-    pluginMarketStatus as buildPluginMarketStatus,
-  } from "../lib/pluginMarketStatus";
   import {
     mcpClientConfig as buildMcpClientConfig,
     mcpClientConfigText,
@@ -197,43 +192,15 @@
   import { appUpdater, appUpdaterState, type AppUpdaterState } from "../lib/appUpdater";
 
   type MenuId = SettingsMenuId;
-  const DEFAULT_ZTOOLS_MARKET_URL = "https://z-tools.top/api/market";
   type IconName = SettingsIconName;
-  type MarketCatalogDetailPlugin = PluginMarketCatalogPlugin & {
-    checksum?: string | null;
-    rating?: string | null;
-    rating_count?: number | null;
-    downloads?: number | null;
-    updated_at?: string | null;
-    publisher?: string | null;
-    publisher_url?: string | null;
-    signature?: string | null;
-    public_key?: string | null;
-  };
-  type PluginMarketProgressEvent = {
-    plugin_id?: string | null;
-    operation: string;
-    operation_id?: string | null;
-    stage: string;
-    downloaded_bytes: number;
-    total_bytes?: number | null;
-    percent?: number | null;
-    attempt: number;
-    max_attempts: number;
-    message: string;
-  };
-
-  type PluginMarketActionState = {
-    plugin: PluginMarketCatalogPlugin;
-    operation: "install" | "update";
-    actionLabel: string;
-  };
 
   type Props = {
     initialMenu?: MenuId;
+    marketRequest?: PluginMarketRequest | null;
   };
 
-  let { initialMenu = "general" }: Props = $props();
+  let { initialMenu = "general", marketRequest = null }: Props = $props();
+  let handledMarketRequest = $state.raw<PluginMarketRequest | null>(null);
 
   type Option<T extends string | number> = {
     label: string;
@@ -275,7 +242,6 @@
   const menuItems = settingsMenuItems();
   const AUDIT_RETENTION_DAYS = 90;
   const AUDIT_KEEP_LATEST = 1000;
-  const PLUGIN_MARKET_PROGRESS_EVENT = "plugin-market-progress";
 
   const themeOptions: Option<string>[] = [
     { label: "跟随系统", value: "system" },
@@ -423,12 +389,14 @@
   };
 
   const initialSettings = loadAToolsSettingsSync();
-  const settingsSaveCoordinator = new SettingsSaveCoordinator(initialSettings, applyAndSaveAToolsSettings);
+  const nativeSettingsRuntime = hasTauriRuntime();
+  const settingsSaveCoordinator = new SettingsSaveCoordinator(initialSettings, createAToolsSettingsWriter());
   const settingsSaveDebouncer = new SettingsSaveDebouncer(enqueueSettingsSave);
   registerSettingsSaveFlushOnDestroy(settingsSaveDebouncer);
   let lastSavedSettings: AToolsSettings = initialSettings;
 
   let activeMenu = $state<MenuId>("general");
+  let marketVisited = $state(false);
   let activeShortcutTab = $state<ShortcutTabId>("global");
   let settingsConfirmRequest = $state<SettingsConfirmRequest | null>(null);
   let hydrated = $state(true);
@@ -441,6 +409,7 @@
   let showHotkeyQuickActions = $state(false);
   let saveErrorMessage = $state("");
   let launchAtLogin = $state(initialSettings.launchAtLogin);
+  let launchAtLoginRuntimeState = $state<boolean | null>(null);
   let appShortcuts = $state<AppShortcutSetting[]>([...initialSettings.appShortcuts]);
   let appShortcutStatus = $state("已保存");
   let showTrayIcon = $state(initialSettings.showTrayIcon);
@@ -465,6 +434,7 @@
   let recentRows = $state(initialSettings.recentRows);
   let pinnedRows = $state(initialSettings.pinnedRows);
   let tabKeyFunction = $state(initialSettings.tabKeyFunction);
+  let tabTarget = $state(initialSettings.tabTarget);
   let autoPaste = $state(initialSettings.autoPaste);
   let autoClear = $state(initialSettings.autoClear);
   let autoBackToSearch = $state(initialSettings.autoBackToSearch);
@@ -532,25 +502,10 @@
   let auditArchiveBusy = $state(false);
   let auditPruneBusy = $state(false);
   let installedPlugins = $state<InstalledPlugin[]>([]);
-  let recentlyInstalledPlugin = $state<InstalledPlugin | null>(null);
   let pluginDataSummary = $state<PluginDataSummary[]>([]);
-  let pluginsLoading = $state(false);
-  let pluginsStatus = $state("");
-  let busyPluginId = $state("");
   let selectedPluginId = $state<string | null>(null);
-  let pluginPermissionPanelOpen = $state(false);
-  let pluginRuntimePermissionGrantVersion = $state(0);
   let pluginFilterQuery = $state("");
-  let pluginFilterStatus = $state<"all" | "enabled" | "disabled">("all");
-  let pluginFilterSource = $state<"all" | "builtin" | "imported">("all");
-  let pluginMarketLoading = $state(false);
-  let pluginMarketStatusText = $state("");
-  let pluginMarketCatalog = $state<PluginMarketCatalog | null>(null);
-  let installingMarketPluginId = $state("");
-  let selectedMarketPluginId = $state<string | null>(null);
-  let pluginMarketProgress = $state<PluginMarketProgressEvent | null>(null);
-  let pluginMarketOperationId = $state("");
-  let pluginMarketRetryAction = $state<PluginMarketActionState | null>(null);
+  let pluginInventoryBrowseState = $state<PluginInventoryBrowseState>(createPluginInventoryBrowseState());
   let pluginProviders = $state<PluginProviderDescriptor[]>([]);
   let pluginProvidersLoading = $state(false);
   let pluginProvidersStatus = $state("");
@@ -585,10 +540,13 @@
   $effect(() => {
     activeMenu = initialMenu;
   });
+  $effect(() => {
+    if (marketRequest && marketRequest !== handledMarketRequest) activeMenu = "market";
+  });
+  $effect(() => { if (activeMenu === "market") marketVisited = true; });
 
   onMount(() => {
     let cancelled = false;
-    let unlistenPluginMarketProgress: (() => void) | undefined;
     const loadTimeout = setTimeout(() => {
       if (hydrated) return;
       cancelled = true;
@@ -620,29 +578,12 @@
       commandAliases = (event as CustomEvent<CommandAliasEntry[]>).detail ?? loadCommandAliases();
     };
     window.addEventListener(COMMAND_ALIASES_UPDATED_EVENT, onCommandAliasesUpdated);
-    const onPluginRuntimePermissionGrantsUpdated = () => {
-      pluginRuntimePermissionGrantVersion += 1;
-    };
-    window.addEventListener(PLUGIN_RUNTIME_PERMISSION_GRANTS_UPDATED_EVENT, onPluginRuntimePermissionGrantsUpdated);
-    if (hasTauriRuntime()) {
-      listen<PluginMarketProgressEvent>(PLUGIN_MARKET_PROGRESS_EVENT, (event) => handlePluginMarketProgress(event.payload))
-        .then((stop) => {
-          if (cancelled) {
-            stop();
-          } else {
-            unlistenPluginMarketProgress = stop;
-          }
-        })
-        .catch(() => {});
-    }
-
     return () => {
       cancelled = true;
+      resolveSettingsConfirm(false);
       clearTimeout(loadTimeout);
       window.removeEventListener(COMMAND_HISTORY_UPDATED_EVENT, onCommandHistoryUpdated);
       window.removeEventListener(COMMAND_ALIASES_UPDATED_EVENT, onCommandAliasesUpdated);
-      window.removeEventListener(PLUGIN_RUNTIME_PERMISSION_GRANTS_UPDATED_EVENT, onPluginRuntimePermissionGrantsUpdated);
-      unlistenPluginMarketProgress?.();
     };
   });
 
@@ -651,10 +592,6 @@
       void refreshAccessibilityPermission();
     } else if (activeMenu === "mcp") {
       refreshMcpPage();
-    } else if (activeMenu === "plugins") {
-      refreshPluginsPage();
-    } else if (activeMenu === "market") {
-      refreshPluginMarketPage();
     } else if (activeMenu === "providers") {
       void refreshPluginProviders();
     } else if (activeMenu === "data") {
@@ -810,6 +747,7 @@
       recentRows,
       pinnedRows,
       tabKeyFunction,
+      tabTarget,
       autoPaste,
       autoClear,
       autoBackToSearch,
@@ -869,6 +807,7 @@
     recentRows = settings.recentRows;
     pinnedRows = settings.pinnedRows;
     tabKeyFunction = settings.tabKeyFunction;
+    tabTarget = settings.tabTarget;
     autoPaste = settings.autoPaste;
     autoClear = settings.autoClear;
     autoBackToSearch = settings.autoBackToSearch;
@@ -1963,521 +1902,50 @@
     return mcpConnection().httpUrl;
   }
 
-  function pluginMarketPageStatus() {
-    return buildPluginMarketStatus({
-      installedPluginCount: installedPlugins.length,
-      hasTauriRuntime: hasTauriRuntime(),
-      customMarketEnabled: pluginMarketCustom,
-      customMarketUrl: pluginMarketUrl,
-      remoteCatalogLoaded: Boolean(pluginMarketCatalog),
-      remotePluginCount: pluginMarketCatalog?.plugins.length ?? 0,
-      remoteRatedPluginCount: pluginMarketCatalog?.plugins.filter((plugin) => plugin.rating || plugin.rating_count).length ?? 0,
-      remoteSignedPluginCount: pluginMarketCatalog?.plugins.filter((plugin) => plugin.signature && plugin.public_key).length ?? 0,
-      remoteTrustedPluginCount: pluginMarketCatalog?.plugins.filter((plugin) =>
-        plugin.signature && plugin.public_key && pluginMarketPublicKeyTrusted(plugin)
-      ).length ?? 0,
-    });
-  }
-
-  function pluginMarketOverview(status: ReturnType<typeof pluginMarketPageStatus>) {
-    return pluginMarketOverviewCards(status);
-  }
-
-  function marketCatalogInstalledPlugin(plugin: PluginMarketCatalogPlugin) {
-    return installedPlugins.find((installed) => installed.id === plugin.id) ?? null;
-  }
-
-  function marketCatalogActionLabel(plugin: PluginMarketCatalogPlugin) {
-    const installed = marketCatalogInstalledPlugin(plugin);
-    if (!installed) return "安装";
-    return installed.version === plugin.version ? "重装" : "更新";
-  }
-
-  function marketCatalogBusyLabel(plugin: PluginMarketCatalogPlugin) {
-    const label = marketCatalogActionLabel(plugin);
-    return `${label}中`;
-  }
-
-  function marketCatalogChecksumLabel(plugin: MarketCatalogDetailPlugin) {
-    return plugin.checksum ? "SHA-256 已校验" : "未提供校验";
-  }
-
-  function pluginMarketPublicKeyTrusted(plugin: MarketCatalogDetailPlugin) {
-    const publicKey = plugin.public_key?.trim();
-    if (!publicKey) return false;
-    return pluginMarketTrustedPublicKeysText
-      .split(/\s+/)
-      .map((key) => key.trim())
-      .filter(Boolean)
-      .includes(publicKey);
-  }
-
-  function pluginMarketInstallAllowed(plugin: PluginMarketCatalogPlugin) {
-    return plugin.trust_policy === "official_ztools_confirm"
-      || Boolean(plugin.signature && plugin.public_key && pluginMarketPublicKeyTrusted(plugin));
-  }
-
-  function effectivePluginMarketUrl() {
-    return pluginMarketCustom && pluginMarketUrl.trim()
-      ? pluginMarketUrl.trim()
-      : DEFAULT_ZTOOLS_MARKET_URL;
-  }
-
-  function handlePluginMarketProgress(event: PluginMarketProgressEvent) {
-    if (pluginMarketOperationId && event.operation_id && event.operation_id !== pluginMarketOperationId) return;
-    pluginMarketProgress = event;
-    if (event.stage === "retrying") {
-      pluginMarketStatusText = `${event.message}（第 ${event.attempt + 1}/${event.max_attempts} 次）`;
-    } else if (event.stage === "cancelled") {
-      pluginMarketStatusText = "插件市场任务已取消";
-    }
-  }
-
-  function formatPluginMarketBytes(bytes: number) {
-    if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
-    if (bytes < 1024) return `${Math.round(bytes)} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-  }
-
-  function marketProgressLabel() {
-    if (!pluginMarketProgress) return "等待开始";
-    const percent = typeof pluginMarketProgress.percent === "number"
-      ? `${Math.round(pluginMarketProgress.percent)}%`
-      : null;
-    const attempt = pluginMarketProgress.max_attempts > 1
-      ? `第 ${pluginMarketProgress.attempt}/${pluginMarketProgress.max_attempts} 次`
-      : "";
-    const total = pluginMarketProgress.total_bytes
-      ? ` / ${formatPluginMarketBytes(pluginMarketProgress.total_bytes)}`
-      : "";
-    const downloaded = formatPluginMarketBytes(pluginMarketProgress.downloaded_bytes);
-    const progress = percent
-      ? `${pluginMarketProgress.message} · ${percent} · ${downloaded}${total}`
-      : `${pluginMarketProgress.message} · ${downloaded}${total}`;
-    return attempt ? `${progress} · ${attempt}` : progress;
-  }
-
-  function nextPluginMarketOperationId(plugin: PluginMarketCatalogPlugin) {
-    return `plugin-market-${plugin.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  }
-
-  function selectedMarketCatalogPlugin() {
-    if (!pluginMarketCatalog) return null;
-    return pluginMarketCatalog.plugins.find((plugin) => plugin.id === selectedMarketPluginId) ?? pluginMarketCatalog.plugins[0] ?? null;
-  }
-
-  function openMarketCatalogDetails(plugin: PluginMarketCatalogPlugin) {
-    selectedMarketPluginId = plugin.id;
-  }
-
-  function pluginInventoryPage() {
-    return buildPluginInventory(installedPlugins, {
-      selectedPluginId,
-      query: pluginFilterQuery,
-      status: pluginFilterStatus,
-      source: pluginFilterSource,
-    });
-  }
-
-  function pluginInventoryOverview(inventory: ReturnType<typeof pluginInventoryPage>) {
-    return pluginInventoryOverviewCards({
-      inventory,
-      hasTauriRuntime: hasTauriRuntime(),
-    });
-  }
-
-  async function refreshPluginsPage() {
-    pluginsStatus = "";
-    if (!hasTauriRuntime()) {
-      installedPlugins = [];
-      pluginsStatus = "Tauri 运行时未连接，已安装插件需在桌面应用中查看";
-      return;
-    }
-    pluginsLoading = true;
-    try {
-      installedPlugins = await invoke<InstalledPlugin[]>("list_plugins");
-      const ids = new Set(installedPlugins.map((plugin) => plugin.id));
-      if (selectedPluginId && !ids.has(selectedPluginId)) {
-        selectedPluginId = null;
-        pluginPermissionPanelOpen = false;
-      }
-      pluginsStatus = `已读取 ${installedPlugins.length} 个插件`;
-    } catch (error) {
-      pluginsStatus = hasTauriRuntime() ? String(error) : "Tauri 运行时未连接，已安装插件需在桌面应用中查看";
-    } finally {
-      pluginsLoading = false;
-    }
-  }
-
-  async function installPluginFromDirectory() {
-    pluginsStatus = "";
-    if (!hasTauriRuntime()) {
-      pluginsStatus = "浏览器预览模式无法安装插件";
-      return;
-    }
-    pluginsLoading = true;
-    try {
-      const selected = await openDialog({
-        directory: true,
-        multiple: false,
-        title: "选择包含 plugin.json 的插件目录",
-      });
-      const selectedPath = selectedPluginInstallPath(selected);
-      if (!selectedPath) {
-        pluginsStatus = "已取消安装插件";
-        return;
-      }
-      pluginsStatus = "正在安装插件";
-      const plugin = await invoke("install_plugin", { path: selectedPath }) as InstalledPlugin;
-      selectedPluginId = plugin.id;
-      recentlyInstalledPlugin = plugin;
-      pluginPermissionPanelOpen = false;
-      await refreshPluginsPage();
-      pluginsStatus = `已安装 ${plugin.name || plugin.id}`;
-    } catch (error) {
-      pluginsStatus = String(error);
-    } finally {
-      pluginsLoading = false;
-    }
-  }
-
-  function openRecentlyInstalledPlugin() {
-    if (!recentlyInstalledPlugin) return;
-    if (dispatchPluginOpenRequest(recentlyInstalledPlugin)) {
-      pluginsStatus = `正在打开 ${recentlyInstalledPlugin.name || recentlyInstalledPlugin.id}`;
-      recentlyInstalledPlugin = null;
-    } else {
-      pluginsStatus = "插件未启用或没有可打开的指令";
-    }
-  }
-
-  function selectedPluginInstallPath(value: string | string[] | null): string {
-    if (Array.isArray(value)) return value[0] ?? "";
-    return value ?? "";
-  }
-
-  function selectInstalledPlugin(pluginId: string) {
-    selectedPluginId = pluginId;
-    pluginPermissionPanelOpen = false;
-  }
-
-  async function updateInstalledPluginFromDirectory(plugin: { id: string; title: string; sourceLabel: string }) {
-    if (plugin.sourceLabel !== "导入") {
-      pluginsStatus = "内置插件随应用更新，不能从设置页替换";
-      return;
-    }
-    if (!hasTauriRuntime()) {
-      pluginsStatus = "浏览器预览模式无法更新插件";
-      return;
-    }
-    busyPluginId = plugin.id;
-    pluginsStatus = "正在选择插件更新目录";
-    try {
-      const selected = await openDialog({
-        directory: true,
-        multiple: false,
-        title: `选择 ${plugin.title} 的更新目录`,
-      });
-      const selectedPath = selectedPluginInstallPath(selected);
-      if (!selectedPath) {
-        pluginsStatus = "已取消更新插件";
-        return;
-      }
-      pluginsStatus = "正在更新插件";
-      const updated = await invoke("update_plugin_from_path", { pluginId: plugin.id, path: selectedPath }) as InstalledPlugin;
-      selectedPluginId = updated.id;
-      pluginPermissionPanelOpen = false;
-      await refreshPluginsPage();
-      pluginsStatus = `已更新 ${updated.name || updated.id}`;
-    } catch (error) {
-      pluginsStatus = String(error);
-    } finally {
-      busyPluginId = "";
-    }
-  }
-
-  async function toggleInstalledPlugin(pluginId: string, enabled: boolean) {
-    busyPluginId = pluginId;
-    pluginsStatus = `正在${enabled ? "启用" : "停用"}插件`;
-    try {
-      await invoke("toggle_plugin", { pluginId, enabled });
-      await refreshPluginsPage();
-      pluginsStatus = `插件已${enabled ? "启用" : "停用"}`;
-    } catch (error) {
-      pluginsStatus = String(error);
-    } finally {
-      busyPluginId = "";
-    }
-  }
-
-  async function authorizeInstalledPlugin(plugin: { id: string; title?: string; name?: string }) {
-    const title = plugin.title || plugin.name || plugin.id;
-    if (!hasTauriRuntime()) {
-      pluginsStatus = "浏览器预览模式无法授权启用插件";
-      return;
-    }
-    const inventory = pluginInventoryPage();
-    const permissionRows = inventory.selectedPlugin?.id === plugin.id
-      ? inventory.selectedPlugin.permissionRows
-      : [];
-    const permissionSummary = permissionRows.length
-      ? permissionRows.map((row) => `${row.label}: ${row.value}`).join("；")
-      : "请先查看插件权限/能力审计";
-    if (!(await confirmSettingsAction({
-      title: "授权启用插件",
-      message: `${title} 将启用并进入主搜索。确认 manifest 权限：${permissionSummary}。启用后插件声明的 Agent tools 会同步到 Agent/MCP 白名单，但默认仍需单独启用。确认继续？`,
-      confirmLabel: "授权启用",
-      tone: "danger",
-    }))) {
-      pluginsStatus = `已取消授权启用 ${title}`;
-      return;
-    }
-    busyPluginId = plugin.id;
-    pluginsStatus = "正在授权启用插件";
-    try {
-      const authorized = await invoke<InstalledPlugin>("authorize_plugin_permissions", { pluginId: plugin.id });
-      selectedPluginId = authorized.id;
-      await refreshPluginsPage();
-      pluginsStatus = `已授权启用 ${authorized.name || authorized.id}`;
-    } catch (error) {
-      pluginsStatus = String(error);
-    } finally {
-      busyPluginId = "";
-    }
-  }
-
-  function selectedPluginRuntimePermissionGrants(pluginId: string | null | undefined, version = pluginRuntimePermissionGrantVersion) {
-    void version;
-    return pluginRuntimePermissionGrantList(pluginId || "");
-  }
-
-  function clearSelectedPluginRuntimePermissionGrants(pluginId: string | null | undefined) {
-    if (!pluginId) return;
-    const cleared = clearPluginRuntimePermissionGrants(pluginId);
-    pluginRuntimePermissionGrantVersion += 1;
-    pluginsStatus = cleared ? "已清除插件运行时授权" : "该插件暂无持久运行时授权";
-  }
-
-  async function openInstalledPluginDirectory(plugin: { id: string; title: string; path: string }) {
-    if (!hasTauriRuntime()) {
-      pluginsStatus = `浏览器预览模式无法定位：${plugin.path}`;
-      return;
-    }
-    busyPluginId = plugin.id;
-    pluginsStatus = "正在定位插件目录";
-    try {
-      await callHumanCapability("open_or_reveal_path", { path: plugin.path, reveal: true });
-      pluginsStatus = `已定位 ${plugin.title}`;
-    } catch (error) {
-      pluginsStatus = String(error);
-    } finally {
-      busyPluginId = "";
-    }
-  }
-
-  async function uninstallInstalledPlugin(plugin: { id: string; title: string; sourceLabel: string }) {
-    if (plugin.sourceLabel !== "导入") {
-      pluginsStatus = "内置插件不可卸载，可停用以隐藏指令";
-      return;
-    }
-    if (!await confirmSettingsAction({
-      title: "卸载插件",
-      message: `确定卸载 ${plugin.title}？此操作会移除插件本体、指令索引和插件数据。`,
-      confirmLabel: "卸载",
-    })) {
-      pluginsStatus = "已取消卸载插件";
-      return;
-    }
-    busyPluginId = plugin.id;
-    pluginsStatus = "正在卸载插件";
-    try {
-      await invoke("uninstall_plugin", { pluginId: plugin.id });
-      selectedPluginId = null;
-      pluginPermissionPanelOpen = false;
-      await refreshPluginsPage();
-      pluginsStatus = "插件已卸载";
-    } catch (error) {
-      pluginsStatus = String(error);
-    } finally {
-      busyPluginId = "";
-    }
-  }
-
-  async function refreshPluginMarketPage() {
-    pluginMarketStatusText = "";
-    pluginMarketCatalog = null;
-    selectedMarketPluginId = null;
-    pluginMarketProgress = null;
-    if (!hasTauriRuntime()) {
-      installedPlugins = [];
-      pluginMarketStatusText = "Tauri 运行时未连接，插件数量需在桌面应用中查看";
-      return;
-    }
-    pluginMarketLoading = true;
-    try {
-      installedPlugins = await invoke<InstalledPlugin[]>("list_plugins");
-      const catalog = await invoke<PluginMarketCatalog>("fetch_plugin_market_catalog", { url: effectivePluginMarketUrl() });
-      pluginMarketCatalog = catalog;
-      selectedMarketPluginId = catalog.plugins[0]?.id ?? null;
-      pluginMarketStatusText = `已读取 ${installedPlugins.length} 个已安装插件；远程目录 ${pluginMarketCatalog.plugins.length} 个插件`;
-    } catch (error) {
-      pluginMarketStatusText = String(error);
-    } finally {
-      pluginMarketLoading = false;
-    }
-  }
-
-  async function openPluginMarketUrl() {
-    pluginMarketStatusText = "";
-    const trimmedUrl = effectivePluginMarketUrl();
-    try {
-      const url = new URL(trimmedUrl);
-      if (url.protocol !== "http:" && url.protocol !== "https:") {
-        pluginMarketStatusText = "插件市场地址仅支持 http/https";
-        return;
-      }
-    } catch {
-      pluginMarketStatusText = "插件市场地址格式无效";
-      return;
-    }
-    if (!hasTauriRuntime()) {
-      pluginMarketStatusText = `浏览器预览模式无法打开：${trimmedUrl}`;
-      return;
-    }
-    try {
-      await callHumanCapability("open_url", { url: trimmedUrl });
-      pluginMarketStatusText = "已打开插件市场地址";
-    } catch (error) {
-      pluginMarketStatusText = String(error);
-    }
-  }
-
-  async function cancelPluginMarketOperation() {
-    if (!pluginMarketOperationId || !installingMarketPluginId) return;
-    pluginMarketStatusText = "正在取消插件市场任务";
-    try {
-      await invoke("cancel_plugin_market_operation", { operationId: pluginMarketOperationId });
-    } catch (error) {
-      pluginMarketStatusText = String(error);
-    }
-  }
-
-  async function retryLastPluginMarketAction() {
-    if (!pluginMarketRetryAction || installingMarketPluginId) return;
-    const action = pluginMarketRetryAction;
-    await installPluginFromMarketCatalog(action.plugin, { skipConfirm: true });
-  }
-
-  async function installPluginFromMarketCatalog(plugin: PluginMarketCatalogPlugin, options: { skipConfirm?: boolean } = {}) {
-    pluginMarketStatusText = "";
-    if (!hasTauriRuntime()) {
-      pluginMarketStatusText = `浏览器预览模式无法安装：${plugin.name}`;
-      return;
-    }
-    if (!pluginMarketInstallAllowed(plugin)) {
-      pluginMarketStatusText = `${plugin.name} 未提供受信签名，且不属于官方 ZTools 市场，已拒绝安装`;
-      return;
-    }
-    const installedPlugin = marketCatalogInstalledPlugin(plugin);
-    const actionLabel = marketCatalogActionLabel(plugin);
-    let resolved: PluginMarketResolvedDownload;
-    try {
-      resolved = await invoke<PluginMarketResolvedDownload>("resolve_plugin_market_download", { plugin });
-    } catch (error) {
-      pluginMarketStatusText = String(error);
-      return;
-    }
-    const officialUnsigned = plugin.trust_policy === "official_ztools_confirm";
-    if (!options.skipConfirm && !(await confirmSettingsAction({
-      title: `${actionLabel}插件`,
-      message: officialUnsigned
-        ? `${plugin.name} v${plugin.version} 将从 ZTools 官方包服务器 ${actionLabel}。该上游包未提供可验证的 SHA-256 或 Ed25519 签名；ATools 会限制为官方 HTTPS 域名、执行压缩包配额与路径穿越检查，但无法证明发布者签名。确认继续？`
-        : `${plugin.name} v${plugin.version} 将从 ${resolved.download_url} ${actionLabel}。远程插件会下载 ${resolved.package_format.toUpperCase()} 并写入本地插件目录；${plugin.checksum ? "目录 SHA-256 会在解包前校验。" : "目录未提供 SHA-256，将以 Ed25519 签名校验完整性。"}目录 Ed25519 签名会使用本机已 pin 的公钥校验。确认继续？`,
-      confirmLabel: actionLabel,
-      tone: "danger",
-    }))) {
-      pluginMarketStatusText = `已取消${actionLabel} ${plugin.name}`;
-      return;
-    }
-    installingMarketPluginId = plugin.id;
-    const operationId = nextPluginMarketOperationId(plugin);
-    pluginMarketOperationId = operationId;
-    pluginMarketRetryAction = null;
-    pluginMarketProgress = {
-      plugin_id: plugin.id,
-      operation: installedPlugin ? "update" : "install",
-      operation_id: operationId,
-      stage: "requesting",
-      downloaded_bytes: 0,
-      total_bytes: null,
-      percent: null,
-      attempt: 1,
-      max_attempts: 3,
-      message: "正在连接插件市场",
-    };
-    pluginMarketStatusText = `正在下载并${actionLabel} ${plugin.name}`;
-    try {
-      const updated = installedPlugin
-        ? await invoke("update_plugin_from_market", { pluginId: plugin.id, downloadUrl: resolved.download_url, checksum: plugin.checksum ?? null, signature: plugin.signature ?? null, publicKey: plugin.public_key ?? null, operationId, sourceKind: pluginMarketCatalog?.source_kind ?? null, sourceUrl: pluginMarketCatalog?.source_url ?? null, confirmedUnsigned: officialUnsigned }) as InstalledPlugin
-        : await invoke("install_plugin_from_market", { pluginId: plugin.id, downloadUrl: resolved.download_url, checksum: plugin.checksum ?? null, signature: plugin.signature ?? null, publicKey: plugin.public_key ?? null, operationId, sourceKind: pluginMarketCatalog?.source_kind ?? null, sourceUrl: pluginMarketCatalog?.source_url ?? null, confirmedUnsigned: officialUnsigned }) as InstalledPlugin;
-      selectedPluginId = updated.id;
-      recentlyInstalledPlugin = installedPlugin ? null : updated;
-      pluginPermissionPanelOpen = false;
-      installedPlugins = await invoke<InstalledPlugin[]>("list_plugins");
-      pluginMarketStatusText = `已${actionLabel} ${updated.name || updated.id}`;
-    } catch (error) {
-      const message = String(error);
-      pluginMarketRetryAction = {
-        plugin,
-        operation: installedPlugin ? "update" : "install",
-        actionLabel,
-      };
-      pluginMarketStatusText = message.includes("cancelled") || message.includes("已取消")
-        ? `已取消${actionLabel} ${plugin.name}`
-        : message;
-    } finally {
-      installingMarketPluginId = "";
-      pluginMarketOperationId = "";
-    }
-  }
-
   async function setFloatingBallVisible() {
     floatingBallStatus = "";
-    if (!hasTauriRuntime()) {
-      floatingBallStatus = "浏览器预览模式不会创建悬浮球窗口";
+    dirty = true;
+    const preview = !hasTauriRuntime();
+    const settings = currentSettings();
+    try {
+      await saveSettingsImmediately(settings);
+    } catch {
+      // enqueueSettingsSave restores the last committed settings and shows the save error.
       return;
     }
-    try {
-      await invoke("set_floating_ball_visible", { visible: floatingBallEnabled });
-      floatingBallStatus = floatingBallEnabled ? "悬浮球已显示" : "悬浮球已隐藏";
-    } catch (error) {
-      floatingBallStatus = String(error);
-    }
+    dispatchAToolsSettings(settings);
+    floatingBallStatus = preview
+      ? "浏览器预览模式不会创建悬浮球窗口"
+      : settings.floatingBallEnabled ? "悬浮球已显示" : "悬浮球已隐藏";
   }
 
-  function persistFloatingBallChange() {
-    void setFloatingBallVisible();
-    persistSoon();
+  function persistFloatingBallChange(event: Event) {
+    event.stopPropagation();
+    floatingBallEnabled = (event.currentTarget as HTMLInputElement).checked;
+    void setFloatingBallVisible().catch(() => {});
   }
 
   async function setSuperPanelVisible() {
     superPanelStatus = "";
-    if (!hasTauriRuntime()) {
-      superPanelStatus = "浏览器预览模式不会创建超级面板窗口";
+    dirty = true;
+    const preview = !hasTauriRuntime();
+    const settings = currentSettings();
+    try {
+      await saveSettingsImmediately(settings);
+    } catch {
+      // enqueueSettingsSave restores the last committed settings and shows the save error.
       return;
     }
-    try {
-      await invoke("set_super_panel_visible", { visible: superPanelEnabled });
-      superPanelStatus = superPanelEnabled ? "超级面板已显示" : "超级面板已隐藏";
-    } catch (error) {
-      superPanelStatus = String(error);
-    }
+    dispatchAToolsSettings(settings);
+    superPanelStatus = preview
+      ? "浏览器预览模式不会创建超级面板窗口"
+      : settings.superPanelEnabled ? "超级面板已显示" : "超级面板已隐藏";
   }
 
-  function persistSuperPanelChange() {
-    void setSuperPanelVisible();
-    persistSoon();
+  function persistSuperPanelChange(event: Event) {
+    event.stopPropagation();
+    superPanelEnabled = (event.currentTarget as HTMLInputElement).checked;
+    void setSuperPanelVisible().catch(() => {});
   }
 
   async function openDevtoolsForWindow(windowLabel = "main") {
@@ -2555,8 +2023,8 @@
     dataStatus = `已清空 ${count} 条最近使用历史`;
   }
 
-  function removeCommandHistoryItem(code: string) {
-    const count = removeCommandHistoryEntryStorage(code);
+  function removeCommandHistoryItem(entry: CommandHistoryEntry) {
+    const count = removeCommandHistoryEntryStorage(entry.code, entry.plugin_id);
     commandHistory = loadCommandHistory();
     dataStatus = count > 0 ? "已移除 1 条最近使用历史" : "未找到对应历史记录";
   }
@@ -3367,7 +2835,7 @@
     return generalOverviewCards({
       hotkey,
       saveLabel: saveState === "saving" ? "保存中" : saveState === "error" ? "保存失败" : "已保存",
-      launchAtLogin,
+      launchAtLogin: nativeSettingsRuntime ? launchAtLoginRuntimeState : launchAtLogin,
       showTrayIcon,
       localAppSearch,
       localLaunchSearch,
@@ -3600,6 +3068,29 @@
   </aside>
 
   <main class="settings-content">
+    {#if marketVisited}
+      <div class="market-page-holder" hidden={activeMenu !== "market"}>
+      <PluginMarketPanel
+        sharedSession={true}
+        visible={activeMenu === "market"}
+        custom={pluginMarketCustom}
+        url={pluginMarketUrl}
+        trustedPublicKeys={pluginMarketTrustedPublicKeysText}
+        marketRequest={marketRequest !== handledMarketRequest ? marketRequest : null}
+        confirm={confirmSettingsAction}
+        onRequestHandled={(request) => { handledMarketRequest = request; }}
+        onManageInstalled={(pluginId) => {
+          selectedPluginId = pluginId;
+          pluginFilterQuery = pluginId;
+          activeMenu = "plugins";
+        }}
+        onInstalled={(plugin, plugins) => {
+          selectedPluginId = plugin.id;
+          installedPlugins = plugins;
+        }}
+      />
+      </div>
+    {/if}
     {#if activeMenu === "general"}
       {@const generalSummary = generalOverview()}
       <div class="content-panel">
@@ -3681,10 +3172,16 @@
               <span>开机自动启动</span>
               <small>登录系统时自动启动应用</small>
             </div>
-            <label class="toggle">
-              <input type="checkbox" bind:checked={launchAtLogin} />
-              <span></span>
-            </label>
+            {#if nativeSettingsRuntime}
+              <SettingsLaunchAtLoginControl
+                onStateChange={(enabled) => { launchAtLoginRuntimeState = enabled; }}
+              />
+            {:else}
+              <label class="toggle">
+                <input type="checkbox" bind:checked={launchAtLogin} />
+                <span></span>
+              </label>
+            {/if}
           </div>
 
           <div class="setting-item">
@@ -3978,6 +3475,9 @@
               {/each}
             </select>
           </div>
+          {#if tabKeyFunction === "target-command"}
+            <LauncherTabTargetPicker value={tabTarget} onchange={(value) => { tabTarget = value; persistSoon(); }} />
+          {/if}
         </section>
 
         <section class="setting-group">
@@ -4067,7 +3567,7 @@
               <small>{superPanelStatus || (superPanelEnabled ? "超级面板会常驻屏幕上方，显示剪贴板文本和主搜索入口" : "关闭后不创建超级面板窗口")}</small>
             </div>
             <label class="toggle">
-              <input type="checkbox" bind:checked={superPanelEnabled} onchange={persistSuperPanelChange} />
+              <input type="checkbox" bind:checked={superPanelEnabled} oninput={(event) => event.stopPropagation()} onchange={persistSuperPanelChange} />
               <span></span>
             </label>
           </div>
@@ -4081,7 +3581,7 @@
               <small>{floatingBallStatus || (floatingBallEnabled ? "悬浮球窗口会常驻屏幕边缘，点击可打开主搜索" : "关闭后不创建悬浮球窗口")}</small>
             </div>
             <label class="toggle">
-              <input type="checkbox" bind:checked={floatingBallEnabled} onchange={persistFloatingBallChange} />
+              <input type="checkbox" bind:checked={floatingBallEnabled} oninput={(event) => event.stopPropagation()} onchange={persistFloatingBallChange} />
               <span></span>
             </label>
           </div>
@@ -4141,6 +3641,12 @@
             <div class="setting-label">
               <span>插件市场地址</span>
               <small>支持 ATools 扁平目录、ZTools 3 市场 API 与 legacy plugins.json；自定义无签名来源始终拒绝安装</small>
+              <PluginMarketSourceAction
+                sourceUrl={preferredMarketUrl({ custom: pluginMarketCustom, url: pluginMarketUrl })}
+                runtime={hasTauriRuntime()}
+                label="打开市场地址"
+                callCapability={callHumanCapability}
+              />
             </div>
             <input
               class="input-control"
@@ -4365,6 +3871,9 @@
                 {/each}
               </select>
             </div>
+            {#if tabKeyFunction === "target-command"}
+              <LauncherTabTargetPicker value={tabTarget} onchange={(value) => { tabTarget = value; persistSoon(); }} />
+            {/if}
             <div class="shortcut-card-list">
               {#each shortcutBuiltIns() as row}
                 <div class="shortcut-card-row">
@@ -4418,473 +3927,16 @@
         {/if}
       </div>
     {:else if activeMenu === "plugins"}
-      {@const inventory = pluginInventoryPage()}
       <div class="content-panel">
-        <section class="setting-group">
-          <div class="section-heading">
-            <h3>插件库存概览</h3>
-            <div class="row-actions">
-              <button class="plain-button" onclick={refreshPluginsPage} disabled={pluginsLoading}>刷新</button>
-              <button class="plain-button" onclick={installPluginFromDirectory} disabled={pluginsLoading}>安装插件</button>
-            </div>
-          </div>
-          <div class="inline-status">
-            本地目录安装、启用状态、卸载和本地清单只保存在本机；远程 ZIP 安装/更新从插件市场目录触发，目录 SHA-256 会校验，签名信任仍未接入。
-          </div>
-          {#if pluginsStatus}
-            <div class="inline-status action-status">
-              <span>{pluginsStatus}</span>
-              {#if firstOpenablePluginFeature(recentlyInstalledPlugin)}
-                <button class="plain-button" onclick={openRecentlyInstalledPlugin}>立即打开</button>
-              {/if}
-            </div>
-          {/if}
-          <div class="plugin-inventory-overview-grid" aria-label="插件库存概览：插件库存、启用状态、Feature 指令、安装入口">
-            {#each pluginInventoryOverview(inventory) as card}
-              <div
-                class="plugin-inventory-overview-card"
-                class:ready={card.tone === "ready"}
-                class:warning={card.tone === "warning"}
-                class:desktop={card.tone === "desktop"}
-              >
-                <span>{card.label}</span>
-                <strong>{card.value}</strong>
-                <small>{card.detail}</small>
-              </div>
-            {/each}
-          </div>
-        </section>
-
-        <section class="setting-group">
-          <div class="section-heading">
-            <h3>插件筛选</h3>
-            <span class="meta-pill">{inventory.filteredSummary.total} 个匹配</span>
-          </div>
-          <div class="setting-item">
-            <div class="setting-label">
-              <span>筛选插件</span>
-              <small>按名称、feature、描述、路径或来源快速定位</small>
-            </div>
-            <input
-              class="text-input wide"
-              bind:value={pluginFilterQuery}
-              aria-label="筛选已安装插件"
-              placeholder="搜索插件、feature、路径"
-            />
-          </div>
-          <div class="setting-item">
-            <div class="setting-label">
-              <span>显示范围</span>
-              <small>按启用状态和插件来源缩小列表</small>
-            </div>
-            <div class="row-actions">
-              <select class="select-control compact" bind:value={pluginFilterStatus} aria-label="插件启用状态筛选">
-                <option value="all">全部状态</option>
-                <option value="enabled">只看启用</option>
-                <option value="disabled">只看停用</option>
-              </select>
-              <select class="select-control compact" bind:value={pluginFilterSource} aria-label="插件来源筛选">
-                <option value="all">全部来源</option>
-                <option value="builtin">内置</option>
-                <option value="imported">导入</option>
-              </select>
-            </div>
-          </div>
-          {#if pluginsLoading && inventory.rows.length === 0}
-            <div class="empty-box">正在读取插件</div>
-          {:else if inventory.rows.length === 0}
-            <div class="empty-box">{inventory.emptyText}</div>
-          {:else}
-            <div class="compact-list">
-              {#each inventory.rows as plugin}
-                <div class="data-row plugin-inventory-row">
-                  <div class="setting-label">
-                    <span>{plugin.name}</span>
-                    <small>{plugin.versionLabel} · {plugin.sourceLabel} · {plugin.featureCount} features · 更新 {plugin.updatedAt}</small>
-                    <small>{plugin.description}</small>
-                    <code class="mono-value">{plugin.featurePreview}{plugin.hasMoreFeatures ? " / ..." : ""}</code>
-                    <code class="mono-value">{plugin.path}</code>
-                  </div>
-                  <div class="row-actions">
-                    <button
-                      class="plain-button"
-                      class:enabled={inventory.selectedPlugin?.id === plugin.id}
-                      onclick={() => selectInstalledPlugin(plugin.id)}
-                    >
-                      详情
-                    </button>
-                    <button
-                      class="plain-button"
-                      class:enabled={plugin.enabled}
-                      disabled={!hasTauriRuntime() || busyPluginId === plugin.id}
-                      onclick={() => plugin.enabled ? toggleInstalledPlugin(plugin.id, false) : authorizeInstalledPlugin(plugin)}
-                    >
-                      {plugin.enabled ? "已启用" : "已停用"}
-                    </button>
-                  </div>
-                </div>
-              {/each}
-            </div>
-          {/if}
-        </section>
-
-        <section class="setting-group">
-          <h3>插件详情</h3>
-          {#if inventory.selectedPlugin === null}
-            <div class="empty-box">选择一个插件查看详情</div>
-          {:else}
-            <div class="debug-grid">
-              <div class="debug-row">
-                <span>名称</span>
-                <code>{inventory.selectedPlugin.title}</code>
-              </div>
-              <div class="debug-row">
-                <span>状态</span>
-                <code>{inventory.selectedPlugin.statusLabel}</code>
-              </div>
-              <div class="debug-row">
-                <span>版本/来源</span>
-                <code>{inventory.selectedPlugin.versionLabel} · {inventory.selectedPlugin.sourceLabel}</code>
-              </div>
-              <div class="debug-row">
-                <span>更新时间</span>
-                <code>{inventory.selectedPlugin.updatedAt}</code>
-              </div>
-              <div class="debug-row">
-                <span>描述</span>
-                <code>{inventory.selectedPlugin.description}</code>
-              </div>
-              <div class="debug-row">
-                <span>路径</span>
-                <code>{inventory.selectedPlugin.path}</code>
-              </div>
-            </div>
-
-            <div class="compact-list detail-list">
-              {#each inventory.selectedPlugin.features as feature}
-                <div class="data-row compact">
-                  <div class="setting-label">
-                    <span>{feature.label}</span>
-                    <small>{feature.code} · {feature.explain}</small>
-                  </div>
-                </div>
-              {/each}
-              {#if inventory.selectedPlugin.features.length === 0}
-                <div class="empty-box">该插件暂无 feature</div>
-              {/if}
-            </div>
-
-            {#if pluginPermissionPanelOpen}
-              {@const runtimePermissionGrants = selectedPluginRuntimePermissionGrants(inventory.selectedPlugin.id, pluginRuntimePermissionGrantVersion)}
-              <div class="compact-list detail-list" aria-label="插件权限/能力审计">
-                <div class="data-row compact">
-                  <div class="setting-label">
-                    <span>插件权限/能力审计</span>
-                    <small>展示 manifest 声明和用户确认过的运行时授权；Agent 工具授权仍在 Agent/MCP 白名单中管理</small>
-                  </div>
-                </div>
-                {#each inventory.selectedPlugin.permissionRows as row}
-                  <div class="data-row compact">
-                    <div class="setting-label">
-                      <span>{row.label}</span>
-                      <small>{row.detail}</small>
-                    </div>
-                    <code>{row.value}</code>
-                  </div>
-                {/each}
-                <div class="data-row compact">
-                  <div class="setting-label">
-                    <span>持久运行时授权</span>
-                    <small>{runtimePermissionGrants.length > 0 ? runtimePermissionGrants.join(" / ") : "暂无持久授权；运行时弹窗选择始终允许后会显示在这里"}</small>
-                  </div>
-                  <button
-                    class="plain-button danger"
-                    disabled={runtimePermissionGrants.length === 0}
-                    onclick={() => clearSelectedPluginRuntimePermissionGrants(inventory.selectedPlugin?.id)}
-                  >
-                    清除授权
-                  </button>
-                </div>
-              </div>
-            {/if}
-
-            <div class="compact-list detail-list">
-              {#each inventory.selectedPlugin.actions as action}
-                <div class="data-row">
-                  <div class="setting-label">
-                    <span>{action.label}</span>
-                    <small>{action.reason}</small>
-                  </div>
-                  <button
-                    class="plain-button"
-                    class:danger={action.label === "卸载插件"}
-                    disabled={!action.available || !inventory.selectedPlugin || busyPluginId === inventory.selectedPlugin.id}
-                    onclick={() => {
-                      if (!inventory.selectedPlugin) return;
-                      if (action.label === "打开目录") {
-                        openInstalledPluginDirectory(inventory.selectedPlugin);
-                      } else if (action.label === "授权启用") {
-                        authorizeInstalledPlugin(inventory.selectedPlugin);
-                      } else if (action.label === "更新插件") {
-                        updateInstalledPluginFromDirectory(inventory.selectedPlugin);
-                      } else if (action.label === "卸载插件") {
-                        uninstallInstalledPlugin(inventory.selectedPlugin);
-                      } else if (action.label === "插件权限") {
-                        pluginPermissionPanelOpen = true;
-                        pluginsStatus = "已展开插件权限/能力审计";
-                      }
-                    }}
-                  >
-                    {action.available ? (action.label === "卸载插件" ? "卸载" : action.label === "打开目录" ? "定位" : action.label === "授权启用" ? "授权启用" : action.label === "更新插件" ? "更新" : action.label === "插件权限" ? "查看" : "执行") : "未接入"}
-                  </button>
-                </div>
-              {/each}
-            </div>
-          {/if}
-        </section>
-      </div>
-    {:else if activeMenu === "market"}
-      {@const marketStatus = pluginMarketPageStatus()}
-      <div class="content-panel">
-        <section class="setting-group">
-          <div class="section-heading">
-            <h3>插件市场概览</h3>
-            <span class="state-pill" class:enabled={marketStatus.remoteCatalogLoaded} class:error={!marketStatus.remoteCatalogLoaded}>{marketStatus.label}</span>
-          </div>
-          <div class="inline-status">
-            {marketStatus.summary}
-          </div>
-          <div class="inline-status">
-            {marketStatus.remoteCatalogLoaded ? "自定义市场目录已接入展示、远程详情、评分展示、ZIP 安装/更新、下载进度、取消/重试、SHA-256 校验、Ed25519 签名校验和安装确认。" : "网络插件市场下载安装更新需先配置并读取自定义目录；本地导入、已安装插件和我的数据仍可在桌面端使用。"}
-          </div>
-          {#if marketStatus.customMarketConfigured}
-            <div class="inline-status">
-              自定义市场地址：{marketStatus.customMarketUrl}
-            </div>
-          {/if}
-          {#if pluginMarketStatusText}
-            <div class="inline-status action-status">
-              <span>{pluginMarketStatusText}</span>
-              {#if firstOpenablePluginFeature(recentlyInstalledPlugin)}
-                <button class="plain-button" onclick={openRecentlyInstalledPlugin}>立即打开</button>
-              {/if}
-            </div>
-          {/if}
-          {#if pluginMarketProgress}
-            <div class="inline-status" aria-label="下载进度">
-              下载进度：{marketProgressLabel()}
-            </div>
-          {/if}
-          {#if installingMarketPluginId}
-            <div class="row-actions">
-              <button class="plain-button" onclick={cancelPluginMarketOperation} disabled={!pluginMarketOperationId}>取消下载</button>
-            </div>
-          {:else if pluginMarketRetryAction}
-            <div class="row-actions">
-              <button class="plain-button" onclick={retryLastPluginMarketAction}>重试</button>
-            </div>
-          {/if}
-          <div class="plugin-market-overview-grid" aria-label="插件市场概览：市场状态、市场地址、本地入口、已安装插件、远程能力">
-            {#each pluginMarketOverview(marketStatus) as card}
-              <div
-                class="plugin-market-overview-card"
-                class:ready={card.tone === "ready"}
-                class:warning={card.tone === "warning"}
-                class:desktop={card.tone === "desktop"}
-              >
-                <span>{card.label}</span>
-                <strong>{card.value}</strong>
-                <small>{card.detail}</small>
-              </div>
-            {/each}
-          </div>
-        </section>
-
-        <section class="setting-group">
-          <div class="section-heading">
-            <h3>本地替代入口</h3>
-            <div class="row-actions">
-              <button class="plain-button" onclick={refreshPluginMarketPage} disabled={pluginMarketLoading}>刷新插件</button>
-              <button class="plain-button" onclick={openPluginMarketUrl} disabled={!hasTauriRuntime()}>
-                打开市场地址
-              </button>
-            </div>
-          </div>
-          <div class="compact-list">
-            {#each marketStatus.localCapabilities as capability}
-              <div class="data-row">
-                <div class="setting-label">
-                  <span>{capability.label}</span>
-                  <small>{capability.description}</small>
-                </div>
-                <span class="meta-pill" class:enabled={capability.available}>
-                  {capability.available ? "可用" : "桌面端"}
-                </span>
-              </div>
-            {/each}
-          </div>
-        </section>
-
-        {#if pluginMarketCatalog}
-          <section class="setting-group">
-            <div class="section-heading">
-              <h3>远程目录</h3>
-              <span class="state-pill enabled">{pluginMarketCatalog.plugins.length} 个插件</span>
-            </div>
-            <div class="inline-status">
-              来源：{pluginMarketCatalog.source_kind === "ztools" ? "ZTools 官方市场" : pluginMarketCatalog.source_kind === "legacy" ? "兼容目录" : "ATools 目录"} · {pluginMarketCatalog.source_url}{pluginMarketCatalog.updated_at ? ` · 更新 ${pluginMarketCatalog.updated_at}` : ""}
-            </div>
-            <div class="plugin-market-catalog-list">
-              {#each pluginMarketCatalog.plugins as plugin}
-                <div class="data-row">
-                  <div class="setting-label">
-                    <span>{plugin.name}</span>
-                    <small>{plugin.description || plugin.download_url || "安装时从市场解析下载地址"}</small>
-                  </div>
-                  <div class="row-actions">
-                    <span class="meta-pill">v{plugin.version}</span>
-                    <span class="meta-pill">{plugin.rating ? `评分 ${plugin.rating}` : "暂无评分"}</span>
-                    {#if plugin.rating_count}
-                      <span class="meta-pill">{plugin.rating_count} 条评分</span>
-                    {/if}
-                    {#if plugin.downloads}
-                      <span class="meta-pill">{plugin.downloads} 次下载</span>
-                    {/if}
-                    {#if plugin.author}
-                      <span class="meta-pill">{plugin.author}</span>
-                    {/if}
-                    {#if plugin.publisher}
-                      <span class="meta-pill">{plugin.publisher}</span>
-                    {/if}
-                    {#if plugin.category}
-                      <span class="meta-pill">{plugin.category}</span>
-                    {/if}
-                    {#if plugin.checksum}
-                      <span class="meta-pill">{marketCatalogChecksumLabel(plugin)}</span>
-                    {/if}
-                    {#if plugin.signature && plugin.public_key}
-                      <span class="meta-pill" class:enabled={pluginMarketPublicKeyTrusted(plugin)}>
-                        {pluginMarketPublicKeyTrusted(plugin) ? "公钥已 pin" : "签名未信任"}
-                      </span>
-                    {/if}
-                    {#if plugin.trust_policy === "official_ztools_confirm"}
-                      <span class="meta-pill">官方源 · 未签名</span>
-                    {/if}
-                    {#if installingMarketPluginId === plugin.id && pluginMarketProgress}
-                      <span class="meta-pill">{marketProgressLabel()}</span>
-                    {/if}
-                    <button class="plain-button" onclick={() => openMarketCatalogDetails(plugin)}>详情</button>
-                    <button
-                      class="plain-button"
-                      onclick={() => installPluginFromMarketCatalog(plugin)}
-                      disabled={pluginMarketLoading || Boolean(installingMarketPluginId) || !pluginMarketInstallAllowed(plugin)}
-                      title={pluginMarketInstallAllowed(plugin) ? `${marketCatalogActionLabel(plugin)} ${plugin.name}` : "该来源没有受信签名，不能安装"}
-                    >
-                      {installingMarketPluginId === plugin.id ? marketCatalogBusyLabel(plugin) : marketCatalogActionLabel(plugin)}
-                    </button>
-                  </div>
-                </div>
-              {/each}
-            </div>
-            {#if pluginMarketCatalog.plugins.length}
-              {@const selectedMarketPlugin = selectedMarketCatalogPlugin()}
-              {#if selectedMarketPlugin}
-                <div class="compact-list detail-list" aria-label="远程详情">
-                  <div class="data-row">
-                    <div class="setting-label">
-                      <span>远程详情</span>
-                      <small>{selectedMarketPlugin.name} · {selectedMarketPlugin.id}</small>
-                    </div>
-                    <span class="meta-pill">v{selectedMarketPlugin.version}</span>
-                  </div>
-                  <div class="data-row compact">
-                    <div class="setting-label">
-                      <span>作者</span>
-                      <small>{selectedMarketPlugin.author ?? "未提供"}</small>
-                    </div>
-                    <span class="meta-pill">{selectedMarketPlugin.updated_at ?? pluginMarketCatalog.updated_at ?? "未提供更新时间"}</span>
-                  </div>
-                  <div class="data-row compact">
-                    <div class="setting-label">
-                      <span>发布者</span>
-                      <small>{selectedMarketPlugin.publisher ?? "目录未提供发布者"}</small>
-                    </div>
-                    <span class="meta-pill" class:enabled={pluginMarketPublicKeyTrusted(selectedMarketPlugin)}>
-                      {pluginMarketPublicKeyTrusted(selectedMarketPlugin) ? "公钥已 pin" : selectedMarketPlugin.signature && selectedMarketPlugin.public_key ? "签名未信任" : "未提供签名"}
-                    </span>
-                  </div>
-                  <div class="data-row compact">
-                    <div class="setting-label">
-                      <span>市场评分</span>
-                      <small>{selectedMarketPlugin.rating ? `评分 ${selectedMarketPlugin.rating}` : "目录未提供评分"}</small>
-                    </div>
-                    <span class="meta-pill">{selectedMarketPlugin.rating_count ? `${selectedMarketPlugin.rating_count} 条评分` : "暂无评分数"}</span>
-                  </div>
-                  <div class="data-row compact">
-                    <div class="setting-label">
-                      <span>下载次数</span>
-                      <small>{selectedMarketPlugin.downloads ? `${selectedMarketPlugin.downloads} 次下载` : "目录未提供下载次数"}</small>
-                    </div>
-                    <span class="meta-pill">{marketCatalogChecksumLabel(selectedMarketPlugin)}</span>
-                  </div>
-                  <div class="data-row compact">
-                    <div class="setting-label">
-                      <span>下载地址</span>
-                      <small>{selectedMarketPlugin.download_url ?? selectedMarketPlugin.download_resolver_url ?? "安装时解析"}</small>
-                    </div>
-                  </div>
-                  {#if selectedMarketPlugin.homepage}
-                    <div class="data-row compact">
-                      <div class="setting-label">
-                        <span>主页</span>
-                        <small>{selectedMarketPlugin.homepage}</small>
-                      </div>
-                    </div>
-                  {/if}
-                  {#if selectedMarketPlugin.checksum}
-                    <div class="data-row compact">
-                      <div class="setting-label">
-                        <span>SHA-256</span>
-                        <small>{selectedMarketPlugin.checksum}</small>
-                      </div>
-                    </div>
-                  {/if}
-                  {#if selectedMarketPlugin.signature && selectedMarketPlugin.public_key}
-                    <div class="data-row compact">
-                      <div class="setting-label">
-                        <span>Ed25519 签名</span>
-                        <small>{selectedMarketPlugin.signature}</small>
-                      </div>
-                    </div>
-                  {/if}
-                  {#if selectedMarketPlugin.publisher_url}
-                    <div class="data-row compact">
-                      <div class="setting-label">
-                        <span>发布者主页</span>
-                        <small>{selectedMarketPlugin.publisher_url}</small>
-                      </div>
-                    </div>
-                  {/if}
-                </div>
-              {/if}
-            {/if}
-          </section>
-        {/if}
-
-        <section class="setting-group">
-          <h3>远程能力</h3>
-          <div class="compact-list">
-            {#each marketStatus.remoteCapabilities as capability}
-              <div class="data-row" class:muted-row={!capability.available}>
-                <div class="setting-label">
-                  <span>{capability.label}</span>
-                  <small>{capability.description}</small>
-                </div>
-                <span class="meta-pill" class:enabled={capability.available}>{capability.available ? "可用" : "未接入"}</span>
-              </div>
-            {/each}
-          </div>
-        </section>
+        <PluginInventoryPanel
+          initialPlugins={installedPlugins}
+          bind:query={pluginFilterQuery}
+          bind:selectedPluginId
+          bind:browseState={pluginInventoryBrowseState}
+          confirm={confirmSettingsAction}
+          onpluginsloaded={(plugins) => { installedPlugins = plugins; }}
+          onmarket={() => { activeMenu = "market"; }}
+        />
       </div>
     {:else if activeMenu === "providers"}
       <div class="content-panel">
@@ -6138,7 +5190,7 @@
                   </div>
                   <div class="row-actions">
                     <span class="meta-pill">{entry.code}</span>
-                    <button class="plain-button danger" onclick={() => removeCommandHistoryItem(entry.code)}>删除</button>
+                    <button class="plain-button danger" onclick={() => removeCommandHistoryItem(entry)}>删除</button>
                   </div>
                 </div>
               {/each}
@@ -6710,7 +5762,7 @@
         <section class="setting-group">
           <div class="section-heading">
             <div class="about-title-row">
-              <div class="about-logo compact" aria-hidden="true">A</div>
+              <AToolsMark size="small" />
               <div>
                 <h3>关于概览</h3>
                 <small>{about.title} · v{about.version}</small>
@@ -6952,6 +6004,9 @@
     font-size: 13px;
     line-height: 1.4;
   }
+
+  .market-page-holder { height: 100%; min-height: 0; }
+  .market-page-holder[hidden] { display: none; }
 
   .settings-content {
     min-width: 0;
@@ -7736,13 +6791,6 @@
     background: rgba(220, 38, 38, 0.09);
   }
 
-  .inline-status.action-status {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-
   .mono-value,
   .debug-row code {
     max-width: 360px;
@@ -7882,109 +6930,8 @@
     line-height: 1.15;
   }
 
-  .plugin-inventory-overview-grid {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 10px;
-    margin: 12px 0;
-  }
-
-  .plugin-inventory-overview-card {
-    min-width: 0;
-    min-height: 118px;
-    padding: 14px;
-    border: 1px solid var(--settings-control-border);
-    border-radius: 8px;
-    background: var(--settings-control);
-  }
-
-  .plugin-inventory-overview-card.ready {
-    border-color: color-mix(in srgb, #16a34a 35%, var(--settings-control-border));
-    background: color-mix(in srgb, #16a34a 6%, var(--settings-control));
-  }
-
-  .plugin-inventory-overview-card.warning {
-    border-color: color-mix(in srgb, #f59e0b 38%, var(--settings-control-border));
-    background: color-mix(in srgb, #f59e0b 7%, var(--settings-control));
-  }
-
-  .plugin-inventory-overview-card.desktop {
-    background: color-mix(in srgb, var(--settings-control) 78%, #e5e7eb);
-  }
-
-  .plugin-inventory-overview-card span,
-  .plugin-inventory-overview-card small {
-    display: block;
-    overflow: hidden;
-    color: var(--settings-text-secondary);
-    font-size: 12px;
-    line-height: 1.38;
-    text-overflow: ellipsis;
-  }
-
-  .plugin-inventory-overview-card strong {
-    display: block;
-    margin: 6px 0;
-    overflow-wrap: anywhere;
-    color: currentColor;
-    font-size: 21px;
-    font-weight: 800;
-    line-height: 1.15;
-  }
-
-  .plugin-market-overview-grid {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 10px;
-    margin: 12px 0;
-  }
-
-  .plugin-market-overview-card {
-    min-width: 0;
-    min-height: 118px;
-    padding: 14px;
-    border: 1px solid var(--settings-control-border);
-    border-radius: 8px;
-    background: var(--settings-control);
-  }
-
-  .plugin-market-overview-card.ready {
-    border-color: color-mix(in srgb, #16a34a 35%, var(--settings-control-border));
-    background: color-mix(in srgb, #16a34a 6%, var(--settings-control));
-  }
-
-  .plugin-market-overview-card.warning {
-    border-color: color-mix(in srgb, #f59e0b 38%, var(--settings-control-border));
-    background: color-mix(in srgb, #f59e0b 7%, var(--settings-control));
-  }
-
-  .plugin-market-overview-card.desktop {
-    background: color-mix(in srgb, var(--settings-control) 78%, #e5e7eb);
-  }
-
-  .plugin-market-overview-card span,
-  .plugin-market-overview-card small {
-    display: block;
-    overflow: hidden;
-    color: var(--settings-text-secondary);
-    font-size: 12px;
-    line-height: 1.38;
-    text-overflow: ellipsis;
-  }
-
-  .plugin-market-overview-card strong {
-    display: block;
-    margin: 6px 0;
-    overflow-wrap: anywhere;
-    color: currentColor;
-    font-size: 21px;
-    font-weight: 800;
-    line-height: 1.15;
-  }
-
   .shortcut-list,
   .compact-list,
-  .plugin-market-catalog-list,
   .alias-list,
   .local-launch-list,
   .debug-grid {
@@ -8507,27 +7454,6 @@
     color: var(--settings-text-secondary);
     font-size: 12px;
     line-height: 1.35;
-  }
-
-  .about-logo {
-    width: 68px;
-    height: 68px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    color: #fff;
-    background: #111;
-    font-size: 34px;
-    font-weight: 900;
-    line-height: 1;
-  }
-
-  .about-logo.compact {
-    width: 42px;
-    height: 42px;
-    flex: 0 0 42px;
-    font-size: 22px;
   }
 
   .about-overview-grid {
@@ -9411,8 +8337,6 @@
     .shortcut-summary-grid,
     .web-quick-overview-grid,
     .local-launch-overview-grid,
-    .plugin-inventory-overview-grid,
-    .plugin-market-overview-grid,
     .ai-overview-grid,
     .webdav-overview-grid,
     .debug-overview-grid,

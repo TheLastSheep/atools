@@ -9,6 +9,7 @@ export type SearchStatusBarHint = {
 export type SearchStatusBarView = {
   title: string;
   detail: string;
+  position: string;
   hints: SearchStatusBarHint[];
 };
 
@@ -21,6 +22,10 @@ export type SearchStatusBarInput = {
   titleOverride?: string;
   detailOverride?: string;
   tabAction: SearchStatusBarTabAction;
+  tabTargetHint?: string;
+  retryOnEnter?: boolean;
+  spaceOpenCommand?: boolean;
+  actionMenuAvailable?: boolean;
 };
 
 export function searchStatusBarView(input: SearchStatusBarInput): SearchStatusBarView {
@@ -28,7 +33,7 @@ export function searchStatusBarView(input: SearchStatusBarInput): SearchStatusBa
   const selectedPosition = count > 0 ? Math.max(1, Math.min(count, input.selectedIndex + 1)) : 0;
   const selectedLabel = input.selectedLabel.trim();
   const selectedAction = input.selectedAction?.trim() || defaultActionFor(input.mode);
-  const tabLabel = input.tabAction === "target" ? "执行" : "切换";
+  const tabLabel = input.tabAction === "target" ? (input.tabTargetHint || "设置目标") : "切换";
 
   if (input.mode === "home") {
     const titleOverride = input.titleOverride?.trim();
@@ -36,10 +41,12 @@ export function searchStatusBarView(input: SearchStatusBarInput): SearchStatusBa
     return {
       title: titleOverride || "最近使用",
       detail: detailOverride || (count > 0 ? `${selectedPosition} / ${count}${selectedLabel ? ` · ${selectedLabel}` : ""}` : "0 项最近使用"),
+      position: detailOverride?.match(/^\d+\s*\/\s*\d+(?=\s*·|$)/)?.[0] || (count > 0 ? `${selectedPosition} / ${count}` : "0 项"),
       hints: [
-        { key: "↑↓←→", label: "移动" },
-        { key: "Enter", label: "打开" },
-        { key: "Tab", label: tabLabel },
+        ...(count > 0 ? [{ key: "↑↓←→", label: "移动" }, { key: "Enter", label: "打开" }] : []),
+        ...(input.spaceOpenCommand === true && count > 0 ? [{ key: "Space", label: "打开" }] : []),
+        ...(input.actionMenuAvailable === true && count > 0 ? [{ key: "⇧F10", label: "更多操作 · 右键" }] : []),
+        ...(input.tabAction === "target" || count > 0 ? [{ key: "Tab", label: tabLabel }] : []),
         { key: "Esc", label: "收起" },
       ],
     };
@@ -49,9 +56,10 @@ export function searchStatusBarView(input: SearchStatusBarInput): SearchStatusBa
     return {
       title: "搜索结果",
       detail: "0 项匹配",
+      position: "0 项匹配",
       hints: [
-        { key: "Enter", label: "执行首项" },
-        { key: "Tab", label: tabLabel },
+        ...(input.retryOnEnter ? [{ key: "Enter", label: "重试搜索" }] : []),
+        ...(input.tabAction === "target" ? [{ key: "Tab", label: tabLabel }] : []),
         { key: "Esc", label: "清空" },
       ],
     };
@@ -60,10 +68,13 @@ export function searchStatusBarView(input: SearchStatusBarInput): SearchStatusBa
   return {
     title: "搜索结果",
     detail: `${selectedPosition} / ${count}${selectedLabel ? ` · ${selectedLabel}` : ""}`,
+    position: `${selectedPosition} / ${count}`,
     hints: [
       { key: "↑", label: "上一行" },
       { key: "↓", label: "下一行" },
+      { key: "PgUp/PgDn", label: "翻页" },
       { key: "Enter", label: selectedAction },
+      ...(input.actionMenuAvailable === true ? [{ key: "⇧F10", label: "更多操作 · 右键" }] : []),
       { key: "Tab", label: tabLabel },
       { key: "Esc", label: "清空" },
     ],

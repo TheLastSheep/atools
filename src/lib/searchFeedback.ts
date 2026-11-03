@@ -1,4 +1,4 @@
-export type RemoteSearchStatus = "idle" | "searching" | "ready" | "error" | "unavailable";
+export type RemoteSearchStatus = "idle" | "searching" | "ready" | "partial" | "error" | "unavailable";
 
 export type SearchFeedbackMode = "none" | "loading" | "empty" | "error" | "strip";
 
@@ -7,6 +7,10 @@ export type SearchFeedback = {
   title: string;
   hint: string;
   showSpinner: boolean;
+  /** True only for a completed ordinary search failure with no usable result. */
+  retryOnEnter?: boolean;
+  /** True when a completed search failed some sources but still has usable results. */
+  retryOnPointer?: boolean;
 };
 
 export type SearchFeedbackInput = {
@@ -15,6 +19,62 @@ export type SearchFeedbackInput = {
   remoteStatus: RemoteSearchStatus;
   error?: string;
 };
+
+export type SearchRetryKeyContext = {
+  key: string;
+  query: string;
+  resultCount: number;
+  feedback: SearchFeedback;
+  isHomeSearch: boolean;
+  isMainSearchFocused: boolean;
+  hasTextOrMediaContext: boolean;
+  modalOpen: boolean;
+  isComposing: boolean;
+  keyCode: number;
+  metaKey: boolean;
+  ctrlKey: boolean;
+  altKey: boolean;
+  shiftKey: boolean;
+};
+
+export type SearchRetryEligibilityContext = Pick<
+  SearchRetryKeyContext,
+  "query" | "resultCount" | "feedback" | "isHomeSearch" | "hasTextOrMediaContext" | "modalOpen"
+>;
+
+function retryContextAllowed(input: SearchRetryEligibilityContext): boolean {
+  return input.query.trim().length > 0
+    && input.isHomeSearch
+    && !input.hasTextOrMediaContext
+    && !input.modalOpen;
+}
+
+/** Keyboard retry is reserved for completed failures with no result to activate. */
+export function canRetrySearch(input: SearchRetryEligibilityContext): boolean {
+  return retryContextAllowed(input)
+    && input.resultCount === 0
+    && input.feedback.retryOnEnter === true
+}
+
+/** Pointer or focused retry-button actions may rerun a failed query with retained results. */
+export function canRetrySearchFromPointer(input: SearchRetryEligibilityContext): boolean {
+  return retryContextAllowed(input)
+    && ((input.resultCount === 0 && input.feedback.retryOnEnter === true)
+      || (input.resultCount > 0 && input.feedback.retryOnPointer === true));
+}
+
+/** Gate retry to the focused, ordinary launcher search failure state. */
+export function shouldRetrySearchOnEnter(input: SearchRetryKeyContext): boolean {
+  return input.key === "Enter"
+    && canRetrySearch(input)
+    && input.isMainSearchFocused
+    && !input.isComposing
+    && input.keyCode !== 229
+    && !input.metaKey
+    && !input.ctrlKey
+    && !input.altKey
+    && !input.shiftKey;
+}
 
 export function searchFeedbackFor(input: SearchFeedbackInput): SearchFeedback {
   const query = input.query.trim();
@@ -37,12 +97,20 @@ export function searchFeedbackFor(input: SearchFeedbackInput): SearchFeedback {
     );
   }
 
+  if (input.remoteStatus === "partial") {
+    const canRetry = input.resultCount === 0;
+    const hint = canRetry
+      ? "当前没有可用结果。按 Enter 重试搜索。"
+      : "已显示可用结果；可重试以补齐更多结果。";
+    return feedback(input.resultCount > 0 ? "strip" : "error", "部分搜索结果暂不可用", hint,
+      false, canRetry, input.resultCount > 0);
+  }
+
   if (input.remoteStatus === "error") {
-    const error = input.error?.trim() || "未知错误";
     if (input.resultCount > 0) {
-      return feedback("strip", "插件搜索失败，已显示本地结果", error);
+      return feedback("strip", "搜索暂不可用", "已有结果仍可用；可重试搜索更多结果。", false, false, true);
     }
-    return feedback("error", "插件搜索失败", `已完成本地匹配，但插件搜索返回错误：${error}`);
+    return feedback("error", "搜索暂不可用", "当前没有可用结果。按 Enter 重试搜索。", false, true);
   }
 
   if (input.resultCount > 0) return feedback("none", "", "");
@@ -62,6 +130,11 @@ export function searchFeedbackFor(input: SearchFeedbackInput): SearchFeedback {
   );
 }
 
-function feedback(mode: SearchFeedbackMode, title: string, hint: string, showSpinner = false): SearchFeedback {
-  return { mode, title, hint, showSpinner };
+function feedback(mode: SearchFeedbackMode, title: string, hint: string, showSpinner = false,
+  retryOnEnter = false, retryOnPointer = false): SearchFeedback {
+  return {
+    mode, title, hint, showSpinner,
+    ...(retryOnEnter ? { retryOnEnter: true } : {}),
+    ...(retryOnPointer ? { retryOnPointer: true } : {}),
+  };
 }

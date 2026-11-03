@@ -35,6 +35,7 @@ type RpcEntry = {
   generation: number;
   port: MessagePort;
   ready: boolean;
+  documentNonce?: string;
   readyPromise: Promise<void>;
   resolveReady: () => void;
   rejectReady: (reason: Error) => void;
@@ -142,6 +143,15 @@ export class HostedBrowserWindowRpcHost {
     return this.entries.get(windowId)?.ready === true;
   }
 
+  readyDocumentNonce(windowId: string, generation: number) {
+    const entry = this.entries.get(windowId);
+    return entry?.ready && entry.generation === generation ? entry.documentNonce : undefined;
+  }
+
+  isCurrentGeneration(windowId: string, generation: number) {
+    return this.entries.get(windowId)?.generation === generation;
+  }
+
   isAttached(windowId: string) {
     return this.entries.has(windowId);
   }
@@ -231,6 +241,11 @@ export class HostedBrowserWindowRpcHost {
     if (record.generation !== entry.generation) return;
     if (record.__atools_hosted_browser_window_rpc_ready__ === true) {
       if (!entry.ready) {
+        if (record.documentNonce !== undefined && (typeof record.documentNonce !== "string" || !/^[0-9a-f]{32}$/.test(record.documentNonce))) {
+          this.invalidate(windowId, "invalid runtime document nonce");
+          return;
+        }
+        entry.documentNonce = record.documentNonce as string | undefined;
         entry.ready = true;
         entry.resolveReady();
       }

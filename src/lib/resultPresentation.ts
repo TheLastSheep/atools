@@ -7,6 +7,7 @@ export type ResultGroupPresentation = {
 };
 
 export type ResultRowPresentation = {
+  description: string;
   sourceLabel: string;
   sourceDetail: string;
   matchLabel: string;
@@ -40,6 +41,7 @@ export function resultRowPresentation(result: SearchResult, options: { selected:
   const matchLabel = resultMatchLabel(result);
   const shortcutHint = resultShortcutHint(result, options.selected);
   return {
+    description: result.explain.trim() === result.label.trim() ? "" : result.explain,
     sourceLabel,
     sourceDetail: resultSourceDetail(result),
     matchLabel,
@@ -48,13 +50,13 @@ export function resultRowPresentation(result: SearchResult, options: { selected:
     ariaLabel: [
       result.label,
       sourceLabel,
-      `${matchLabel}匹配`,
       shortcutHint,
     ].filter(Boolean).join("，"),
   };
 }
 
 export function resultGroupKey(result: SearchResult): string {
+  if (result.code.startsWith("main-push:")) return result.code.split(":", 2).join(":");
   if (result.code.startsWith("history:")) return "history";
   if (result.code.startsWith("alias:")) return "alias";
   if (result.code.startsWith("local-app:")) return "local-app";

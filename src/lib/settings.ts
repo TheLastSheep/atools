@@ -1,5 +1,15 @@
-import { invoke } from "@tauri-apps/api/core";
-
+import { accentForegroundForAccent } from "./accentContrast";
+import type { LauncherTabTarget } from "./launcherTabTarget";
+import { hasSettingsRuntime, readLocalStoredSettings, readStoredSettings, writeLocalStoredSettings } from "./settingsStorage";
+import { currentSettingsReadContext, currentSettingsReadSnapshot, refreshSettingsReadSnapshot } from "./settingsReadSession";
+import {
+  generalSettingsSnapshotFromRaw,
+  cloneGeneralSettingsChanges,
+  readGeneralSettingsSnapshot,
+  saveGeneralSettings,
+} from "./generalSettingsStore";
+import { applySettingsTransaction, createSettingsWriter } from "./settingsNativeTransaction";
+export { SETTINGS_KEY, SETTINGS_STORAGE_KEY } from "./settingsStorage";
 export type PrimaryColor = "blue" | "purple" | "green" | "orange" | "red" | "pink" | "custom";
 export type AiProvider = "disabled" | "openai" | "compatible" | "local";
 export type DevToolsMode = "detach" | "right" | "bottom" | "undocked";
@@ -33,6 +43,7 @@ export type AToolsSettings = {
   recentRows: number;
   pinnedRows: number;
   tabKeyFunction: string;
+  tabTarget: LauncherTabTarget | null;
   autoPaste: string;
   autoClear: string;
   autoBackToSearch: string;
@@ -64,94 +75,12 @@ export type AToolsSettings = {
   webdavSyncPlugins: boolean;
   webdavSyncClipboard: boolean;
 };
-
-export const SETTINGS_KEY = "settings-general";
-export const SETTINGS_STORAGE_KEY = "atools:settings-general";
-
-export type SettingsPersist = (
-  next: AToolsSettings,
-  previous: AToolsSettings,
-) => Promise<void>;
-
-export class SettingsSaveCoordinator {
-  private savedSettings: AToolsSettings;
-  private queue: Promise<void> = Promise.resolve();
-
-  constructor(
-    initialSettings: AToolsSettings,
-    private readonly persist: SettingsPersist,
-  ) {
-    this.savedSettings = initialSettings;
-  }
-
-  enqueue(next: AToolsSettings): Promise<void> {
-    const operation = this.queue.then(async () => {
-      const previous = this.savedSettings;
-      await this.persist(next, previous);
-      this.savedSettings = next;
-    });
-    this.queue = operation.catch(() => {});
-    return operation;
-  }
-
-  lastSaved(): AToolsSettings {
-    return this.savedSettings;
-  }
-
-  hydrate(settings: AToolsSettings): void {
-    this.savedSettings = settings;
-  }
-}
-
-export type DebouncedSettingsEnqueue = (
-  settings: AToolsSettings,
-  revision: number,
-) => Promise<void>;
-
-export class SettingsSaveDebouncer {
-  private timer: ReturnType<typeof setTimeout> | null = null;
-  private pending: { settings: AToolsSettings; revision: number } | null = null;
-
-  constructor(
-    private readonly enqueue: DebouncedSettingsEnqueue,
-    private readonly delayMs = 160,
-  ) {}
-
-  schedule(settings: AToolsSettings, revision: number): void {
-    this.pending = { settings, revision };
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = setTimeout(() => {
-      this.timer = null;
-      void this.flush();
-    }, this.delayMs);
-  }
-
-  discard(): void {
-    this.pending = null;
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = null;
-  }
-
-  flush(): Promise<void> {
-    const pending = this.pending;
-    this.pending = null;
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = null;
-    if (!pending) return Promise.resolve();
-
-    try {
-      return this.enqueue(pending.settings, pending.revision).catch(() => {});
-    } catch {
-      return Promise.resolve();
-    }
-  }
-}
-
+export { SettingsSaveCoordinator, SettingsSaveDebouncer, type SettingsPersist, type DebouncedSettingsEnqueue } from "./settingsSaveCoordinator";
 export const DEFAULT_ATOOLS_SETTINGS: AToolsSettings = {
   hotkey: "Option+Z",
   appShortcuts: [],
   launchAtLogin: false,
-  showTrayIcon: false,
+  showTrayIcon: true,
   wakeupBlacklist: [],
   theme: "system",
   primaryColor: "purple",
@@ -168,6 +97,7 @@ export const DEFAULT_ATOOLS_SETTINGS: AToolsSettings = {
   recentRows: 2,
   pinnedRows: 1,
   tabKeyFunction: "navigate",
+  tabTarget: null,
   autoPaste: "3s",
   autoClear: "immediately",
   autoBackToSearch: "never",
@@ -199,7 +129,6 @@ export const DEFAULT_ATOOLS_SETTINGS: AToolsSettings = {
   webdavSyncPlugins: true,
   webdavSyncClipboard: false,
 };
-
 const COLOR_HEX: Record<PrimaryColor, string> = {
   blue: "#0284c7",
   purple: "#7c3aed",
@@ -209,6 +138,18 @@ const COLOR_HEX: Record<PrimaryColor, string> = {
   pink: "#db2777",
   custom: DEFAULT_ATOOLS_SETTINGS.customColor,
 };
+
+function validIdentity(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0 && value.length <= 512
+    && value === value.trim() && !/[\u0000-\u001f\u007f]/.test(value);
+}
+export function normalizeLauncherTabTarget(value: unknown): LauncherTabTarget | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Partial<LauncherTabTarget>;
+  if (!validIdentity(raw.pluginId) || !validIdentity(raw.code)) return null;
+  return { pluginId: raw.pluginId, code: raw.code,
+    label: typeof raw.label === "string" ? raw.label.slice(0, 256) : raw.code };
+}
 
 export function normalizeSettings(value: Partial<AToolsSettings> | null | undefined): AToolsSettings {
   const raw = value ?? {};
@@ -224,6 +165,8 @@ export function normalizeSettings(value: Partial<AToolsSettings> | null | undefi
   return {
     ...DEFAULT_ATOOLS_SETTINGS,
     ...raw,
+    showTrayIcon: raw.showTrayIcon !== false,
+    tabTarget: normalizeLauncherTabTarget(raw.tabTarget),
     hotkey: stringValue(raw.hotkey, DEFAULT_ATOOLS_SETTINGS.hotkey),
     appShortcuts: normalizeAppShortcutSettings(raw.appShortcuts),
     wakeupBlacklist: Array.isArray(raw.wakeupBlacklist)
@@ -274,16 +217,28 @@ export function normalizeSettings(value: Partial<AToolsSettings> | null | undefi
 }
 
 export async function loadAToolsSettings(): Promise<AToolsSettings> {
+  const active = currentSettingsReadSnapshot();
+  if (active) {
+    applyAToolsAppearance(active);
+    return active;
+  }
+
   const stored = await readStoredSettings();
-  const settings = normalizeSettings(stored);
+  const settings = currentSettingsReadSnapshot() ?? normalizeSettings(stored as Partial<AToolsSettings> | null);
   applyAToolsAppearance(settings);
   return settings;
 }
 
 export function loadAToolsSettingsSync(): AToolsSettings {
+  const active = currentSettingsReadSnapshot();
+  if (active) {
+    applyAToolsAppearance(active);
+    return active;
+  }
+
   try {
-    const value = localStorage.getItem(SETTINGS_STORAGE_KEY);
-    const settings = normalizeSettings(value ? JSON.parse(value) as Partial<AToolsSettings> : null);
+    const value = readLocalStoredSettings();
+    const settings = normalizeSettings(value as Partial<AToolsSettings> | null);
     applyAToolsAppearance(settings);
     return settings;
   } catch {
@@ -292,17 +247,18 @@ export function loadAToolsSettingsSync(): AToolsSettings {
 }
 
 export async function saveAToolsSettings(settings: AToolsSettings): Promise<void> {
-  const normalized = normalizeSettings(settings);
-  const serialized = JSON.stringify(normalized);
-
-  if (hasTauriRuntime()) {
-    await invoke("set_setting", { key: SETTINGS_KEY, value: serialized });
-  }
-
-  try {
-    localStorage.setItem(SETTINGS_STORAGE_KEY, serialized);
-  } catch {
-    // Local fallback can be unavailable in restricted contexts.
+  const normalized = normalizeSettings(cloneGeneralSettingsChanges(settings) as Partial<AToolsSettings>);
+  const lease = currentSettingsReadContext();
+  const snapshot = lease?.snapshot ?? await readGeneralSettingsSnapshot();
+  const receipt = await saveGeneralSettings(snapshot, normalized, { applyNative: false });
+  if (lease) {
+    const committed = generalSettingsSnapshotFromRaw(receipt.raw);
+    const normalizedCommitted = normalizeSettings(committed.value as Partial<AToolsSettings>);
+    if (refreshSettingsReadSnapshot(lease.request, normalizedCommitted, committed)) {
+      if (hasSettingsRuntime()) writeLocalStoredSettings(receipt.raw);
+    }
+  } else if (hasSettingsRuntime() && !currentSettingsReadContext()) {
+    writeLocalStoredSettings(receipt.raw);
   }
 }
 
@@ -311,6 +267,7 @@ export function applyAToolsAppearance(settings: AToolsSettings) {
   root.dataset.atoolsTheme = settings.theme;
   const accent = settings.primaryColor === "custom" ? settings.customColor : COLOR_HEX[settings.primaryColor];
   root.style.setProperty("--accent", accent);
+  root.style.setProperty("--accent-foreground", accentForegroundForAccent(accent));
   root.style.setProperty("--accent-hover", accent);
   root.style.setProperty("--accent-subtle", colorToRgba(accent, 0.14));
   root.style.setProperty("--atools-window-opacity", String(settings.opacity));
@@ -320,123 +277,16 @@ export function dispatchAToolsSettings(settings: AToolsSettings) {
   window.dispatchEvent(new CustomEvent<AToolsSettings>("atools-settings-updated", { detail: settings }));
 }
 
-export async function applyNativeSettings(
-  settings: AToolsSettings,
-  previous?: AToolsSettings,
-): Promise<void> {
-  if (!hasTauriRuntime()) return;
-  const invocations = [
-    {
-      method: "update_global_hotkey",
-      args: previous
-        ? { shortcut: settings.hotkey, previousShortcut: previous.hotkey }
-        : { shortcut: settings.hotkey },
-    },
-    { method: "set_tray_icon_visible", args: { visible: settings.showTrayIcon } },
-    { method: "set_launch_at_login", args: { enabled: settings.launchAtLogin } },
-    { method: "set_super_panel_visible", args: { visible: settings.superPanelEnabled } },
-    { method: "set_floating_ball_visible", args: { visible: settings.floatingBallEnabled } },
-  ];
-  const results = await Promise.allSettled(
-    invocations.map((invocation) => invoke(invocation.method, invocation.args)),
-  );
-  const failures = results
-    .map((result, index) => {
-      if (result.status === "rejected") {
-        return { method: invocations[index].method, reason: formatInvokeError(result.reason) };
-      }
-      return null;
-    })
-    .filter((value): value is { method: string; reason: string } => value !== null);
-
-  if (failures.length > 0) {
-    const failedText = failures.map((failure) => `${failure.method}: ${failure.reason}`).join("; ");
-    const failedCount = failures.length;
-    const successCount = results.length - failedCount;
-    let rollbackText = "";
-    if (previous && successCount > 0) {
-      const previousInvocations = [
-        {
-          method: "update_global_hotkey",
-          args: { shortcut: previous.hotkey, previousShortcut: settings.hotkey },
-        },
-        { method: "set_tray_icon_visible", args: { visible: previous.showTrayIcon } },
-        { method: "set_launch_at_login", args: { enabled: previous.launchAtLogin } },
-        { method: "set_super_panel_visible", args: { visible: previous.superPanelEnabled } },
-        { method: "set_floating_ball_visible", args: { visible: previous.floatingBallEnabled } },
-      ].filter((_, index) => results[index].status === "fulfilled");
-      const rollbackResults = await Promise.allSettled(
-        previousInvocations.map((invocation) => invoke(invocation.method, invocation.args)),
-      );
-      const rollbackFailures = rollbackResults
-        .map((result, index) => result.status === "rejected"
-          ? { method: previousInvocations[index].method, reason: formatInvokeError(result.reason) }
-          : null)
-        .filter((value): value is { method: string; reason: string } => value !== null);
-      const rollbackSuccessCount = rollbackResults.length - rollbackFailures.length;
-      rollbackText = `；回滚成功 ${rollbackSuccessCount}/${rollbackResults.length} 项`;
-      if (rollbackFailures.length > 0) {
-        rollbackText += `，回滚失败 ${rollbackFailures.length} 项: ${rollbackFailures
-          .map((failure) => `${failure.method}: ${failure.reason}`)
-          .join("; ")}`;
-      }
-    }
-    throw new Error(`系统设置保存失败，成功 ${successCount}/${results.length} 项，失败 ${failedCount} 项: ${failedText}${rollbackText}`);
-  }
-}
-
 export async function applyAndSaveAToolsSettings(
   next: AToolsSettings,
   previous: AToolsSettings,
 ): Promise<void> {
-  await applyNativeSettings(next, previous);
-  try {
-    await saveAToolsSettings(next);
-  } catch (error) {
-    const persistenceReason = formatInvokeError(error);
-    try {
-      await applyNativeSettings(previous, next);
-    } catch (rollbackError) {
-      throw new Error(
-        `设置持久化失败: ${persistenceReason}；原生设置回滚失败: ${formatInvokeError(rollbackError)}`,
-      );
-    }
-    throw new Error(`设置持久化失败: ${persistenceReason}；原生设置已回滚到上次保存值`);
-  }
+  await applySettingsTransaction(next, previous, saveAToolsSettings, normalizeSettings);
 }
 
-function formatInvokeError(reason: unknown) {
-  if (reason instanceof Error) return reason.message || "Unknown error";
-  if (typeof reason === "string") return reason;
-  if (reason == null) return "Unknown error";
-  try {
-    return JSON.stringify(reason);
-  } catch {
-    return String(reason);
-  }
-}
-
-async function readStoredSettings(): Promise<Partial<AToolsSettings> | null> {
-  if (hasTauriRuntime()) {
-    try {
-      const value = await invoke<string | null>("get_setting", { key: SETTINGS_KEY });
-      if (value) return JSON.parse(value) as Partial<AToolsSettings>;
-    } catch {
-      // Fall through to local preview storage.
-    }
-  }
-
-  try {
-    const value = localStorage.getItem(SETTINGS_STORAGE_KEY);
-    return value ? JSON.parse(value) as Partial<AToolsSettings> : null;
-  } catch {
-    return null;
-  }
-}
-
-function hasTauriRuntime() {
-  const runtime = (window as Window & { __TAURI_INTERNALS__?: { invoke?: unknown } }).__TAURI_INTERNALS__;
-  return typeof runtime?.invoke === "function";
+/** Creates one serialized editor writer bound to the current settings read lease. */
+export function createAToolsSettingsWriter() {
+  return createSettingsWriter(normalizeSettings);
 }
 
 function stringValue(value: unknown, fallback: string) {

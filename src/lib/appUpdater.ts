@@ -1,6 +1,7 @@
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import { listen as tauriListen } from "@tauri-apps/api/event";
 import { get, writable, type Readable } from "svelte/store";
+import { validLegacyStatus, validUpdate } from "./appUpdateWire";
 
 export type AppUpdaterPhase =
   | "idle"
@@ -13,6 +14,7 @@ export type AppUpdaterPhase =
   | "error";
 
 export type AppUpdateMetadata = {
+  candidateId: string;
   currentVersion: string;
   version: string;
   date: string | null;
@@ -45,7 +47,7 @@ export type AppUpdaterDependencies = {
   invoke(command: string, args?: Record<string, unknown>): Promise<unknown>;
   listen(
     event: string,
-    handler: (event: { payload: AppUpdateProgress }) => void,
+    handler: (event: { payload: unknown }) => void,
   ): Promise<() => void>;
   setTimer(handler: () => void, delay: number): unknown;
   clearTimer(handle: unknown): void;
@@ -77,7 +79,7 @@ const initialState: AppUpdaterState = {
 const defaultDependencies: AppUpdaterDependencies = {
   invoke: (command, args) => tauriInvoke(command, args),
   listen: async (event, handler) =>
-    tauriListen<AppUpdateProgress>(event, (message) => handler(message)),
+    tauriListen<unknown>(event, (message) => handler(message)),
   setTimer: (handler, delay) => globalThis.setTimeout(handler, delay),
   clearTimer: (handle) =>
     globalThis.clearTimeout(handle as ReturnType<typeof globalThis.setTimeout>),
@@ -118,6 +120,12 @@ export function createAppUpdaterController(
 ): AppUpdaterController {
   const store = writable<AppUpdaterState>({ ...initialState });
   let inFlightCheck: Promise<AppUpdateMetadata | null> | null = null;
+  let statusEpoch = 0;
+  let lifecycleEpoch = 0;
+  let explicitIntent = false;
+  let autoEnabled = false;
+  let preferenceReady = false;
+  let dismissedCandidate: string | null = null;
 
   function setError(error: AppUpdaterError, promptVisible = false): void {
     store.update((state) => ({
@@ -130,8 +138,11 @@ export function createAppUpdaterController(
   }
 
   function check(source: "startup" | "manual"): Promise<AppUpdateMetadata | null> {
+    if (source === "manual") explicitIntent = true;
     if (inFlightCheck) return inFlightCheck;
 
+    const epoch = statusEpoch;
+    const lifecycle = lifecycleEpoch;
     const operation = (async () => {
       if (!deps.isDesktop()) {
         const error = {
@@ -150,7 +161,13 @@ export function createAppUpdaterController(
         promptVisible: false,
       }));
       try {
-        const update = (await deps.invoke("check_app_update")) as AppUpdateMetadata | null;
+        const update = await deps.invoke("check_app_update");
+        if (update !== null && !validUpdate(update)) throw { code: "invalid_response", message: "更新信息无效" };
+        if (lifecycle !== lifecycleEpoch) return update;
+        if (epoch !== statusEpoch) {
+          if (explicitIntent && update) store.update(state => ({ ...state, promptVisible: true }));
+          return update;
+        }
         const checkedAt = deps.now().toISOString();
         store.update((state) => ({
           ...state,
@@ -161,12 +178,12 @@ export function createAppUpdaterController(
           total: null,
           errorCode: "",
           errorMessage: "",
-          promptVisible: Boolean(update),
+          promptVisible: Boolean(update) && (explicitIntent || autoEnabled),
         }));
         return update;
       } catch (error) {
         const normalized = normalizeUpdaterError(error);
-        setError(normalized, source === "manual" && get(store).promptVisible);
+        if (lifecycle === lifecycleEpoch) setError(normalized, explicitIntent && get(store).promptVisible);
         throw normalized;
       }
     })();
@@ -179,13 +196,61 @@ export function createAppUpdaterController(
   }
 
   function scheduleStartupCheck(): () => void {
-    const timer = deps.setTimer(() => {
-      void check("startup").catch(() => undefined);
-    }, 3000);
-    return () => deps.clearTimer(timer);
+    if (!deps.isDesktop()) return () => undefined;
+    let active = true, unlisten: (() => void) | undefined, unlistenPreferences: (() => void) | undefined, eventEpoch = 0, preferenceEpoch = 0;
+    function applyPreference(raw: unknown): void {
+      if (!active || (raw !== null && typeof raw !== "string")) return;
+      try {
+        const value = raw === null ? {} : JSON.parse(raw);
+        if (!value || typeof value !== "object" || Array.isArray(value)) return;
+        const wasEnabled = autoEnabled, first = !preferenceReady;
+        autoEnabled = value.autoCheckUpdate === undefined || value.autoCheckUpdate === true;
+        preferenceReady = true;
+        if (!first && !wasEnabled && autoEnabled) dismissedCandidate = null;
+        if (!explicitIntent) store.update(state => {
+          if (state.phase !== "available" || !state.update) return state;
+          if (!autoEnabled) return state.promptVisible ? { ...state, promptVisible: false } : state;
+          if ((first || !wasEnabled) && state.update.candidateId !== dismissedCandidate) return { ...state, promptVisible: true };
+          return state;
+        });
+      } catch { /* Invalid preferences never enable automatic prompts. */ }
+    }
+    function applyStatus(value: unknown): void {
+      if (!active || !validLegacyStatus(value)) return;
+      const status = value;
+      if (status.lastError) { setError(status.lastError, explicitIntent); return; }
+      store.update(state => ({ ...state, update: status.update ?? null,
+        phase: status.operation === "checking" ? "checking" : status.operation === "installing" ? "installing" : status.operation === "restarting" ? "restarting" : status.update ? "available" : status.checked ? "up-to-date" : "idle",
+        promptVisible: Boolean(status.update) && (explicitIntent || autoEnabled || ["downloading", "installing", "restarting"].includes(state.phase)), errorCode: "", errorMessage: "" }));
+    }
+    void deps.listen("atools://renderer-general-settings", ({ payload }) => {
+      if (payload && typeof payload === "object" && "raw" in payload) { preferenceEpoch++; applyPreference(payload.raw); }
+    }).then(stop => { if (!active) {stop(); return;} unlistenPreferences = stop; const epoch = preferenceEpoch;
+      return deps.invoke("get_setting", {key:"settings-general"}).then(raw => {if (epoch === preferenceEpoch) applyPreference(raw);});
+    }).catch(() => undefined);
+    void deps.listen("app-update-status", ({ payload }) => { if (validLegacyStatus(payload)) { eventEpoch++; statusEpoch++; applyStatus(payload); } }).then(async stop => {
+      if (!active) { stop(); return; }
+      unlisten = stop;
+      const epoch = eventEpoch;
+      const result = await deps.invoke("startup_app_update");
+      if (epoch === eventEpoch) applyStatus(result);
+    }).catch(() => undefined);
+    return () => {
+      if (!active) return;
+      active = false;
+      statusEpoch++;
+      lifecycleEpoch++;
+      explicitIntent = false;
+      store.update(state => state.phase === "checking"
+        ? { ...state, phase: state.update ? "available" : state.checkedAt ? "up-to-date" : "idle", promptVisible: false }
+        : state);
+      unlisten?.();
+      unlistenPreferences?.();
+    };
   }
 
   async function installAndRestart(): Promise<void> {
+    explicitIntent = true;
     const current = get(store);
     if (!current.update) {
       const error = { code: "no_update", message: "没有可安装的更新" };
@@ -213,6 +278,7 @@ export function createAppUpdaterController(
     try {
       await deps.invoke("install_app_update", {
         expectedVersion: current.update.version,
+        expectedCandidateId: current.update.candidateId,
       });
       store.update((state) => ({ ...state, phase: "restarting" }));
     } catch (error) {
@@ -223,12 +289,15 @@ export function createAppUpdaterController(
   }
 
   function dismiss(): void {
+    dismissedCandidate = get(store).update?.candidateId ?? null;
+    explicitIntent = false;
     store.update((state) => ({ ...state, promptVisible: false }));
   }
 
   async function startProgressListener(): Promise<() => void> {
     if (!deps.isDesktop()) return () => undefined;
-    return deps.listen("app-update-progress", ({ payload }) => {
+    return deps.listen("app-update-progress", ({ payload: value }) => {
+      const payload = value as AppUpdateProgress;
       store.update((state) => ({
         ...state,
         phase: payload.event === "installing" ? "installing" : "downloading",

@@ -1,5 +1,21 @@
 <script lang="ts">
   import type { PendingAgentToolRequest } from "../lib/types";
+  import { permissionDialogFocus } from "../lib/permissionDialogFocus";
+  import { sourceBuildPermissionPresentation } from "../lib/pluginSourceBuildPermissions";
+  import { pluginDisplayPermissionPresentation } from "../lib/pluginDisplayPermission";
+  import {
+    clipboardPermissionPresentation,
+    pluginDataPermissionPresentation,
+    pluginPathsPermissionPresentation,
+    pluginDialogPermissionPresentation,
+    pluginMainPushPermissionPresentation,
+    pluginSecretStoragePermissionPresentation,
+    pluginFileDropPermissionPresentation,
+    pluginAiPermissionPresentation,
+    pluginBrowserWindowPermissionPresentation,
+    pluginBackgroundPermissionPresentation,
+    type PermissionRequestContext,
+  } from "../lib/permissionPresentation";
   import {
     isHighRiskScope,
     permissionRequestPreview,
@@ -10,6 +26,9 @@
     request: PendingAgentToolRequest;
     busy?: boolean;
     error?: string;
+    queuedCount?: number;
+    displayName?: string | null;
+    requestContext?:PermissionRequestContext | null;
     onallowonce: (request: PendingAgentToolRequest) => void | Promise<void>;
     onallowremember: (request: PendingAgentToolRequest) => void | Promise<void>;
     ondeny: (request: PendingAgentToolRequest) => void | Promise<void>;
@@ -19,14 +38,43 @@
     request,
     busy = false,
     error = "",
+    queuedCount = 1,
+    displayName = null,
+    requestContext = null,
     onallowonce,
     onallowremember,
     ondeny,
   }: Props = $props();
 
-  let keyArguments = $derived(argumentPairs(request.arguments));
+  let sourceBuildPresentation = $derived(sourceBuildPermissionPresentation(request));
+  let keyArguments = $derived(sourceBuildPresentation?.arguments ?? argumentPairs(request.arguments));
   let prettyArguments = $derived(formatJson(request.arguments));
-  let preview = $derived(permissionRequestPreview(request));
+  let privateNode = $derived(request.tool_name.startsWith("legacy_node_"));
+  let mainPushPresentation = $derived(pluginMainPushPermissionPresentation(request, requestContext));
+  let browserWindowPresentation = $derived(pluginBrowserWindowPermissionPresentation(request, requestContext));
+  let backgroundPresentation = $derived(pluginBackgroundPermissionPresentation(request, requestContext));
+  let fileDropPresentation = $derived(pluginFileDropPermissionPresentation(request, requestContext));
+  let aiPresentation = $derived(pluginAiPermissionPresentation(request, requestContext));
+  let clipboardPresentation = $derived(
+    mainPushPresentation
+      ?? browserWindowPresentation
+      ?? backgroundPresentation
+      ?? aiPresentation
+      ?? fileDropPresentation
+      ?? pluginDisplayPermissionPresentation(request, requestContext)
+      ?? clipboardPermissionPresentation(request, requestContext)
+      ?? pluginSecretStoragePermissionPresentation(request, requestContext)
+      ?? pluginDataPermissionPresentation(request, requestContext)
+      ?? pluginPathsPermissionPresentation(request, requestContext)
+      ?? pluginDialogPermissionPresentation(request, requestContext),
+  );
+  let privatePlugin = $derived(privateNode || Boolean(clipboardPresentation));
+  let preview = $derived(permissionRequestPreview(privatePlugin ? {...request,arguments:{}} : request));
+  let requestTime = $derived(formatTime(request.created_at));
+  let riskHints = $derived(sourceBuildPresentation?.riskHints ?? clipboardPresentation?.riskHints ?? (privateNode ? [
+    "此插件可以读写本机文件、连接网络或启动进程。",
+    "授权后可直接使用这些本机能力，请仅允许你信任的插件。",
+  ] : preview.risks));
 
   function argumentPairs(value: unknown) {
     if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -53,47 +101,68 @@
     }
   }
 
+  function formatTime(value: string) {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "时间未知" : date.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+  }
+
 </script>
 
 <div class="permission-overlay" role="presentation">
-  <div class="permission-card" role="dialog" aria-modal="true" aria-labelledby="permission-title">
+  <div class="permission-card" role="dialog" aria-modal="true" aria-labelledby="permission-title"
+    aria-describedby={error ? "permission-status permission-error" : "permission-status"}
+    aria-busy={busy} tabindex="-1" data-permission-dialog
+    use:permissionDialogFocus={{ busy, deny: () => { void ondeny(request); } }}>
     <header>
       <div>
-        <p class="eyebrow">Agent 权限确认</p>
-        <h2 id="permission-title">{request.tool_name}</h2>
+        <p class="eyebrow">{sourceBuildPresentation ? "本地插件转换" : privatePlugin ? "插件权限确认" : "Agent 权限确认"}</p>
+        <h2 id="permission-title">{sourceBuildPresentation?.title ?? clipboardPresentation?.title ?? (privateNode ? displayName ? `${displayName} 请求访问本机` : "插件请求访问本机" : request.tool_name)}</h2>
       </div>
-      <span class="request-time">{request.created_at}</span>
+      <span class="request-time" title={request.created_at}>{requestTime}</span>
     </header>
+
+    <p class="request-status" id="permission-status" role="status">{busy ? "正在处理此请求，请稍候…" : queuedCount > 1 ? `当前第 1 个，共 ${queuedCount} 个请求` : "请确认此操作是否由你发起"}</p>
 
     <dl class="summary">
       <div>
-        <dt>客户端</dt>
-        <dd>{request.client_id}</dd>
+        <dt>{privatePlugin ? "请求来源" : "客户端"}</dt>
+        <dd>{sourceBuildPresentation?.sourceLabel ?? (privatePlugin ? displayName || "插件名称暂不可用" : request.client_id)}</dd>
       </div>
+      {#if !privatePlugin && displayName}<div><dt>插件</dt><dd>{displayName}</dd></div>{/if}
       <div>
-        <dt>Scope</dt>
+        <dt>访问范围</dt>
         <dd class="scope-list">
+          {#if mainPushPresentation}<span>{mainPushPresentation.scopeLabel}</span>{/if}
+          {#if browserWindowPresentation}<span>{browserWindowPresentation.scopeLabel}</span>{/if}
+          {#if backgroundPresentation}<span>{backgroundPresentation.scopeLabel}</span>{/if}
           {#each request.scopes as scope}
-            <span class:high-risk={isHighRiskScope(scope)}>{scopeLabel(scope)}</span>
+            {#if !browserWindowPresentation && !backgroundPresentation}
+              <span class:high-risk={isHighRiskScope(scope) || (fileDropPresentation !== null && scope === "file_read")}>
+                {scopeLabel(scope)}
+              </span>
+            {/if}
           {/each}
         </dd>
       </div>
-      <div>
+      {#if !privatePlugin}<div>
         <dt>执行模式</dt>
         <dd>
-          <span class="mode-pill" class:dry-run={preview.dryRun}>{preview.dryRun ? "dry-run 预览" : "可能执行"}</span>
+          <span class="mode-pill" class:dry-run={preview.dryRun}>{sourceBuildPresentation?.mode ?? (preview.dryRun ? "dry-run 预览" : "可能执行")}</span>
         </dd>
-      </div>
+      </div>{/if}
     </dl>
 
-    <section class={`risk-box ${preview.riskLevel}`}>
+    <section class={`risk-box ${fileDropPresentation ? "high" : preview.riskLevel}`}>
       <strong>风险提示</strong>
       <ul>
-        {#each preview.risks as item}
+        {#each riskHints as item}
           <li>{item}</li>
         {/each}
       </ul>
     </section>
+
+    {#if clipboardPresentation}<p class="request-status">{clipboardPresentation.retryHint}</p>{/if}
+    {#if sourceBuildPresentation}<p class="request-status">{sourceBuildPresentation.retryHint}</p>{/if}
 
     {#if preview.paths.length > 0}
       <section class="path-box">
@@ -106,6 +175,9 @@
       </section>
     {/if}
 
+    {#if !fileDropPresentation && !aiPresentation && privatePlugin}
+      <details class="technical-details"><summary>技术详情</summary><pre>{formatJson({ tool: request.tool_name, client: request.client_id })}</pre></details>
+    {:else if !fileDropPresentation && !aiPresentation}
     <section class="arguments">
       <h3>关键参数</h3>
       <div class="argument-grid">
@@ -121,15 +193,16 @@
         <pre>{prettyArguments}</pre>
       </details>
     </section>
+    {/if}
 
     {#if error}
-      <div class="error">{error}</div>
+      <div class="error" id="permission-error" role="alert">{error}</div>
     {/if}
 
     <footer>
-      <button class="secondary" disabled={busy} onclick={() => ondeny(request)}>拒绝</button>
-      <button class="secondary" disabled={busy} onclick={() => onallowonce(request)}>允许一次</button>
-      <button class="primary" disabled={busy} onclick={() => onallowremember(request)}>允许并记住</button>
+      <button class="secondary" data-permission-deny disabled={busy} onclick={() => ondeny(request)}>拒绝</button>
+      <button class="primary" disabled={busy} onclick={() => onallowonce(request)}>允许一次</button>
+      <button class="secondary" disabled={busy} onclick={() => onallowremember(request)}>允许并记住</button>
     </footer>
   </div>
 </div>
@@ -165,6 +238,9 @@
   .error {
     margin: 0 16px;
   }
+
+  .request-status { margin: 12px 16px; color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
+  .technical-details { margin: 12px 16px; }
 
   header {
     display: flex;
@@ -398,6 +474,11 @@
     cursor: not-allowed;
     opacity: 0.55;
   }
+
+  button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .permission-card:focus { outline: none; }
+  .primary:hover:not(:disabled) { filter: brightness(1.06); }
+  button:active:not(:disabled) { transform: translateY(1px); }
 
   .primary {
     border-color: color-mix(in srgb, var(--accent) 55%, var(--border-strong));

@@ -1,43 +1,178 @@
 <script lang="ts">
-  import { convertFileSrc } from "@tauri-apps/api/core";
-  import ResultTypeIcon from "./ResultTypeIcon.svelte";
+  import HomeCommandTile from "./HomeCommandTile.svelte";
+  import HomeCommandHint from "./HomeCommandHint.svelte";
+  import HomeSectionHeader from "./HomeSectionHeader.svelte";
   import {
-    homeCommandFallbackIcon,
     homeCommandSections,
+    type HomeCommandSectionView,
+    type HomeCommandSectionId,
   } from "../lib/homeSurface";
-  import { hasTauriAssetRuntime, resultIconSrc } from "../lib/resultIcons";
+  import { homeGridArrowDirection, homeGridColumnCount, moveHomeGridSelection } from "../lib/homeNavigation";
+  import { isEditableKeyboardTarget } from "../lib/keyboardTarget";
+  import { boundedHomeCommandHintText } from "../lib/homeCommandHintText";
+  import { matchesHomeCommandHintIdentity, snapshotHomeCommandHintIdentity, type HomeCommandHintIdentity } from "../lib/homeCommandHintState";
   import type { RecommendedCommand, ShellPanel } from "../lib/uiState";
+  import type { SettingsMenuId } from "../lib/settingsPages";
+  import { isLauncherMenuShortcut } from "../lib/launcherCommandActions";
+  import HomeEmptyState from "./HomeEmptyState.svelte";
 
   type Props = {
     commands: RecommendedCommand[];
+    sections?: HomeCommandSectionView[];
     oncommand: (query: string) => void;
     onpanelchange: (panel: ShellPanel) => void;
+    ontargetsettings?: (target: SettingsMenuId) => void;
     pinnedRows?: number;
     recentRows?: number;
+    onsectiontoggle?: (section: HomeCommandSectionId) => void;
     selectedIndex?: number;
-    onselectionchange?: (index: number) => void;
+    onselectionchange?: (index: number, returnFocusToSearch?: boolean) => void;
     onactivate?: (command: RecommendedCommand) => void;
     onremove?: (command: RecommendedCommand) => void;
+    oncommandmenu?: (event: MouseEvent | KeyboardEvent, command: RecommendedCommand) => void;
   };
 
   let {
     commands,
+    sections = undefined,
     oncommand,
     onpanelchange,
+    ontargetsettings,
     pinnedRows = 1,
     recentRows = 2,
+    onsectiontoggle,
     selectedIndex = 0,
     onselectionchange = () => {},
     onactivate = undefined,
     onremove = undefined,
+    oncommandmenu = undefined,
   }: Props = $props();
 
-  const commandSections = $derived(homeCommandSections(commands, { pinnedRows, recentRows }));
+  let homePanelElement: HTMLElement | null = $state(null);
+  let commandScrollElement: HTMLElement | null = $state(null);
+  let focusedSectionHeader: { button: HTMLButtonElement; sectionId: HomeCommandSectionId } | null = $state(null);
+  let revealExpandedSectionId: HomeCommandSectionId | null = $state(null);
+  let activeHint = $state<{ owner: HomeCommandHintIdentity; index: number; explain: string; anchor: HTMLButtonElement; trigger: "pointer" | "focus" } | null>(null);
+  const commandHintId = "atools-home-command-hint";
+  const fallbackCommandSections = $derived(homeCommandSections(commands, { pinnedRows, recentRows }));
+  const commandSections = $derived(sections ?? fallbackCommandSections);
   const visibleCommands = $derived(commandSections.flatMap((section) => section.commands));
-  const swatches = ["#d9c7ff", "#d99a00", "#7f8bd9", "#111111", "#6d7fe2", "#8b5cf6", "#2bbd9f", "#33c24d", "#ff941f", "#8b5cf6"];
   const capabilityRail = import("./HomeCapabilityRail.svelte");
 
+  function keepHomeTargetVisible(panel: HTMLElement, target: HTMLElement) {
+    const viewport = panel.getBoundingClientRect();
+    const itemBounds = target.getBoundingClientRect();
+    const viewportTop = viewport.top + panel.clientTop;
+    const viewportBottom = viewportTop + panel.clientHeight;
+
+    if (itemBounds.top < viewportTop) panel.scrollTop = Math.max(0, panel.scrollTop - (viewportTop - itemBounds.top));
+    else if (itemBounds.bottom > viewportBottom) panel.scrollTop += itemBounds.bottom - viewportBottom;
+  }
+
+  function keepExpandedSectionVisible(panel: HTMLElement, header: HTMLButtonElement, firstRow: HTMLElement) {
+    const viewport = panel.getBoundingClientRect();
+    const viewportTop = viewport.top + panel.clientTop;
+    const viewportBottom = viewportTop + panel.clientHeight;
+    const headerBounds = header.getBoundingClientRect();
+    const firstRowBounds = firstRow.getBoundingClientRect();
+    const targetTop = Math.min(headerBounds.top, firstRowBounds.top);
+    const targetBottom = Math.max(headerBounds.bottom, firstRowBounds.bottom);
+
+    if (targetBottom - targetTop > panel.clientHeight) {
+      keepHomeTargetVisible(panel, header);
+      return;
+    }
+    if (targetTop < viewportTop) panel.scrollTop = Math.max(0, panel.scrollTop + targetTop - viewportTop);
+    else if (targetBottom > viewportBottom) panel.scrollTop += targetBottom - viewportBottom;
+  }
+
+  $effect(() => {
+    const panel = commandScrollElement;
+    const index = selectedIndex;
+    const sections = commandSections;
+    const commandCount = sections.reduce((count, section) => count + section.commands.length, 0);
+    const focusedHeader = focusedSectionHeader;
+    const revealSectionId = revealExpandedSectionId;
+    if (!panel) return;
+    const focusedButton = focusedHeader?.button;
+    if (focusedHeader && focusedButton?.isConnected && panel.contains(focusedButton)) {
+      const section = sections.find(candidate => candidate.id === focusedHeader.sectionId);
+      const shouldRevealFirstRow = section?.expanded && revealSectionId === section.id;
+      const firstRow = shouldRevealFirstRow
+        ? panel.querySelector<HTMLElement>(`#atools-home-${section.id}-commands [data-home-command-index]`)
+        : null;
+      if (shouldRevealFirstRow && firstRow) keepExpandedSectionVisible(panel, focusedButton, firstRow);
+      else keepHomeTargetVisible(panel, focusedButton);
+      return;
+    }
+    if (index < 0 || index >= commandCount) return;
+
+    const item = panel.querySelector<HTMLElement>(`[data-home-command-index="${index}"]`);
+    if (!item) return;
+    keepHomeTargetVisible(panel, item);
+  });
+
+  $effect(() => {
+    const current = activeHint;
+    if (!current) return;
+    const row = current.anchor.closest<HTMLElement>("[data-home-command-index]");
+    const anchorIndex = Number(row?.dataset.homeCommandIndex);
+    const owner = Number.isInteger(anchorIndex) && anchorIndex === current.index
+      && row?.querySelector<HTMLButtonElement>(".recent-item") === current.anchor
+      ? visibleCommands[anchorIndex]
+      : undefined;
+    const explain = owner ? boundedHomeCommandHintText(owner.explain) : "";
+    if (!owner || !matchesHomeCommandHintIdentity(current.owner, owner) || !explain) activeHint = null;
+    else if (explain !== current.explain) activeHint = { ...current, explain };
+  });
+
+  function isActiveCommandHint(command: RecommendedCommand, index: number) {
+    const current = activeHint;
+    if (!current || current.index !== index || !matchesHomeCommandHintIdentity(current.owner, command)) return false;
+    const row = current.anchor.closest<HTMLElement>("[data-home-command-index]");
+    return current.anchor.isConnected
+      && Number(row?.dataset.homeCommandIndex) === index
+      && row?.querySelector<HTMLButtonElement>(".recent-item") === current.anchor;
+  }
+
+  function showCommandHint(command: RecommendedCommand, index: number, anchor: HTMLButtonElement, trigger: "pointer" | "focus") {
+    const explain = boundedHomeCommandHintText(command.explain);
+    if (!explain) {
+      activeHint = null;
+      return;
+    }
+    activeHint = { owner: snapshotHomeCommandHintIdentity(command), index, explain, anchor, trigger };
+  }
+
+  function clearCommandHint() {
+    activeHint = null;
+  }
+
+  function toggleSection(section: HomeCommandSectionView) {
+    if (!onsectiontoggle) return;
+    revealExpandedSectionId = section.expanded ? null : section.id;
+    onsectiontoggle(section.id);
+  }
+
+  function openPluginMarket() {
+    ontargetsettings?.("market");
+  }
+
+  function leaveCommandHint(anchor: HTMLButtonElement) {
+    const current = activeHint;
+    if (current?.anchor !== anchor || current.trigger !== "pointer") return;
+    if (anchor.ownerDocument.activeElement === anchor) activeHint = { ...current, trigger: "focus" };
+    else clearCommandHint();
+  }
+
+  function commandMenu(event: MouseEvent | KeyboardEvent, command: RecommendedCommand) {
+    if (!oncommandmenu) return;
+    clearCommandHint();
+    oncommandmenu(event, command);
+  }
+
   function activateCommand(cmd: typeof visibleCommands[number], index: number) {
+    clearCommandHint();
     onselectionchange(index);
     if (onactivate) {
       onactivate(cmd);
@@ -53,6 +188,7 @@
   function removeCommand(event: MouseEvent, cmd: typeof visibleCommands[number], index: number) {
     event.preventDefault();
     event.stopPropagation();
+    clearCommandHint();
     onselectionchange(index);
     onremove?.(cmd);
   }
@@ -61,214 +197,140 @@
     return visibleCommands.indexOf(command);
   }
 
-  function iconSrc(icon: string | null | undefined) {
-    return resultIconSrc(icon, hasTauriAssetRuntime(), convertFileSrc);
+  function commandKeydown(event: KeyboardEvent, index: number, command: RecommendedCommand) {
+    if (isLauncherMenuShortcut(event)) {
+      commandMenu(event, command);
+      return;
+    }
+    if (isEditableKeyboardTarget(event.target)) return;
+    const direction = homeGridArrowDirection(event);
+    if (!direction) return;
+    event.preventDefault();
+    const nextIndex = moveHomeGridSelection(commandSections, index, direction, homeGridColumnCount(homePanelElement));
+    if (nextIndex === index) return;
+    homePanelElement?.querySelector<HTMLButtonElement>(`[data-home-command-index="${nextIndex}"] .recent-item`)?.focus();
   }
+
+  function selectFocusedCommand(index: number) {
+    if (index !== selectedIndex) onselectionchange(index, false);
+  }
+
+  function hoverCommand(index: number) {
+    // Hover selection normally returns keyboard input to search; an open menu owns it instead.
+    if (homePanelElement?.ownerDocument.activeElement?.closest('[role="menu"]')) return;
+    onselectionchange(index);
+  }
+
+  function pointerEnterCommand(command: RecommendedCommand, index: number, anchor: HTMLButtonElement) {
+    const commandSnapshot = command;
+    const indexSnapshot = index;
+    hoverCommand(indexSnapshot);
+    showCommandHint(commandSnapshot, indexSnapshot, anchor, "pointer");
+  }
+
+  function focusCommand(command: RecommendedCommand, index: number, anchor: HTMLButtonElement) {
+    const commandSnapshot = command;
+    const indexSnapshot = index;
+    selectFocusedCommand(indexSnapshot);
+    showCommandHint(commandSnapshot, indexSnapshot, anchor, "focus");
+  }
+
 </script>
 
-<section class="home-panel" aria-label="ATools 首页">
-  {#await capabilityRail then module}
-    {@const HomeCapabilityRail = module.default}
-    <HomeCapabilityRail {oncommand} {onpanelchange} />
-  {/await}
+<section bind:this={homePanelElement} class="home-panel" aria-label="ATools 首页">
+  <div bind:this={commandScrollElement} class="home-command-scroll" role="region" aria-label="固定指令与最近使用">
+    {#if visibleCommands.length === 0}
+      <HomeEmptyState onmarket={ontargetsettings ? openPluginMarket : undefined}
+        onmanage={() => onpanelchange("plugins")} />
+    {:else}
+      {#each commandSections as section (section.id)}
+        <HomeSectionHeader
+          {section}
+          onToggle={onsectiontoggle ? () => toggleSection(section) : undefined}
+          onFocus={button => { focusedSectionHeader = { button, sectionId: section.id }; }}
+          onBlur={button => {
+            if (focusedSectionHeader?.button !== button) return;
+            focusedSectionHeader = null;
+            revealExpandedSectionId = null;
+          }}
+        />
 
-  {#each commandSections as section}
-    <h2>{section.label}</h2>
-
-    <div
-      class="recent-grid"
-      class:pinned-grid={section.id === "pinned"}
-      aria-label={section.id === "pinned" ? "固定指令" : "最近使用"}
-    >
-      {#each section.commands as cmd}
-        {@const commandIndex = globalCommandIndex(cmd)}
-        {@const source = iconSrc(cmd.icon)}
         <div
-          class="recent-item-shell"
-          class:pinned-item={cmd.source === "pinned"}
-          class:selected={commandIndex === selectedIndex}
+          class="recent-grid"
+          class:pinned-grid={section.id === "pinned"}
+          id={`atools-home-${section.id}-commands`}
+          aria-label={section.id === "pinned" ? "固定指令" : "最近使用"}
         >
-          <button
-            class="recent-item"
-            onmousedown={(event) => event.preventDefault()}
-            onmouseenter={() => onselectionchange(commandIndex)}
-            onclick={() => activateCommand(cmd, commandIndex)}
-          >
-            <span class:has-image={Boolean(source)} class="recent-icon" style={`--tile-color: ${swatches[commandIndex % swatches.length]}`}>
-              {#if source}
-                <img src={source} alt="" />
-              {:else}
-                <ResultTypeIcon icon={homeCommandFallbackIcon(cmd)} />
-              {/if}
-            </span>
-            <span class="recent-label">{cmd.label}</span>
-          </button>
-          {#if cmd.source === "history" && onremove}
-            <button
-              class="recent-remove"
-              aria-label={`移除 ${cmd.label}`}
-              title="从最近使用移除"
-              onmouseenter={() => onselectionchange(commandIndex)}
-              onclick={(event) => removeCommand(event, cmd, commandIndex)}
-            >×</button>
-          {/if}
+          {#each section.commands as cmd}
+            {@const commandIndex = globalCommandIndex(cmd)}
+            <HomeCommandTile
+              command={cmd}
+              {commandIndex}
+              selected={commandIndex === selectedIndex}
+              pinned={cmd.source === "pinned"}
+              hintId={commandHintId}
+              hintActive={isActiveCommandHint(cmd, commandIndex)}
+              events={{
+                activate: () => activateCommand(cmd, commandIndex),
+                keydown: (event) => commandKeydown(event, commandIndex, cmd),
+                focus: (command, index, button) => focusCommand(command, index, button),
+                blur: (button) => { if (activeHint?.anchor === button) clearCommandHint(); },
+                pointerEnter: (command, index, button) => pointerEnterCommand(command, index, button),
+                pointerLeave: (button) => leaveCommandHint(button),
+                removePointerEnter: (index) => hoverCommand(index),
+                removeFocus: (index) => selectFocusedCommand(index),
+                contextMenu: oncommandmenu ? (event) => commandMenu(event, cmd) : undefined,
+                remove: cmd.source === "history" && onremove
+                  ? (event) => removeCommand(event, cmd, commandIndex)
+                  : undefined,
+              }}
+            />
+          {/each}
         </div>
       {/each}
-    </div>
-  {/each}
+    {/if}
+  </div>
+  <div class="home-navigation">
+    {#await capabilityRail then module}
+      {@const HomeCapabilityRail = module.default}
+      <HomeCapabilityRail {oncommand} {onpanelchange} />
+    {/await}
+  </div>
+  {#if activeHint}
+    <HomeCommandHint id={commandHintId} explain={activeHint.explain} anchor={activeHint.anchor} onclose={clearCommandHint} />
+  {/if}
 </section>
 
 <style>
   .home-panel {
     height: 100%;
     min-height: 0;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     padding: 10px 12px 12px;
     background: var(--bg-primary);
     animation: fadeIn 0.12s ease;
   }
 
-  h2 {
-    margin: 0 0 4px;
-    color: var(--text-primary);
-    font-size: 12px;
-    font-weight: 750;
-    letter-spacing: 0.01em;
+  .home-command-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
-  .recent-grid + h2 {
-    margin-top: 6px;
-  }
+  .home-navigation { flex: 0 0 auto; margin-top: auto; padding-top: 12px; }
 
   .recent-grid {
     display: grid;
     grid-template-columns: repeat(9, minmax(0, 1fr));
-    gap: 4px;
+    gap: 0;
   }
 
-  .recent-grid.pinned-grid {
-    padding-bottom: 2px;
-  }
-
-  .recent-item-shell {
-    position: relative;
-    min-width: 0;
-    height: 58px;
-    border-radius: 8px;
-  }
-
-  .recent-item {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 4px;
-    padding: 4px 2px 3px;
-    border-radius: 8px;
-    color: var(--text-primary);
-    background: transparent;
-    text-align: center;
-  }
-
-  .recent-item-shell:hover .recent-item,
-  .recent-item-shell.selected .recent-item {
-    background: var(--accent-subtle);
-  }
-
-  .recent-item-shell.selected .recent-item {
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent);
-  }
-
-  .recent-item-shell.pinned-item .recent-item {
-    background: color-mix(in srgb, var(--accent-subtle) 46%, transparent);
-  }
-
-  .recent-item-shell.pinned-item:hover .recent-item,
-  .recent-item-shell.pinned-item.selected .recent-item {
-    background: var(--accent-subtle);
-  }
-
-  .recent-remove {
-    position: absolute;
-    top: 3px;
-    right: 4px;
-    width: 18px;
-    height: 18px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid color-mix(in srgb, var(--text-tertiary) 20%, transparent);
-    border-radius: 50%;
-    color: var(--text-secondary);
-    background: color-mix(in srgb, var(--bg-primary) 90%, transparent);
-    font-size: 13px;
-    font-weight: 700;
-    line-height: 1;
-    opacity: 0;
-    transform: scale(0.92);
-    transition: opacity 0.12s ease, transform 0.12s ease, color 0.12s ease, background 0.12s ease;
-  }
-
-  .recent-item-shell:hover .recent-remove,
-  .recent-item-shell:focus-within .recent-remove {
-    opacity: 1;
-    transform: scale(1);
-  }
-
-  .recent-remove:hover {
-    color: #dc2626;
-    background: rgba(220, 38, 38, 0.1);
-  }
-
-  .recent-icon {
-    width: 32px;
-    height: 32px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 7px;
-    color: #ffffff;
-    background: var(--tile-color);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3);
-    font-size: 15px;
-    font-weight: 800;
-    line-height: 1;
-  }
-
-  .recent-icon.has-image {
-    overflow: hidden;
-    background: color-mix(in srgb, var(--bg-secondary) 88%, var(--bg-primary));
-  }
-
-  .recent-icon img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  .recent-icon :global(.result-type-icon) {
-    width: 30px;
-    height: 30px;
-    border: 0;
-    color: #ffffff;
-    background: transparent;
-  }
-
-  .recent-icon :global(.result-type-icon svg) {
-    width: 17px;
-    height: 17px;
-  }
-
-  .recent-label {
-    max-width: 100%;
-    overflow: hidden;
-    color: var(--text-primary);
-    font-size: 11.5px;
-    font-weight: 600;
-    line-height: 1.2;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  @media (max-width: 640px) {
+    .recent-grid {
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 64px), 1fr));
+    }
   }
 </style>

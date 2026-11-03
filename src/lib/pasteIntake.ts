@@ -33,7 +33,7 @@ export function classifyPastedContent(input: PasteInput): PastedItem[] {
         name: file.name || `粘贴文件 ${index + 1}`,
         type,
         size: Number.isFinite(file.size) ? Number(file.size) : 0,
-        path: file.path || file.webkitRelativePath || undefined,
+        path: file.path || undefined,
       };
     });
 }
