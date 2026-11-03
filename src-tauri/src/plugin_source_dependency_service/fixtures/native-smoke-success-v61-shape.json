@@ -1,0 +1,418 @@
+{
+  "schemaVersion": 1,
+  "passed": true,
+  "businessUsabilityVerified": false,
+  "sourceProvenance": {
+    "upstreamHead": "2d47bd91011b6be872eef1d7c56b4c6b57a93b3d",
+    "manifestSha256": "c4b3edd891cf114c28f40c7ac870f154a26d16ce230ef379f9144d159e574686",
+    "inventorySha256": "19853e0b2a034665daa6f4752f03abda478a5aa83204f6eb3458dfb577896c69",
+    "fileCount": 32,
+    "bytes": 722589,
+    "sourceRevisionBefore": "d64a88479ee0a68b5b2c602b73428477fcb226a8023f199e1095868f24645701",
+    "sourceRevisionAfter": {
+      "bytes": 722589,
+      "entries": 44,
+      "sha256": "d64a88479ee0a68b5b2c602b73428477fcb226a8023f199e1095868f24645701"
+    },
+    "sourceFilesUnchanged": true
+  },
+  "taskRuns": [
+    {
+      "approvalPath": "first_permission_queue_grant",
+      "auditEntriesForClientAndTool": 2,
+      "capabilityScopes": [
+        "file_read"
+      ],
+      "clientId": "b235-isolated-native-fixture",
+      "errorCount": 0,
+      "existingGrantSharedAllowReused": false,
+      "firstPermissionQueueApprovalObserved": true,
+      "fixtureGrantExistedBeforeStart": false,
+      "fixtureScopedApprovalRecorded": true,
+      "initiatorType": "agent",
+      "inputIdentityMatched": true,
+      "output": {
+        "archiveBytes": null,
+        "businessUsabilityVerified": false,
+        "cachedBytes": 0,
+        "dependencyClosureVerified": false,
+        "dependencySetIdSha256": "2af481af4cd60a2ef769a9e4a4a320526d1598813a69a6aa817da8f7be8fca88",
+        "dependencySetPrepared": false,
+        "dependencyTreeBytes": null,
+        "dependencyTreeSha256": null,
+        "lifecyclesSkipped": true,
+        "missingCount": 70,
+        "nodeBinaryBytes": 112925600,
+        "nodeBinarySha256": "68f4d07ca49e0500cc135c7e0a445093e228e42e126ac22306d045f0a8c2636b",
+        "packageCount": 70,
+        "planSha256": "9646f6268632e7d3a65e39f4bc6cc007e74476f264695e1b5cadf192a9e3d567",
+        "skippedOptionalCount": 49,
+        "sourceRevision": "d64a88479ee0a68b5b2c602b73428477fcb226a8023f199e1095868f24645701",
+        "status": "eligible",
+        "target": {
+          "cpu": "arm64",
+          "os": "darwin"
+        },
+        "toolchainFingerprintSha256": "7ebb9553efb80572d11797ab8a2bb249734bc34f1d54d82efee6a8d6f1579985",
+        "toolchainHashElapsedMs": 3278
+      },
+      "permissionRequestId": "agent-confirm-c0245de4-6972-465e-9743-8a3ba4df473b",
+      "physicalUserApprovalObserved": false,
+      "requestedScopes": [
+        "file_read"
+      ],
+      "status": "succeeded",
+      "taskAuditIdPresent": true,
+      "taskRunId": "run-49e28c5b-bf19-441d-842f-c87810157993",
+      "tool": "inspect_ztools_source_dependencies",
+      "warningCount": 0
+    },
+    {
+      "approvalPath": "first_permission_queue_grant",
+      "auditEntriesForClientAndTool": 2,
+      "capabilityScopes": [
+        "file_read",
+        "file_write",
+        "network"
+      ],
+      "clientId": "b235-isolated-native-fixture",
+      "errorCount": 0,
+      "existingGrantSharedAllowReused": false,
+      "firstPermissionQueueApprovalObserved": true,
+      "fixtureGrantExistedBeforeStart": false,
+      "fixtureScopedApprovalRecorded": true,
+      "initiatorType": "agent",
+      "inputIdentityMatched": true,
+      "output": {
+        "businessUsabilityVerified": false,
+        "cachedArchiveCount": 0,
+        "dependencySetIdSha256": "2af481af4cd60a2ef769a9e4a4a320526d1598813a69a6aa817da8f7be8fca88",
+        "dependencySetPrepared": false,
+        "elapsedMs": 24872,
+        "fetchedArchiveCount": 70,
+        "lifecyclesSkipped": true,
+        "packageCount": 70,
+        "sourceRevision": "d64a88479ee0a68b5b2c602b73428477fcb226a8023f199e1095868f24645701",
+        "status": "cached",
+        "verifiedArchiveBytes": 14578697
+      },
+      "permissionRequestId": "agent-confirm-07550cf5-b5b6-4fc0-bf23-8480e751f78e",
+      "physicalUserApprovalObserved": false,
+      "requestedScopes": [
+        "file_read",
+        "file_write",
+        "network"
+      ],
+      "status": "succeeded",
+      "taskAuditIdPresent": true,
+      "taskRunId": "run-2ba37fd0-68d2-48f9-85e1-8c153704b9a5",
+      "tool": "fetch_ztools_source_dependencies",
+      "warningCount": 0
+    },
+    {
+      "approvalPath": "first_permission_queue_grant",
+      "auditEntriesForClientAndTool": 2,
+      "capabilityScopes": [
+        "file_read",
+        "file_write"
+      ],
+      "clientId": "b235-isolated-native-fixture",
+      "errorCount": 0,
+      "existingGrantSharedAllowReused": false,
+      "firstPermissionQueueApprovalObserved": true,
+      "fixtureGrantExistedBeforeStart": false,
+      "fixtureScopedApprovalRecorded": true,
+      "initiatorType": "agent",
+      "inputIdentityMatched": true,
+      "output": {
+        "archiveBytes": 14578697,
+        "businessUsabilityVerified": false,
+        "dependencyClosureVerified": false,
+        "dependencySetIdSha256": "2af481af4cd60a2ef769a9e4a4a320526d1598813a69a6aa817da8f7be8fca88",
+        "fileCount": 2422,
+        "manifestSha256": "d2a4b1280e1a1b9ed830ecc7cfccb0cc19fdaa2aaedd9bde964d6146c71f40c6",
+        "nodeBinaryBytes": 112925600,
+        "nodeBinarySha256": "68f4d07ca49e0500cc135c7e0a445093e228e42e126ac22306d045f0a8c2636b",
+        "packageCount": 70,
+        "sourceRevision": "d64a88479ee0a68b5b2c602b73428477fcb226a8023f199e1095868f24645701",
+        "status": "prepared",
+        "toolchainFingerprintSha256": "7ebb9553efb80572d11797ab8a2bb249734bc34f1d54d82efee6a8d6f1579985",
+        "toolchainHashElapsedMs": 14959,
+        "treeBytes": 63461454,
+        "treeEntries": 2656,
+        "treeFiles": 2423,
+        "treeSha256": "e5ede9466ab6246f84587800065cf0f282b8268d08b75a1426cc4f46751da4b2",
+        "unpackedBytes": 63444422,
+        "workerElapsedMs": 1343
+      },
+      "permissionRequestId": "agent-confirm-e75b854b-9807-4145-a786-aa0191e4c951",
+      "physicalUserApprovalObserved": false,
+      "requestedScopes": [
+        "file_read",
+        "file_write"
+      ],
+      "status": "succeeded",
+      "taskAuditIdPresent": true,
+      "taskRunId": "run-a0dc95c7-d688-41b2-9913-69a316a375fc",
+      "tool": "prepare_ztools_source_dependencies",
+      "warningCount": 0
+    },
+    {
+      "approvalPath": "existing_fixture_grant_shared_allow",
+      "auditEntriesForClientAndTool": 3,
+      "capabilityScopes": [
+        "file_read"
+      ],
+      "clientId": "b235-isolated-native-fixture",
+      "errorCount": 0,
+      "existingGrantSharedAllowReused": true,
+      "firstPermissionQueueApprovalObserved": false,
+      "fixtureGrantExistedBeforeStart": true,
+      "fixtureScopedApprovalRecorded": true,
+      "initiatorType": "agent",
+      "inputIdentityMatched": true,
+      "output": {
+        "archiveBytes": 14578697,
+        "businessUsabilityVerified": false,
+        "cachedBytes": 14578697,
+        "dependencyClosureVerified": false,
+        "dependencySetIdSha256": "2af481af4cd60a2ef769a9e4a4a320526d1598813a69a6aa817da8f7be8fca88",
+        "dependencySetPrepared": true,
+        "dependencyTreeBytes": 63461454,
+        "dependencyTreeSha256": "e5ede9466ab6246f84587800065cf0f282b8268d08b75a1426cc4f46751da4b2",
+        "lifecyclesSkipped": true,
+        "missingCount": 0,
+        "nodeBinaryBytes": 112925600,
+        "nodeBinarySha256": "68f4d07ca49e0500cc135c7e0a445093e228e42e126ac22306d045f0a8c2636b",
+        "packageCount": 70,
+        "planSha256": "9646f6268632e7d3a65e39f4bc6cc007e74476f264695e1b5cadf192a9e3d567",
+        "skippedOptionalCount": 49,
+        "sourceRevision": "d64a88479ee0a68b5b2c602b73428477fcb226a8023f199e1095868f24645701",
+        "status": "eligible",
+        "target": {
+          "cpu": "arm64",
+          "os": "darwin"
+        },
+        "toolchainFingerprintSha256": "7ebb9553efb80572d11797ab8a2bb249734bc34f1d54d82efee6a8d6f1579985",
+        "toolchainHashElapsedMs": 15262
+      },
+      "permissionRequestId": null,
+      "physicalUserApprovalObserved": false,
+      "requestedScopes": null,
+      "status": "succeeded",
+      "taskAuditIdPresent": true,
+      "taskRunId": "run-4e75ea0e-b9f5-455a-99ca-31f27a435417",
+      "tool": "inspect_ztools_source_dependencies",
+      "warningCount": 0
+    },
+    {
+      "approvalPath": "first_permission_queue_grant",
+      "auditEntriesForClientAndTool": 2,
+      "capabilityScopes": [
+        "file_read"
+      ],
+      "clientId": "b235-isolated-native-fixture",
+      "errorCount": 0,
+      "existingGrantSharedAllowReused": false,
+      "firstPermissionQueueApprovalObserved": true,
+      "fixtureGrantExistedBeforeStart": false,
+      "fixtureScopedApprovalRecorded": true,
+      "initiatorType": "agent",
+      "inputIdentityMatched": true,
+      "output": {
+        "buildSteps": [
+          {
+            "kind": "typecheck"
+          },
+          {
+            "kind": "viteBuild"
+          }
+        ],
+        "pluginId": "my-calculator",
+        "sourceRevision": "d64a88479ee0a68b5b2c602b73428477fcb226a8023f199e1095868f24645701",
+        "status": "eligible"
+      },
+      "permissionRequestId": "agent-confirm-1f1abcc1-be4e-4f60-8ca1-36a4602cb90d",
+      "physicalUserApprovalObserved": false,
+      "requestedScopes": [
+        "file_read"
+      ],
+      "status": "succeeded",
+      "taskAuditIdPresent": true,
+      "taskRunId": "run-c9f8f7c2-1ccd-4647-aa68-f43eb72d186a",
+      "tool": "inspect_ztools_source_build",
+      "warningCount": 0
+    },
+    {
+      "approvalPath": "first_permission_queue_grant",
+      "auditEntriesForClientAndTool": 2,
+      "capabilityScopes": [
+        "file_read",
+        "file_write",
+        "shell"
+      ],
+      "clientId": "b235-isolated-native-fixture",
+      "errorCount": 0,
+      "existingGrantSharedAllowReused": false,
+      "firstPermissionQueueApprovalObserved": true,
+      "fixtureGrantExistedBeforeStart": false,
+      "fixtureScopedApprovalRecorded": true,
+      "initiatorType": "agent",
+      "inputIdentityMatched": true,
+      "output": {
+        "buildSteps": [
+          {
+            "kind": "typecheck"
+          },
+          {
+            "kind": "viteBuild"
+          }
+        ],
+        "dependencyClosureVerified": false,
+        "dependencySetIdSha256": "2af481af4cd60a2ef769a9e4a4a320526d1598813a69a6aa817da8f7be8fca88",
+        "dependencyTreeSha256": "e5ede9466ab6246f84587800065cf0f282b8268d08b75a1426cc4f46751da4b2",
+        "installed": true,
+        "pluginId": "my-calculator",
+        "sourceRevision": "d64a88479ee0a68b5b2c602b73428477fcb226a8023f199e1095868f24645701",
+        "toolchainFingerprintSha256": "7ebb9553efb80572d11797ab8a2bb249734bc34f1d54d82efee6a8d6f1579985",
+        "businessOperationVerified": false
+      },
+      "permissionRequestId": "agent-confirm-1988d81c-dc2e-4124-9560-f30de62d8524",
+      "physicalUserApprovalObserved": false,
+      "requestedScopes": [
+        "file_read",
+        "file_write",
+        "shell"
+      ],
+      "status": "succeeded",
+      "taskAuditIdPresent": true,
+      "taskRunId": "run-46a7799e-6689-487d-86fe-a59a6f09b9ee",
+      "tool": "convert_ztools_plugin",
+      "warningCount": 0
+    }
+  ],
+  "scenario": {
+    "businessUsabilityVerified": false,
+    "cancellationBehaviorExercised": false,
+    "cancellationRequestedRunCount": 0,
+    "completedStages": 6,
+    "expectedSequence": [
+      "inspect_ztools_source_dependencies",
+      "fetch_ztools_source_dependencies",
+      "prepare_ztools_source_dependencies",
+      "inspect_ztools_source_dependencies",
+      "inspect_ztools_source_build",
+      "convert_ztools_plugin"
+    ],
+    "failedStage": null,
+    "failureCode": null,
+    "fixturePermissionSemantics": "first use receives an explicit fixed-scope permission-queue grant in a fresh isolated database; later calls for that client/tool reuse the persisted grant through shared Allow; not physical UI approval",
+    "physicalUserApprovalObserved": false,
+    "sourceRevisionMatchesAfter": true,
+    "taskSequenceMatchesExpected": true,
+    "workerReapedByProductionPrepareSuccessGate": true
+  },
+  "server": {
+    "taskRunCount": 7,
+    "taskRunInventoryComplete": true,
+    "taskRunRows": [
+      {
+        "auditIdPresent": false,
+        "capabilityId": "atools-ui.plugin.import",
+        "clientId": "atools-ui",
+        "errorCodes": [],
+        "errorCount": 0,
+        "id": "run-98b9ae2b-1b67-4753-9d9d-f83b9b638aca",
+        "initiatorType": "human",
+        "status": "succeeded",
+        "warningCount": 0
+      },
+      {
+        "auditIdPresent": true,
+        "capabilityId": "convert_ztools_plugin",
+        "clientId": "b235-isolated-native-fixture",
+        "errorCodes": [],
+        "errorCount": 0,
+        "id": "run-46a7799e-6689-487d-86fe-a59a6f09b9ee",
+        "initiatorType": "agent",
+        "status": "succeeded",
+        "warningCount": 0
+      },
+      {
+        "auditIdPresent": true,
+        "capabilityId": "inspect_ztools_source_build",
+        "clientId": "b235-isolated-native-fixture",
+        "errorCodes": [],
+        "errorCount": 0,
+        "id": "run-c9f8f7c2-1ccd-4647-aa68-f43eb72d186a",
+        "initiatorType": "agent",
+        "status": "succeeded",
+        "warningCount": 0
+      },
+      {
+        "auditIdPresent": true,
+        "capabilityId": "inspect_ztools_source_dependencies",
+        "clientId": "b235-isolated-native-fixture",
+        "errorCodes": [],
+        "errorCount": 0,
+        "id": "run-4e75ea0e-b9f5-455a-99ca-31f27a435417",
+        "initiatorType": "agent",
+        "status": "succeeded",
+        "warningCount": 0
+      },
+      {
+        "auditIdPresent": true,
+        "capabilityId": "prepare_ztools_source_dependencies",
+        "clientId": "b235-isolated-native-fixture",
+        "errorCodes": [],
+        "errorCount": 0,
+        "id": "run-a0dc95c7-d688-41b2-9913-69a316a375fc",
+        "initiatorType": "agent",
+        "status": "succeeded",
+        "warningCount": 0
+      },
+      {
+        "auditIdPresent": true,
+        "capabilityId": "fetch_ztools_source_dependencies",
+        "clientId": "b235-isolated-native-fixture",
+        "errorCodes": [],
+        "errorCount": 0,
+        "id": "run-2ba37fd0-68d2-48f9-85e1-8c153704b9a5",
+        "initiatorType": "agent",
+        "status": "succeeded",
+        "warningCount": 0
+      },
+      {
+        "auditIdPresent": true,
+        "capabilityId": "inspect_ztools_source_dependencies",
+        "clientId": "b235-isolated-native-fixture",
+        "errorCodes": [],
+        "errorCount": 0,
+        "id": "run-49e28c5b-bf19-441d-842f-c87810157993",
+        "initiatorType": "agent",
+        "status": "succeeded",
+        "warningCount": 0
+      }
+    ],
+    "allTaskRunsTerminal": true,
+    "pendingPermissionRequestCount": 0,
+    "activeTaskRunCount": 0,
+    "allLeasesInactive": true,
+    "clipboardBackendCalls": 0,
+    "cleanupSafe": true
+  },
+  "installedPlugin": {
+    "completeInstalledTreeSha256": "68caa13719406a558d95e029dfdc7d9da64e031d4df5fa879233c8a26a191f0c",
+    "expectedVersionFromPinnedSource": "1.0.1",
+    "manifestAtPackageRoot": true,
+    "manifestMainPresent": true,
+    "pluginId": "my-calculator",
+    "readiness": "ready",
+    "treeBytes": 238413,
+    "treeEntries": 10,
+    "treeFiles": 8,
+    "verified": true,
+    "version": "1.0.1"
+  },
+  "fixtureProvenance": "Sanitized structural copy of an actual successful v61 native report; only absolute private paths and unrelated fields were omitted."
+}

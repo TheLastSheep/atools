@@ -1,0 +1,257 @@
+use super::{
+    documents::WindowDocument, identity::validate_renderer_label, registry::Registry,
+    registry_or_create, SourceBinding,
+};
+use crate::{
+    plugin_asset_protocol::{self, Lease, Resources},
+    state::AppState,
+};
+use atools_core::Database;
+use parking_lot::Mutex;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+use tauri::{AppHandle, Manager};
+
+pub(super) const MAX_RENDERER_GRANTS: usize = 16;
+
+pub(super) struct RendererGrant {
+    pub(super) source_id: String,
+    owner: plugin_asset_protocol::Owner,
+    session_id: String,
+    authorization: plugin_asset_protocol::Authorization,
+    source_active: Arc<AtomicBool>,
+    active: Arc<Mutex<bool>>,
+    window_document: Option<Arc<WindowDocument>>,
+}
+
+impl Clone for RendererGrant {
+    fn clone(&self) -> Self {
+        Self {
+            source_id: self.source_id.clone(),
+            owner: self.owner.clone(),
+            session_id: self.session_id.clone(),
+            authorization: self.authorization.clone(),
+            source_active: self.source_active.clone(),
+            active: self.active.clone(),
+            window_document: self.window_document.clone(),
+        }
+    }
+}
+
+impl RendererGrant {
+    pub(super) fn new(binding: &SourceBinding) -> Self {
+        Self {
+            source_id: binding.id().to_owned(),
+            owner: binding.owner().clone(),
+            session_id: binding.resource_session_id().to_owned(),
+            authorization: binding.authorization().clone(),
+            source_active: binding.active_guard(),
+            active: Arc::new(Mutex::new(true)),
+            window_document: None,
+        }
+    }
+
+    pub(super) fn with_document(&self, document: Arc<WindowDocument>) -> Self {
+        Self {
+            source_id: self.source_id.clone(),
+            owner: self.owner.clone(),
+            session_id: self.session_id.clone(),
+            authorization: self.authorization.clone(),
+            source_active: self.source_active.clone(),
+            active: Arc::new(Mutex::new(true)),
+            window_document: Some(document),
+        }
+    }
+
+    pub(super) fn deactivate(&self) {
+        *self.active.lock() = false;
+    }
+
+    pub(super) fn is_active(&self) -> bool {
+        *self.active.lock() && self.source_active.load(Ordering::Acquire)
+    }
+
+    fn matches(&self, other: &Self) -> bool {
+        self.source_id == other.source_id
+            && self.owner == other.owner
+            && self.session_id == other.session_id
+            && self.authorization == other.authorization
+            && Arc::ptr_eq(&self.active, &other.active)
+    }
+
+    pub(super) fn matches_binding(&self, binding: &SourceBinding) -> bool {
+        self.source_id == binding.id()
+            && &self.owner == binding.owner()
+            && self.session_id == binding.resource_session_id()
+            && &self.authorization == binding.authorization()
+            && Arc::ptr_eq(&self.source_active, &binding.active_guard())
+            && binding.is_active()
+    }
+
+    pub(super) fn document(&self) -> Option<&Arc<WindowDocument>> {
+        self.window_document.as_ref()
+    }
+
+    pub(super) fn document_for(
+        &self,
+        document_id: &str,
+        relative_path: &std::path::Path,
+    ) -> Option<Arc<WindowDocument>> {
+        let document = self.window_document.as_ref()?;
+        if document.id != document_id || document.relative_path.as_path() != relative_path {
+            return None;
+        }
+        Some(document.clone())
+    }
+
+    pub(super) fn permit(&self) -> RendererPermit {
+        RendererPermit {
+            owner: self.owner.clone(),
+            session_id: self.session_id.clone(),
+            authorization: self.authorization.clone(),
+            source_active: self.source_active.clone(),
+            active: self.active.clone(),
+        }
+    }
+}
+
+/// Keeps response delivery mutually exclusive with renderer-grant revocation.
+pub(crate) struct RendererPermit {
+    owner: plugin_asset_protocol::Owner,
+    session_id: String,
+    authorization: plugin_asset_protocol::Authorization,
+    source_active: Arc<AtomicBool>,
+    active: Arc<Mutex<bool>>,
+}
+
+impl RendererPermit {
+    pub(crate) fn matches_lease(&self, lease: &Lease) -> bool {
+        lease.owner == self.owner
+            && lease.id == self.session_id
+            && lease.authorization == self.authorization
+    }
+
+    pub(crate) fn is_active(&self) -> bool {
+        *self.active.lock() && self.source_active.load(Ordering::Acquire)
+    }
+
+    pub(crate) fn if_active<T>(&self, action: impl FnOnce() -> T) -> Option<T> {
+        let active = self.active.lock();
+        if *active && self.source_active.load(Ordering::Acquire) {
+            Some(action())
+        } else {
+            None
+        }
+    }
+}
+
+/// Grant one native renderer a single exact source session. The caller supplies
+/// native labels generated by its UUID allocator; grants never inherit the
+/// parent window's other resource leases.
+pub(crate) fn authorize_renderer(
+    app: &AppHandle,
+    binding: &SourceBinding,
+    renderer: &str,
+) -> Result<(), String> {
+    validate_renderer_label(renderer)?;
+    if renderer == binding.owner().window {
+        return Err("Native renderer must have its own window label".into());
+    }
+    let state = app
+        .try_state::<AppState>()
+        .ok_or("Plugin application state is unavailable")?;
+    binding.validate(app, &state.db)?;
+    let registry = registry_or_create(app);
+    let mut store = registry.lock();
+    store.add_renderer(renderer, binding)
+}
+
+/// Revoke a native window's alias synchronously. In-flight final responses hold
+/// the same mutex, so this returns only after any already-started handoff ends.
+pub(crate) fn revoke_renderer(app: &AppHandle, renderer: &str) {
+    let Some(registry) = app.try_state::<Arc<Mutex<Registry>>>() else {
+        return;
+    };
+    let grant = registry.lock().renderers.remove(renderer);
+    if let Some(grant) = grant {
+        grant.deactivate();
+    }
+}
+
+/// Resolve an alias to its exact original lease and a permit that must be checked
+/// again at the final responder handoff.
+pub(crate) fn resolve_renderer_access(
+    app: &AppHandle,
+    db: &Database,
+    resources: &Resources,
+    session_id: &str,
+    renderer: &str,
+) -> Option<(Lease, RendererPermit)> {
+    let (lease, grant) = resolve_renderer_grant(app, db, resources, session_id, renderer)?;
+    Some((lease, grant.permit()))
+}
+
+pub(crate) fn resolve_renderer_document_access(
+    app: &AppHandle,
+    db: &Database,
+    resources: &Resources,
+    session_id: &str,
+    renderer: &str,
+    document_id: &str,
+    relative_path: &std::path::Path,
+) -> Option<(Lease, RendererPermit, Arc<WindowDocument>)> {
+    let (lease, grant) = resolve_renderer_grant(app, db, resources, session_id, renderer)?;
+    document_access_from_authorized_grant(lease, grant, document_id, relative_path)
+}
+
+/// Complete the document part of an already-authorized renderer lookup.
+/// Keeping this as the shared production/test seam makes the returned document
+/// pin explicit: queued responses must retain this Arc until final handoff.
+pub(super) fn document_access_from_authorized_grant(
+    lease: Lease,
+    grant: RendererGrant,
+    document_id: &str,
+    relative_path: &std::path::Path,
+) -> Option<(Lease, RendererPermit, Arc<WindowDocument>)> {
+    let document = grant.document_for(document_id, relative_path)?;
+    if !grant.is_active() {
+        return None;
+    }
+    Some((lease, grant.permit(), document))
+}
+
+fn resolve_renderer_grant(
+    app: &AppHandle,
+    db: &Database,
+    resources: &Resources,
+    session_id: &str,
+    renderer: &str,
+) -> Option<(Lease, RendererGrant)> {
+    validate_renderer_label(renderer).ok()?;
+    let registry = app.try_state::<Arc<Mutex<Registry>>>()?;
+    let grant = registry.lock().renderers.get(renderer)?.clone();
+    if grant.session_id != session_id || !grant.is_active() {
+        return None;
+    }
+
+    let lease = resources.get_for_owner(session_id, &grant.owner)?;
+    if lease.authorization != grant.authorization {
+        return None;
+    }
+    let current = plugin_asset_protocol::authorization(db, &grant.owner.plugin).ok()?;
+    if current != grant.authorization || !grant.is_active() {
+        return None;
+    }
+
+    let still_registered = registry
+        .lock()
+        .renderers
+        .get(renderer)
+        .is_some_and(|current| current.matches(&grant));
+    if !still_registered || !grant.is_active() {
+        return None;
+    }
+    Some((lease, grant))
+}

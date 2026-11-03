@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
+    atools_lib::run_source_build_bootstrap_if_requested();
     if std::env::args().any(|arg| arg == "--mcp-stdio") {
         if let Err(error) = atools_lib::run_mcp_stdio_proxy() {
             eprintln!("{}", error);

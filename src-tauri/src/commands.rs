@@ -1,3 +1,4 @@
+use crate::plugin_market_http::fetch_json_metadata;
 pub use crate::state::RuntimeEvent;
 use crate::state::{AppState, ReleaseSmokeConfig, ReleaseSmokeProgress};
 use crate::webdav::{
@@ -10,24 +11,21 @@ use atools_core::agent::{
     AgentToolGrant, AuditLogEntry, AuditLogPage, AuditLogQuery, PendingAgentToolRequest,
     PermissionMode, ToolDefinition,
 };
-use atools_core::capability::{capability_catalog, Capability};
+use atools_core::capability::{capability_catalog_from_db, Capability};
 use atools_core::config::AppConfig;
 use atools_core::db::Database;
-use atools_core::matcher;
 use atools_core::memory::{MemoryApproval, MemoryItem, MemoryScope, MemoryType};
 use atools_core::models::*;
 use atools_core::skill::{
     SkillDefinition, SkillFailureMode, SkillResultSuggestion, SkillStep, SkillValidationRule,
 };
 use atools_core::task_run::{
-    Artifact, ArtifactKind, TaskIssue, TaskRun, TaskRunInitiator, TaskRunStatus,
-    TaskValidationStatus,
+    TaskIssue, TaskRun, TaskRunInitiator, TaskRunStatus, TaskValidationStatus,
 };
 use atools_core::{PasteboardItem, PasteboardItemKind, PasteboardPinboard, PasteboardTombstone};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager};
 
 const LOCAL_APP_PLUGIN_ID: &str = "local-apps";
@@ -59,8 +57,8 @@ pub async fn search_features(
     tauri::async_runtime::spawn_blocking(move || {
         search_features_inner(&db, &query, builtin_dir.as_deref())
     })
-        .await
-        .map_err(|error| error.to_string())?
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 fn search_features_inner(
@@ -68,40 +66,7 @@ fn search_features_inner(
     query: &str,
     builtin_dir: Option<&std::path::Path>,
 ) -> Result<Vec<SearchResult>, String> {
-    let features = db.all_features().map_err(|e| e.to_string())?;
-    let plugins = db.list_plugins().map_err(|e| e.to_string())?;
-    let match_results = matcher::search_all(&features, query);
-
-    // Join MatchResult back to FeatureEntry to fill in label/explain/icon/name.
-    let feature_map: std::collections::HashMap<&str, &atools_core::FeatureEntry> =
-        features.iter().map(|f| (f.code.as_str(), f)).collect();
-    let plugin_map: std::collections::HashMap<&str, &atools_core::Plugin> = plugins
-        .iter()
-        .map(|plugin| (plugin.id.as_str(), plugin))
-        .collect();
-
-    let results: Vec<SearchResult> = match_results
-        .into_iter()
-        .map(|m| {
-            let feature = feature_map.get(m.feature_code.as_str());
-            let plugin = plugin_map.get(m.plugin_id.as_str()).copied();
-            SearchResult {
-                code: m.feature_code.clone(),
-                plugin_id: m.plugin_id,
-                plugin_name: plugin
-                    .map(|plugin| plugin.name.clone())
-                    .or_else(|| feature.map(|feature| feature.plugin_name.clone()))
-                    .unwrap_or_default(),
-                label: feature.map(|f| f.label.clone()).unwrap_or_default(),
-                icon: feature
-                    .and_then(|feature| resolve_feature_icon(feature, plugin, builtin_dir)),
-                explain: feature.map(|f| f.explain.clone()).unwrap_or_default(),
-                score: m.score,
-                match_type: m.match_type,
-            }
-        })
-        .collect();
-    Ok(results)
+    crate::launcher_catalog::search(db, query, builtin_dir)
 }
 
 #[tauri::command]
@@ -110,11 +75,13 @@ pub async fn available_feature_codes(
 ) -> Result<Vec<String>, String> {
     let db = state.db.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let mut codes = db
-            .all_features()
-            .map_err(|error| error.to_string())?
-            .into_iter()
-            .map(|feature| feature.code)
+        let snapshot = db
+            .feature_catalog_snapshot()
+            .map_err(|error| error.to_string())?;
+        let mut codes = snapshot
+            .entries()
+            .iter()
+            .map(|entry| entry.feature.code.clone())
             .collect::<Vec<_>>();
         codes.sort();
         codes.dedup();
@@ -134,41 +101,16 @@ pub async fn feature_catalog(
         .path()
         .resolve("plugins/builtin", tauri::path::BaseDirectory::Resource)
         .ok();
-    tauri::async_runtime::spawn_blocking(move || {
-        feature_catalog_inner(&db, builtin_dir.as_deref())
-    })
-    .await
-    .map_err(|error| error.to_string())?
+    tauri::async_runtime::spawn_blocking(move || feature_catalog_inner(&db, builtin_dir.as_deref()))
+        .await
+        .map_err(|error| error.to_string())?
 }
 
 fn feature_catalog_inner(
     db: &Database,
     builtin_dir: Option<&std::path::Path>,
 ) -> Result<Vec<SearchResult>, String> {
-    let features = db.all_features().map_err(|error| error.to_string())?;
-    let plugins = db.list_plugins().map_err(|error| error.to_string())?;
-    let plugin_map = plugins
-        .iter()
-        .map(|plugin| (plugin.id.as_str(), plugin))
-        .collect::<std::collections::HashMap<_, _>>();
-    Ok(features
-        .iter()
-        .map(|feature| {
-            let plugin = plugin_map.get(feature.plugin_id.as_str()).copied();
-            SearchResult {
-                code: feature.code.clone(),
-                plugin_id: feature.plugin_id.clone(),
-                plugin_name: plugin
-                    .map(|plugin| plugin.name.clone())
-                    .unwrap_or_else(|| feature.plugin_name.clone()),
-                label: feature.label.clone(),
-                icon: resolve_feature_icon(feature, plugin, builtin_dir),
-                explain: feature.explain.clone(),
-                score: feature.priority,
-                match_type: "catalog",
-            }
-        })
-        .collect())
+    crate::launcher_catalog::catalog(db, builtin_dir)
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -627,7 +569,8 @@ pub async fn translate_native_text(
             run.errors
                 .push(TaskIssue::error("native_translation_failed", error.clone()));
             run.validation.status = TaskValidationStatus::Failed;
-            run.validation.summary = Some("The translation request was rejected or failed".to_string());
+            run.validation.summary =
+                Some("The translation request was rejected or failed".to_string());
             run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
             run.transition(TaskRunStatus::Failed)
                 .expect("running translation TaskRun can fail");
@@ -673,7 +616,9 @@ async fn translate_native_text_with_endpoint(
     }
     let endpoint = native_http_url(endpoint)?;
     let mut client_builder = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(NATIVE_TRANSLATION_TIMEOUT_SECS))
+        .timeout(std::time::Duration::from_secs(
+            NATIVE_TRANSLATION_TIMEOUT_SECS,
+        ))
         .redirect(reqwest::redirect::Policy::none())
         .user_agent("ATools/3.0 Rust Translation");
     if let Some(proxy_url) = proxy_url {
@@ -2789,6 +2734,7 @@ fn native_effective_uid() -> Option<sysinfo::Uid> {
     None
 }
 
+#[cfg(test)]
 fn resolve_feature_icon(
     feature: &atools_core::FeatureEntry,
     plugin: Option<&atools_core::Plugin>,
@@ -2800,35 +2746,11 @@ fn resolve_feature_icon(
         .filter(|value| !value.trim().is_empty())
         .or_else(|| plugin.and_then(|plugin| plugin.manifest.logo.as_deref()))?
         .trim();
-    if value.starts_with("data:")
-        || value.starts_with("http://")
-        || value.starts_with("https://")
-        || value.starts_with("asset:")
-    {
-        return Some(value.to_string());
-    }
-    let icon_path = std::path::Path::new(value);
-    if icon_path.is_absolute() {
-        return canonical_icon_file(icon_path);
-    }
-
-    let plugin = plugin?;
-    let plugin_path = std::path::Path::new(&plugin.path);
-    if crate::builtin_plugins::is_builtin_plugin_path(&plugin.path) {
-        if let (Some(root), Some(directory_name)) = (builtin_dir, plugin_path.file_name()) {
-            if let Some(current_icon) = canonical_icon_file(&root.join(directory_name).join(icon_path)) {
-                return Some(current_icon);
-            }
-        }
-    }
-    canonical_icon_file(&plugin_path.join(icon_path))
-}
-
-fn canonical_icon_file(path: &std::path::Path) -> Option<String> {
-    path.canonicalize()
-        .ok()
-        .filter(|path| path.is_file())
-        .map(|path| path.to_string_lossy().to_string())
+    crate::launcher_catalog::resolve_icon_value(
+        value,
+        plugin.map(|plugin| plugin.path.as_str()),
+        builtin_dir,
+    )
 }
 
 #[tauri::command]
@@ -2859,74 +2781,7 @@ pub async fn load_local_app_icons(
         .map_err(|error| error.to_string())?
 }
 
-#[tauri::command]
-pub fn activate_feature(
-    state: tauri::State<AppState>,
-    code: String,
-    payload: Option<serde_json::Value>,
-) -> Result<FeatureAction, String> {
-    let started = std::time::Instant::now();
-    let input = serde_json::json!({ "code": code.clone(), "payload": payload.clone() });
-    let mut run = TaskRun::new(
-        format!("plugin.feature.{code}"),
-        TaskRunInitiator::human(Some("atools-ui".to_string())),
-        input,
-    );
-    run.transition(TaskRunStatus::Running)
-        .expect("human plugin TaskRun can start");
-    state
-        .db
-        .upsert_task_run(&run)
-        .map_err(|error| error.to_string())?;
-
-    match activate_feature_inner(&state.db, &code, payload) {
-        Ok(action) => {
-            run.output = serde_json::to_value(&action).unwrap_or(serde_json::Value::Null);
-            run.summary = Some(format!(
-                "Opened {} / {}",
-                action.plugin_name, action.feature_code
-            ));
-            run.artifacts = vec![Artifact {
-                id: format!("artifact-{}", atools_core::utils::generate_rev()),
-                kind: ArtifactKind::Json,
-                label: format!("{} activation result", action.plugin_name),
-                media_type: Some("application/json".to_string()),
-                uri: Some(format!("atools://task-runs/{}/output", run.id)),
-                path: None,
-                size_bytes: None,
-                metadata: serde_json::json!({
-                    "pluginId": action.plugin_id.clone(),
-                    "featureCode": action.feature_code.clone(),
-                }),
-            }];
-            run.validation.status = TaskValidationStatus::Passed;
-            run.validation.summary = Some(
-                "Plugin feature resolved through the shared local capability store".to_string(),
-            );
-            run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
-            run.transition(TaskRunStatus::Succeeded)
-                .expect("running human plugin TaskRun can succeed");
-            state
-                .db
-                .upsert_task_run(&run)
-                .map_err(|error| error.to_string())?;
-            *state.active_plugin.lock() = Some(action.plugin_id.clone());
-            Ok(action)
-        }
-        Err(error) => {
-            run.summary = Some(format!("Failed to open plugin feature {code}"));
-            run.errors
-                .push(TaskIssue::error("activation_failed", error.clone()));
-            run.validation.status = TaskValidationStatus::Failed;
-            run.validation.summary = Some("Plugin feature activation failed".to_string());
-            run.metrics = serde_json::json!({ "durationMs": started.elapsed().as_millis() as u64 });
-            run.transition(TaskRunStatus::Failed)
-                .expect("running human plugin TaskRun can fail");
-            let _ = state.db.upsert_task_run(&run);
-            Err(error)
-        }
-    }
-}
+pub use crate::app_global_shortcuts::feature_dispatch::{activate_feature, __cmd__activate_feature, __tauri_command_name_activate_feature};
 
 pub(crate) fn activate_feature_inner(
     db: &Database,
@@ -2935,9 +2790,22 @@ pub(crate) fn activate_feature_inner(
 ) -> Result<FeatureAction, String> {
     let entry = db.get_feature(code).map_err(|e| e.to_string())?;
     let plugin = db.get_plugin(&entry.plugin_id).map_err(|e| e.to_string())?;
+    if !plugin.enabled {
+        return Err("Plugin is disabled; reopen an enabled plugin".into());
+    }
     let height = plugin_window_height(plugin.manifest.plugin_setting.as_ref().map(|s| s.height));
+    let auto_detach =
+        crate::plugin_window_preferences::activation_auto_detach(db, &entry.plugin_id);
 
     let plugin_path = plugin.path.clone();
+    let snapshot = db
+        .feature_catalog_snapshot()
+        .map_err(|error| error.to_string())?;
+    let (feature_label, feature_label_source) = snapshot
+        .find(&plugin.id, code)
+        .filter(|item| item.label_source != "plugin_name")
+        .map(|item| (Some(item.display_label.clone()), Some(item.label_source)))
+        .unwrap_or((None, None));
     let preload_path = plugin.manifest.preload.as_ref().map(|p| {
         std::path::Path::new(&plugin.path)
             .join(p)
@@ -2947,8 +2815,10 @@ pub(crate) fn activate_feature_inner(
 
     Ok(FeatureAction {
         plugin_id: entry.plugin_id,
-        plugin_name: entry.plugin_name,
+        plugin_name: plugin.display_name().to_string(),
         feature_code: code.to_string(),
+        feature_label,
+        feature_label_source,
         main_url: plugin.manifest.main.clone().unwrap_or_default(),
         plugin_path,
         preload_path,
@@ -2956,6 +2826,8 @@ pub(crate) fn activate_feature_inner(
         plugin_permissions: normalized_plugin_permissions(&plugin.manifest.permissions),
         plugin_providers: plugin.manifest.providers.clone(),
         payload: payload.unwrap_or(serde_json::Value::Null),
+        entry_type: None,
+        auto_detach,
     })
 }
 
@@ -3416,13 +3288,13 @@ fn is_subsequence(query: &str, value: &str) -> bool {
 }
 
 #[tauri::command]
-pub fn install_plugin(state: tauri::State<AppState>, path: String) -> Result<Plugin, String> {
-    let plugin =
-        install_plugin_from_directory_inner(&state.db, &state.config, std::path::Path::new(&path))?;
-    crate::agent_tools::sync_plugin_tools(&state.db)?;
-
-    tracing::info!("Installed plugin: {} ({})", plugin.name, plugin.id);
-    Ok(plugin)
+pub async fn install_plugin(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    path: String,
+) -> Result<Plugin, String> {
+    crate::plugin_mutations::install(&app, state.db.clone(), state.config.clone(), path.into())
+        .await
 }
 
 #[tauri::command]
@@ -3439,7 +3311,9 @@ pub async fn install_plugin_from_market(
     source_kind: Option<PluginMarketCatalogSourceKind>,
     source_url: Option<String>,
     confirmed_unsigned: Option<bool>,
+    expected_version: Option<String>,
 ) -> Result<Plugin, String> {
+    crate::plugin_mutations::market::validate_expected_version(expected_version.as_deref())?;
     validate_plugin_market_install_trust(
         &state.config,
         signature.as_deref(),
@@ -3454,21 +3328,20 @@ pub async fn install_plugin_from_market(
         operation: "install".to_string(),
         operation_id: operation_id.and_then(trimmed_optional_string),
     };
-    let progress_app = app.clone();
-    let result = install_plugin_from_market_checked_url_inner_with_progress(
-        &state.db,
-        &state.config,
-        plugin_id.as_deref(),
+    let result = crate::plugin_mutations::install_from_market(
+        &app,
+        state.db.clone(),
+        state.config.clone(),
+        plugin_id,
+        expected_version,
         &download_url,
         checksum.as_deref(),
         signature.as_deref(),
         public_key.as_deref(),
         progress_context,
-        move |event| emit_plugin_market_progress(&progress_app, event),
     )
     .await;
     let plugin = result?;
-    crate::agent_tools::sync_plugin_tools(&state.db)?;
     tracing::info!(
         "Installed plugin from market: {} ({})",
         plugin.name,
@@ -3491,7 +3364,9 @@ pub async fn update_plugin_from_market(
     source_kind: Option<PluginMarketCatalogSourceKind>,
     source_url: Option<String>,
     confirmed_unsigned: Option<bool>,
+    expected_version: Option<String>,
 ) -> Result<Plugin, String> {
+    crate::plugin_mutations::market::validate_expected_version(expected_version.as_deref())?;
     validate_plugin_market_install_trust(
         &state.config,
         signature.as_deref(),
@@ -3506,21 +3381,20 @@ pub async fn update_plugin_from_market(
         operation: "update".to_string(),
         operation_id: operation_id.and_then(trimmed_optional_string),
     };
-    let progress_app = app.clone();
-    let result = update_plugin_from_market_checked_url_inner_with_progress(
-        &state.db,
-        &state.config,
-        &plugin_id,
+    let result = crate::plugin_mutations::update_from_market(
+        &app,
+        state.db.clone(),
+        state.config.clone(),
+        plugin_id,
+        expected_version,
         &download_url,
         checksum.as_deref(),
         signature.as_deref(),
         public_key.as_deref(),
         progress_context,
-        move |event| emit_plugin_market_progress(&progress_app, event),
     )
     .await;
     let plugin = result?;
-    crate::agent_tools::sync_plugin_tools(&state.db)?;
     tracing::info!(
         "Updated plugin from market: {} ({})",
         plugin.name,
@@ -3566,23 +3440,29 @@ fn clear_plugin_market_operation_cancelled(context: &PluginMarketProgressContext
 }
 
 #[tauri::command]
-pub fn update_plugin_from_path(
-    state: tauri::State<AppState>,
+pub async fn update_plugin_from_path(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
     plugin_id: String,
     path: String,
 ) -> Result<Plugin, String> {
-    let source_dir = std::path::Path::new(&path);
-    let plugin = plugin_update_from_path_inner(&state.db, &state.config, &plugin_id, source_dir)?;
-    crate::agent_tools::sync_plugin_tools(&state.db)?;
-    Ok(plugin)
+    crate::plugin_mutations::update(
+        &app,
+        state.db.clone(),
+        state.config.clone(),
+        plugin_id,
+        path.into(),
+    )
+    .await
 }
 
 #[tauri::command]
-pub fn authorize_plugin_permissions(
-    state: tauri::State<AppState>,
+pub async fn authorize_plugin_permissions(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
     plugin_id: String,
 ) -> Result<Plugin, String> {
-    authorize_plugin_permissions_inner(&state.db, &plugin_id)
+    crate::plugin_mutations::toggle(&app, state.db.clone(), plugin_id.trim().to_owned(), true).await
 }
 
 #[derive(Debug, Clone, serde::Serialize, PartialEq, Eq)]
@@ -3765,30 +3645,26 @@ pub(crate) async fn fetch_plugin_market_catalog_from_url(
 ) -> Result<PluginMarketCatalog, String> {
     let source_url = plugin_market_catalog_url(url)?;
     let request_url = plugin_market_catalog_request_url(&source_url);
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(15))
-        .build()
-        .map_err(|error| format!("Plugin market HTTP client failed: {error}"))?;
-    let response = client
-        .get(request_url)
-        .send()
-        .await
-        .map_err(|error| format!("Plugin market catalog request failed: {error}"))?;
-    let status = response.status();
-    if !status.is_success() {
-        return Err(format!("Plugin market catalog returned HTTP {status}"));
-    }
-    let raw = response
-        .json::<serde_json::Value>()
-        .await
-        .map_err(|error| format!("Invalid plugin market catalog JSON: {error}"))?;
+    let raw = fetch_json_metadata(&request_url).await.map_err(|error| {
+        if let Some(status) = error.strip_prefix("http status ") {
+            format!("Plugin market catalog returned HTTP {status}")
+        } else if let Some(error) = error.strip_prefix("invalid json: ") {
+            format!("Invalid plugin market catalog JSON: {error}")
+        } else {
+            let error = error.strip_prefix("request failed: ").unwrap_or(&error);
+            format!("Plugin market catalog request failed: {error}")
+        }
+    })?;
     normalize_plugin_market_catalog_value(source_url.to_string(), raw)
 }
 
 fn plugin_market_catalog_request_url(source_url: &reqwest::Url) -> reqwest::Url {
     if is_ztools_market_base_url(source_url) {
         let mut request_url = source_url.clone();
-        request_url.set_path(&format!("{}/plugins", source_url.path().trim_end_matches('/')));
+        request_url.set_path(&format!(
+            "{}/plugins",
+            source_url.path().trim_end_matches('/')
+        ));
         let platform = if cfg!(target_os = "macos") {
             "darwin"
         } else if cfg!(target_os = "windows") {
@@ -3814,7 +3690,11 @@ fn normalize_plugin_market_catalog_value(
     source_url: String,
     raw: serde_json::Value,
 ) -> Result<PluginMarketCatalog, String> {
-    if raw.get("categories").and_then(serde_json::Value::as_array).is_some() {
+    if raw
+        .get("categories")
+        .and_then(serde_json::Value::as_array)
+        .is_some()
+    {
         let catalog = serde_json::from_value::<RawZtoolsMarketCatalog>(raw)
             .map_err(|error| format!("Invalid ZTools plugin market catalog JSON: {error}"))?;
         return Ok(normalize_ztools_market_catalog(source_url, catalog));
@@ -3920,7 +3800,9 @@ fn normalize_ztools_market_catalog(
             if plugin.category_title.is_none() {
                 plugin.category_title = category.title.clone();
             }
-            if let Some(normalized) = normalize_ztools_market_plugin(plugin, resolver_base.as_deref()) {
+            if let Some(normalized) =
+                normalize_ztools_market_plugin(plugin, resolver_base.as_deref())
+            {
                 by_id.insert(normalized.id.clone(), normalized);
             }
         }
@@ -4031,29 +3913,28 @@ pub(crate) async fn resolve_plugin_market_download_inner(
         .as_deref()
         .ok_or_else(|| "Plugin market entry has no download URL or resolver".to_string())?;
     let resolver_url = plugin_market_catalog_url(resolver_url)?;
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(15))
-        .build()
-        .map_err(|error| format!("Plugin market HTTP client failed: {error}"))?;
-    let response = client
-        .get(resolver_url)
-        .send()
-        .await
-        .map_err(|error| format!("Plugin market download resolver failed: {error}"))?;
-    let status = response.status();
-    if !status.is_success() {
-        return Err(format!("Plugin market download resolver returned HTTP {status}"));
-    }
-    let resolved = response
-        .json::<RawZtoolsDownloadResponse>()
-        .await
+    let raw = fetch_json_metadata(&resolver_url).await.map_err(|error| {
+        if let Some(status) = error.strip_prefix("http status ") {
+            format!("Plugin market download resolver returned HTTP {status}")
+        } else if let Some(error) = error.strip_prefix("invalid json: ") {
+            format!("Invalid plugin market download response: {error}")
+        } else {
+            let error = error.strip_prefix("request failed: ").unwrap_or(&error);
+            format!("Plugin market download resolver failed: {error}")
+        }
+    })?;
+    let resolved = serde_json::from_value::<RawZtoolsDownloadResponse>(raw)
         .map_err(|error| format!("Invalid plugin market download response: {error}"))?;
     // ATools currently consumes the ZIP compatibility artifact. ZPX remains advertised by
     // ZTools, but its ASAR container is intentionally not treated as ZIP.
     let download_url = resolved
         .download_url
         .and_then(|url| trimmed_http_url(&url))
-        .or_else(|| resolved.zpx_download_url.and_then(|url| trimmed_http_url(&url)))
+        .or_else(|| {
+            resolved
+                .zpx_download_url
+                .and_then(|url| trimmed_http_url(&url))
+        })
         .ok_or_else(|| "Plugin market download response has no HTTPS package URL".to_string())?;
     Ok(PluginMarketResolvedDownload {
         package_format: plugin_market_package_format(&download_url).to_string(),
@@ -4067,7 +3948,11 @@ fn plugin_market_package_format(download_url: &str) -> &'static str {
         .ok()
         .map(|url| url.path().to_ascii_lowercase())
         .unwrap_or_default();
-    if path.ends_with(".zpx") { "zpx" } else { "zip" }
+    if path.ends_with(".zpx") {
+        "zpx"
+    } else {
+        "zip"
+    }
 }
 
 fn normalize_plugin_market_catalog_rating(value: Option<serde_json::Value>) -> Option<String> {
@@ -4176,6 +4061,7 @@ pub(crate) async fn install_plugin_from_market_trusted_url_inner(
 }
 
 #[allow(clippy::too_many_arguments)] // Keeps the progress callback explicit at the download boundary.
+#[cfg(test)]
 pub(crate) async fn install_plugin_from_market_checked_url_inner_with_progress(
     db: &atools_core::db::Database,
     config: &atools_core::config::AppConfig,
@@ -4223,6 +4109,7 @@ pub(crate) async fn install_plugin_from_market_checked_url_inner_with_progress(
 }
 
 #[allow(clippy::too_many_arguments)] // Keeps the progress callback explicit at the download boundary.
+#[cfg(test)]
 pub(crate) async fn update_plugin_from_market_checked_url_inner_with_progress(
     db: &atools_core::db::Database,
     config: &atools_core::config::AppConfig,
@@ -4264,11 +4151,7 @@ pub(crate) async fn update_plugin_from_market_checked_url_inner_with_progress(
     Ok(plugin)
 }
 
-fn emit_plugin_market_progress(app: &AppHandle, event: PluginMarketProgressEvent) {
-    let _ = app.emit("plugin-market-progress", event);
-}
-
-fn plugin_market_progress_event(
+pub(crate) fn plugin_market_progress_event(
     context: &PluginMarketProgressContext,
     stage: &str,
     downloaded_bytes: u64,
@@ -4311,7 +4194,7 @@ async fn download_plugin_market_archive_with_progress(
     .await
 }
 
-async fn download_plugin_market_archive_with_progress_ref(
+pub(crate) async fn download_plugin_market_archive_with_progress_ref(
     download_url: &str,
     checksum: Option<&str>,
     signature: Option<&str>,
@@ -4681,8 +4564,9 @@ fn validate_plugin_market_install_trust(
     }
 
     if source_kind != Some(&PluginMarketCatalogSourceKind::Ztools) {
-        return Err("Unsigned plugin packages are only allowed from the official ZTools market"
-            .to_string());
+        return Err(
+            "Unsigned plugin packages are only allowed from the official ZTools market".to_string(),
+        );
     }
     if !confirmed_unsigned {
         return Err(
@@ -4791,6 +4675,7 @@ fn plugin_market_download_url(url: &str) -> Result<reqwest::Url, String> {
     Ok(parsed)
 }
 
+#[cfg(test)]
 fn install_plugin_from_market_archive_inner(
     db: &atools_core::db::Database,
     config: &atools_core::config::AppConfig,
@@ -4798,38 +4683,17 @@ fn install_plugin_from_market_archive_inner(
     source_url: &str,
     expected_plugin_id: Option<&str>,
 ) -> Result<Plugin, String> {
-    let staging_dir = plugin_market_staging_dir(config);
-    if staging_dir.exists() {
-        std::fs::remove_dir_all(&staging_dir).map_err(|error| {
-            format!(
-                "Failed to reset plugin market staging directory {}: {error}",
-                staging_dir.display()
-            )
-        })?;
-    }
-    std::fs::create_dir_all(&staging_dir).map_err(|error| {
-        format!(
-            "Failed to create plugin market staging directory {}: {error}",
-            staging_dir.display()
-        )
-    })?;
-
-    let result = (|| {
-        extract_plugin_market_zip(archive_bytes, &staging_dir, source_url)?;
-        let plugin_dir = plugin_market_staged_plugin_dir(&staging_dir)?;
-        let plugin = install_plugin_from_directory_checked_with_policy_inner(
-            db,
-            config,
-            &plugin_dir,
-            expected_plugin_id,
-            PluginPersistencePolicy::Market,
-        )?;
-        Ok(plugin)
-    })();
-
-    cleanup_plugin_market_staging(&staging_dir, result)
+    crate::plugin_mutations::market::apply_archive_for_test(
+        db,
+        config,
+        archive_bytes,
+        source_url,
+        expected_plugin_id,
+        false,
+    )
 }
 
+#[cfg(test)]
 fn update_plugin_from_market_archive_inner(
     db: &atools_core::db::Database,
     config: &atools_core::config::AppConfig,
@@ -4837,58 +4701,19 @@ fn update_plugin_from_market_archive_inner(
     archive_bytes: &[u8],
     source_url: &str,
 ) -> Result<Plugin, String> {
-    let staging_dir = plugin_market_staging_dir(config);
-    if staging_dir.exists() {
-        std::fs::remove_dir_all(&staging_dir).map_err(|error| {
-            format!(
-                "Failed to reset plugin market staging directory {}: {error}",
-                staging_dir.display()
-            )
-        })?;
-    }
-    std::fs::create_dir_all(&staging_dir).map_err(|error| {
-        format!(
-            "Failed to create plugin market staging directory {}: {error}",
-            staging_dir.display()
-        )
-    })?;
-
-    let result = (|| {
-        extract_plugin_market_zip(archive_bytes, &staging_dir, source_url)?;
-        let plugin_dir = plugin_market_staged_plugin_dir(&staging_dir)?;
-        let plugin = plugin_update_from_path_with_policy_inner(
-            db,
-            config,
-            plugin_id,
-            &plugin_dir,
-            PluginPersistencePolicy::Market,
-        )?;
-        Ok(plugin)
-    })();
-
-    cleanup_plugin_market_staging(&staging_dir, result)
+    crate::plugin_mutations::market::apply_archive_for_test(
+        db,
+        config,
+        archive_bytes,
+        source_url,
+        Some(plugin_id),
+        true,
+    )
 }
 
-fn cleanup_plugin_market_staging(
-    staging_dir: &std::path::Path,
-    result: Result<Plugin, String>,
-) -> Result<Plugin, String> {
-    let cleanup_result = std::fs::remove_dir_all(staging_dir);
-    match (result, cleanup_result) {
-        (Ok(plugin), Ok(())) => Ok(plugin),
-        (Ok(plugin), Err(error)) => {
-            tracing::warn!(
-                "Failed to remove plugin market staging directory {}: {}",
-                staging_dir.display(),
-                error
-            );
-            Ok(plugin)
-        }
-        (Err(error), _) => Err(error),
-    }
-}
-
-fn plugin_market_staging_dir(config: &atools_core::config::AppConfig) -> std::path::PathBuf {
+pub(crate) fn plugin_market_staging_dir(
+    config: &atools_core::config::AppConfig,
+) -> std::path::PathBuf {
     let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|duration| duration.as_nanos())
@@ -4899,7 +4724,7 @@ fn plugin_market_staging_dir(config: &atools_core::config::AppConfig) -> std::pa
         .join(format!("download-{}-{nanos}", std::process::id()))
 }
 
-fn extract_plugin_market_zip(
+pub(crate) fn extract_plugin_market_zip(
     archive_bytes: &[u8],
     staging_dir: &std::path::Path,
     source_url: &str,
@@ -5020,7 +4845,10 @@ fn validate_plugin_market_zip_entry(
         .unwrap_or(false)
     {
         let relative_path = entry.enclosed_name().ok_or_else(|| {
-            format!("Plugin market zip contains unsafe symlink path: {}", entry.name())
+            format!(
+                "Plugin market zip contains unsafe symlink path: {}",
+                entry.name()
+            )
         })?;
         if !is_node_modules_bin_entry(&relative_path) {
             return Err(format!(
@@ -5053,7 +4881,7 @@ fn validate_plugin_market_zip_entry(
     Ok(())
 }
 
-fn plugin_market_staged_plugin_dir(
+pub(crate) fn plugin_market_staged_plugin_dir(
     staging_dir: &std::path::Path,
 ) -> Result<std::path::PathBuf, String> {
     let mut manifest_dirs = Vec::new();
@@ -5090,7 +4918,8 @@ fn collect_plugin_manifest_dirs(
     Ok(())
 }
 
-fn install_plugin_from_directory_inner(
+#[cfg(test)]
+pub(crate) fn install_plugin_from_directory_inner(
     db: &atools_core::db::Database,
     config: &atools_core::config::AppConfig,
     plugin_dir: &std::path::Path,
@@ -5098,7 +4927,7 @@ fn install_plugin_from_directory_inner(
     install_plugin_from_directory_checked_inner(db, config, plugin_dir, None)
 }
 
-fn install_plugin_from_directory_checked_inner(
+pub(crate) fn install_plugin_from_directory_checked_inner(
     db: &atools_core::db::Database,
     config: &atools_core::config::AppConfig,
     plugin_dir: &std::path::Path,
@@ -5114,25 +4943,20 @@ fn install_plugin_from_directory_checked_inner(
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum PluginPersistencePolicy {
+pub(crate) enum PluginPersistencePolicy {
     Local,
     Market,
 }
 
-fn install_plugin_from_directory_checked_with_policy_inner(
+pub(crate) fn install_plugin_from_directory_checked_with_policy_inner(
     db: &atools_core::db::Database,
     config: &atools_core::config::AppConfig,
     plugin_dir: &std::path::Path,
     expected_plugin_id: Option<&str>,
     policy: PluginPersistencePolicy,
 ) -> Result<Plugin, String> {
-    let _mutation_guard = acquire_plugin_mutation_lock()?;
-    let manifest_path = plugin_dir.join("plugin.json");
-    let manifest_content = std::fs::read_to_string(&manifest_path)
-        .map_err(|e| format!("Failed to read plugin.json: {}", e))?;
-    let manifest: PluginManifest = serde_json::from_str(&manifest_content)
-        .map_err(|e| format!("Invalid plugin.json: {}", e))?;
-    manifest.validate_runtime_contract()?;
+    let package = crate::plugin_packages::local_package(plugin_dir)?;
+    let manifest = package.manifest.clone();
 
     let plugin_id = atools_core::utils::sanitize_id(&manifest.name);
     if let Some(expected_plugin_id) = expected_plugin_id
@@ -5148,23 +4972,25 @@ fn install_plugin_from_directory_checked_with_policy_inner(
     }
     let install_dir = config.plugin_dir(&plugin_id);
 
-    let existing = db.get_plugin(&plugin_id).ok();
     if policy == PluginPersistencePolicy::Market {
+        let _mutation_guard = acquire_plugin_mutation_lock()?;
+        let existing = db.get_plugin(&plugin_id).ok();
         if let Some(existing) = &existing {
             persist_disabled_plugin_before_market_copy(db, existing)?;
         }
     }
 
-    let staged_dir = stage_plugin_directory(plugin_dir, &install_dir)
-        .map_err(|error| format!("Failed to copy plugin: {error}"))?;
-
+    let staged = crate::plugin_packages::stage_directory(&package, &install_dir)?;
+    // Copy outside the metadata commit lock; different plugins can stage in parallel.
+    let existing = db.get_plugin(&plugin_id).ok();
     let now = atools_core::utils::now_iso();
     let plugin = Plugin {
         id: plugin_id.clone(),
         name: manifest.name.clone(),
         version: manifest.version.clone(),
         path: install_dir.to_string_lossy().to_string(),
-        enabled: policy != PluginPersistencePolicy::Market,
+        enabled: policy != PluginPersistencePolicy::Market
+            && existing.as_ref().is_none_or(|plugin| plugin.enabled),
         manifest: manifest.clone(),
         created_at: existing
             .as_ref()
@@ -5173,7 +4999,7 @@ fn install_plugin_from_directory_checked_with_policy_inner(
         updated_at: now,
     };
 
-    replace_plugin_directory_transactionally(&staged_dir, &install_dir, || {
+    replace_plugin_directory_transactionally(&staged.path, &install_dir, || {
         db.save_plugin_with_features(&plugin, &manifest.features)
             .map_err(|error| error.to_string())?;
         Ok(plugin.clone())
@@ -5195,14 +5021,13 @@ pub(crate) fn plugin_update_from_path_inner(
     )
 }
 
-fn plugin_update_from_path_with_policy_inner(
+pub(crate) fn plugin_update_from_path_with_policy_inner(
     db: &atools_core::db::Database,
     config: &atools_core::config::AppConfig,
     plugin_id: &str,
     source_dir: &std::path::Path,
     policy: PluginPersistencePolicy,
 ) -> Result<Plugin, String> {
-    let _mutation_guard = acquire_plugin_mutation_lock()?;
     let existing = db.get_plugin(plugin_id).map_err(|e| e.to_string())?;
     let install_dir = config.plugin_dir(plugin_id);
     if !plugin_uninstall_path_allowed(std::path::Path::new(&existing.path), &config.plugins_dir()) {
@@ -5217,12 +5042,8 @@ fn plugin_update_from_path_with_policy_inner(
         );
     }
 
-    let manifest_path = source_dir.join("plugin.json");
-    let manifest_content = std::fs::read_to_string(&manifest_path)
-        .map_err(|e| format!("Failed to read plugin.json: {}", e))?;
-    let manifest: PluginManifest = serde_json::from_str(&manifest_content)
-        .map_err(|e| format!("Invalid plugin.json: {}", e))?;
-    manifest.validate_runtime_contract()?;
+    let package = crate::plugin_packages::local_package(source_dir)?;
+    let manifest = package.manifest.clone();
     let source_plugin_id = atools_core::utils::sanitize_id(&manifest.name);
     if source_plugin_id != plugin_id {
         return Err(format!(
@@ -5232,12 +5053,17 @@ fn plugin_update_from_path_with_policy_inner(
     }
 
     if policy == PluginPersistencePolicy::Market {
-        persist_disabled_plugin_before_market_copy(db, &existing)?;
+        let _mutation_guard = acquire_plugin_mutation_lock()?;
+        let current = db
+            .get_plugin(plugin_id)
+            .map_err(|error| error.to_string())?;
+        persist_disabled_plugin_before_market_copy(db, &current)?;
     }
 
-    let staged_dir = stage_plugin_directory(source_dir, &install_dir)
-        .map_err(|error| format!("Failed to copy plugin: {error}"))?;
-
+    let staged = crate::plugin_packages::stage_directory(&package, &install_dir)?;
+    let existing = db
+        .get_plugin(plugin_id)
+        .map_err(|error| error.to_string())?;
     let plugin = Plugin {
         id: plugin_id.to_string(),
         name: manifest.name.clone(),
@@ -5253,7 +5079,7 @@ fn plugin_update_from_path_with_policy_inner(
         updated_at: atools_core::utils::now_iso(),
     };
 
-    replace_plugin_directory_transactionally(&staged_dir, &install_dir, || {
+    replace_plugin_directory_transactionally(&staged.path, &install_dir, || {
         db.save_plugin_with_features(&plugin, &manifest.features)
             .map_err(|error| error.to_string())?;
         Ok(plugin.clone())
@@ -5273,7 +5099,7 @@ fn persist_disabled_plugin_before_market_copy(
     db.save_plugin(&disabled).map_err(|error| error.to_string())
 }
 
-fn plugin_update_source_overlaps_install_dir(
+pub(crate) fn plugin_update_source_overlaps_install_dir(
     source_dir: &std::path::Path,
     install_dir: &std::path::Path,
 ) -> bool {
@@ -5302,19 +5128,20 @@ pub fn scan_default_ztools_plugins(
 }
 
 #[tauri::command]
-pub fn import_ztools_plugins(
-    state: tauri::State<AppState>,
+pub async fn import_ztools_plugins(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
     paths: Vec<String>,
     overwrite: Option<bool>,
 ) -> Result<crate::ztools_import::ZToolsImportReport, String> {
-    let report = crate::ztools_import::import_ztools_plugins(
-        &state.db,
-        &state.config.plugins_dir(),
-        &paths,
+    crate::plugin_mutations::import(
+        &app,
+        state.db.clone(),
+        state.config.plugins_dir(),
+        paths,
         overwrite.unwrap_or(true),
-    )?;
-    crate::agent_tools::sync_plugin_tools(&state.db)?;
-    Ok(report)
+    )
+    .await
 }
 
 #[tauri::command]
@@ -5323,19 +5150,15 @@ pub async fn uninstall_plugin(
     state: tauri::State<'_, AppState>,
     plugin_id: String,
 ) -> Result<(), String> {
-    stop_plugin_sidecar(&app, &plugin_id).await?;
-    uninstall_plugin_inner(&state.db, &state.config, &plugin_id)?;
-    crate::agent_tools::sync_plugin_tools(&state.db)?;
-    tracing::info!("Uninstalled plugin: {}", plugin_id);
-    Ok(())
+    crate::plugin_mutations::uninstall(&app, state.db.clone(), state.config.clone(), plugin_id)
+        .await
 }
 
-fn uninstall_plugin_inner(
+pub(crate) fn uninstall_plugin_inner(
     db: &atools_core::db::Database,
     config: &atools_core::config::AppConfig,
     plugin_id: &str,
 ) -> Result<(), String> {
-    let _mutation_guard = acquire_plugin_mutation_lock()?;
     let plugin = db.get_plugin(plugin_id).map_err(|e| e.to_string())?;
     let plugin_path = std::path::Path::new(&plugin.path);
     let plugins_dir = config.plugins_dir();
@@ -5364,16 +5187,25 @@ pub(crate) fn plugin_uninstall_path_allowed(
 }
 
 fn canonical_existing_or_child_path(path: &std::path::Path) -> Option<std::path::PathBuf> {
-    if let Ok(canonical) = path.canonicalize() {
-        return Some(canonical);
-    }
-    let parent = path.parent()?.canonicalize().ok()?;
-    Some(parent.join(path.file_name()?))
+    crate::plugin_packages::canonical_target(path)
 }
 
 #[tauri::command]
-pub fn list_plugins(state: tauri::State<AppState>) -> Result<Vec<Plugin>, String> {
-    state.db.list_plugins().map_err(|e| e.to_string())
+pub async fn list_plugins(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<crate::plugin_inventory::PluginInventoryRecord>, String> {
+    let builtin_root = app
+        .path()
+        .resolve("plugins/builtin", tauri::path::BaseDirectory::Resource)
+        .ok();
+    crate::plugin_inventory::list_plugins_when_ready(
+        &state.plugin_inventory_readiness,
+        state.db.clone(),
+        state.config.plugins_dir(),
+        builtin_root,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -5383,30 +5215,12 @@ pub async fn toggle_plugin(
     plugin_id: String,
     enabled: bool,
 ) -> Result<(), String> {
-    if !enabled {
-        stop_plugin_sidecar(&app, &plugin_id).await?;
-    }
-    let mut plugin = state.db.get_plugin(&plugin_id).map_err(|e| e.to_string())?;
-    plugin.enabled = enabled;
-    plugin.updated_at = atools_core::utils::now_iso();
-    state
-        .db
-        .save_plugin_with_features(&plugin, &plugin.manifest.features)
-        .map_err(|e| e.to_string())?;
-    crate::agent_tools::sync_plugin_tools(&state.db)?;
-    Ok(())
+    crate::plugin_mutations::toggle(&app, state.db.clone(), plugin_id, enabled)
+        .await
+        .map(|_| ())
 }
 
-async fn stop_plugin_sidecar(app: &AppHandle, plugin_id: &str) -> Result<(), String> {
-    if let Some(supervisor) = app.try_state::<Arc<atools_plugin::SidecarSupervisor>>() {
-        supervisor
-            .stop(plugin_id)
-            .await
-            .map_err(|error| error.to_string())?;
-    }
-    Ok(())
-}
-
+#[cfg(test)]
 pub(crate) fn authorize_plugin_permissions_inner(
     db: &atools_core::db::Database,
     plugin_id: &str,
@@ -5423,8 +5237,21 @@ pub(crate) fn authorize_plugin_permissions_inner(
 }
 
 #[tauri::command]
-pub fn get_setting(state: tauri::State<AppState>, key: String) -> Result<Option<String>, String> {
-    state.db.get_setting(&key).map_err(|e| e.to_string())
+pub async fn get_setting(
+    app: AppHandle,
+    webview: tauri::Webview,
+    window: tauri::Window,
+    state: tauri::State<'_, AppState>,
+    key: String,
+) -> Result<Option<String>, String> {
+    if key == "settings-general" {
+        crate::general_settings_runtime::commands::authorize_general_settings_read(
+            &webview, &window,
+        )?;
+        crate::general_settings_runtime::read_general_settings(app, state.db.clone()).await
+    } else {
+        state.db.get_setting(&key).map_err(|e| e.to_string())
+    }
 }
 
 #[tauri::command]
@@ -5864,32 +5691,6 @@ pub fn pasteboard_clear_stack(
     crate::hotkey::deactivate_paste_stack_shortcut(&app).map_err(|error| error.to_string())?;
     let _ = app.emit("pasteboard://stack", &status);
     Ok(status)
-}
-
-#[tauri::command]
-pub fn pasteboard_set_capture_paused(
-    state: tauri::State<AppState>,
-    paused: bool,
-) -> Result<crate::pasteboard_runtime::PasteboardCaptureStatus, String> {
-    let mut settings = state
-        .db
-        .get_setting("settings-general")
-        .map_err(|error| error.to_string())?
-        .and_then(|value| serde_json::from_str::<serde_json::Value>(&value).ok())
-        .filter(serde_json::Value::is_object)
-        .unwrap_or_else(|| serde_json::json!({}));
-    settings
-        .as_object_mut()
-        .expect("settings were normalized to an object")
-        .insert("pasteboardCapturePaused".into(), paused.into());
-    state
-        .db
-        .set_setting(
-            "settings-general",
-            &serde_json::to_string(&settings).map_err(|error| error.to_string())?,
-        )
-        .map_err(|error| error.to_string())?;
-    Ok(state.pasteboard_runtime.status())
 }
 
 #[tauri::command]
@@ -6524,34 +6325,12 @@ pub fn reset_window(app: AppHandle) -> Result<(), String> {
     crate::window::reset_main_window(&app).map_err(|e| e.to_string())
 }
 
-#[tauri::command]
 pub fn set_floating_ball_visible(app: AppHandle, visible: bool) -> Result<(), String> {
     crate::window::set_floating_ball_visible(&app, visible).map_err(|e| e.to_string())
 }
 
-#[tauri::command]
 pub fn set_super_panel_visible(app: AppHandle, visible: bool) -> Result<(), String> {
     crate::window::set_super_panel_visible(&app, visible).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub fn open_plugin_detach_window(
-    app: AppHandle,
-    feature_code: Option<String>,
-) -> Result<(), String> {
-    let feature_code = feature_code.and_then(|code| {
-        let trimmed = code.trim();
-        if trimmed.is_empty() {
-            None
-        } else {
-            Some(trimmed.to_string())
-        }
-    });
-    let window = crate::window::ensure_plugin_detach_window(&app, feature_code.as_deref())
-        .map_err(|e| e.to_string())?;
-    window.show().map_err(|e| e.to_string())?;
-    window.set_focus().map_err(|e| e.to_string())?;
-    Ok(())
 }
 
 #[derive(Debug, Clone, serde::Serialize, PartialEq, Eq)]
@@ -6652,7 +6431,6 @@ fn hotkey_update_plan<'a>(requested: &'a str, previous: Option<&'a str>) -> Hotk
     }
 }
 
-#[tauri::command]
 pub fn update_global_hotkey(
     app: AppHandle,
     shortcut: String,
@@ -6670,525 +6448,32 @@ pub fn update_global_hotkey(
     result.map_err(|error| error.to_string())
 }
 
-#[tauri::command]
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct SyncAppShortcutPayload {
+    #[allow(dead_code)]
+    pub id: String,
+    pub shortcut: String,
+    #[serde(rename = "targetCode")]
+    pub target_code: String,
+    pub enabled: bool,
+}
+
 pub fn set_tray_icon_visible(app: AppHandle, visible: bool) -> Result<(), String> {
-    let tray = app
-        .tray_by_id("atools-tray")
-        .ok_or_else(|| "Tray icon not found".to_string())?;
-    tray.set_visible(visible).map_err(|e| e.to_string())
+    crate::tray::set_visible(&app, visible)
 }
 
-#[tauri::command]
 pub fn set_launch_at_login(enabled: bool) -> Result<(), String> {
-    #[cfg(target_os = "macos")]
-    {
-        set_macos_launch_at_login(enabled)
-    }
-
-    #[cfg(not(target_os = "macos"))]
-    {
-        let _ = enabled;
-        Ok(())
-    }
-}
-
-#[cfg(target_os = "macos")]
-fn set_macos_launch_at_login(enabled: bool) -> Result<(), String> {
-    let path = launch_agent_path()?;
-    let executable = if enabled {
-        std::env::current_exe().map_err(|e| e.to_string())?
-    } else {
-        std::path::PathBuf::new()
-    };
-    apply_macos_launch_at_login(&path, &executable, enabled, launchctl)
-}
-
-#[cfg(target_os = "macos")]
-fn apply_macos_launch_at_login<F>(
-    path: &std::path::Path,
-    executable: &std::path::Path,
-    enabled: bool,
-    mut launchctl: F,
-) -> Result<(), String>
-where
-    F: FnMut(&str, &std::path::Path) -> Result<(), String>,
-{
-    let exists = match std::fs::symlink_metadata(path) {
-        Ok(metadata) if metadata.file_type().is_symlink() => {
-            return Err(format!(
-                "Refusing to modify LaunchAgent symlink: {}",
-                path.display()
-            ));
-        }
-        Ok(_) => true,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
-        Err(error) => {
-            return Err(format!(
-                "Failed to inspect LaunchAgent {}: {}",
-                path.display(),
-                error
-            ));
-        }
-    };
-
-    if enabled {
-        let previous = if exists {
-            Some(std::fs::read(path).map_err(|error| {
-                format!(
-                    "Failed to read existing LaunchAgent {}: {}",
-                    path.display(),
-                    error
-                )
-            })?)
-        } else {
-            None
-        };
-        let plist = launch_agent_plist(&executable.to_string_lossy());
-        atomic_write_launch_agent(path, plist.as_bytes())?;
-
-        if let Err(primary_error) = launchctl("bootstrap", path) {
-            let mut compensation_failures = Vec::new();
-            if let Err(error) = launchctl("bootout", path) {
-                compensation_failures.push(format!("bootout new service failed: {error}"));
-            }
-
-            match previous.as_deref() {
-                Some(contents) => {
-                    if let Err(error) = atomic_write_launch_agent(path, contents) {
-                        compensation_failures
-                            .push(format!("restore previous plist failed: {error}"));
-                    }
-                }
-                None => {
-                    if let Err(error) = std::fs::remove_file(path) {
-                        if error.kind() != std::io::ErrorKind::NotFound {
-                            compensation_failures.push(format!("remove new plist failed: {error}"));
-                        }
-                    }
-                }
-            }
-
-            if previous.is_some() {
-                if let Err(error) = launchctl("bootstrap", path) {
-                    compensation_failures
-                        .push(format!("bootstrap previous service failed: {error}"));
-                }
-            }
-
-            let primary = format!("launchctl bootstrap failed: {primary_error}");
-            return Err(with_compensation_failures(primary, compensation_failures));
-        }
-        return Ok(());
-    }
-
-    if !exists {
-        return Ok(());
-    }
-    launchctl("bootout", path).map_err(|error| format!("launchctl bootout failed: {error}"))?;
-    match std::fs::remove_file(path) {
-        Ok(()) => Ok(()),
-        Err(remove_error) => match std::fs::symlink_metadata(path) {
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Ok(_) => {
-                let compensation = match launchctl("bootstrap", path) {
-                    Ok(()) => "compensation bootstrap succeeded".to_string(),
-                    Err(error) => format!("compensation bootstrap failed: {error}"),
-                };
-                Err(format!(
-                    "Failed to remove LaunchAgent {} after bootout: {}; {}",
-                    path.display(),
-                    remove_error,
-                    compensation
-                ))
-            }
-            Err(inspect_error) => Err(format!(
-                "Failed to remove LaunchAgent {} after bootout: {}; failed to inspect file after removal error: {}",
-                path.display(),
-                remove_error,
-                inspect_error
-            )),
-        },
-    }
-}
-
-#[cfg(target_os = "macos")]
-fn with_compensation_failures(primary: String, failures: Vec<String>) -> String {
-    if failures.is_empty() {
-        primary
-    } else {
-        format!("{primary}; compensation failures: {}", failures.join("; "))
-    }
-}
-
-#[cfg(target_os = "macos")]
-fn atomic_write_launch_agent(path: &std::path::Path, contents: &[u8]) -> Result<(), String> {
-    use std::io::Write;
-    use std::sync::atomic::{AtomicU64, Ordering};
-
-    static NEXT_TEMP_ID: AtomicU64 = AtomicU64::new(0);
-
-    let parent = path
-        .parent()
-        .ok_or_else(|| format!("Invalid LaunchAgent path: {}", path.display()))?;
-    std::fs::create_dir_all(parent).map_err(|error| {
-        format!(
-            "Failed to create LaunchAgent directory {}: {}",
-            parent.display(),
-            error
-        )
-    })?;
-    let file_name = path
-        .file_name()
-        .ok_or_else(|| format!("Invalid LaunchAgent path: {}", path.display()))?
-        .to_string_lossy();
-
-    let (temporary_path, mut temporary_file) = (0..128)
-        .find_map(|_| {
-            let id = NEXT_TEMP_ID.fetch_add(1, Ordering::Relaxed);
-            let candidate = parent.join(format!(
-                ".{file_name}.atools-tmp-{}-{id}",
-                std::process::id()
-            ));
-            match std::fs::OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(&candidate)
-            {
-                Ok(file) => Some(Ok((candidate, file))),
-                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => None,
-                Err(error) => Some(Err(format!(
-                    "Failed to create temporary LaunchAgent file {}: {}",
-                    candidate.display(),
-                    error
-                ))),
-            }
-        })
-        .transpose()?
-        .ok_or_else(|| {
-            format!(
-                "Failed to allocate a unique temporary LaunchAgent file beside {}",
-                path.display()
-            )
-        })?;
-
-    let write_result = (|| -> Result<(), String> {
-        temporary_file
-            .write_all(contents)
-            .map_err(|error| format!("Failed to write temporary LaunchAgent file: {error}"))?;
-        temporary_file
-            .flush()
-            .map_err(|error| format!("Failed to flush temporary LaunchAgent file: {error}"))?;
-        temporary_file
-            .sync_all()
-            .map_err(|error| format!("Failed to sync temporary LaunchAgent file: {error}"))?;
-        Ok(())
-    })();
-    drop(temporary_file);
-
-    if let Err(error) = write_result {
-        return Err(clean_up_launch_agent_temp(&temporary_path, error));
-    }
-    if let Err(error) = std::fs::rename(&temporary_path, path) {
-        return Err(clean_up_launch_agent_temp(
-            &temporary_path,
-            format!(
-                "Failed to atomically replace LaunchAgent {}: {}",
-                path.display(),
-                error
-            ),
-        ));
-    }
-    Ok(())
-}
-
-#[cfg(target_os = "macos")]
-fn clean_up_launch_agent_temp(path: &std::path::Path, primary: String) -> String {
-    match std::fs::remove_file(path) {
-        Ok(()) => primary,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => primary,
-        Err(error) => format!(
-            "{primary}; failed to clean up temporary file {}: {}",
-            path.display(),
-            error
-        ),
-    }
+    crate::general_settings_runtime::login_items::read_apply_production(None, Some(enabled))
+        .map(|_| ())
 }
 
 #[cfg(target_os = "macos")]
 pub(crate) fn launch_agent_path() -> Result<std::path::PathBuf, String> {
-    let home = dirs::home_dir().ok_or_else(|| "Cannot resolve home directory".to_string())?;
-    Ok(home
-        .join("Library")
-        .join("LaunchAgents")
-        .join("com.atools.desktop.plist"))
-}
-
-#[cfg(target_os = "macos")]
-fn launchctl(action: &str, path: &std::path::Path) -> Result<(), String> {
-    let uid = std::process::Command::new("id")
-        .arg("-u")
-        .output()
-        .map_err(|e| e.to_string())
-        .and_then(|output| String::from_utf8(output.stdout).map_err(|e| e.to_string()))?;
-    let target = format!("gui/{}", uid.trim());
-    let output = std::process::Command::new("launchctl")
-        .arg(action)
-        .arg(target)
-        .arg(path)
-        .output()
-        .map_err(|e| e.to_string())?;
-    let stdout = String::from_utf8(output.stdout).unwrap_or_default();
-    let stderr = String::from_utf8(output.stderr).unwrap_or_default();
-    let combined = [stdout, stderr].join("\n");
-    if output.status.success() || is_launchctl_action_noop(action, &combined) {
-        Ok(())
-    } else {
-        let detail = combined.trim();
-        if detail.is_empty() {
-            Err(format!(
-                "launchctl {} failed for {} with status {}",
-                action,
-                path.display(),
-                output.status
-            ))
-        } else {
-            Err(format!(
-                "launchctl {} failed for {}: {}",
-                action,
-                path.display(),
-                detail
-            ))
-        }
-    }
-}
-
-#[cfg(target_os = "macos")]
-fn is_launchctl_action_noop(action: &str, message: &str) -> bool {
-    let normalized = message.to_lowercase();
-    match action {
-        "bootstrap" => {
-            normalized.contains("already")
-                && (normalized.contains("loaded") || normalized.contains("bootstrap"))
-        }
-        "bootout" => {
-            normalized.contains("not found")
-                || normalized.contains("could not find service")
-                || normalized.contains("no such process")
-                || normalized.contains("does not exist")
-                || normalized.contains("doesn't exist")
-                || normalized.contains("already unloaded")
-        }
-        _ => false,
-    }
-}
-
-#[cfg(test)]
-#[cfg(target_os = "macos")]
-mod launchctl_action_tests {
-    use super::{apply_macos_launch_at_login, is_launchctl_action_noop};
-    use std::collections::VecDeque;
-    use std::path::{Path, PathBuf};
-
-    #[derive(Default)]
-    struct FakeLaunchctl {
-        calls: Vec<(String, PathBuf, Option<Vec<u8>>)>,
-        outcomes: VecDeque<Result<(), String>>,
-    }
-
-    impl FakeLaunchctl {
-        fn with_outcomes(outcomes: impl IntoIterator<Item = Result<(), String>>) -> Self {
-            Self {
-                calls: Vec::new(),
-                outcomes: outcomes.into_iter().collect(),
-            }
-        }
-
-        fn run(&mut self, action: &str, path: &Path) -> Result<(), String> {
-            self.calls.push((
-                action.to_string(),
-                path.to_path_buf(),
-                std::fs::read(path).ok(),
-            ));
-            self.outcomes.pop_front().unwrap_or(Ok(()))
-        }
-
-        fn actions(&self) -> Vec<&str> {
-            self.calls
-                .iter()
-                .map(|(action, _, _)| action.as_str())
-                .collect()
-        }
-    }
-
-    #[test]
-    fn launchctl_noop_bootstrap_output() {
-        assert!(is_launchctl_action_noop(
-            "bootstrap",
-            "Service bootstrap failed: 48: Service already loaded"
-        ));
-        assert!(!is_launchctl_action_noop(
-            "bootstrap",
-            "Could not connect to service manager"
-        ));
-    }
-
-    #[test]
-    fn launchctl_noop_bootout_output() {
-        assert!(is_launchctl_action_noop(
-            "bootout",
-            "Could not find service \"com.atools.desktop\" in domain"
-        ));
-        assert!(is_launchctl_action_noop("bootout", "No such process"));
-        assert!(!is_launchctl_action_noop("bootout", "Permission denied"));
-    }
-
-    #[test]
-    fn enable_bootstrap_failure_removes_new_plist() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("com.atools.desktop.plist");
-        let executable = Path::new("/Applications/ATools.app/Contents/MacOS/ATools");
-        let mut fake = FakeLaunchctl::with_outcomes([Err("bootstrap denied".to_string()), Ok(())]);
-
-        let error = apply_macos_launch_at_login(&path, executable, true, |action, path| {
-            fake.run(action, path)
-        })
-        .unwrap_err();
-
-        assert!(error.contains("bootstrap denied"));
-        assert_eq!(fake.actions(), vec!["bootstrap", "bootout"]);
-        assert!(!path.exists());
-        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0);
-    }
-
-    #[test]
-    fn enable_bootstrap_failure_restores_old_plist_and_service() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("com.atools.desktop.plist");
-        let old_plist = b"old launch agent";
-        std::fs::write(&path, old_plist).unwrap();
-        let executable = Path::new("/Applications/ATools.app/Contents/MacOS/ATools");
-        let mut fake =
-            FakeLaunchctl::with_outcomes([Err("bootstrap denied".to_string()), Ok(()), Ok(())]);
-
-        let error = apply_macos_launch_at_login(&path, executable, true, |action, path| {
-            fake.run(action, path)
-        })
-        .unwrap_err();
-
-        assert!(error.contains("bootstrap denied"));
-        assert_eq!(fake.actions(), vec!["bootstrap", "bootout", "bootstrap"]);
-        assert_ne!(fake.calls[0].2.as_deref(), Some(old_plist.as_slice()));
-        assert_eq!(fake.calls[2].2.as_deref(), Some(old_plist.as_slice()));
-        assert_eq!(std::fs::read(&path).unwrap(), old_plist);
-        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
-    }
-
-    #[test]
-    fn symlink_is_rejected_without_changing_target() {
-        let dir = tempfile::tempdir().unwrap();
-        let target = dir.path().join("target.plist");
-        let path = dir.path().join("com.atools.desktop.plist");
-        let original = b"target launch agent";
-        std::fs::write(&target, original).unwrap();
-        std::os::unix::fs::symlink(&target, &path).unwrap();
-        let mut fake = FakeLaunchctl::default();
-
-        let error = apply_macos_launch_at_login(
-            &path,
-            Path::new("/Applications/ATools.app/Contents/MacOS/ATools"),
-            true,
-            |action, path| fake.run(action, path),
-        )
-        .unwrap_err();
-
-        assert!(error.to_lowercase().contains("symlink"));
-        assert!(fake.calls.is_empty());
-        assert_eq!(std::fs::read(&target).unwrap(), original);
-    }
-
-    #[test]
-    fn disable_bootout_failure_preserves_plist() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("com.atools.desktop.plist");
-        let original = b"existing launch agent";
-        std::fs::write(&path, original).unwrap();
-        let mut fake = FakeLaunchctl::with_outcomes([Err("bootout denied".to_string())]);
-
-        let error =
-            apply_macos_launch_at_login(&path, Path::new("/unused"), false, |action, path| {
-                fake.run(action, path)
-            })
-            .unwrap_err();
-
-        assert!(error.contains("bootout denied"));
-        assert_eq!(fake.actions(), vec!["bootout"]);
-        assert_eq!(std::fs::read(&path).unwrap(), original);
-    }
-
-    #[test]
-    fn enable_success_writes_plist_and_bootstraps() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("com.atools.desktop.plist");
-        let executable = Path::new("/Applications/A&B.app/Contents/MacOS/ATools");
-        let mut fake = FakeLaunchctl::default();
-
-        apply_macos_launch_at_login(&path, executable, true, |action, path| {
-            fake.run(action, path)
-        })
-        .unwrap();
-
-        assert_eq!(fake.actions(), vec!["bootstrap"]);
-        let plist = std::fs::read_to_string(&path).unwrap();
-        assert!(plist.contains("/Applications/A&amp;B.app/Contents/MacOS/ATools"));
-        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
-    }
-
-    #[test]
-    fn disable_success_boots_out_and_removes_plist() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("com.atools.desktop.plist");
-        std::fs::write(&path, b"existing launch agent").unwrap();
-        let mut fake = FakeLaunchctl::default();
-
-        apply_macos_launch_at_login(&path, Path::new("/unused"), false, |action, path| {
-            fake.run(action, path)
-        })
-        .unwrap();
-
-        assert_eq!(fake.actions(), vec!["bootout"]);
-        assert!(!path.exists());
-        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0);
-    }
+    crate::general_settings_runtime::login_items::legacy_path()
 }
 
 pub(crate) fn launch_agent_plist(executable_path: &str) -> String {
-    format!(
-        r#"<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key>
-  <string>com.atools.desktop</string>
-  <key>ProgramArguments</key>
-  <array>
-    <string>{}</string>
-  </array>
-  <key>RunAtLoad</key>
-  <true/>
-</dict>
-</plist>
-"#,
-        xml_escape(executable_path)
-    )
-}
-
-fn xml_escape(value: &str) -> String {
-    value
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-        .replace('\'', "&apos;")
+    crate::general_settings_runtime::login_items::legacy_plist(executable_path)
 }
 
 #[cfg(test)]
@@ -7334,7 +6619,13 @@ mod settings_command_tests {
 
         assert_eq!(
             resolve_feature_icon(&feature, Some(&plugin), Some(current.path())),
-            Some(current_logo.canonicalize().unwrap().to_string_lossy().to_string())
+            Some(
+                current_logo
+                    .canonicalize()
+                    .unwrap()
+                    .to_string_lossy()
+                    .to_string()
+            )
         );
     }
 
@@ -7352,10 +6643,16 @@ mod settings_command_tests {
             priority: 0,
         };
 
-        assert_eq!(resolve_feature_icon(&feature, None, None), feature.icon.clone(),);
+        assert_eq!(
+            resolve_feature_icon(&feature, None, None),
+            feature.icon.clone(),
+        );
 
         feature.icon = Some("https://example.com/icon.png".to_string());
-        assert_eq!(resolve_feature_icon(&feature, None, None), feature.icon.clone(),);
+        assert_eq!(
+            resolve_feature_icon(&feature, None, None),
+            feature.icon.clone(),
+        );
     }
 
     #[test]
@@ -8154,7 +7451,10 @@ mod settings_command_tests {
             plugin.homepage.as_deref(),
             Some("https://market.example.com/calculator")
         );
-        assert_eq!(catalog.source_kind, super::PluginMarketCatalogSourceKind::Atools);
+        assert_eq!(
+            catalog.source_kind,
+            super::PluginMarketCatalogSourceKind::Atools
+        );
         assert_eq!(plugin.trust_policy, "signed_required");
     }
 
@@ -8207,7 +7507,10 @@ mod settings_command_tests {
         let catalog = super::fetch_plugin_market_catalog_from_url(&base_url)
             .await
             .expect("ZTools catalog");
-        assert_eq!(catalog.source_kind, super::PluginMarketCatalogSourceKind::Ztools);
+        assert_eq!(
+            catalog.source_kind,
+            super::PluginMarketCatalogSourceKind::Ztools
+        );
         assert_eq!(catalog.plugins.len(), 1);
         let plugin = &catalog.plugins[0];
         assert_eq!(plugin.id, "json-editor");
@@ -8300,7 +7603,11 @@ mod settings_command_tests {
         let mut plugin_dirs = Vec::new();
         manifests(std::path::Path::new(&root), &mut plugin_dirs);
         plugin_dirs.sort();
-        assert_eq!(plugin_dirs.len(), 30, "Top 30 fixture must contain 30 plugins");
+        assert_eq!(
+            plugin_dirs.len(),
+            30,
+            "Top 30 fixture must contain 30 plugins"
+        );
 
         for plugin_dir in plugin_dirs {
             let temp = tempfile::tempdir().unwrap();
@@ -8310,7 +7617,9 @@ mod settings_command_tests {
             let plugin = super::install_plugin_from_directory_inner(&db, &config, &plugin_dir)
                 .unwrap_or_else(|error| panic!("{} install failed: {error}", plugin_dir.display()));
             assert!(plugin.enabled);
-            assert!(std::path::Path::new(&plugin.path).join("plugin.json").is_file());
+            assert!(std::path::Path::new(&plugin.path)
+                .join("plugin.json")
+                .is_file());
             if let Some(feature) = plugin.manifest.features.first() {
                 let action = super::activate_feature_inner(&db, &feature.code, None)
                     .unwrap_or_else(|error| panic!("{} activation failed: {error}", plugin.id));
@@ -8351,7 +7660,9 @@ mod settings_command_tests {
             let plugin = super::authorize_plugin_permissions_inner(&db, &installed.id).unwrap();
 
             match plugin.manifest.effective_runtime_kind() {
-                atools_core::PluginRuntimeKind::Rust | atools_core::PluginRuntimeKind::Node => {
+                atools_core::PluginRuntimeKind::Rust
+                | atools_core::PluginRuntimeKind::Node
+                | atools_core::PluginRuntimeKind::Wasm => {
                     let supervisor = atools_plugin::SidecarSupervisor::new();
                     let spec = atools_plugin::SidecarLaunchSpec::from_manifest(
                         plugin.id.clone(),
@@ -8381,15 +7692,22 @@ mod settings_command_tests {
                         }
                         atools_core::PluginRuntimeTransport::HostBridge => unreachable!(),
                     };
-                    assert_eq!(result.structured_content.as_ref().unwrap()["message"], "template smoke");
-                    assert_eq!(result.structured_content.as_ref().unwrap()["runtime"], expected_runtime);
+                    assert_eq!(
+                        result.structured_content.as_ref().unwrap()["message"],
+                        "template smoke"
+                    );
+                    assert_eq!(
+                        result.structured_content.as_ref().unwrap()["runtime"],
+                        expected_runtime
+                    );
                     supervisor.stop_all().await;
                 }
                 atools_core::PluginRuntimeKind::Web => {
                     let entry = plugin.manifest.effective_runtime_entry().unwrap();
                     assert!(std::path::Path::new(&plugin.path).join(entry).is_file());
                     let preload = std::fs::read_to_string(
-                        std::path::Path::new(&plugin.path).join(plugin.manifest.preload.as_ref().unwrap()),
+                        std::path::Path::new(&plugin.path)
+                            .join(plugin.manifest.preload.as_ref().unwrap()),
                     )
                     .unwrap();
                     assert!(preload.contains("registerTool"));
@@ -8823,17 +8141,7 @@ pub fn list_agent_tools(state: tauri::State<AppState>) -> Result<Vec<ToolDefinit
 }
 
 pub(crate) fn capability_catalog_for_db(db: &Database) -> Result<Vec<Capability>, String> {
-    let tools = db.list_agent_tools().map_err(|error| error.to_string())?;
-    let plugins = db.list_plugins().map_err(|error| error.to_string())?;
-    let skills = db
-        .list_skills(true, 500)
-        .map_err(|error| error.to_string())?;
-    Ok(capability_catalog(
-        &tools,
-        &plugins,
-        &skills,
-        env!("CARGO_PKG_VERSION"),
-    ))
+    capability_catalog_from_db(db, env!("CARGO_PKG_VERSION")).map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -8842,39 +8150,53 @@ pub fn list_capabilities(state: tauri::State<AppState>) -> Result<Vec<Capability
 }
 
 #[tauri::command]
-pub fn set_agent_tool_enabled(
-    state: tauri::State<AppState>,
+pub async fn set_agent_tool_enabled(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
     name: String,
     enabled: bool,
 ) -> Result<bool, String> {
-    state
+    let changed = state
         .db
         .set_agent_tool_enabled(&name, enabled)
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    if !enabled {
+        crate::legacy_runtime::invalidate(&app, &state.db, None).await;
+    }
+    Ok(changed)
 }
 
 #[tauri::command]
-pub fn grant_agent_tool(
-    state: tauri::State<AppState>,
+pub async fn grant_agent_tool(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
     client_id: String,
     tool_name: String,
+    request_id: Option<String>,
 ) -> Result<(), String> {
-    state
-        .db
-        .grant_agent_tool(&client_id, &tool_name)
-        .map_err(|e| e.to_string())
+    crate::agent_tools::grant_tool(
+        &app,
+        &state.db,
+        &client_id,
+        &tool_name,
+        request_id.as_deref(),
+    )
+    .await
 }
 
 #[tauri::command]
-pub fn revoke_agent_tool(
-    state: tauri::State<AppState>,
+pub async fn revoke_agent_tool(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
     client_id: String,
     tool_name: String,
 ) -> Result<bool, String> {
-    state
+    let changed = state
         .db
         .revoke_agent_tool(&client_id, &tool_name)
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    crate::legacy_runtime::invalidate(&app, &state.db, None).await;
+    Ok(changed)
 }
 
 #[tauri::command]
@@ -8892,12 +8214,15 @@ pub fn list_agent_scope_policies(
 }
 
 #[tauri::command]
-pub fn set_agent_scope_policy(
-    state: tauri::State<AppState>,
+pub async fn set_agent_scope_policy(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
     scope: String,
     decision: String,
 ) -> Result<Vec<crate::agent_tools::AgentScopePolicy>, String> {
-    crate::agent_tools::set_agent_scope_policy(&state.db, &scope, &decision)
+    let policies = crate::agent_tools::set_agent_scope_policy(&state.db, &scope, &decision)?;
+    crate::legacy_runtime::invalidate(&app, &state.db, None).await;
+    Ok(policies)
 }
 
 #[tauri::command]
@@ -8911,18 +8236,25 @@ pub fn list_pending_agent_requests(state: tauri::State<AppState>) -> Vec<Pending
 }
 
 #[tauri::command]
-pub fn dismiss_pending_agent_request(state: tauri::State<AppState>, request_id: String) -> bool {
-    let pending = state.pending_agent_requests.lock().remove(&request_id);
+pub fn dismiss_pending_agent_request(
+    app: AppHandle,
+    state: tauri::State<AppState>,
+    request_id: String,
+) -> bool {
+    let pending = crate::permission_requests::remove(&app, &request_id);
     if let Some(run_id) = pending
         .as_ref()
         .and_then(|request| request.run_id.as_deref())
     {
         if let Ok(Some(mut run)) = state.db.get_task_run(run_id) {
-            if !run.status.is_terminal() {
+            if matches!(
+                run.status,
+                TaskRunStatus::Created | TaskRunStatus::AwaitingPermission
+            ) {
                 run.summary = Some("Permission request was dismissed".to_string());
                 run.transition(TaskRunStatus::Cancelled)
                     .expect("pending TaskRun can be cancelled");
-                let _ = state.db.upsert_task_run(&run);
+                let _ = state.db.update_pending_task_run(&run);
             }
         }
     }
@@ -8986,6 +8318,10 @@ pub(crate) fn start_agent_tool_background(
     retry_of: Option<String>,
 ) -> Result<TaskRun, String> {
     let state = app.state::<AppState>();
+    crate::legacy_runtime::validate_private_request(app, &state.db, &client_id, &name, &arguments)?;
+    crate::plugin_file_drag::validate_private_request(
+        app, &state.db, &client_id, &name, &arguments,
+    )?;
     let initiator = if client_id == "atools-ui" {
         TaskRunInitiator::human(Some(client_id.clone()))
     } else {
@@ -9008,6 +8344,11 @@ pub(crate) fn start_agent_tool_background(
         }
         run.retry_of = Some(previous_id);
     }
+    crate::agent_tools::initialize_new_task_run(&state.db, &mut run)?;
+    crate::legacy_runtime::validate_private_request(app, &state.db, &client_id, &name, &run.input)?;
+    crate::plugin_file_drag::validate_private_request(
+        app, &state.db, &client_id, &name, &run.input,
+    )?;
     state
         .db
         .upsert_task_run(&run)
@@ -9017,8 +8358,9 @@ pub(crate) fn start_agent_tool_background(
     let task_run_id = run_id.clone();
     let app_for_task = app.clone();
     let db = state.db.clone();
+    let arguments = run.input.clone();
     let (start_tx, start_rx) = tokio::sync::oneshot::channel();
-    let task = tokio::spawn(async move {
+    let task = tauri::async_runtime::spawn(async move {
         if start_rx.await.is_err() {
             return;
         }
@@ -9042,7 +8384,7 @@ pub(crate) fn start_agent_tool_background(
     state
         .active_task_runs
         .lock()
-        .insert(run_id.clone(), task.abort_handle());
+        .insert(run_id.clone(), task.inner().abort_handle());
     if start_tx.send(()).is_err() {
         state.active_task_runs.lock().remove(&run_id);
         task.abort();
@@ -9081,45 +8423,7 @@ pub fn cancel_task_run(
 }
 
 pub(crate) fn cancel_task_run_by_id(app: &AppHandle, id: &str) -> Result<TaskRun, String> {
-    let state = app.state::<AppState>();
-    let mut run = state
-        .db
-        .get_task_run(id)
-        .map_err(|error| error.to_string())?
-        .ok_or_else(|| format!("TaskRun not found: {id}"))?;
-    let abort_handle = state.active_task_runs.lock().remove(id);
-    if run.status == TaskRunStatus::Running && abort_handle.is_none() {
-        return Err(format!(
-            "TaskRun {} is running outside the cancellable background executor",
-            run.id
-        ));
-    }
-    if !matches!(
-        run.status,
-        TaskRunStatus::Created | TaskRunStatus::AwaitingPermission | TaskRunStatus::Running
-    ) {
-        return Err(format!(
-            "TaskRun {} cannot be cancelled from status {}",
-            run.id,
-            run.status.as_str()
-        ));
-    }
-    state
-        .pending_agent_requests
-        .lock()
-        .retain(|_, request| request.run_id.as_deref() != Some(run.id.as_str()));
-    if let Some(handle) = abort_handle {
-        handle.abort();
-    }
-    run.summary = Some("TaskRun was cancelled by the user".to_string());
-    run.transition(TaskRunStatus::Cancelled)
-        .map_err(|error| error.to_string())?;
-    state
-        .db
-        .upsert_task_run(&run)
-        .map_err(|error| error.to_string())?;
-    let _ = app.emit("task-run-updated", run.id.clone());
-    Ok(run)
+    crate::agent_tools::cancel_task_run_by_id(app, id)
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -9526,14 +8830,20 @@ pub fn get_permission_mode(state: tauri::State<AppState>) -> Result<String, Stri
 }
 
 #[tauri::command]
-pub fn set_permission_mode(state: tauri::State<AppState>, mode: String) -> Result<(), String> {
+pub async fn set_permission_mode(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    mode: String,
+) -> Result<(), String> {
     let normalized = crate::agent_tools::permission_mode_to_str(
         crate::agent_tools::permission_mode_from_str(&mode),
     );
     state
         .db
         .set_setting("agent.permission_mode", normalized)
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    crate::legacy_runtime::invalidate(&app, &state.db, None).await;
+    Ok(())
 }
 
 #[tauri::command]
@@ -10497,13 +9807,21 @@ pub struct FeatureAction {
     pub plugin_id: String,
     pub plugin_name: String,
     pub feature_code: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub feature_label: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub feature_label_source: Option<&'static str>,
     pub main_url: String,
     pub plugin_path: String,
     pub preload_path: Option<String>,
     pub expand_height: u32,
+    #[serde(default)]
+    pub auto_detach: bool,
     pub plugin_permissions: Vec<String>,
     pub plugin_providers: std::collections::HashMap<String, atools_core::models::ProviderManifest>,
     pub payload: serde_json::Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub entry_type: Option<&'static str>,
 }
 
 #[cfg(test)]
@@ -10522,18 +9840,17 @@ mod tests {
         local_app_icon_data_url, local_app_png_data_url, native_codec_transform_inner,
         native_http_method, native_http_url, native_ip_snapshot_inner, native_json_transform_inner,
         parse_google_translation_response, perform_native_http_request_inner,
-        plugin_uninstall_path_allowed,
-        plugin_update_from_path_inner, plugin_update_from_path_with_policy_inner,
-        plugin_window_height, read_native_hosts_inner, runtime_diagnostics_snapshot,
-        save_native_todo_inner, search_local_apps_in_roots, search_local_apps_with_cache,
-        shell_open_target, terminate_native_process_inner, translate_native_text_with_endpoint,
-        uninstall_plugin_files_transactionally,
+        plugin_uninstall_path_allowed, plugin_update_from_path_inner,
+        plugin_update_from_path_with_policy_inner, plugin_window_height, read_native_hosts_inner,
+        runtime_diagnostics_snapshot, save_native_todo_inner, search_local_apps_in_roots,
+        search_local_apps_with_cache, shell_open_target, terminate_native_process_inner,
+        translate_native_text_with_endpoint, uninstall_plugin_files_transactionally,
         update_plugin_from_market_checked_url_inner, update_plugin_from_market_trusted_url_inner,
         update_plugin_from_market_url_inner, validate_native_hosts_content,
-        validate_plugin_market_trust, validated_translation_language,
-        write_native_hosts_inner, LocalAppSearchCache, NativeHttpRequest,
-        NativeTranslationRequest, PluginMarketProgressContext, PluginPersistencePolicy,
-        RuntimeEvent, ShellOpenTarget, LOCAL_APP_SEARCH_CACHE_TTL,
+        validate_plugin_market_trust, validated_translation_language, write_native_hosts_inner,
+        LocalAppSearchCache, NativeHttpRequest, NativeTranslationRequest,
+        PluginMarketProgressContext, PluginPersistencePolicy, RuntimeEvent, ShellOpenTarget,
+        LOCAL_APP_SEARCH_CACHE_TTL,
     };
     use crate::window::{
         floating_ball_enabled_from_settings, floating_ball_initial_url,
@@ -10633,7 +9950,10 @@ mod tests {
 
     #[test]
     fn native_translation_whitelists_languages_and_auto_source_only() {
-        assert_eq!(validated_translation_language(" AUTO ", true).unwrap(), "auto");
+        assert_eq!(
+            validated_translation_language(" AUTO ", true).unwrap(),
+            "auto"
+        );
         assert_eq!(validated_translation_language("JA", false).unwrap(), "ja");
         assert!(validated_translation_language("auto", false).is_err());
         assert!(validated_translation_language("xx", true).is_err());
@@ -10749,7 +10069,9 @@ mod tests {
             path: "resources/plugins/builtin/todo".to_string(),
             enabled: true,
             manifest: PluginManifest {
+                platform: vec![],
                 name: "todo".to_string(),
+                title: None,
                 version: "1.0.0".to_string(),
                 main: Some("index.html".to_string()),
                 logo: Some("logo.svg".to_string()),
@@ -10804,7 +10126,9 @@ mod tests {
             path: "resources/plugins/builtin/calc".to_string(),
             enabled: true,
             manifest: PluginManifest {
+                platform: vec![],
                 name: "calculation-paper".to_string(),
+                title: None,
                 version: "1.0.0".to_string(),
                 main: Some("index.html".to_string()),
                 logo: Some("logo.svg".to_string()),
@@ -11298,9 +10622,10 @@ mod tests {
         std::fs::create_dir_all(&mismatch_dir).unwrap();
         std::fs::write(
             mismatch_dir.join("plugin.json"),
-            r#"{"name":"other-plugin","version":"1.0.0","features":[]}"#,
+            r#"{"name":"other-plugin","version":"1.0.0","main":"index.html","features":[]}"#,
         )
         .unwrap();
+        std::fs::write(mismatch_dir.join("index.html"), "<p>Valid other plugin</p>").unwrap();
         let mismatch_error =
             plugin_update_from_path_inner(&db, &config, "plugin-user", &mismatch_dir).unwrap_err();
         assert!(mismatch_error.contains("does not match"));
@@ -11308,7 +10633,7 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn market_update_copy_failure_keeps_existing_bytes_disabled_and_unsearchable() {
+    fn market_update_staging_rejection_keeps_existing_bytes_disabled_and_unsearchable() {
         use std::os::unix::fs::symlink;
 
         let temp = TempDir::new().unwrap();
@@ -11379,7 +10704,7 @@ mod tests {
         )
         .unwrap_err();
 
-        assert!(error.contains("Failed to copy plugin"), "{error}");
+        assert!(error.contains("symlink"), "{error}");
         assert_eq!(
             std::fs::read_to_string(install_dir.join("index.html")).unwrap(),
             "<main>old</main>",
@@ -11430,7 +10755,12 @@ mod tests {
         std::fs::create_dir_all(&outside_dir).unwrap();
         std::fs::write(
             source_dir.join("plugin.json"),
-            r#"{"name":"symlink-plugin","version":"1.0.0","features":[]}"#,
+            r#"{"name":"symlink-plugin","version":"1.0.0","main":"index.html","features":[]}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            source_dir.join("index.html"),
+            "<p>Symlink policy fixture</p>",
         )
         .unwrap();
         std::fs::write(outside_dir.join("secret.txt"), "outside").unwrap();
@@ -11566,7 +10896,7 @@ mod tests {
             .await
             .unwrap_err();
         assert!(
-            error.contains("unsafe path"),
+            error.contains("unsafe path") || error.contains("escapes package"),
             "zip-slip paths should be rejected before installation: {error}"
         );
         assert!(!temp.path().join("escape.txt").exists());
@@ -12265,9 +11595,20 @@ mod tests {
         assert_eq!(snapshot.plugins_dir, config.plugins_dir().to_string_lossy());
         assert_eq!(snapshot.plugin_count, 0);
         assert_eq!(snapshot.feature_count, 0);
-        assert_eq!(snapshot.agent_tool_count, 9);
-        assert_eq!(snapshot.enabled_agent_tool_count, 9);
+        assert_eq!(snapshot.agent_tool_count, 16);
+        assert_eq!(snapshot.enabled_agent_tool_count, 16);
         assert!(db.get_agent_tool("ask_ai_model").unwrap().is_some());
+        assert!(db
+            .get_agent_tool(crate::launcher_media_clipboard::TOOL)
+            .unwrap()
+            .is_some());
+        for name in ["convert_ztools_plugin", "inspect_ztools_source_build"] {
+            let tool = db.get_agent_tool(name).unwrap().unwrap();
+            assert_eq!(tool.name, name);
+            assert_eq!(tool.source, "builtin");
+            assert!(tool.enabled);
+            assert!(tool.plugin_id.is_none());
+        }
         assert_eq!(snapshot.mcp_bind.as_deref(), Some("127.0.0.1:17321"));
         assert_eq!(snapshot.active_plugin.as_deref(), Some("json-viewer"));
         assert_eq!(snapshot.recent_events.len(), 2);
@@ -12324,7 +11665,7 @@ pub(crate) fn stage_plugin_directory(
             staged_dir.display()
         )
     })?;
-    if let Err(error) = copy_dir_recursive(source_dir, &staged_dir) {
+    if let Err(error) = crate::plugin_directory_copy::copy_directory_into(source_dir, &staged_dir) {
         let _ = std::fs::remove_dir_all(&staged_dir);
         return Err(error.to_string());
     }
@@ -12336,6 +11677,7 @@ pub(crate) fn replace_plugin_directory_transactionally<T>(
     install_dir: &std::path::Path,
     persist: impl FnOnce() -> Result<T, String>,
 ) -> Result<T, String> {
+    let metadata_commit = acquire_plugin_mutation_lock()?;
     let backup_dir = if std::fs::symlink_metadata(install_dir).is_ok() {
         reject_symlink_path(install_dir, "Plugin destination")?;
         let backup_dir = unique_plugin_sibling_path(install_dir, "backup")?;
@@ -12364,6 +11706,7 @@ pub(crate) fn replace_plugin_directory_transactionally<T>(
 
     match persist() {
         Ok(value) => {
+            drop(metadata_commit);
             if let Some(backup_dir) = backup_dir {
                 if let Err(error) = std::fs::remove_dir_all(&backup_dir) {
                     tracing::warn!(
@@ -12405,6 +11748,7 @@ fn uninstall_plugin_files_transactionally<T>(
     plugin_dir: &std::path::Path,
     persist_delete: impl FnOnce() -> Result<T, String>,
 ) -> Result<T, String> {
+    let metadata_commit = acquire_plugin_mutation_lock()?;
     match std::fs::symlink_metadata(plugin_dir) {
         Ok(metadata) => {
             if metadata.file_type().is_symlink() {
@@ -12439,6 +11783,7 @@ fn uninstall_plugin_files_transactionally<T>(
 
     match persist_delete() {
         Ok(value) => {
+            drop(metadata_commit);
             if let Err(error) = std::fs::remove_dir_all(&quarantine_dir) {
                 tracing::warn!(
                     "Plugin database record was removed but uninstall quarantine {} could not be deleted: {}",
@@ -12494,39 +11839,6 @@ fn reject_symlink_path(path: &std::path::Path, label: &str) -> Result<(), String
         .map_err(|error| format!("Failed to inspect {label} {}: {error}", path.display()))?;
     if metadata.file_type().is_symlink() {
         return Err(format!("{label} must not be a symlink: {}", path.display()));
-    }
-    Ok(())
-}
-
-fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result<()> {
-    for entry in std::fs::read_dir(src)? {
-        let entry = entry?;
-        let src_path = entry.path();
-        let dst_path = dst.join(entry.file_name());
-        let metadata = std::fs::symlink_metadata(&src_path)?;
-        if metadata.file_type().is_symlink() {
-            if is_node_modules_bin_entry(&src_path) {
-                continue;
-            }
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidInput,
-                format!("Plugin source contains symlink: {}", src_path.display()),
-            ));
-        }
-        if metadata.is_dir() {
-            std::fs::create_dir(&dst_path)?;
-            copy_dir_recursive(&src_path, &dst_path)?;
-        } else if metadata.is_file() {
-            std::fs::copy(&src_path, &dst_path)?;
-        } else {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidInput,
-                format!(
-                    "Plugin source contains unsupported filesystem entry: {}",
-                    src_path.display()
-                ),
-            ));
-        }
     }
     Ok(())
 }

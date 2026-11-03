@@ -1,0 +1,164 @@
+<!doctype html>
+<html><meta charset="utf-8"><title>Native related window probe</title>
+<body><p>Native related-window probe running.</p><script>
+(() => {
+  "use strict";
+  const origin = "atools-native-probe://localhost";
+  const childUrl = "atools-native-probe://localhost/child";
+  let nonce;
+  let childWindow;
+  let frameElement;
+  let frameWindow;
+  let frameLoadPromise;
+  let frameLoadObserved = false;
+  let reportInFlight = Promise.resolve();
+
+  const report = (stage, details) => {
+    reportInFlight = reportInFlight.catch(() => {}).then(() =>
+      window.__TAURI_INTERNALS__.invoke("report_native_related_window_probe", {
+        nonce, stage, details
+      })
+    );
+    return reportInFlight;
+  };
+
+  const fail = (stage, error) => {
+    const message = String(error && (error.stack || error.message) || error).slice(0, 2048);
+    void report("failed", { ok: false, stage, message }).catch(() => {});
+  };
+
+  window.__receiveFrameEvent = event => {
+    void (async () => {
+      try {
+        // This is the original MessageEvent from the child shell's DOM listener.
+        // Check its true sender without cross-realm instanceof assumptions.
+        const trustedEvent = event?.isTrusted === true;
+        const exactSource = !!frameWindow && event?.source === frameWindow;
+        const opaqueOrigin = event?.origin === "null";
+        if (!trustedEvent || !exactSource || !opaqueOrigin || event.data?.nonce !== nonce) {
+          await report("iframe_true_source", {
+            ok: false, trustedEvent, exactSource, origin: event?.origin,
+            nonceMatches: event?.data?.nonce === nonce
+          });
+          throw new Error("Original iframe MessageEvent did not preserve its true source");
+        }
+
+        await frameLoadPromise;
+        await report("iframe_load_observed", { ok: frameLoadObserved });
+        if (!frameLoadObserved) throw new Error("Iframe load event was not observed");
+        if (event.data.kind !== "iframe-ready") return;
+        await report("iframe_true_source", {
+          ok: true, trustedEvent, exactSource, origin: event.origin
+        });
+        await report("iframe_opaque_origin", {
+          ok: event.data.locationOrigin === "null" && opaqueOrigin,
+          messageOrigin: event.origin, locationOrigin: event.data.locationOrigin
+        });
+        await report("iframe_tauri_internals_denied", {
+          ok: event.data.tauriInternalsDenied === true,
+          denied: event.data.tauriInternalsDenied
+        });
+        await report("iframe_self_tauri_unavailable", {
+          ok: event.data.selfTauriUnavailable === true,
+          unavailable: event.data.selfTauriUnavailable
+        });
+
+        let opaqueDomDenied = false;
+        try { void frameWindow.document.documentElement; }
+        catch (_) { opaqueDomDenied = true; }
+        await report("opaque_dom_access_denied", { ok: opaqueDomDenied });
+        if (!event.data.tauriInternalsDenied
+            || !event.data.selfTauriUnavailable || !opaqueDomDenied) {
+          throw new Error("Opaque iframe could access a privileged parent object");
+        }
+
+        const channel = new MessageChannel();
+        channel.port2.onmessage = async portEvent => {
+          try {
+            const payload = portEvent.data;
+            const bytes = payload?.bytes;
+            const isBytes = bytes instanceof Uint8Array;
+            const exactBytes = isBytes && Array.from(bytes).join(",") === "0,1,127,128,255";
+            const ok = payload?.kind === "typed-array-roundtrip"
+              && payload.nonce === nonce && payload.parentSourceMatched === true && exactBytes;
+            await report("messageport_typedarray_roundtrip", {
+              ok, kind: payload?.kind, nonceMatches: payload?.nonce === nonce,
+              iframeSawParentSource: payload?.parentSourceMatched === true,
+              bytes: isBytes ? Array.from(bytes) : null
+            });
+            if (!ok) throw new Error("MessagePort typed-array roundtrip mismatch");
+            const native = await report("native_window_properties", { ok: true });
+            if (!native?.ok) throw new Error("Native child window property getter check failed");
+            await report("passed", { ok: true });
+          } catch (error) { fail("messageport_typedarray_roundtrip", error); }
+        };
+        channel.port2.start();
+        // Runs in childShell, so the iframe sees childShell as event.source.
+        childWindow.__postToFrame({ kind: "probe-port", nonce }, [channel.port1]);
+      } catch (error) { fail("iframe_true_source", error); }
+    })();
+  };
+
+  window.__startNativeRelatedWindowProbe = incomingNonce => {
+    nonce = incomingNonce;
+    window.addEventListener("message", event => {
+      if (event.data?.kind !== "child-ready") return;
+      void (async () => {
+        try {
+          const exactSource = !!childWindow && event.source === childWindow;
+          const exactOrigin = event.origin === origin;
+          await report("child_ready", {
+            ok: exactSource && exactOrigin && event.isTrusted,
+            exactSource, origin: event.origin, trustedEvent: event.isTrusted
+          });
+          if (!exactSource || !exactOrigin || !event.isTrusted) {
+            throw new Error("Child ready did not come from the exact opener WindowProxy");
+          }
+
+          // Keep and verify the actual same-origin iframe element and monitor load.
+          const childDocument = childWindow.document;
+          if (childWindow.location.href !== childUrl
+              || childDocument.documentElement.tagName.toLowerCase() !== "html") {
+            throw new Error("Could not read the same-origin child document");
+          }
+          frameElement = childWindow.__armProbe(nonce);
+          frameLoadPromise = new Promise(resolve => {
+            frameElement.addEventListener("load", () => {
+              frameLoadObserved = true;
+              resolve(true);
+            }, { once: true });
+          });
+          // Start the srcdoc navigation only after the real iframe load listener
+          // is installed, then the inner document posts ready from its own load.
+          childWindow.__loadProbeFrame();
+          const exactElement = frameElement === childDocument.getElementById("probe-frame");
+          const rightDocument = frameElement?.ownerDocument === childDocument;
+          const sandbox = frameElement?.getAttribute("sandbox");
+          frameWindow = frameElement?.contentWindow;
+          const sameOriginRead = exactElement && rightDocument
+            && frameElement?.tagName === "IFRAME" && !!frameWindow;
+          await report("windowproxy_same_origin", {
+            ok: sameOriginRead, childLocation: childWindow.location.href,
+            iframeElement: exactElement, iframeOwnerDocument: rightDocument,
+            iframeWindowAvailable: !!frameWindow
+          });
+          if (!sameOriginRead) throw new Error("Same-origin child DOM access failed");
+          const elementCheck = sandbox === "allow-scripts allow-popups";
+          await report("iframe_element_access", {
+            ok: elementCheck, tagName: frameElement.tagName, sandbox
+          });
+          if (!elementCheck) throw new Error("Unexpected iframe sandbox attributes");
+        } catch (error) { fail("child_ready", error); }
+      })();
+    });
+
+    const targetName = "atools_native_probe_" + incomingNonce.replaceAll("-", "");
+    childWindow = window.open(childUrl, targetName, "popup,width=320,height=240");
+    if (!childWindow) {
+      fail("window_open", new Error("window.open did not return a WindowProxy"));
+      return;
+    }
+    void report("window_open", { ok: true, targetName });
+  };
+})();
+</script></body></html>

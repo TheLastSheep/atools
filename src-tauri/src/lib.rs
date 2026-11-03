@@ -1,7 +1,56 @@
 mod accessibility;
 pub mod agent_tools;
+pub(crate) mod ai_runtime;
+mod app_builder;
+mod app_global_shortcuts;
+mod app_launch_fence;
+mod app_launch_service;
+mod app_lifecycle;
+mod app_setup;
+mod app_startup;
+#[cfg(feature = "legacy-node-smoke")]
+mod renderer_desktop_smoke;
+#[cfg(feature = "legacy-node-smoke")]
+pub use renderer_desktop_smoke::run as run_ztools_renderer_desktop_smoke;
 mod builtin_plugins;
+mod command_registry;
 mod commands;
+mod content_search;
+mod feature_activation;
+mod feature_activation_audit;
+mod general_settings_runtime;
+mod launcher_app_catalog;
+mod launcher_app_catalog_source;
+mod launcher_app_catalog_watch;
+mod launcher_app_icons;
+mod launcher_catalog;
+mod launcher_clipboard_context;
+mod launcher_media;
+mod launcher_media_clipboard;
+mod launcher_media_work;
+mod native_tray_visibility;
+mod native_window_opacity;
+mod plugin_market_http;
+mod plugin_market_target;
+#[cfg(feature = "market-metadata-probe")]
+mod plugin_market_target_probe;
+mod renderer_app_state;
+mod renderer_clipboard;
+mod renderer_close_shortcut;
+#[cfg(feature = "ztools-multiwebview")]
+mod renderer_commands_catalog;
+mod renderer_context_menu;
+mod renderer_general_settings;
+mod renderer_main_drop;
+mod renderer_recommendation_pins;
+mod renderer_settings;
+#[cfg(feature = "ztools-multiwebview")]
+mod renderer_settings_view;
+mod renderer_window_drag;
+mod renderer_window_material;
+mod webview_command_policy;
+#[cfg(feature = "market-metadata-probe")]
+pub use plugin_market_target_probe::run as run_official_market_target_probe;
 pub mod crash;
 mod desktop_smoke;
 mod hotkey;
@@ -10,7 +59,91 @@ pub mod pasteboard_native;
 pub mod pasteboard_runtime;
 pub mod pasteboard_sync;
 pub mod pasteboard_window;
+#[cfg(test)]
+mod plugin_activation_tests;
+mod plugin_asset_protocol;
+mod plugin_code_revision;
+mod plugin_detach_runtime;
+mod plugin_detach_validation;
+mod plugin_detach_window;
+mod plugin_directory_copy;
+mod plugin_inventory;
+mod plugin_lifecycle;
+mod plugin_main_push;
+mod plugin_source_build;
+mod plugin_window_preferences;
+pub(crate) use plugin_source_build::{
+    calculate_converted_package_tree, read_converted_handoff, read_converted_package_manifest,
+    ConvertedPackageTree,
+};
+#[cfg(all(feature = "source-dependency-smoke", target_os = "macos"))]
+pub fn run_source_dependency_pipeline_smoke() -> Result<(), String> {
+    plugin_source_build::run_source_dependency_pipeline_smoke()
+}
+pub(crate) mod plugin_source_dependencies;
+/// Handles trusted worker modes before the host initializes Tauri. Keep this as
+/// the first call in every executable entry point; both worker paths either
+/// return to normal startup or exit with a fixed error code.
+pub fn run_source_build_bootstrap_if_requested() {
+    plugin_source_dependencies::run_if_requested();
+    plugin_source_build::bootstrap::run_if_requested();
+}
+mod plugin_background_runtime;
+mod plugin_browser_window_native;
+mod plugin_lifecycle_permissions;
+mod plugin_loopback;
+mod plugin_mutation_runs;
+mod plugin_mutations;
+mod plugin_packages;
+mod plugin_page_runtime;
+mod plugin_resources;
+mod plugin_runtime_inventory;
+mod plugin_window_sources;
+mod plugin_zip_archive;
+/// Reuse the real transport in isolated native experiments without exposing it
+/// as part of the ordinary application API.
+#[cfg(feature = "legacy-node-smoke")]
+pub mod plugin_origin_transport {
+    pub use crate::plugin_loopback::{
+        BridgeServer, OriginPolicy, RequestHandler, TransportObservation,
+    };
+}
+#[cfg(feature = "legacy-node-smoke")]
+#[path = "legacy_runtime/desktop_smoke.rs"]
+mod legacy_node_desktop_smoke;
+mod permission_requests;
+mod plugin_execution_gates;
+#[cfg(feature = "legacy-node-smoke")]
+pub use legacy_node_desktop_smoke::run as run_legacy_node_desktop_smoke;
+mod host_runtime;
+mod legacy_runtime;
+mod node_runtime_provider;
+mod plugin_browser_window_runtime;
+mod plugin_data_runtime;
+mod plugin_dialog_runtime;
+pub(crate) mod plugin_file_drag;
+pub(crate) mod plugin_file_drop;
+mod plugin_secret_storage_runtime;
+mod plugin_system_paths;
+#[cfg(all(feature = "legacy-node-smoke", target_os = "macos"))]
+pub use plugin_file_drag::desktop_smoke::run as run_file_drag_native_smoke;
+#[cfg(all(feature = "plugin-ai-desktop-smoke", target_os = "macos"))]
+#[path = "plugin_ai_runtime/desktop_smoke.rs"]
+mod plugin_ai_desktop_smoke;
+pub(crate) mod plugin_ai_runtime;
+mod plugin_filesystem;
+#[cfg(all(feature = "plugin-ai-desktop-smoke", target_os = "macos"))]
+pub fn run_plugin_ai_desktop_smoke() -> Result<(), String> {
+    plugin_ai_desktop_smoke::run()
+}
+#[cfg(all(feature = "legacy-node-smoke", target_os = "macos"))]
+pub use plugin_file_drop::run_desktop_smoke as run_plugin_file_drop_desktop_smoke;
+mod plugin_display_runtime;
+#[cfg(all(feature = "legacy-node-smoke", target_os = "macos"))]
+pub use host_runtime::desktop_smoke::run as run_host_clipboard_desktop_smoke;
 mod providers;
+mod renderer_updater;
+mod settings_write;
 mod state;
 mod tray;
 mod updater;
@@ -18,525 +151,11 @@ pub mod webdav;
 mod window;
 pub mod ztools_import;
 
-use crate::state::ReleaseSmokeConfig;
-use atools_api_shim::handler::ApiHandler;
-use atools_api_shim::handler_wrapper::ApiHandlerWrapper;
 use atools_core::config::AppConfig;
 use atools_core::db::Database;
-use atools_plugin::ipc_handler::IpcHandler;
-use state::AppState;
-use std::sync::Arc;
-use tauri::{Emitter, Manager};
-
-const RELEASE_SMOKE_TOKEN_ARG: &str = "--atools-release-smoke-token=";
-const RELEASE_SMOKE_REPORT_PATH_ARG: &str = "--atools-release-smoke-report=";
-const RELEASE_SMOKE_TOKEN_ENV: &str = "ATOOLS_RELEASE_SMOKE_TOKEN";
-const RELEASE_SMOKE_REPORT_PATH_ENV: &str = "ATOOLS_RELEASE_SMOKE_REPORT_PATH";
-const PASTEBOARD_SHELF_SMOKE_ARG: &str = "--atools-pasteboard-shelf-smoke";
-const VISUAL_SMOKE_ARG: &str = "--atools-visual-smoke";
 
 pub fn run() {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "atools=debug,atools_core=debug".into()),
-        )
-        .init();
-
-    let config = AppConfig::new().expect("Failed to create AppConfig");
-    config
-        .ensure_dirs()
-        .expect("Failed to create app directories");
-    crash::install_panic_hook(crash::crash_log_path(&config));
-
-    let db = Arc::new(Database::new().expect("Failed to open database"));
-    let release_smoke = parse_release_smoke_config();
-    let pasteboard_runtime = Arc::new(
-        pasteboard_runtime::PasteboardRuntime::new(
-            pasteboard_native::system_pasteboard_backend(),
-            db.clone(),
-            &config,
-        )
-        .expect("Failed to initialize native Paste clipboard runtime"),
-    );
-    let app_state = AppState::new(config, db, release_smoke, pasteboard_runtime);
-    app_state.record_runtime_event("info", "ATools state initialized");
-
-    tauri::Builder::default()
-        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
-        .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_store::Builder::default().build())
-        .plugin(tauri_plugin_clipboard_manager::init())
-        .plugin(tauri_plugin_os::init())
-        .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_http::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
-        .manage(app_state)
-        .manage(updater::UpdateCoordinator::default())
-        .invoke_handler(tauri::generate_handler![
-            commands::search_features,
-            commands::available_feature_codes,
-            commands::feature_catalog,
-            commands::native_ip_snapshot,
-            commands::perform_native_http_request,
-            commands::translate_native_text,
-            commands::read_native_hosts,
-            commands::write_native_hosts,
-            commands::list_native_todos,
-            commands::save_native_todo,
-            commands::delete_native_todo,
-            commands::calculate_native_sheet,
-            commands::list_native_calculation_history,
-            commands::clear_native_calculation_history,
-            commands::native_codec_transform,
-            commands::native_time_snapshot,
-            commands::convert_native_time,
-            commands::generate_native_qr,
-            commands::native_json_transform,
-            commands::convert_native_color,
-            commands::list_native_processes,
-            commands::terminate_native_process,
-            commands::search_local_apps,
-            commands::load_local_app_icons,
-            commands::activate_feature,
-            desktop_smoke::desktop_smoke_plugin_panel_action,
-            desktop_smoke::desktop_smoke_plugin_panel_actions,
-            desktop_smoke::report_plugin_panel_render_smoke,
-            commands::install_plugin,
-            commands::update_plugin_from_path,
-            commands::authorize_plugin_permissions,
-            commands::fetch_plugin_market_catalog,
-            commands::resolve_plugin_market_download,
-            commands::install_plugin_from_market,
-            commands::update_plugin_from_market,
-            commands::cancel_plugin_market_operation,
-            commands::scan_ztools_plugins,
-            commands::scan_default_ztools_plugins,
-            commands::import_ztools_plugins,
-            commands::uninstall_plugin,
-            commands::list_plugins,
-            commands::toggle_plugin,
-            commands::get_setting,
-            commands::set_setting,
-            commands::get_plugin_data,
-            commands::put_plugin_data,
-            commands::remove_plugin_data,
-            commands::capture_current_clipboard_text,
-            commands::list_clipboard_history,
-            commands::clear_clipboard_history,
-            commands::export_clipboard_history_json,
-            commands::pasteboard_list_items,
-            commands::pasteboard_list_pinboards,
-            commands::pasteboard_save_pinboard,
-            commands::pasteboard_delete_pinboard,
-            commands::pasteboard_assign_items,
-            commands::pasteboard_update_item_title,
-            commands::pasteboard_delete_items,
-            commands::pasteboard_capture_status,
-            commands::pasteboard_stack_status,
-            commands::pasteboard_set_stack,
-            commands::pasteboard_clear_stack,
-            commands::pasteboard_set_capture_paused,
-            commands::pasteboard_capture_now,
-            commands::pasteboard_copy_item,
-            commands::pasteboard_paste_item,
-            commands::pasteboard_item_preview,
-            commands::pasteboard_recognize_item,
-            commands::pasteboard_create_text_item,
-            commands::pasteboard_update_text_item,
-            commands::pasteboard_rotate_image,
-            commands::pasteboard_quick_look_item,
-            commands::open_pasteboard_shelf_window,
-            commands::hide_pasteboard_shelf_window,
-            commands::toggle_pasteboard_shelf_window,
-            commands::reposition_pasteboard_shelf_window,
-            commands::open_pasteboard_dialog_window,
-            commands::hide_pasteboard_dialog_window,
-            commands::get_plugin_data_item,
-            commands::put_plugin_data_bulk,
-            commands::show_main_window,
-            commands::hide_main_window,
-            commands::toggle_main_window,
-            commands::benchmark_main_window_toggle,
-            commands::expand_window,
-            commands::reset_window,
-            commands::set_floating_ball_visible,
-            commands::set_super_panel_visible,
-            commands::open_plugin_detach_window,
-            commands::open_devtools_for_window,
-            commands::update_global_hotkey,
-            commands::set_tray_icon_visible,
-            commands::set_launch_at_login,
-            commands::copy_text,
-            commands::show_notification,
-            commands::system_get_path,
-            commands::shell_open,
-            commands::shell_show_item_in_folder,
-            commands::screen_capture,
-            commands::read_current_browser_url,
-            commands::read_current_folder_path,
-            commands::read_frontmost_app_name,
-            commands::copy_file,
-            commands::copy_image,
-            commands::get_copyed_files,
-            commands::put_plugin_data_attachment,
-            commands::get_plugin_data_attachment,
-            commands::list_agent_tools,
-            commands::list_capabilities,
-            commands::set_agent_tool_enabled,
-            commands::grant_agent_tool,
-            commands::revoke_agent_tool,
-            commands::list_agent_tool_grants,
-            commands::list_agent_scope_policies,
-            commands::set_agent_scope_policy,
-            commands::list_pending_agent_requests,
-            commands::dismiss_pending_agent_request,
-            commands::call_agent_tool,
-            commands::start_agent_tool,
-            commands::list_task_runs,
-            commands::get_task_run,
-            commands::cancel_task_run,
-            commands::list_skills,
-            commands::create_skill,
-            commands::update_skill,
-            commands::set_skill_enabled,
-            commands::delete_skill,
-            commands::export_skills_json,
-            commands::list_memory_items,
-            commands::create_memory_item,
-            commands::update_memory_item,
-            commands::set_memory_item_enabled,
-            commands::delete_memory_item,
-            commands::clear_memory_items,
-            commands::export_memory_items_json,
-            commands::list_audit_entries,
-            commands::query_audit_entries,
-            commands::query_audit_entries_page,
-            commands::clear_audit_entries,
-            commands::prune_audit_entries,
-            commands::export_audit_entries_jsonl,
-            commands::export_audit_entries_jsonl_filtered,
-            commands::archive_audit_entries_jsonl,
-            commands::get_permission_mode,
-            commands::set_permission_mode,
-            commands::get_mcp_status,
-            commands::install_mcp_client_config,
-            commands::get_runtime_diagnostics,
-            commands::list_crash_logs,
-            commands::export_crash_log,
-            commands::clear_crash_log,
-            commands::sync_webdav_now,
-            commands::pasteboard_sync_webdav_now,
-            commands::preview_webdav_backup,
-            commands::plan_webdav_restore,
-            commands::restore_webdav_settings,
-            commands::restore_webdav_clipboard_history,
-            commands::restore_webdav_plugin_data,
-            commands::test_ai_connection,
-            commands::release_smoke_info,
-            commands::report_release_smoke_progress,
-            updater::check_app_update,
-            updater::install_app_update,
-            updater::get_app_update_status,
-            providers::list_plugin_providers,
-            providers::get_default_plugin_provider,
-            providers::set_default_plugin_provider,
-            providers::invoke_plugin_provider,
-            accessibility::get_accessibility_permission_status,
-            accessibility::open_accessibility_settings,
-        ])
-        .setup(|app| {
-            let handle = app.handle().clone();
-            let app_state = app.state::<AppState>();
-            app_state
-                .inner()
-                .record_runtime_event("info", "Tauri setup started");
-
-            tray::setup_tray(&handle)?;
-            hotkey::setup_hotkey(&handle)?;
-            if pasteboard_shelf_smoke_enabled() {
-                pasteboard_window::show_pasteboard_shelf(&handle)?;
-            }
-            if let Err(error) = window::center_main_window(&handle) {
-                tracing::error!("Failed to center main window on startup: {}", error);
-                app_state.inner().record_runtime_event(
-                    "error",
-                    format!("Failed to center main window: {error}"),
-                );
-            }
-            if app_state.inner().release_smoke.lock().is_some() || visual_smoke_enabled() {
-                window::show_main_window(&handle)?;
-            }
-            let settings_json = app_state
-                .inner()
-                .db
-                .get_setting("settings-general")
-                .ok()
-                .flatten();
-            let floating_ball_enabled =
-                window::floating_ball_enabled_from_settings(settings_json.as_deref());
-            let super_panel_enabled =
-                window::super_panel_enabled_from_settings(settings_json.as_deref());
-            if let Err(error) = window::set_super_panel_visible(&handle, super_panel_enabled) {
-                tracing::error!("Failed to apply super panel setting: {}", error);
-                app_state.inner().record_runtime_event(
-                    "error",
-                    format!("Failed to apply super panel setting: {error}"),
-                );
-            }
-            if let Err(error) = window::set_floating_ball_visible(&handle, floating_ball_enabled) {
-                tracing::error!("Failed to apply floating ball setting: {}", error);
-                app_state.inner().record_runtime_event(
-                    "error",
-                    format!("Failed to apply floating ball setting: {error}"),
-                );
-            }
-
-            // Get database reference for API handler
-            let db = app_state.inner().db.clone();
-            let plugins_dir = app_state.inner().config.plugins_dir();
-            if let Err(error) = agent_tools::sync_builtin_tools(&db) {
-                tracing::error!("Failed to sync builtin Agent tools: {}", error);
-                app_state.inner().record_runtime_event(
-                    "error",
-                    format!("Failed to sync builtin Agent tools: {error}"),
-                );
-            } else {
-                app_state
-                    .inner()
-                    .record_runtime_event("info", "Builtin Agent tools synced");
-            }
-
-            // Create API handler wrapped as IpcHandler
-            let api_handler = Arc::new(ApiHandler::new(db, plugins_dir));
-            let handler: Arc<dyn IpcHandler + Send + Sync> =
-                Arc::new(ApiHandlerWrapper::from_shared(api_handler.clone()));
-
-            // Initialize plugin runtime with handler
-            let plugin_runtime = Arc::new(
-                atools_plugin::runtime::JsRuntime::new(handler)
-                    .expect("Failed to create plugin runtime"),
-            );
-            let sidecar_supervisor = Arc::new(atools_plugin::SidecarSupervisor::new());
-            api_handler.attach_runtime(&plugin_runtime);
-            app.manage(api_handler);
-            app.manage(plugin_runtime);
-            app.manage(sidecar_supervisor);
-
-            // Load builtin plugins (registers them in DB + executes preloads)
-            let runtime_for_plugins = app
-                .state::<Arc<atools_plugin::runtime::JsRuntime>>()
-                .inner()
-                .clone();
-            let db_for_plugins = app_state.inner().db.clone();
-            let app_for_plugins = handle.clone();
-            let builtin_plugins_dir = handle
-                .path()
-                .resolve("plugins/builtin", tauri::path::BaseDirectory::Resource)
-                .ok();
-            std::thread::spawn(move || {
-                tauri::async_runtime::block_on(async move {
-                    let db_for_plugin_tools = db_for_plugins.clone();
-                    if let Err(e) = builtin_plugins::load_builtin_plugins(
-                        runtime_for_plugins,
-                        db_for_plugins,
-                        builtin_plugins_dir,
-                    )
-                    .await
-                    {
-                        tracing::error!("Failed to load builtin plugins: {}", e);
-                        let state = app_for_plugins.state::<AppState>();
-                        state.inner().record_runtime_event(
-                            "error",
-                            format!("Failed to load builtin plugins: {e}"),
-                        );
-                    } else {
-                        let state = app_for_plugins.state::<AppState>();
-                        state
-                            .inner()
-                            .record_runtime_event("info", "Builtin plugins loaded");
-                        if let Err(error) = agent_tools::sync_plugin_tools(&db_for_plugin_tools) {
-                            tracing::error!("Failed to sync plugin Agent tools: {}", error);
-                            state.inner().record_runtime_event(
-                                "error",
-                                format!("Failed to sync plugin Agent tools: {error}"),
-                            );
-                        } else {
-                            state
-                                .inner()
-                                .record_runtime_event("info", "Plugin Agent tools synced");
-                        }
-                        let _ = app_for_plugins.emit("builtin-plugins-loaded", ());
-                    }
-                });
-            });
-
-            let db_for_mcp = app_state.inner().db.clone();
-            let app_for_mcp = handle.clone();
-            tauri::async_runtime::spawn(async move {
-                let state_handle = app_for_mcp.clone();
-                match mcp_server::start(app_for_mcp, db_for_mcp).await {
-                    Ok(status) => {
-                        tracing::info!("ATools MCP server listening on {}", status.bind);
-                        let app_state = state_handle.state::<AppState>();
-                        let _ = app_state
-                            .inner()
-                            .db
-                            .set_setting("agent.mcp_bind", &status.bind);
-                        let _ = app_state
-                            .inner()
-                            .db
-                            .set_setting("agent.mcp_token", &status.token);
-                        app_state.inner().record_runtime_event(
-                            "info",
-                            format!("MCP server listening on {}", status.bind),
-                        );
-                        *app_state.inner().mcp_status.lock() = Some(status);
-                    }
-                    Err(error) => {
-                        tracing::error!("Failed to start MCP server: {}", error);
-                        let app_state = state_handle.state::<AppState>();
-                        app_state.inner().record_runtime_event(
-                            "error",
-                            format!("Failed to start MCP server: {error}"),
-                        );
-                    }
-                }
-            });
-
-            if desktop_smoke::desktop_smoke_enabled() {
-                desktop_smoke::spawn_desktop_smoke_reporter(handle.clone());
-            }
-
-            let pasteboard_runtime = app_state.inner().pasteboard_runtime.clone();
-            let pasteboard_app = handle.clone();
-            let pasteboard_capture_task = tauri::async_runtime::spawn(async move {
-                loop {
-                    match pasteboard_runtime.capture_once().await {
-                        Ok(outcome) => {
-                            if !matches!(outcome, pasteboard_runtime::CaptureOutcome::Unchanged) {
-                                let _ = pasteboard_app.emit("pasteboard://changed", &outcome);
-                            }
-                        }
-                        Err(error) => {
-                            tracing::warn!(%error, "Native Paste clipboard capture failed");
-                            let _ = pasteboard_app.emit(
-                                "pasteboard://capture-error",
-                                serde_json::json!({ "message": error }),
-                            );
-                        }
-                    }
-                    tokio::time::sleep(std::time::Duration::from_millis(250)).await;
-                }
-            });
-            *app_state.inner().pasteboard_capture_task.lock() = Some(pasteboard_capture_task);
-            app_state
-                .inner()
-                .record_runtime_event("info", "Native Paste clipboard capture started");
-
-            tracing::info!("ATools 3.0 started");
-            app_state
-                .inner()
-                .record_runtime_event("info", "ATools 3.0 started");
-            updater::start_package_smoke_if_requested(&handle);
-            Ok(())
-        })
-        .on_window_event(|window, event| match event {
-            tauri::WindowEvent::CloseRequested { api, .. } => {
-                if window.label() == "main" {
-                    window.hide().ok();
-                    api.prevent_close();
-                }
-            }
-            tauri::WindowEvent::Focused(focused) if window.label() == "main" && !focused => {
-                let release_smoke_enabled = window
-                    .app_handle()
-                    .state::<AppState>()
-                    .release_smoke
-                    .lock()
-                    .is_some();
-                if !release_smoke_enabled && !visual_smoke_enabled() {
-                    window.hide().ok();
-                }
-            }
-            tauri::WindowEvent::Focused(false)
-                if window.label() == pasteboard_window::PASTEBOARD_SHELF_LABEL =>
-            {
-                if !pasteboard_shelf_smoke_enabled() {
-                    window.hide().ok();
-                }
-            }
-            _ => {}
-        })
-        .build(tauri::generate_context!())
-        .expect("error building ATools 3.0")
-        .run(|_app_handle, event| {
-            if let tauri::RunEvent::ExitRequested { api, .. } = event {
-                api.prevent_exit();
-            }
-        });
-}
-
-fn pasteboard_shelf_smoke_enabled() -> bool {
-    std::env::args().any(|arg| arg == PASTEBOARD_SHELF_SMOKE_ARG)
-        || std::env::var("ATOOLS_PASTEBOARD_SHELF_SMOKE").is_ok_and(|value| value == "1")
-}
-
-fn visual_smoke_enabled() -> bool {
-    std::env::args().any(|arg| arg == VISUAL_SMOKE_ARG)
-        || std::env::var("ATOOLS_VISUAL_SMOKE").is_ok_and(|value| value == "1")
-}
-
-fn parse_release_smoke_config() -> Option<ReleaseSmokeConfig> {
-    let token = parse_from_args_or_env(RELEASE_SMOKE_TOKEN_ARG, RELEASE_SMOKE_TOKEN_ENV)?;
-    let report_path =
-        parse_from_args_or_env(RELEASE_SMOKE_REPORT_PATH_ARG, RELEASE_SMOKE_REPORT_PATH_ENV);
-    tracing::info!(
-        "Release smoke mode enabled: token={} report_path={}",
-        token,
-        report_path
-            .clone()
-            .unwrap_or_else(|| "<not-provided>".to_string())
-    );
-    Some(ReleaseSmokeConfig { token, report_path })
-}
-
-fn parse_from_args_or_env(arg_prefix: &str, env_key: &str) -> Option<String> {
-    if let Some(value) = std::env::args().find_map(|arg| {
-        parse_prefixed_arg(&arg, arg_prefix)
-            .map(|value| value.trim())
-            .filter(|value| !value.is_empty())
-            .map(str::to_string)
-    }) {
-        return Some(value);
-    }
-
-    let env_arg_prefix = format!("--{env_key}=");
-    if let Some(value) = std::env::args().find_map(|arg| {
-        parse_prefixed_arg(&arg, &env_arg_prefix)
-            .map(|value| value.trim())
-            .filter(|value| !value.is_empty())
-            .map(str::to_string)
-    }) {
-        return Some(value);
-    }
-
-    std::env::var(env_key).ok().and_then(|value| {
-        let trimmed = value.trim();
-        if trimmed.is_empty() {
-            None
-        } else {
-            Some(trimmed.to_string())
-        }
-    })
-}
-
-fn parse_prefixed_arg<'a>(value: &'a str, prefix: &str) -> Option<&'a str> {
-    value.strip_prefix(prefix)
+    app_startup::run();
 }
 
 pub fn run_mcp_stdio_proxy() -> Result<(), String> {

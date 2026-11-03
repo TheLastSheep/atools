@@ -8,11 +8,26 @@ use atools_core::{PasteboardItem, PasteboardSourceApp};
 use std::path::Path;
 use std::sync::Arc;
 
+#[path = "pasteboard_native_current_context.rs"]
+mod current_context;
+
+#[cfg(all(target_os = "macos", feature = "legacy-node-smoke"))]
+#[path = "pasteboard_native_clipboard_fixture.rs"]
+pub(crate) mod clipboard_fixture;
+
 pub fn system_pasteboard_backend() -> Arc<dyn PasteboardBackend> {
     Arc::new(SystemPasteboardBackend)
 }
 
 pub struct SystemPasteboardBackend;
+
+#[path = "pasteboard_launcher_media.rs"]
+mod launcher_media;
+pub(crate) fn read_launcher_media(
+    files_only: bool,
+) -> Result<Option<crate::launcher_media::ClipboardMedia>, String> {
+    launcher_media::read(files_only)
+}
 
 #[cfg(target_os = "macos")]
 pub fn recognize_text(image_path: &Path) -> Result<String, String> {
@@ -32,6 +47,14 @@ impl PasteboardBackend for SystemPasteboardBackend {
         previous_change_count: i64,
     ) -> Result<Option<NativePasteboardSnapshot>, String> {
         macos::snapshot_if_changed(previous_change_count)
+    }
+
+    async fn current_context_snapshot(&self) -> Result<Option<NativePasteboardSnapshot>, String> {
+        current_context::snapshot_current_context()
+    }
+
+    async fn current_change_count(&self) -> Result<Option<i64>, String> {
+        current_context::current_change_count()
     }
 
     async fn write_item(
@@ -57,6 +80,14 @@ impl PasteboardBackend for SystemPasteboardBackend {
         _previous_change_count: i64,
     ) -> Result<Option<NativePasteboardSnapshot>, String> {
         Ok(None)
+    }
+
+    async fn current_context_snapshot(&self) -> Result<Option<NativePasteboardSnapshot>, String> {
+        current_context::snapshot_current_context()
+    }
+
+    async fn current_change_count(&self) -> Result<Option<i64>, String> {
+        current_context::current_change_count()
     }
 
     async fn write_item(

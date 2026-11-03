@@ -29,6 +29,7 @@ tauri-plugin-process = "2"
 tauri-plugin-http = "2"
 tauri-plugin-updater = "2.10.1"
 async-trait.workspace = true
+futures.workspace = true
 semver = "1"
 
 tokio.workspace = true
@@ -46,10 +47,11 @@ base64 = "0.22"
 aes-gcm = "0.10"
 scrypt = "0.11"
 rand = "0.8"
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
 image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "webp", "tiff"] }
 icns = { version = "0.4", default-features = false, features = ["pngio"] }
 sha2 = "0.10"
+plist = "1.9"
 ed25519-dalek = "2.1"
 url = { version = "2", default-features = false }
 get_if_addrs = "0.5.3"
@@ -63,19 +65,86 @@ qrcode = { version = "0.14", default-features = false, features = ["image"] }
 zip = { version = "2.4", default-features = false, features = ["deflate"] }
 brotli = "8"
 flate2 = "1"
+zeroize = "=1.8.2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
+tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel", rev = "3ffa93ed14e0f8e857e43619b4157f2a685d35a4", optional = true }
+security-framework = "=3.7.0"
+window-vibrancy = "=0.6.0"
+core-foundation = "=0.10.1"
 objc2 = { version = "0.6", default-features = false }
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSApplication", "NSBitmapImageRep", "NSImage", "NSImageRep", "NSPasteboard", "NSPasteboardItem", "NSRunningApplication", "NSWorkspace"] }
+block2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSApplication", "NSAppearance", "NSVisualEffectView", "NSBitmapImageRep", "NSImage", "NSImageRep", "NSGraphicsContext", "NSPasteboard", "NSPasteboardItem", "NSRunningApplication", "NSWorkspace", "NSOpenPanel", "NSSavePanel", "NSPanel", "NSResponder", "NSWindow", "NSScreen", "NSEvent", "NSDragging", "NSDraggingItem", "NSDraggingSession", "NSView", "NSGraphics", "objc2-core-foundation", "block2", "libc"] }
 objc2-core-graphics = { version = "0.3", default-features = false, features = ["CGEvent"] }
-objc2-foundation = { version = "0.3", default-features = false, features = ["NSArray", "NSData", "NSDictionary", "NSString"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["NSArray", "NSData", "NSDictionary", "NSString", "NSURL", "NSDate", "NSRunLoop", "NSValue", "NSUserDefaults", "NSKeyValueCoding", "NSProcessInfo"] }
 objc2-vision = { version = "0.3", default-features = false, features = ["std", "VNObservation", "VNRecognizeTextRequest", "VNRequest", "VNRequestHandler"] }
+objc2-web-kit = { version = "=0.3.2", optional = true, default-features = false, features = ["std", "objc2-app-kit", "block2", "WKWebView", "WKPreferences", "WKSnapshotConfiguration", "WKNavigationDelegate", "WKNavigationAction", "WKNavigationResponse", "WKNavigation", "WKDownload", "WKFrameInfo", "WKSecurityOrigin"] }
 core-graphics = "0.25"
 
 [dev-dependencies]
 tempfile = "3.10"
+tokio = { workspace = true, features = ["test-util"] }
 
 [features]
 default = ["custom-protocol"]
+experimental-file-drag = []
 custom-protocol = ["tauri/custom-protocol"]
 devtools = ["tauri/devtools"]
+legacy-node-smoke = ["atools-plugin/native-smoke", "dep:objc2-web-kit"]
+ztools-multiwebview = ["tauri/unstable"]
+# Isolated native main-panel prototype; ordinary builds retain the existing host.
+macos-main-panel-prototype = ["dep:tauri-nspanel", "legacy-node-smoke", "ztools-multiwebview"]
+market-metadata-probe = []
+# Test-only opt-in: requires optional local original plugin archives outside the tracked source tree.
+local-original-archive-fixtures = []
+source-dependency-smoke = []
+compressed-node-runtime = []
+plugin-ai-desktop-smoke = []
+
+[[example]]
+name = "official_market_target_probe"
+required-features = ["market-metadata-probe"]
+
+[[example]]
+name = "legacy_node_desktop_smoke"
+required-features = ["legacy-node-smoke"]
+
+[[example]]
+name = "ztools_renderer_desktop_smoke"
+required-features = ["legacy-node-smoke"]
+
+[[example]]
+name = "atools_owned_launch_probe"
+required-features = ["legacy-node-smoke"]
+
+[[example]]
+name = "host_clipboard_desktop_smoke"
+required-features = ["legacy-node-smoke"]
+
+[[example]]
+name = "plugin_file_drop_desktop_smoke"
+required-features = ["legacy-node-smoke"]
+
+[[example]]
+name = "file_drag_native_smoke"
+required-features = ["legacy-node-smoke", "experimental-file-drag"]
+
+[[example]]
+name = "plugin_ai_desktop_smoke"
+required-features = ["plugin-ai-desktop-smoke"]
+
+[[example]]
+name = "plugin_origin_probe"
+required-features = ["legacy-node-smoke"]
+
+[[example]]
+name = "plugin_bootstrap_probe"
+required-features = ["legacy-node-smoke"]
+
+[[example]]
+name = "locked_dependency_worker_smoke"
+required-features = ["legacy-node-smoke"]
+
+[[example]]
+name = "source_dependency_pipeline_smoke"
+required-features = ["source-dependency-smoke"]

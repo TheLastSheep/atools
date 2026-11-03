@@ -15,6 +15,7 @@
     "windows": [
       {
         "label": "main",
+        "create": false,
         "title": "ATools 3.0",
         "url": "/",
         "width": 800,
@@ -43,7 +44,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' blob: data: filesystem: ws: wss: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self' img-src: 'self' data: asset: https://asset.localhost",
+      "csp": "default-src 'self' blob: data: filesystem: ws: wss: http: https: tauri: atools-plugin: 'unsafe-eval' 'unsafe-inline' 'self' img-src: 'self' data: asset: https://asset.localhost; img-src 'self' blob: data: filesystem: ws: wss: http: https: tauri: atools-plugin: asset: atools-app-icon:; connect-src 'self' blob: data: filesystem: ws: wss: http: https: tauri: atools-plugin: asset: atools-app-icon:",
       "assetProtocol": {
         "enable": true,
         "scope": [
@@ -64,7 +65,9 @@
     "createUpdaterArtifacts": true,
     "targets": "all",
     "resources": {
-      "../resources/plugins/builtin/": "plugins/builtin"
+      "../resources/plugins/builtin/": "plugins/builtin",
+      "../packages/ztools-settings/dist/": "ztools-settings",
+      "../dist-ztools-updater/": "ztools-updater"
     },
     "icon": [
       "icons/32x32.png",

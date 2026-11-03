@@ -1,6 +1,8 @@
 use crate::desktop_smoke::PluginPanelRenderSmokeSummary;
+use crate::launcher_app_catalog_source::LauncherAppCatalogSource;
 use crate::mcp_server::McpServerStatus;
 use crate::pasteboard_runtime::PasteboardRuntime;
+use crate::plugin_inventory::readiness::PluginInventoryReadiness;
 use atools_core::agent::PendingAgentToolRequest;
 use atools_core::config::AppConfig;
 use atools_core::db::Database;
@@ -56,11 +58,13 @@ pub struct ReleaseSmokeConfig {
 pub struct AppState {
     pub config: AppConfig,
     pub db: Arc<Database>,
+    pub(crate) launcher_app_catalog: Arc<LauncherAppCatalogSource>,
     pub active_plugin: Mutex<Option<String>>,
     pub mcp_status: Mutex<Option<McpServerStatus>>,
     pub pending_agent_requests: Mutex<BTreeMap<String, PendingAgentToolRequest>>,
     pub active_task_runs: Mutex<BTreeMap<String, tokio::task::AbortHandle>>,
     pub pasteboard_runtime: Arc<PasteboardRuntime>,
+    pub(crate) plugin_inventory_readiness: PluginInventoryReadiness,
     pub pasteboard_capture_task: Mutex<Option<tauri::async_runtime::JoinHandle<()>>>,
     pub runtime_events: Mutex<Vec<RuntimeEvent>>,
     pub plugin_panel_render_smoke: Mutex<Option<PluginPanelRenderSmokeSummary>>,
@@ -69,26 +73,76 @@ pub struct AppState {
 }
 
 impl AppState {
+    /// Construct state for an already populated plugin metadata inventory.
+    /// Production startup must use `new_pending_builtin_inventory` instead.
     pub fn new(
         config: AppConfig,
         db: Arc<Database>,
         release_smoke: Option<ReleaseSmokeConfig>,
         pasteboard_runtime: Arc<PasteboardRuntime>,
     ) -> Self {
+        Self::new_prepopulated_inventory(config, db, release_smoke, pasteboard_runtime)
+    }
+
+    pub fn new_prepopulated_inventory(
+        config: AppConfig,
+        db: Arc<Database>,
+        release_smoke: Option<ReleaseSmokeConfig>,
+        pasteboard_runtime: Arc<PasteboardRuntime>,
+    ) -> Self {
+        Self::new_with_inventory_readiness(
+            config,
+            db,
+            release_smoke,
+            pasteboard_runtime,
+            PluginInventoryReadiness::prepopulated_ready(),
+        )
+    }
+
+    pub fn new_pending_builtin_inventory(
+        config: AppConfig,
+        db: Arc<Database>,
+        release_smoke: Option<ReleaseSmokeConfig>,
+        pasteboard_runtime: Arc<PasteboardRuntime>,
+    ) -> Self {
+        Self::new_with_inventory_readiness(
+            config,
+            db,
+            release_smoke,
+            pasteboard_runtime,
+            PluginInventoryReadiness::pending(),
+        )
+    }
+
+    fn new_with_inventory_readiness(
+        config: AppConfig,
+        db: Arc<Database>,
+        release_smoke: Option<ReleaseSmokeConfig>,
+        pasteboard_runtime: Arc<PasteboardRuntime>,
+        plugin_inventory_readiness: PluginInventoryReadiness,
+    ) -> Self {
         Self {
             config,
             db,
+            launcher_app_catalog: Arc::new(LauncherAppCatalogSource::default()),
             active_plugin: Mutex::new(None),
             mcp_status: Mutex::new(None),
             pending_agent_requests: Mutex::new(BTreeMap::new()),
             active_task_runs: Mutex::new(BTreeMap::new()),
             pasteboard_runtime,
+            plugin_inventory_readiness,
             pasteboard_capture_task: Mutex::new(None),
             runtime_events: Mutex::new(Vec::new()),
             plugin_panel_render_smoke: Mutex::new(None),
             release_smoke: Mutex::new(release_smoke),
             release_smoke_progress: Mutex::new(ReleaseSmokeProgress::default()),
         }
+    }
+
+    #[cfg(feature = "legacy-node-smoke")]
+    pub(crate) fn with_launcher_app_catalog(mut self, source: LauncherAppCatalogSource) -> Self {
+        self.launcher_app_catalog = Arc::new(source);
+        self
     }
 
     pub fn record_runtime_event(&self, level: impl Into<String>, message: impl Into<String>) {

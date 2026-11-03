@@ -1,21 +1,68 @@
-use tauri::{AppHandle, Emitter, Manager};
-use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+use tauri::{AppHandle, Manager};
+use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
-const PASTE_STACK_SHORTCUT: &str = "Cmd+V";
+pub(crate) mod double_tap;
+mod double_tap_input;
+mod double_tap_native;
+pub(crate) mod main_binding;
+pub(crate) mod main_dispatch;
+mod owned_main;
+mod paste_stack;
+mod paste_shelf_owner;
+mod shutdown_owners;
+pub(crate) mod recording;
+pub(crate) mod recording_runtime;
+pub(crate) use owned_main::{
+    apply_owned_main_hotkey, mark_startup_attempted, read_owned_main_hotkey,
+    read_owned_main_hotkey_state, release_owned_main_hotkey, restore_owned_main_hotkey,
+    restore_owned_main_hotkey_state, set_owned_main_hotkey, setup_owned_main_hotkey,
+    validate_main_hotkey_label, OwnedMainHotkeyRegistry, OwnedMainHotkeySnapshot,
+    OwnedMainHotkeyStateSnapshot,
+};
+pub(crate) use paste_stack::{
+    activate as activate_paste_stack_shortcut, deactivate as deactivate_paste_stack_shortcut,
+};
 
-pub fn setup_hotkey(app: &AppHandle) -> tauri::Result<()> {
-    let shortcut = configured_hotkey(app);
-    register_hotkey(app, &shortcut)?;
+pub(crate) const PASTE_STACK_SHORTCUT: &str = "Cmd+V";
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum MainHotkeyStartup {
+    Registered,
+    NeedsRecovery,
+}
+
+pub(crate) fn setup_hotkey(app: &AppHandle) -> tauri::Result<MainHotkeyStartup> {
+    let startup = initialize_main_hotkey_from_settings(app)
+        .map_err(|error| tauri::Error::Anyhow(anyhow::anyhow!(error)))?;
     let pasteboard_shortcut = configured_pasteboard_hotkey(app);
     if let Err(error) = register_pasteboard_hotkey(app, &pasteboard_shortcut) {
         tracing::warn!(shortcut = pasteboard_shortcut, %error, "Failed to register Paste clipboard hotkey");
     }
-    Ok(())
+    Ok(startup)
+}
+
+pub(crate) fn initialize_main_hotkey_from_settings(
+    app: &AppHandle,
+) -> Result<MainHotkeyStartup, String> {
+    let shortcut = read_configured_hotkey(app)?;
+    initialize_main_hotkey(
+        &shortcut,
+        |label| setup_owned_main_hotkey(app, label),
+        || mark_startup_attempted(app),
+    )
+}
+
+fn startup_status(result: Result<(), String>) -> Result<MainHotkeyStartup, String> {
+    match result {
+        Ok(()) => Ok(MainHotkeyStartup::Registered),
+        Err(error) if known_hotkey_rejection(&error) => Ok(MainHotkeyStartup::NeedsRecovery),
+        Err(error) => Err(error),
+    }
 }
 
 pub fn update_hotkey(app: &AppHandle, shortcut: &str) -> tauri::Result<()> {
-    let previous = configured_hotkey(app);
-    update_hotkey_from(app, &previous, shortcut)
+    set_owned_main_hotkey(app, shortcut)
+        .map_err(|error| tauri::Error::Anyhow(anyhow::anyhow!(error)))
 }
 
 pub(crate) fn update_hotkey_from(
@@ -23,18 +70,8 @@ pub(crate) fn update_hotkey_from(
     previous: &str,
     requested: &str,
 ) -> tauri::Result<()> {
-    update_shortcut_transaction(
-        previous,
-        requested,
-        |shortcut| register_hotkey(app, shortcut).map_err(|error| error.to_string()),
-        |shortcut| {
-            app.global_shortcut()
-                .unregister(shortcut)
-                .map_err(|error| error.to_string())
-        },
-        |shortcut| app.global_shortcut().is_registered(shortcut),
-    )
-    .map_err(|error| tauri::Error::Anyhow(anyhow::anyhow!(error)))
+    owned_main::set_owned_main_hotkey_from(app, previous, requested)
+        .map_err(|error| tauri::Error::Anyhow(anyhow::anyhow!(error)))
 }
 
 pub(crate) fn is_shortcut_registered(app: &AppHandle, shortcut: &str) -> bool {
@@ -42,147 +79,112 @@ pub(crate) fn is_shortcut_registered(app: &AppHandle, shortcut: &str) -> bool {
     app.global_shortcut().is_registered(shortcut.as_str())
 }
 
-pub(crate) fn activate_paste_stack_shortcut(app: &AppHandle) -> tauri::Result<()> {
-    if app.global_shortcut().is_registered(PASTE_STACK_SHORTCUT) {
-        return Ok(());
-    }
-    register_paste_stack_shortcut(app)
-}
-
-pub(crate) fn deactivate_paste_stack_shortcut(app: &AppHandle) -> tauri::Result<()> {
-    if app.global_shortcut().is_registered(PASTE_STACK_SHORTCUT) {
-        app.global_shortcut()
-            .unregister(PASTE_STACK_SHORTCUT)
-            .map_err(|error| tauri::Error::Anyhow(error.into()))?;
-    }
-    Ok(())
-}
-
-fn register_paste_stack_shortcut(app: &AppHandle) -> tauri::Result<()> {
-    let handle = app.clone();
-    app.global_shortcut()
-        .on_shortcut(PASTE_STACK_SHORTCUT, move |_app, _shortcut, event| {
-            if event.state != ShortcutState::Pressed {
-                return;
-            }
-            let handle = handle.clone();
-            tauri::async_runtime::spawn(async move {
-                if let Err(error) = deactivate_paste_stack_shortcut(&handle) {
-                    tracing::warn!(%error, "Failed to suspend Paste Stack shortcut");
-                }
-                let state = handle.state::<crate::state::AppState>();
-                let Some(item_id) = state.pasteboard_runtime.pop_paste_stack_item() else {
-                    let status = state.pasteboard_runtime.paste_stack_status();
-                    let _ = handle.emit("pasteboard://stack", status);
-                    return;
-                };
-                let result = state.pasteboard_runtime.paste_item(&item_id, false).await;
-                let status = state.pasteboard_runtime.paste_stack_status();
-                let _ = handle.emit("pasteboard://stack", &status);
-                if let Err(error) = result {
-                    tracing::error!(%error, item_id, "Paste Stack item failed");
-                }
-                if status.active {
-                    if let Err(error) = register_paste_stack_shortcut(&handle) {
-                        tracing::error!(%error, "Failed to re-arm Paste Stack shortcut");
-                    }
-                }
-            });
-        })
-        .map_err(|error| tauri::Error::Anyhow(error.into()))?;
-    Ok(())
-}
-
-fn register_hotkey(app: &AppHandle, shortcut: &str) -> tauri::Result<()> {
-    let handle = app.clone();
-    let shortcut = normalize_shortcut(shortcut);
-    app.global_shortcut()
-        .on_shortcut(shortcut.as_str(), move |_app, _shortcut, event| {
-            tracing::debug!(state = ?event.state, "Global shortcut event received");
-            if event.state == ShortcutState::Pressed {
-                if let Err(error) = toggle_main_window(&handle) {
-                    tracing::error!("Failed to toggle main window from global shortcut: {error}");
-                }
-            }
-        })
-        .map_err(|e| tauri::Error::Anyhow(e.into()))?;
-    tracing::info!(shortcut, "Global shortcut registered");
-    Ok(())
+/// Register a custom app/plugin direct launch shortcut
+pub fn register_app_shortcut(
+    app: &AppHandle,
+    shortcut: &str,
+    target_code: &str,
+) -> tauri::Result<()> {
+    crate::general_settings_runtime::register_app_shortcut(app, shortcut, target_code)
+        .map_err(|error| tauri::Error::Anyhow(anyhow::anyhow!(error)))
 }
 
 fn register_pasteboard_hotkey(app: &AppHandle, shortcut: &str) -> tauri::Result<()> {
+    let coordinator = app
+        .try_state::<crate::general_settings_runtime::GeneralSettingsCoordinator>()
+        .ok_or_else(|| {
+            tauri::Error::Anyhow(anyhow::anyhow!(
+                "General settings coordinator is unavailable"
+            ))
+        })?;
+    coordinator
+        .with_hotkey_operation(|| register_pasteboard_hotkey_unlocked(app, shortcut))
+        .map_err(|error| tauri::Error::Anyhow(anyhow::anyhow!(error)))
+}
+
+fn register_pasteboard_hotkey_unlocked(app: &AppHandle, shortcut: &str) -> Result<(), String> {
     let handle = app.clone();
     let shortcut = normalize_shortcut(shortcut);
+    if app.global_shortcut().is_registered(shortcut.as_str()) {
+        return Err("Paste clipboard shortcut is registered by another ATools feature".into());
+    }
+    let gate = crate::app_global_shortcuts::recording::gate(app)?;
+    let receipt = gate.receipt(None)?;
+    app.manage(paste_shelf_owner::Runtime::default());
+    let owner = app.state::<paste_shelf_owner::Runtime>();
+    let callback_receipt = receipt.clone();
     app.global_shortcut()
         .on_shortcut(shortcut.as_str(), move |_app, _shortcut, event| {
-            if event.state != ShortcutState::Pressed {
-                return;
-            }
-            if let Err(error) = crate::pasteboard_window::toggle_pasteboard_shelf(&handle) {
-                tracing::error!(%error, "Failed to toggle Paste clipboard shelf from global shortcut");
+            if let Some(epoch) = callback_receipt.edge(event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed) {
+                let app = handle.clone();
+                let receipt = std::sync::Arc::downgrade(&callback_receipt);
+                tauri::async_runtime::spawn(async move {
+                    let target = app.clone();
+                    if let Err(error) = app.run_on_main_thread(move || {
+                        let Some(receipt) = receipt.upgrade() else { return; };
+                        let Some(_permit) = receipt.admit(epoch) else { return; };
+                        drop(receipt);
+                        if let Err(error) = crate::pasteboard_window::toggle_pasteboard_shelf(&target) {
+                            tracing::error!(%error, "Failed to toggle Paste clipboard shelf from global shortcut");
+                        }
+                    }) { tracing::error!(%error, "Paste clipboard shortcut action could not be scheduled"); }
+                });
             }
         })
-        .map_err(|error| tauri::Error::Anyhow(error.into()))?;
+        .map_err(|_| "Paste clipboard shortcut registration failed".to_owned())?;
+    *owner.shortcut.lock() = Some(shortcut.clone());
+    if !app.global_shortcut().is_registered(shortcut.as_str()) {
+        return Err("Paste clipboard shortcut registration readback failed".into());
+    }
+    receipt.publish();
     tracing::info!(shortcut, "Paste clipboard global shortcut registered");
     Ok(())
 }
 
-fn update_shortcut_transaction<Register, Unregister, IsRegistered>(
-    previous: &str,
-    requested: &str,
-    mut register: Register,
-    mut unregister: Unregister,
-    mut is_registered: IsRegistered,
-) -> Result<(), String>
-where
-    Register: FnMut(&str) -> Result<(), String>,
-    Unregister: FnMut(&str) -> Result<(), String>,
-    IsRegistered: FnMut(&str) -> bool,
-{
-    let previous = normalize_shortcut(previous);
-    let requested = normalize_shortcut(requested);
-
-    if previous == requested {
-        if is_registered(&requested) {
-            return Ok(());
-        }
-        return register(&requested)
-            .map_err(|error| format!("failed to register hotkey `{requested}`: {error}"));
-    }
-
-    register(&requested)
-        .map_err(|error| format!("failed to register new hotkey `{requested}`: {error}"))?;
-
-    if let Err(unregister_error) = unregister(&previous) {
-        let rollback_error = unregister(&requested).err();
-        let mut message =
-            format!("failed to unregister previous hotkey `{previous}`: {unregister_error}");
-        if let Some(rollback_error) = rollback_error {
-            message.push_str(&format!(
-                "; failed to roll back new hotkey `{requested}`: {rollback_error}"
-            ));
-        }
-        return Err(message);
-    }
-
-    Ok(())
+/// The caller holds the OS operation lease and has permanently closed the App gate.
+pub(crate) fn shutdown_recording_owners(app: &AppHandle) -> Result<(), String> {
+    let c = app.try_state::<crate::general_settings_runtime::GeneralSettingsCoordinator>()
+        .ok_or("General settings coordinator is unavailable")?;
+    c.with_shutdown_registries(|features, main, stack, recording| {
+        shutdown_owners::run(
+            |withdrawn| recording_runtime::shutdown_locked(app, recording, withdrawn),
+            || crate::general_settings_runtime::shutdown_feature_shortcuts_locked(app, features),
+            || owned_main::shutdown_locked(app, main),
+            || paste_stack::shutdown_locked(app, stack),
+            || paste_shelf_owner::shutdown(app),
+        )
+    })
 }
 
-fn configured_hotkey(app: &AppHandle) -> String {
-    let Some(state) = app.try_state::<crate::state::AppState>() else {
-        return default_hotkey_label().to_string();
+pub(crate) fn configured_hotkey(app: &AppHandle) -> String {
+    read_configured_hotkey(app).unwrap_or_default()
+}
+
+fn read_configured_hotkey(app: &AppHandle) -> Result<String, String> {
+    let state = app
+        .try_state::<crate::state::AppState>()
+        .ok_or_else(|| "Application state is unavailable for hotkey startup".to_owned())?;
+    let raw = state
+        .db
+        .get_setting("settings-general")
+        .map_err(|_| "General settings could not be read for hotkey startup".to_owned())?;
+    configured_hotkey_from_settings(raw.as_deref())
+}
+
+fn configured_hotkey_from_settings(raw: Option<&str>) -> Result<String, String> {
+    let Some(raw) = raw else {
+        return Ok(default_hotkey_label().to_owned());
     };
-    let Ok(Some(value)) = state.db.get_setting("settings-general") else {
-        return default_hotkey_label().to_string();
-    };
-    serde_json::from_str::<serde_json::Value>(&value)
-        .ok()
-        .and_then(|json| {
-            json.get("hotkey")
-                .and_then(|value| value.as_str())
-                .map(ToOwned::to_owned)
-        })
-        .unwrap_or_else(|| default_hotkey_label().to_string())
+    let value = serde_json::from_str::<serde_json::Value>(raw)
+        .map_err(|_| "General settings JSON is invalid for hotkey startup".to_owned())?;
+    let settings = value
+        .as_object()
+        .ok_or_else(|| "General settings must be an object for hotkey startup".to_owned())?;
+    match settings.get("hotkey") {
+        None => Ok(default_hotkey_label().to_owned()),
+        Some(serde_json::Value::String(label)) => Ok(label.clone()),
+        Some(_) => Ok(String::new()),
+    }
 }
 
 pub(crate) fn configured_pasteboard_hotkey(app: &AppHandle) -> String {
@@ -219,7 +221,7 @@ fn default_hotkey_label() -> &'static str {
     }
 }
 
-fn normalize_shortcut(shortcut: &str) -> String {
+pub(crate) fn normalize_shortcut(shortcut: &str) -> String {
     shortcut
         .trim()
         .replace("Option+", "Alt+")
@@ -229,10 +231,9 @@ fn normalize_shortcut(shortcut: &str) -> String {
 }
 
 pub(crate) fn toggle_main_window(app: &AppHandle) -> tauri::Result<bool> {
-    let is_visible = app
-        .get_webview_window("main")
-        .and_then(|window| window.is_visible().ok())
-        .unwrap_or(false);
+    #[cfg(feature = "ztools-multiwebview")]
+    crate::window::cancel_auto_back_on_show(app);
+    let is_visible = crate::window::main_window(app)?.is_visible()?;
     if !is_visible && wakeup_blacklisted(app) {
         return Ok(false);
     }
@@ -302,196 +303,43 @@ pub(crate) fn read_foreground_app_name() -> Option<String> {
 }
 
 #[cfg(test)]
-mod tests {
-    use std::{cell::RefCell, collections::HashSet};
+#[path = "hotkey/tests.rs"]
+mod tests;
 
-    use super::{
-        normalize_shortcut, should_suppress_wakeup_for_foreground_app, update_shortcut_transaction,
-    };
+pub(crate) fn known_hotkey_rejection(error: &str) -> bool {
+    matches!(
+        error,
+        "SETTINGS_HOTKEY_REJECTED"
+            | "SETTINGS_HOTKEY_LISTEN_PERMISSION_REQUIRED"
+            | "SETTINGS_HOTKEY_DOUBLE_TAP_UNSUPPORTED"
+    )
+}
 
-    #[derive(Default)]
-    struct FakeShortcuts {
-        registered: RefCell<HashSet<String>>,
-        operations: RefCell<Vec<String>>,
-        register_failures: HashSet<String>,
-        unregister_failures: HashSet<String>,
+fn initialize_main_hotkey(
+    label: &str,
+    setup: impl FnOnce(&str) -> Result<(), String>,
+    mark: impl FnOnce() -> Result<(), String>,
+) -> Result<MainHotkeyStartup, String> {
+    let startup = startup_status(setup(label))?;
+    mark()?;
+    Ok(startup)
+}
+
+pub(crate) fn toggle_main_window_from_double_tap(app: &AppHandle) -> tauri::Result<bool> {
+    let window = crate::window::main_window(app)?;
+    if window.is_visible()? && window.is_focused()? {
+        crate::window::hide_main_window(app)?;
+        return Ok(false);
     }
-
-    impl FakeShortcuts {
-        fn with_registered(shortcut: &str) -> Self {
-            Self {
-                registered: RefCell::new(HashSet::from([shortcut.to_string()])),
-                ..Self::default()
-            }
-        }
-
-        fn register(&self, shortcut: &str) -> Result<(), String> {
-            self.operations
-                .borrow_mut()
-                .push(format!("register:{shortcut}"));
-            if self.register_failures.contains(shortcut) {
-                return Err(format!("register {shortcut} failed"));
-            }
-            self.registered.borrow_mut().insert(shortcut.to_string());
-            Ok(())
-        }
-
-        fn unregister(&self, shortcut: &str) -> Result<(), String> {
-            self.operations
-                .borrow_mut()
-                .push(format!("unregister:{shortcut}"));
-            if self.unregister_failures.contains(shortcut) {
-                return Err(format!("unregister {shortcut} failed"));
-            }
-            self.registered.borrow_mut().remove(shortcut);
-            Ok(())
-        }
-
-        fn is_registered(&self, shortcut: &str) -> bool {
-            self.registered.borrow().contains(shortcut)
-        }
+    if wakeup_blacklisted(app) {
+        return Ok(false);
     }
-
-    fn update(fake: &FakeShortcuts, previous: &str, requested: &str) -> Result<(), String> {
-        update_shortcut_transaction(
-            previous,
-            requested,
-            |shortcut| fake.register(shortcut),
-            |shortcut| fake.unregister(shortcut),
-            |shortcut| fake.is_registered(shortcut),
-        )
+    #[cfg(feature = "ztools-multiwebview")]
+    crate::window::cancel_auto_back_on_show(app);
+    let previous = crate::window::suppress_double_tap_blur(app);
+    if let Err(error) = crate::window::show_main_window(app) {
+        crate::window::restore_double_tap_blur(app, previous);
+        return Err(error);
     }
-
-    #[test]
-    fn registration_failure_keeps_previous_shortcut_without_unregistering() {
-        let mut fake = FakeShortcuts::with_registered("Alt+Z");
-        fake.register_failures.insert("Alt+X".to_string());
-
-        let error = update(&fake, "Alt+Z", "Alt+X").expect_err("registration should fail");
-
-        assert!(error.contains("register Alt+X failed"));
-        assert!(fake.is_registered("Alt+Z"));
-        assert!(!fake.is_registered("Alt+X"));
-        assert_eq!(&*fake.operations.borrow(), &["register:Alt+X"]);
-    }
-
-    #[test]
-    fn successful_update_registers_new_before_unregistering_only_previous() {
-        let fake = FakeShortcuts::with_registered("Alt+Z");
-
-        update(&fake, "Alt+Z", "Alt+X").expect("transaction should succeed");
-
-        assert!(!fake.is_registered("Alt+Z"));
-        assert!(fake.is_registered("Alt+X"));
-        assert_eq!(
-            &*fake.operations.borrow(),
-            &["register:Alt+X", "unregister:Alt+Z"]
-        );
-    }
-
-    #[test]
-    fn previous_unregister_failure_rolls_back_new_shortcut() {
-        let mut fake = FakeShortcuts::with_registered("Alt+Z");
-        fake.unregister_failures.insert("Alt+Z".to_string());
-
-        let error = update(&fake, "Alt+Z", "Alt+X").expect_err("unregister should fail");
-
-        assert!(error.contains("unregister Alt+Z failed"));
-        assert!(fake.is_registered("Alt+Z"));
-        assert!(!fake.is_registered("Alt+X"));
-        assert_eq!(
-            &*fake.operations.borrow(),
-            &["register:Alt+X", "unregister:Alt+Z", "unregister:Alt+X"]
-        );
-    }
-
-    #[test]
-    fn rollback_failure_is_included_with_previous_unregister_error() {
-        let mut fake = FakeShortcuts::with_registered("Alt+Z");
-        fake.unregister_failures.insert("Alt+Z".to_string());
-        fake.unregister_failures.insert("Alt+X".to_string());
-
-        let error = update(&fake, "Alt+Z", "Alt+X").expect_err("rollback should fail");
-
-        assert!(error.contains("unregister Alt+Z failed"));
-        assert!(error.contains("unregister Alt+X failed"));
-        assert!(fake.is_registered("Alt+Z"));
-        assert!(fake.is_registered("Alt+X"));
-    }
-
-    #[test]
-    fn normalized_same_shortcut_is_noop_when_already_registered() {
-        let fake = FakeShortcuts::with_registered("Alt+Z");
-
-        update(&fake, "Option+Z", "Alt+Z").expect("registered shortcut should be a no-op");
-
-        assert!(fake.operations.borrow().is_empty());
-    }
-
-    #[test]
-    fn normalized_same_shortcut_registers_when_missing() {
-        let fake = FakeShortcuts::default();
-
-        update(&fake, "Option+Z", "Alt+Z").expect("missing shortcut should be registered");
-
-        assert!(fake.is_registered("Alt+Z"));
-        assert_eq!(&*fake.operations.borrow(), &["register:Alt+Z"]);
-    }
-
-    #[test]
-    fn normalizes_macos_option_label_for_tauri_shortcut() {
-        assert_eq!(normalize_shortcut("Option+Z"), "Alt+Z");
-    }
-
-    #[test]
-    fn leaves_alt_shortcut_unchanged() {
-        assert_eq!(normalize_shortcut("Alt+Z"), "Alt+Z");
-    }
-
-    #[test]
-    fn suppresses_wakeup_when_foreground_app_matches_blacklist() {
-        let settings = r#"{"wakeupBlacklist":["Terminal","Visual Studio Code"]}"#;
-
-        assert!(should_suppress_wakeup_for_foreground_app(
-            Some(settings),
-            Some("terminal")
-        ));
-        assert!(should_suppress_wakeup_for_foreground_app(
-            Some(settings),
-            Some("Visual Studio Code")
-        ));
-        assert!(!should_suppress_wakeup_for_foreground_app(
-            Some(settings),
-            Some("Finder")
-        ));
-        assert!(!should_suppress_wakeup_for_foreground_app(
-            Some(settings),
-            None
-        ));
-    }
-
-    #[test]
-    fn ignores_empty_or_invalid_wakeup_blacklist_settings() {
-        assert!(!should_suppress_wakeup_for_foreground_app(
-            Some(r#"{"wakeupBlacklist":["  ","Terminal"]}"#),
-            Some("")
-        ));
-        assert!(!should_suppress_wakeup_for_foreground_app(
-            Some(r#"{"wakeupBlacklist":"Terminal"}"#),
-            Some("Terminal")
-        ));
-        assert!(!should_suppress_wakeup_for_foreground_app(
-            Some("not-json"),
-            Some("Terminal")
-        ));
-    }
-
-    #[test]
-    fn command_shortcut_normalization_is_stable_for_registration_and_lookup() {
-        let raw = "Command+Space";
-        let normalized = normalize_shortcut(raw);
-        assert_eq!(normalized, "Cmd+Space");
-        assert_eq!(normalize_shortcut("Cmd+Space"), "Cmd+Space");
-        assert_eq!(normalize_shortcut("command+Space"), "Cmd+Space");
-    }
+    Ok(true)
 }

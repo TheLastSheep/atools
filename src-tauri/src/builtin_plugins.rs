@@ -1,9 +1,8 @@
 use anyhow::Result;
 use atools_core::db::Database;
 use atools_plugin::loader::load_plugin_from_disk;
-use atools_plugin::runtime::JsRuntime;
 use std::collections::BTreeSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::fs;
 use tracing::{info, warn};
@@ -14,37 +13,60 @@ use tracing::{info, warn};
 /// 1. Load manifest from disk
 /// 2. Save plugin record to the database
 /// 3. Index features for search
-/// 4. Execute preload script in the QuickJS runtime (if present)
+/// Plugin code is loaded only by an actual UI/Agent invocation. Registration
+/// must not run preload hooks, launch Node, or perform plugin side effects.
 pub async fn load_builtin_plugins(
-    runtime: Arc<JsRuntime>,
     db: Arc<Database>,
     resource_builtin_dir: Option<PathBuf>,
 ) -> Result<()> {
     let builtin_dir = get_builtin_plugins_dir(resource_builtin_dir);
+    load_builtin_plugins_from_dir(db, &builtin_dir).await
+}
 
+async fn load_builtin_plugins_from_dir(db: Arc<Database>, builtin_dir: &Path) -> Result<()> {
     if !builtin_dir.exists() {
         warn!("Builtin plugins directory not found: {:?}", builtin_dir);
-        return Ok(());
+        anyhow::bail!(
+            "Builtin plugins directory not found: {}",
+            builtin_dir.display()
+        );
     }
 
-    let mut entries = fs::read_dir(&builtin_dir).await?;
+    let mut entries = fs::read_dir(builtin_dir).await?;
     let mut loaded_count = 0;
+    let mut failure_count = 0;
     let mut active_plugin_ids = BTreeSet::new();
 
     while let Some(entry) = entries.next_entry().await? {
         let path = entry.path();
-        if path.is_dir() {
-            match load_single_builtin_plugin(&runtime, &db, &path).await {
-                Ok(plugin_id) => {
-                    active_plugin_ids.insert(plugin_id);
-                    loaded_count += 1;
-                    info!("Loaded builtin plugin: {:?}", path);
-                }
-                Err(e) => {
-                    warn!("Failed to load builtin plugin {:?}: {}", path, e);
+        match fs::metadata(&path).await {
+            Ok(metadata) if metadata.is_dir() => {
+                match load_single_builtin_plugin(&db, &path).await {
+                    Ok(plugin_id) => {
+                        active_plugin_ids.insert(plugin_id);
+                        loaded_count += 1;
+                        info!("Loaded builtin plugin: {:?}", path);
+                    }
+                    Err(e) => {
+                        warn!("Failed to load builtin plugin {:?}: {}", path, e);
+                        failure_count += 1;
+                    }
                 }
             }
+            // Preserve the existing behavior for files and non-directory links.
+            Ok(_) => {}
+            Err(error) => {
+                warn!(
+                    "Failed to inspect builtin plugin entry {:?}: {}",
+                    path, error
+                );
+                failure_count += 1;
+            }
         }
+    }
+
+    if failure_count > 0 {
+        anyhow::bail!("Failed to register {failure_count} builtin plugin(s)");
     }
 
     remove_stale_builtin_plugins(&db, &active_plugin_ids)?;
@@ -53,33 +75,15 @@ pub async fn load_builtin_plugins(
     Ok(())
 }
 
-async fn load_single_builtin_plugin(
-    runtime: &Arc<JsRuntime>,
-    db: &Arc<Database>,
-    plugin_dir: &PathBuf,
-) -> Result<String> {
+async fn load_single_builtin_plugin(db: &Arc<Database>, plugin_dir: &PathBuf) -> Result<String> {
     let plugin_dir = plugin_dir.canonicalize()?;
-    let manifest_path = plugin_dir.join("plugin.json");
-    if !manifest_path.exists() {
-        anyhow::bail!("plugin.json not found in {:?}", plugin_dir);
-    }
-
     // Load plugin metadata from disk
     let plugin = load_plugin_from_disk(&plugin_dir)?;
     let plugin_id = plugin.id.clone();
 
-    // Save plugin record to database so search/activate can find it
-    db.save_plugin_with_features(&plugin, &plugin.manifest.features)
-        .map_err(|e| anyhow::anyhow!("DB save failed: {}", e))?;
-
-    // Read and execute preload script if present
-    if let Some(preload_filename) = &plugin.manifest.preload {
-        let preload_path = plugin_dir.join(preload_filename);
-        if preload_path.exists() {
-            let preload_code = fs::read_to_string(&preload_path).await?;
-            runtime.execute_preload(&plugin.id, &preload_code).await?;
-        }
-    }
+    // Refresh manifest metadata without overwriting the persisted enabled state.
+    db.refresh_builtin_plugin_metadata_with_features(&plugin, &plugin.manifest.features)
+        .map_err(|e| anyhow::anyhow!("DB refresh failed: {}", e))?;
 
     info!(
         "Installed builtin plugin: {} ({}) with {} features",
@@ -89,6 +93,14 @@ async fn load_single_builtin_plugin(
     );
     Ok(plugin_id)
 }
+
+#[cfg(test)]
+#[path = "builtin_plugins_startup_tests.rs"]
+mod startup_tests;
+
+#[cfg(test)]
+#[path = "builtin_plugins_state_tests.rs"]
+mod state_tests;
 
 fn remove_stale_builtin_plugins(db: &Database, active_plugin_ids: &BTreeSet<String>) -> Result<()> {
     for plugin in db.list_plugins()? {

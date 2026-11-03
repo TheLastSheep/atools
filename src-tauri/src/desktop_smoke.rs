@@ -14,6 +14,10 @@ use tauri::Manager;
 use crate::commands::{FeatureAction, SearchResult};
 use crate::mcp_server::McpServerStatus;
 
+#[path = "desktop_smoke_activation_input.rs"]
+mod activation_input;
+use self::activation_input::ZToolsActivationStepPlan;
+
 const SMOKE_ENV: &str = "ATOOLS_DESKTOP_SMOKE";
 const SMOKE_PREFIX: &str = "ATOOLS_DESKTOP_SMOKE ";
 const ZTOOLS_ACTIVATION_PLAN_ENV: &str = "ATOOLS_ZTOOLS_ACTIVATION_PLAN";
@@ -1200,6 +1204,9 @@ fn build_ztools_activation_plan_render_actions(
         if expected_plugin_id.is_empty() || feature_code.is_empty() {
             continue;
         }
+        let activation_payload = plan.activation.payload(true).map_err(|error| {
+            format!("{expected_plugin_id}: invalid activation plan payload: {error}")
+        })?;
         if let Ok(existing) = db.get_feature(feature_code) {
             if existing.plugin_id != expected_plugin_id {
                 continue;
@@ -1217,11 +1224,6 @@ fn build_ztools_activation_plan_render_actions(
             continue;
         }
 
-        let activation_payload = serde_json::json!({
-            "trigger_type": plan.activation.trigger_type,
-            "query": plan.activation.query,
-            "__atools_desktop_smoke_external_plan": true,
-        });
         let Ok(action) =
             crate::commands::activate_feature_inner(db, feature_code, Some(activation_payload))
         else {
@@ -1386,16 +1388,6 @@ struct ZToolsActivationInstallPlan {
 }
 
 #[derive(Debug, Default, Deserialize)]
-struct ZToolsActivationStepPlan {
-    #[serde(default)]
-    feature_code: String,
-    #[serde(default)]
-    trigger_type: String,
-    #[serde(default)]
-    query: String,
-}
-
-#[derive(Debug, Default, Deserialize)]
 struct ZToolsActivationAssertionPlan {
     #[serde(default)]
     main_exists: bool,
@@ -1552,6 +1544,15 @@ pub fn build_ztools_external_activation_smoke_summary(
             ));
             continue;
         }
+        let activation_payload = match plan.activation.payload(false) {
+            Ok(payload) => payload,
+            Err(error) => {
+                errors.push(format!(
+                    "{expected_plugin_id}: invalid activation plan payload: {error}"
+                ));
+                continue;
+            }
+        };
 
         match crate::ztools_import::import_ztools_plugins(
             db,
@@ -1577,10 +1578,6 @@ pub fn build_ztools_external_activation_smoke_summary(
             }
         }
 
-        let activation_payload = serde_json::json!({
-            "trigger_type": plan.activation.trigger_type,
-            "query": plan.activation.query,
-        });
         let action =
             crate::commands::activate_feature_inner(db, feature_code, Some(activation_payload));
         if action
@@ -2250,7 +2247,7 @@ pub async fn run_permission_smoke(app: &tauri::AppHandle, db: &Database) -> Perm
         .is_some_and(|id| state.pending_agent_requests.lock().contains_key(id));
     let pending_request_dismissed = pending_id
         .as_ref()
-        .is_some_and(|id| state.pending_agent_requests.lock().remove(id).is_some());
+        .is_some_and(|id| crate::permission_requests::remove(app, id).is_some());
     let audit_denied_recorded = db
         .list_audit_entries(1000)
         .map(|entries| {
@@ -5182,6 +5179,7 @@ mod tests {
                 .expect("preload js");
         }
         let feature = Feature {
+            platform: vec![],
             code: feature_code.to_string(),
             label: Some(feature_code.to_string()),
             explain: format!("{feature_code} feature"),
@@ -5194,7 +5192,9 @@ mod tests {
                 .collect(),
         };
         let manifest = PluginManifest {
+            platform: vec![],
             name: name.to_string(),
+            title: None,
             version: "1.0.0".to_string(),
             main: Some("index.html".to_string()),
             logo: None,

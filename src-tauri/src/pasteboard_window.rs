@@ -74,6 +74,10 @@ pub fn show_pasteboard_shelf(app: &tauri::AppHandle) -> tauri::Result<()> {
     let window = ensure_pasteboard_shelf_window(app)?;
     window.set_size(PhysicalSize::new(bounds.width, bounds.height))?;
     window.set_position(PhysicalPosition::new(bounds.x, bounds.y))?;
+    // Multi-window coordination: dismiss super panel when shelf opens
+    if let Some(super_panel) = app.get_webview_window(crate::window::SUPER_PANEL_LABEL) {
+        let _ = super_panel.hide();
+    }
     window.show()?;
     window.set_focus()?;
     Ok(())

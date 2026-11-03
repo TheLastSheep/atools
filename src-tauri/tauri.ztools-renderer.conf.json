@@ -1,0 +1,8 @@
+{
+  "build": {
+    "beforeDevCommand": null,
+    "devUrl": null,
+    "beforeBuildCommand": null,
+    "frontendDist": "../packages/ztools-renderer/dist"
+  }
+}

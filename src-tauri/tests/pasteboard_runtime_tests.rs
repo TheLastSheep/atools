@@ -50,7 +50,7 @@ impl PasteboardBackend for FakeBackend {
 fn snapshot(change_count: i64, text: &str, bundle_id: &str) -> NativePasteboardSnapshot {
     NativePasteboardSnapshot {
         change_count,
-        copied_at: format!("2026-07-21T00:00:{change_count:02}Z"),
+        copied_at: atools_core::utils::now_iso(),
         source_app: Some(PasteboardSourceApp {
             bundle_id: Some(bundle_id.into()),
             name: Some("Fixture".into()),
@@ -93,6 +93,7 @@ async fn ignored_snapshots_are_not_persisted() {
         .search_pasteboard_items("", None, &[], 20, 0)
         .unwrap()
         .is_empty());
+    assert_eq!(db.clipboard_history_page("", 1, 1000).unwrap().total, 0);
 }
 
 #[tokio::test]
@@ -102,10 +103,9 @@ async fn duplicate_content_updates_one_item_instead_of_growing_history() {
         .snapshots
         .lock()
         .push_back(snapshot(1, "hello", "com.apple.TextEdit"));
-    backend
-        .snapshots
-        .lock()
-        .push_back(snapshot(2, "hello", "com.apple.TextEdit"));
+    let second_snapshot = snapshot(2, "hello", "com.apple.TextEdit");
+    let second_copied_at = second_snapshot.copied_at.clone();
+    backend.snapshots.lock().push_back(second_snapshot);
 
     let first = runtime.capture_once().await.unwrap();
     let second = runtime.capture_once().await.unwrap();
@@ -114,7 +114,7 @@ async fn duplicate_content_updates_one_item_instead_of_growing_history() {
     assert_eq!(second.changed_item_id(), Some(first_id.as_str()));
     let items = db.search_pasteboard_items("", None, &[], 20, 0).unwrap();
     assert_eq!(items.len(), 1);
-    assert_eq!(items[0].copied_at, "2026-07-21T00:00:02Z");
+    assert_eq!(items[0].copied_at, second_copied_at);
 }
 
 #[tokio::test]
@@ -134,6 +134,7 @@ async fn sensitive_card_content_is_filtered_before_storage() {
         .search_pasteboard_items("", None, &[], 20, 0)
         .unwrap()
         .is_empty());
+    assert_eq!(db.clipboard_history_page("", 1, 1000).unwrap().total, 0);
 }
 
 #[tokio::test]
@@ -180,7 +181,7 @@ async fn image_capture_creates_a_lightweight_thumbnail_blob() {
         .lock()
         .push_back(NativePasteboardSnapshot {
             change_count: 1,
-            copied_at: "2026-07-21T00:00:01Z".into(),
+            copied_at: atools_core::utils::now_iso(),
             source_app: None,
             is_confidential: false,
             is_transient: false,
@@ -204,6 +205,7 @@ async fn image_capture_creates_a_lightweight_thumbnail_blob() {
         .join("pasteboard/blobs")
         .join(thumbnail)
         .is_file());
+    assert_eq!(db.clipboard_history_page("", 1, 1000).unwrap().total, 0);
 }
 
 #[tokio::test]
@@ -250,4 +252,98 @@ async fn paste_stack_preserves_unique_queue_order_and_consumes_each_item_once() 
 
     runtime.set_paste_stack(status.item_ids).unwrap();
     assert_eq!(runtime.clear_paste_stack().count, 0);
+}
+
+fn representation_snapshot(
+    change_count: i64,
+    representation: NativePasteboardRepresentation,
+) -> NativePasteboardSnapshot {
+    NativePasteboardSnapshot {
+        change_count,
+        copied_at: atools_core::utils::now_iso(),
+        source_app: None,
+        is_confidential: false,
+        is_transient: false,
+        representations: vec![representation],
+    }
+}
+
+#[tokio::test]
+async fn capture_projects_exact_unicode_text_and_native_timestamp_to_legacy_history() {
+    let (_temp, db, backend, runtime) = runtime();
+    let content = "\n你好，剪贴板 🧪\n保留原始换行\n";
+    let captured = snapshot(41, content, "com.apple.TextEdit");
+    let copied_at = captured.copied_at.clone();
+    backend.snapshots.lock().push_back(captured.clone());
+
+    let outcome = runtime.capture_once().await.unwrap();
+    assert!(matches!(outcome, CaptureOutcome::Captured { change_count: 41, .. }));
+    assert!(outcome.legacy_text_projected());
+    assert_eq!(runtime.status().last_change_count, 41);
+    let page = db.clipboard_history_page("", 1, 10).unwrap();
+    assert_eq!(page.total, 1);
+    assert_eq!(page.items[0].content, content);
+    assert_eq!(page.items[0].timestamp, copied_at);
+    let marker = db
+        .get_setting(&format!("pasteboard.clipboard_projection.{}", runtime.device_id()))
+        .unwrap()
+        .unwrap();
+    assert!(!marker.contains(content));
+}
+
+#[tokio::test]
+async fn paused_confidential_and_transient_text_never_enters_legacy_history() {
+    let (_temp, db, backend, runtime) = runtime();
+    db.set_setting(
+        "settings-general",
+        &serde_json::json!({"pasteboardCapturePaused": true}).to_string(),
+    )
+    .unwrap();
+    backend
+        .snapshots
+        .lock()
+        .push_back(snapshot(51, "paused text", "com.apple.TextEdit"));
+    let paused = runtime.capture_once().await.unwrap();
+    assert!(matches!(paused, CaptureOutcome::Paused { .. }));
+    assert!(!paused.legacy_text_projected());
+
+    db.set_setting(
+        "settings-general",
+        &serde_json::json!({"pasteboardCapturePaused": false}).to_string(),
+    )
+    .unwrap();
+    for (change_count, confidential, transient) in [(52, true, false), (53, false, true)] {
+        let mut value = snapshot(change_count, "filtered text", "com.apple.TextEdit");
+        value.is_confidential = confidential;
+        value.is_transient = transient;
+        backend.snapshots.lock().push_back(value);
+        let outcome = runtime.capture_once().await.unwrap();
+        assert!(matches!(outcome, CaptureOutcome::Ignored { .. }));
+        assert!(!outcome.legacy_text_projected());
+    }
+    assert_eq!(db.clipboard_history_page("", 1, 1000).unwrap().total, 0);
+}
+
+#[tokio::test]
+async fn rich_and_unbounded_text_captures_do_not_project_preview_or_partial_content() {
+    let (_temp, db, backend, runtime) = runtime();
+    let too_large = "x".repeat(atools_core::db::CLIPBOARD_HISTORY_TEXT_BYTES_MAX + 1);
+    let representations = [
+        NativePasteboardRepresentation::Html("<p>html only</p>".into()),
+        NativePasteboardRepresentation::Url("https://example.test/path".into()),
+        NativePasteboardRepresentation::Files(vec!["/tmp/a.txt".into()]),
+        NativePasteboardRepresentation::Text(" \n\t ".into()),
+        NativePasteboardRepresentation::Text(too_large),
+    ];
+    for (index, representation) in representations.into_iter().enumerate() {
+        backend
+            .snapshots
+            .lock()
+            .push_back(representation_snapshot(61 + index as i64, representation));
+        let outcome = runtime.capture_once().await.unwrap();
+        assert!(matches!(outcome, CaptureOutcome::Captured { .. }));
+        assert!(!outcome.legacy_text_projected());
+    }
+    assert_eq!(db.search_pasteboard_items("", None, &[], 20, 0).unwrap().len(), 5);
+    assert_eq!(db.clipboard_history_page("", 1, 1000).unwrap().total, 0);
 }

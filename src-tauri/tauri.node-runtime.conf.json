@@ -1,0 +1,11 @@
+{
+  "bundle": {
+    "externalBin": ["binaries/node"],
+    "resources": {
+      "binaries/node-runtime-metadata/": "runtime"
+    },
+    "macOS": {
+      "minimumSystemVersion": "11.0"
+    }
+  }
+}
