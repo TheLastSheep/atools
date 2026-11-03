@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "owner": "atools",
+  "role": "original-updater",
+  "source": {
+    "commit": "9b15fb1a2a9f3ec886016632761c7bb21e39557a",
+    "files": ["LICENSE", "package.json", "pnpm-lock.yaml", "src/renderer/updater.html", "src/renderer/src/updater-main.ts", "src/renderer/src/style.css", "src/renderer/src/components/updater/UpdateWindow.vue", "src/renderer/src/assets/logo.png", "src/renderer/src/env.d.ts", "src/renderer/src/utils/convertKeyboardEvent.ts"]
+  },
+  "reusedDependencies": { "vite": "7.3.0", "@vitejs/plugin-vue": "6.0.3", "vue": "3.5.26", "marked": "17.0.1", "vue-tsc": "3.1.8", "typescript": "5.9.3" },
+  "repositoryDependencies": { "@tauri-apps/api": "2.11.0" },
+  "build": {
+    "nodeVersion": "v22.23.3",
+    "output": "dist-ztools-updater",
+    "budgetMilestone": "original-vue-updater-2026-11-02",
+    "javascript": { "baselineBytes": 104330, "maxIncreaseBytes": 16384, "maxBytes": 120714 },
+    "resources": { "baselineBytes": 284598, "maxIncreaseBytes": 16384, "maxBytes": 300982 },
+    "postMinifier": { "name": "terser", "version": "5.51.2", "packageRoot": "packages/ztools-renderer" }
+  }
+}

@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "repository": "https://github.com/ZToolsCenter/ZTools.git",
+    "commit": "9b15fb1a2a9f3ec886016632761c7bb21e39557a",
+    "rootPackageName": "ZTools",
+    "rootPackageVersion": "3.0.1",
+    "license": "MIT",
+    "packageName": "setting",
+    "packageVersion": "1.0.0",
+    "settingRoot": "internal-plugins/setting",
+    "sharedRoot": "src/shared",
+    "requiredFiles": [
+      "internal-plugins/setting/index.html",
+      "internal-plugins/setting/package.json",
+      "internal-plugins/setting/pnpm-lock.yaml",
+      "internal-plugins/setting/src/main.ts",
+      "internal-plugins/setting/tsconfig.node.json",
+      "internal-plugins/setting/tsconfig.web.json",
+      "internal-plugins/setting/uno.config.ts",
+      "internal-plugins/setting/vite.config.ts",
+      "package.json",
+      "pnpm-lock.yaml",
+      "LICENSE"
+    ],
+    "metadataInputs": [
+      "package.json",
+      "pnpm-lock.yaml",
+      "LICENSE"
+    ]
+  },
+  "build": {
+    "nodeVersion": "v22.23.3",
+    "budgetMilestone": "original-vue-app-global-shortcuts-settings-2026-11-02",
+    "entryHtml": "index.html",
+    "entryModule": "src/main.ts",
+    "bridgeEntry": "packages/ztools-settings/src/hostBridgeEntry.ts",
+    "outputRoot": "packages/ztools-settings/dist",
+    "reviewOutputRoot": "packages/ztools-settings/review-dist",
+    "emittedResourceBudget": {
+      "metric": "uncompressed_emitted_resources_bytes",
+      "baselineBytes": 806371,
+      "maxIncreaseBytes": 16384,
+      "maxBytes": 822755
+    },
+    "base": "./",
+    "typeChecks": [
+      {
+        "package": "typescript",
+        "binary": "tsc",
+        "args": [
+          "--noEmit",
+          "-p",
+          "internal-plugins/setting/tsconfig.node.json",
+          "--composite",
+          "false"
+        ]
+      },
+      {
+        "package": "vue-tsc",
+        "binary": "vue-tsc",
+        "args": [
+          "--noEmit",
+          "-p",
+          "internal-plugins/setting/tsconfig.web.json",
+          "--composite",
+          "false"
+        ]
+      }
+    ]
+  },
+  "dependencyVersions": {
+    "@electron-toolkit/tsconfig": "2.0.0",
+    "@iconify/utils": "3.1.0",
+    "@types/node": "25.4.0",
+    "@unocss/preset-icons": "66.6.6",
+    "@unocss/transformer-directives": "66.6.6",
+    "@vitejs/plugin-vue": "5.2.4",
+    "@vueuse/core": "14.2.1",
+    "@ztools-center/ztools-api-types": "1.0.3",
+    "electron-vite": "4.0.1",
+    "element-plus": "2.11.5",
+    "less": "4.5.1",
+    "marked": "17.0.1",
+    "typescript": "5.9.3",
+    "unocss": "66.6.6",
+    "vite": "6.4.1",
+    "vue": "3.5.26",
+    "vue-router": "4.6.4",
+    "vue-tsc": "2.2.12"
+  },
+  "upstreamDeclaredRanges": {
+    "setting": {
+      "@vueuse/core": "^14.2.1",
+      "vue": "^3.5.13",
+      "vue-router": "^4.6.4",
+      "@iconify/utils": "^3.1.0",
+      "@types/node": "^25.3.5",
+      "@unocss/preset-icons": "^66.6.6",
+      "@unocss/transformer-directives": "^66.6.6",
+      "@vitejs/plugin-vue": "^5.2.1",
+      "@ztools-center/ztools-api-types": "^1.0.1",
+      "less": "^4.5.1",
+      "typescript": "^5.3.0",
+      "unocss": "^66.6.6",
+      "vite": "^6.0.11",
+      "vue-tsc": "^2.0.0"
+    },
+    "root": {
+      "@electron-toolkit/tsconfig": "^2.0.0",
+      "electron-vite": "^4.0.1",
+      "marked": "^17.0.1"
+    }
+  },
+  "additionalDependencySources": {
+    "@electron-toolkit/tsconfig": "Added to the isolated adapter package at the exact ZTools root lock version because setting/tsconfig.web.json extends its web config; the root package declares ^2.0.0.",
+    "electron-vite": "Added to the isolated adapter package at the exact ZTools root lock version because setting/tsconfig.node.json requests electron-vite/node types; the root package declares ^4.0.1. No Electron process is run.",
+    "element-plus": "Explicit adapter dependency for the upstream import in internal-plugins/setting/src/utils/message.ts, omitted from both setting package.json and its lock; fixed at 2.11.5 after peer metadata verification (Vue peer range ^3.2.0).",
+    "marked": "Explicit adapter dependency for the upstream import in internal-plugins/setting/src/components/common/PluginDetail/usePluginDetail.ts, omitted from the setting package; fixed at the upstream root package/lock version 17.0.1 (root range ^17.0.1)."
+  }
+}

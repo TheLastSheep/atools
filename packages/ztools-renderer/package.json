@@ -1,0 +1,9 @@
+{
+  "name": "@atools/ztools-renderer-source-build",
+  "private": true,
+  "type": "module",
+  "description": "Pinned upstream ZTools renderer build target for ATools",
+  "devDependencies": {
+    "terser": "5.51.2"
+  }
+}

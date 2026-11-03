@@ -1,0 +1,31 @@
+{
+  "name": "@atools/ztools-settings-source-build",
+  "private": true,
+  "type": "module",
+  "description": "Pinned upstream ZTools settings application build target for ATools",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "@vueuse/core": "14.2.1",
+    "element-plus": "2.11.5",
+    "marked": "17.0.1",
+    "vue": "3.5.26",
+    "vue-router": "4.6.4"
+  },
+  "devDependencies": {
+    "@electron-toolkit/tsconfig": "2.0.0",
+    "@iconify/utils": "3.1.0",
+    "@types/node": "25.4.0",
+    "@unocss/preset-icons": "66.6.6",
+    "@unocss/transformer-directives": "66.6.6",
+    "@vitejs/plugin-vue": "5.2.4",
+    "@ztools-center/ztools-api-types": "1.0.3",
+    "electron-vite": "4.0.1",
+    "less": "4.5.1",
+    "typescript": "5.9.3",
+    "unocss": "66.6.6",
+    "vite": "6.4.1",
+    "vue-tsc": "2.2.12"
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "repository": "https://github.com/ZToolsCenter/ZTools.git",
+    "commit": "9b15fb1a2a9f3ec886016632761c7bb21e39557a",
+    "packageName": "ZTools",
+    "packageVersion": "3.0.1",
+    "license": "MIT",
+    "entryHtml": "src/renderer/index.html",
+    "entryModule": "src/renderer/src/main.ts",
+    "preservedInputManifest": "package.json",
+    "preservedLicense": "LICENSE"
+  },
+  "build": {
+    "nodeVersion": "v22.23.3",
+    "runtimeOutput": "packages/ztools-renderer/dist",
+    "hostAdapterModule": "packages/ztools-renderer/src/hostAdapter.ts",
+    "injectWithoutEditingUpstream": true,
+    "sourceMaps": false,
+    "postMinifier": {
+      "name": "terser",
+      "version": "5.51.2"
+    },
+    "budgetMilestone": "original-vue-main-about-update-2026-11-02",
+    "previousTotalJavaScriptBytes": 611758,
+    "maxIncrementalJavaScriptBytes": 2246,
+    "totalJavaScriptBudgetBytes": 614004,
+    "hostAdapterSourceExtensions": [
+      ".ts",
+      ".mjs"
+    ],
+    "hostBuildHelperModules": [
+      "upstream-compatibility-patches.mjs"
+    ]
+  },
+  "reusedDependencies": [
+    "vite",
+    "@vitejs/plugin-vue",
+    "vite-svg-loader",
+    "vue",
+    "pinia",
+    "fuse.js",
+    "pinyin-pro",
+    "vuedraggable"
+  ]
+}
