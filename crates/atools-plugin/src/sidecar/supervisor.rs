@@ -1,22 +1,25 @@
+use super::process::SharedCleanupError;
+use super::startup_diagnostics::{
+    StartupFailureDiagnostic, StartupFailureKind, StartupProcessStatus, StartupTrace,
+};
+use super::{node_children::NodeChildrenLaunch, NodeRuntimeSelector};
 use atools_core::{PluginManifest, PluginRuntimeKind, PluginRuntimeTransport};
 use serde_json::{json, Value};
-use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::collections::{BTreeMap, VecDeque};
 use std::path::{Path, PathBuf};
-use std::process::Stdio;
+use std::sync::atomic::AtomicBool;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::process::{Child, Command};
-use tokio::sync::{mpsc, oneshot, watch, RwLock};
+use tokio::process::Command;
+use tokio::sync::{mpsc, oneshot, watch, OwnedSemaphorePermit, RwLock};
+
+#[path = "supervisor/start_process.rs"]
+mod start_process;
 
 const DEFAULT_STARTUP_TIMEOUT: Duration = Duration::from_secs(10);
 const DEFAULT_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
-const PROCESS_POLL_INTERVAL: Duration = Duration::from_millis(50);
-const MAX_PROTOCOL_LINE_BYTES: usize = 8 * 1024 * 1024;
-const MAX_STDERR_LINES: usize = 200;
-
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum SidecarError {
     #[error("plugin runtime entry is invalid: {0}")]
@@ -35,6 +38,11 @@ pub enum SidecarError {
     Protocol(String),
     #[error("plugin sidecar returned JSON-RPC error {code}: {message}")]
     Remote { code: i64, message: String },
+    #[error("Node sidecar startup failed during {failure:?}")]
+    Startup {
+        failure: StartupFailureKind,
+        diagnostic: StartupFailureDiagnostic,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -68,9 +76,12 @@ impl SidecarLaunchSpec {
             .validate_runtime_contract()
             .map_err(SidecarError::InvalidEntry)?;
         let runtime = manifest.effective_runtime_kind();
-        if !matches!(runtime, PluginRuntimeKind::Rust | PluginRuntimeKind::Node) {
+        if !matches!(
+            runtime,
+            PluginRuntimeKind::Rust | PluginRuntimeKind::Node | PluginRuntimeKind::Wasm
+        ) {
             return Err(SidecarError::InvalidEntry(
-                "sidecar runtime must be rust or node".to_string(),
+                "sidecar runtime must be rust, node, or wasm".to_string(),
             ));
         }
         let transport = manifest.effective_runtime_transport();
@@ -115,65 +126,9 @@ impl SidecarLaunchSpec {
             request_timeout: DEFAULT_REQUEST_TIMEOUT,
         })
     }
-
-    fn command(&self) -> Command {
-        let mut command = match self.runtime {
-            PluginRuntimeKind::Rust => Command::new(&self.entry),
-            PluginRuntimeKind::Node => {
-                let mut command = Command::new(
-                    std::env::var_os("ATOOLS_NODE_BINARY").unwrap_or_else(|| "node".into()),
-                );
-                command.arg(&self.entry);
-                command
-            }
-            PluginRuntimeKind::Web => unreachable!("web plugins are not sidecars"),
-        };
-        command
-            .args(&self.args)
-            .current_dir(&self.plugin_dir)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .kill_on_drop(true)
-            .env_clear();
-        for key in ["HOME", "LANG", "LC_ALL", "PATH", "TMPDIR"] {
-            if let Some(value) = std::env::var_os(key) {
-                command.env(key, value);
-            }
-        }
-        command.env("ATOOLS_PLUGIN_ID", &self.plugin_id);
-        command.env("ATOOLS_PLUGIN_DIR", &self.plugin_dir);
-        for (key, value) in &self.env {
-            command.env(key, value);
-        }
-        #[cfg(unix)]
-        unsafe {
-            command.pre_exec(|| {
-                if libc::setsid() == -1 {
-                    return Err(std::io::Error::last_os_error());
-                }
-                let nofile = libc::rlimit {
-                    rlim_cur: 256,
-                    rlim_max: 256,
-                };
-                if libc::setrlimit(libc::RLIMIT_NOFILE, &nofile) != 0 {
-                    return Err(std::io::Error::last_os_error());
-                }
-                let core = libc::rlimit {
-                    rlim_cur: 0,
-                    rlim_max: 0,
-                };
-                if libc::setrlimit(libc::RLIMIT_CORE, &core) != 0 {
-                    return Err(std::io::Error::last_os_error());
-                }
-                Ok(())
-            });
-        }
-        command
-    }
 }
 
-enum ProcessCommand {
+pub(super) enum ProcessCommand {
     Request {
         id: u64,
         method: String,
@@ -185,7 +140,9 @@ enum ProcessCommand {
         params: Value,
         response: oneshot::Sender<Result<(), SidecarError>>,
     },
-    Cancel { id: u64 },
+    Cancel {
+        id: u64,
+    },
     Shutdown {
         response: oneshot::Sender<Result<(), SidecarError>>,
     },
@@ -196,57 +153,72 @@ pub struct SidecarProcess {
     transport: PluginRuntimeTransport,
     request_timeout: Duration,
     next_id: AtomicU64,
-    command_tx: mpsc::Sender<ProcessCommand>,
+    pub(super) command_tx: mpsc::Sender<ProcessCommand>,
     status_rx: watch::Receiver<SidecarStatus>,
     stderr: Arc<RwLock<VecDeque<String>>>,
     mcp_initialize_result: tokio::sync::Mutex<Option<Value>>,
+    cleanup_error: SharedCleanupError,
+    pub(crate) owned_pid: Option<u32>,
 }
 
 impl SidecarProcess {
     pub async fn spawn(spec: SidecarLaunchSpec) -> Result<Arc<Self>, SidecarError> {
-        let mut child = spec
-            .command()
-            .spawn()
-            .map_err(|error| SidecarError::Spawn(error.to_string()))?;
-        let stdin = child
-            .stdin
-            .take()
-            .ok_or_else(|| SidecarError::Spawn("stdin pipe is unavailable".to_string()))?;
-        let stdout = child
-            .stdout
-            .take()
-            .ok_or_else(|| SidecarError::Spawn("stdout pipe is unavailable".to_string()))?;
-        let stderr_pipe = child
-            .stderr
-            .take()
-            .ok_or_else(|| SidecarError::Spawn("stderr pipe is unavailable".to_string()))?;
-        let (command_tx, command_rx) = mpsc::channel(128);
-        let (status_tx, status_rx) = watch::channel(SidecarStatus::Starting);
-        let stderr = Arc::new(RwLock::new(VecDeque::new()));
-        let stderr_for_task = stderr.clone();
-        tokio::spawn(async move {
-            capture_stderr(stderr_pipe, stderr_for_task).await;
-        });
-        tokio::spawn(run_process(
-            child,
-            stdin,
-            stdout,
-            command_rx,
-            status_tx,
-            spec.transport,
-        ));
-        let process = Arc::new(Self {
-            plugin_id: spec.plugin_id,
-            transport: spec.transport,
-            request_timeout: spec.request_timeout,
-            next_id: AtomicU64::new(1),
-            command_tx,
-            status_rx,
-            stderr,
-            mcp_initialize_result: tokio::sync::Mutex::new(None),
-        });
-        process.wait_until_running(spec.startup_timeout).await?;
-        Ok(process)
+        Self::spawn_with_node_runtime_selector(
+            spec,
+            NodeRuntimeSelector::default(),
+            Arc::new(AtomicBool::new(false)),
+        )
+        .await
+    }
+
+    pub(crate) async fn spawn_with_node_runtime_selector(
+        spec: SidecarLaunchSpec,
+        selector: NodeRuntimeSelector,
+        cancelled: Arc<AtomicBool>,
+    ) -> Result<Arc<Self>, SidecarError> {
+        if spec.startup_timeout.is_zero() {
+            return Err(SidecarError::Timeout(0));
+        }
+        let command = spec
+            .command_with_node_selector(&selector, cancelled)
+            .await?;
+        // Runtime preparation has its own bounded selector phase. The startup
+        // budget begins when the selected executable is actually spawned.
+        Self::spawn_with_command(spec, command).await
+    }
+
+    pub(crate) async fn spawn_with_command(
+        spec: SidecarLaunchSpec,
+        command: Command,
+    ) -> Result<Arc<Self>, SidecarError> {
+        Self::spawn_with_command_and_diagnostics(spec, command, None).await
+    }
+
+    pub(crate) async fn spawn_with_command_and_diagnostics(
+        spec: SidecarLaunchSpec,
+        command: Command,
+        diagnostics: Option<Arc<StartupTrace>>,
+    ) -> Result<Arc<Self>, SidecarError> {
+        Self::spawn_with_command_and_diagnostics_and_permit(spec, command, diagnostics, None).await
+    }
+
+    pub(crate) async fn spawn_with_command_and_diagnostics_and_permit(
+        spec: SidecarLaunchSpec,
+        command: Command,
+        diagnostics: Option<Arc<StartupTrace>>,
+        permit: Option<OwnedSemaphorePermit>,
+    ) -> Result<Arc<Self>, SidecarError> {
+        start_process::spawn(spec, command, diagnostics, permit, None).await
+    }
+
+    pub(crate) async fn spawn_with_node_children_launch(
+        spec: SidecarLaunchSpec,
+        command: Command,
+        diagnostics: Option<Arc<StartupTrace>>,
+        permit: Option<OwnedSemaphorePermit>,
+        node_children_launch: Option<NodeChildrenLaunch>,
+    ) -> Result<Arc<Self>, SidecarError> {
+        start_process::spawn(spec, command, diagnostics, permit, node_children_launch).await
     }
 
     async fn wait_until_running(&self, timeout: Duration) -> Result<(), SidecarError> {
@@ -273,6 +245,15 @@ impl SidecarProcess {
         .map_err(|_| SidecarError::Timeout(timeout.as_millis() as u64))?
     }
 
+    pub(crate) fn startup_status(&self) -> StartupProcessStatus {
+        match self.status() {
+            SidecarStatus::Starting => StartupProcessStatus::Starting,
+            SidecarStatus::Running => StartupProcessStatus::Running,
+            SidecarStatus::Stopped => StartupProcessStatus::Stopped,
+            SidecarStatus::Crashed => StartupProcessStatus::Crashed,
+        }
+    }
+
     pub fn plugin_id(&self) -> &str {
         &self.plugin_id
     }
@@ -283,6 +264,26 @@ impl SidecarProcess {
 
     pub fn status(&self) -> SidecarStatus {
         *self.status_rx.borrow()
+    }
+
+    fn terminal_shutdown_result(&self) -> Result<(), SidecarError> {
+        // Snapshot terminal status first: the process loop records cleanup errors
+        // before publishing Stopped/Crashed, so checking sticky state afterward
+        // cannot miss a concurrent failure paired with this terminal snapshot.
+        let status = self.status();
+        if let Some(error) = self.cleanup_error.get() {
+            return Err(error);
+        }
+        if matches!(status, SidecarStatus::Stopped | SidecarStatus::Crashed) {
+            Ok(())
+        } else {
+            Err(SidecarError::NotRunning)
+        }
+    }
+
+    #[cfg(test)]
+    pub(super) fn status_receiver_for_test(&self) -> watch::Receiver<SidecarStatus> {
+        self.status_rx.clone()
     }
 
     pub async fn stderr_tail(&self) -> Vec<String> {
@@ -349,15 +350,27 @@ impl SidecarProcess {
     }
 
     pub async fn shutdown(&self) -> Result<(), SidecarError> {
-        if matches!(self.status(), SidecarStatus::Stopped | SidecarStatus::Crashed) {
-            return Ok(());
+        if matches!(
+            self.status(),
+            SidecarStatus::Stopped | SidecarStatus::Crashed
+        ) {
+            return self.terminal_shutdown_result();
         }
         let (response_tx, response_rx) = oneshot::channel();
-        self.command_tx
-            .send(ProcessCommand::Shutdown { response: response_tx })
+        if self
+            .command_tx
+            .send(ProcessCommand::Shutdown {
+                response: response_tx,
+            })
             .await
-            .map_err(|_| SidecarError::NotRunning)?;
-        response_rx.await.map_err(|_| SidecarError::NotRunning)?
+            .is_err()
+        {
+            return self.terminal_shutdown_result();
+        }
+        match response_rx.await {
+            Ok(result) => result,
+            Err(_) => self.terminal_shutdown_result(),
+        }
     }
 }
 
@@ -367,281 +380,5 @@ impl Drop for SidecarProcess {
         let _ = self
             .command_tx
             .try_send(ProcessCommand::Shutdown { response });
-    }
-}
-
-#[derive(Default)]
-pub struct SidecarSupervisor {
-    processes: RwLock<HashMap<String, Arc<SidecarProcess>>>,
-}
-
-impl SidecarSupervisor {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub async fn start(&self, spec: SidecarLaunchSpec) -> Result<Arc<SidecarProcess>, SidecarError> {
-        if let Some(existing) = self.processes.read().await.get(&spec.plugin_id).cloned() {
-            if existing.status() == SidecarStatus::Running {
-                return Ok(existing);
-            }
-        }
-        let plugin_id = spec.plugin_id.clone();
-        let process = SidecarProcess::spawn(spec).await?;
-        self.processes
-            .write()
-            .await
-            .insert(plugin_id, process.clone());
-        Ok(process)
-    }
-
-    pub async fn get(&self, plugin_id: &str) -> Option<Arc<SidecarProcess>> {
-        self.processes.read().await.get(plugin_id).cloned()
-    }
-
-    pub async fn stop(&self, plugin_id: &str) -> Result<(), SidecarError> {
-        let process = self.processes.write().await.remove(plugin_id);
-        if let Some(process) = process {
-            process.shutdown().await?;
-        }
-        Ok(())
-    }
-
-    pub async fn stop_all(&self) {
-        let processes = std::mem::take(&mut *self.processes.write().await);
-        for process in processes.into_values() {
-            let _ = process.shutdown().await;
-        }
-    }
-}
-
-impl Drop for SidecarSupervisor {
-    fn drop(&mut self) {
-        if let Ok(mut processes) = self.processes.try_write() {
-            for process in processes.values() {
-                let (response, _) = oneshot::channel();
-                let _ = process
-                    .command_tx
-                    .try_send(ProcessCommand::Shutdown { response });
-            }
-            processes.clear();
-        }
-    }
-}
-
-async fn run_process(
-    mut child: Child,
-    mut stdin: tokio::process::ChildStdin,
-    stdout: tokio::process::ChildStdout,
-    mut command_rx: mpsc::Receiver<ProcessCommand>,
-    status_tx: watch::Sender<SidecarStatus>,
-    transport: PluginRuntimeTransport,
-) {
-    let (line_tx, mut line_rx) = mpsc::channel(128);
-    tokio::spawn(read_stdout_lines(stdout, line_tx));
-    let mut pending = HashMap::<u64, oneshot::Sender<Result<Value, SidecarError>>>::new();
-    let mut poll = tokio::time::interval(PROCESS_POLL_INTERVAL);
-    let _ = status_tx.send(SidecarStatus::Running);
-
-    loop {
-        tokio::select! {
-            _ = poll.tick() => {
-                match child.try_wait() {
-                    Ok(Some(status)) => {
-                        let error = SidecarError::Crashed(format!("exit status {status}"));
-                        fail_pending(&mut pending, error);
-                        let _ = status_tx.send(SidecarStatus::Crashed);
-                        break;
-                    }
-                    Ok(None) => {}
-                    Err(error) => {
-                        fail_pending(&mut pending, SidecarError::Crashed(error.to_string()));
-                        let _ = status_tx.send(SidecarStatus::Crashed);
-                        break;
-                    }
-                }
-            }
-            Some(line) = line_rx.recv() => {
-                match line {
-                    Ok(value) => route_response(value, &mut pending),
-                    Err(error) => {
-                        fail_pending(&mut pending, error);
-                        let _ = terminate_child(&mut child).await;
-                        let _ = status_tx.send(SidecarStatus::Crashed);
-                        break;
-                    }
-                }
-            }
-            Some(command) = command_rx.recv() => {
-                match command {
-                    ProcessCommand::Request { id, method, params, response } => {
-                        let message = json!({"jsonrpc":"2.0", "id":id, "method":method, "params":params});
-                        if let Err(error) = write_message(&mut stdin, &message).await {
-                            let _ = response.send(Err(error.clone()));
-                            fail_pending(&mut pending, error);
-                            let _ = terminate_child(&mut child).await;
-                            let _ = status_tx.send(SidecarStatus::Crashed);
-                            break;
-                        }
-                        pending.insert(id, response);
-                    }
-                    ProcessCommand::Notify { method, params, response } => {
-                        let message = json!({"jsonrpc":"2.0", "method":method, "params":params});
-                        let result = write_message(&mut stdin, &message).await;
-                        let _ = response.send(result);
-                    }
-                    ProcessCommand::Cancel { id } => {
-                        pending.remove(&id);
-                        if transport == PluginRuntimeTransport::McpStdio {
-                            let message = json!({"jsonrpc":"2.0", "method":"notifications/cancelled", "params":{"requestId":id, "reason":"ATools request timeout or cancellation"}});
-                            let _ = write_message(&mut stdin, &message).await;
-                        } else {
-                            let message = json!({"jsonrpc":"2.0", "method":"$/cancelRequest", "params":{"id":id}});
-                            let _ = write_message(&mut stdin, &message).await;
-                        }
-                    }
-                    ProcessCommand::Shutdown { response } => {
-                        fail_pending(&mut pending, SidecarError::Cancelled);
-                        let result = terminate_child(&mut child).await;
-                        let _ = status_tx.send(SidecarStatus::Stopped);
-                        let _ = response.send(result);
-                        break;
-                    }
-                }
-            }
-            else => {
-                let _ = terminate_child(&mut child).await;
-                fail_pending(&mut pending, SidecarError::NotRunning);
-                let _ = status_tx.send(SidecarStatus::Stopped);
-                break;
-            }
-        }
-    }
-}
-
-async fn terminate_child(child: &mut Child) -> Result<(), SidecarError> {
-    #[cfg(unix)]
-    if let Some(pid) = child.id() {
-        unsafe {
-            libc::kill(-(pid as i32), libc::SIGKILL);
-        }
-    }
-    #[cfg(not(unix))]
-    let _ = child.start_kill();
-    child
-        .wait()
-        .await
-        .map(|_| ())
-        .map_err(|error| SidecarError::Crashed(error.to_string()))
-}
-
-async fn write_message(
-    stdin: &mut tokio::process::ChildStdin,
-    value: &Value,
-) -> Result<(), SidecarError> {
-    let mut bytes = serde_json::to_vec(value)
-        .map_err(|error| SidecarError::Protocol(error.to_string()))?;
-    bytes.push(b'\n');
-    stdin
-        .write_all(&bytes)
-        .await
-        .map_err(|error| SidecarError::Crashed(error.to_string()))?;
-    stdin
-        .flush()
-        .await
-        .map_err(|error| SidecarError::Crashed(error.to_string()))
-}
-
-async fn read_stdout_lines(
-    stdout: tokio::process::ChildStdout,
-    line_tx: mpsc::Sender<Result<Value, SidecarError>>,
-) {
-    let mut reader = BufReader::new(stdout);
-    let mut buffer = Vec::new();
-    loop {
-        buffer.clear();
-        match reader.read_until(b'\n', &mut buffer).await {
-            Ok(0) => break,
-            Ok(_) if buffer.len() > MAX_PROTOCOL_LINE_BYTES => {
-                let _ = line_tx
-                    .send(Err(SidecarError::Protocol(
-                        "stdout JSON message exceeded size limit".to_string(),
-                    )))
-                    .await;
-                break;
-            }
-            Ok(_) => {
-                while matches!(buffer.last(), Some(b'\n' | b'\r')) {
-                    buffer.pop();
-                }
-                if buffer.is_empty() {
-                    continue;
-                }
-                let value = serde_json::from_slice::<Value>(&buffer).map_err(|error| {
-                    SidecarError::Protocol(format!(
-                        "stdout must contain only JSON-RPC messages: {error}"
-                    ))
-                });
-                if line_tx.send(value).await.is_err() {
-                    break;
-                }
-            }
-            Err(error) => {
-                let _ = line_tx
-                    .send(Err(SidecarError::Crashed(error.to_string())))
-                    .await;
-                break;
-            }
-        }
-    }
-}
-
-async fn capture_stderr(
-    stderr: tokio::process::ChildStderr,
-    captured: Arc<RwLock<VecDeque<String>>>,
-) {
-    let mut lines = BufReader::new(stderr).lines();
-    while let Ok(Some(line)) = lines.next_line().await {
-        let mut captured = captured.write().await;
-        captured.push_back(line);
-        while captured.len() > MAX_STDERR_LINES {
-            captured.pop_front();
-        }
-    }
-}
-
-fn route_response(
-    value: Value,
-    pending: &mut HashMap<u64, oneshot::Sender<Result<Value, SidecarError>>>,
-) {
-    let Some(id) = value.get("id").and_then(Value::as_u64) else {
-        return;
-    };
-    let Some(response) = pending.remove(&id) else {
-        return;
-    };
-    if let Some(error) = value.get("error") {
-        let code = error.get("code").and_then(Value::as_i64).unwrap_or(-32_000);
-        let message = error
-            .get("message")
-            .and_then(Value::as_str)
-            .unwrap_or("unknown JSON-RPC error")
-            .to_string();
-        let _ = response.send(Err(SidecarError::Remote { code, message }));
-    } else if let Some(result) = value.get("result") {
-        let _ = response.send(Ok(result.clone()));
-    } else {
-        let _ = response.send(Err(SidecarError::Protocol(
-            "JSON-RPC response has neither result nor error".to_string(),
-        )));
-    }
-}
-
-fn fail_pending(
-    pending: &mut HashMap<u64, oneshot::Sender<Result<Value, SidecarError>>>,
-    error: SidecarError,
-) {
-    for (_, response) in pending.drain() {
-        let _ = response.send(Err(error.clone()));
     }
 }

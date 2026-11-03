@@ -1,7 +1,9 @@
 #![cfg(unix)]
 
 use atools_core::PluginManifest;
-use atools_plugin::{JsonRpcSidecar, McpSidecar, SidecarError, SidecarLaunchSpec, SidecarSupervisor};
+use atools_plugin::{
+    JsonRpcSidecar, McpSidecar, SidecarError, SidecarLaunchSpec, SidecarSupervisor,
+};
 use serde_json::json;
 use std::os::unix::fs::PermissionsExt;
 use std::time::Duration;
@@ -107,7 +109,10 @@ async fn json_rpc_sidecar_routes_results_errors_timeouts_and_shutdown() {
     let client = JsonRpcSidecar::new(process.clone()).unwrap();
 
     let result = client.call("echo", json!({"value": 42})).await.unwrap();
-    assert_eq!(result.structured_content, Some(json!({"method":"echo", "params":{"value":42}})));
+    assert_eq!(
+        result.structured_content,
+        Some(json!({"method":"echo", "params":{"value":42}}))
+    );
 
     let error = client.call("fail", json!({})).await.unwrap_err();
     assert_eq!(
@@ -138,12 +143,8 @@ async fn json_rpc_sidecar_routes_results_errors_timeouts_and_shutdown() {
 async fn mcp_sidecar_initializes_lists_and_calls_tools() {
     let temp = tempfile::tempdir().unwrap();
     write_worker(temp.path());
-    let spec = SidecarLaunchSpec::from_manifest(
-        "fixture-mcp",
-        temp.path(),
-        &manifest("mcp_stdio"),
-    )
-    .unwrap();
+    let spec = SidecarLaunchSpec::from_manifest("fixture-mcp", temp.path(), &manifest("mcp_stdio"))
+        .unwrap();
     let supervisor = SidecarSupervisor::new();
     let process = supervisor.start(spec).await.unwrap();
     let client = McpSidecar::new(process).unwrap();
@@ -163,17 +164,17 @@ async fn mcp_sidecar_initializes_lists_and_calls_tools() {
 async fn sidecar_reports_crash_and_captures_stderr() {
     let temp = tempfile::tempdir().unwrap();
     write_worker(temp.path());
-    let spec = SidecarLaunchSpec::from_manifest(
-        "fixture-crash",
-        temp.path(),
-        &manifest("json_rpc_stdio"),
-    )
-    .unwrap();
+    let spec =
+        SidecarLaunchSpec::from_manifest("fixture-crash", temp.path(), &manifest("json_rpc_stdio"))
+            .unwrap();
     let supervisor = SidecarSupervisor::new();
     let process = supervisor.start(spec).await.unwrap();
     let client = JsonRpcSidecar::new(process.clone()).unwrap();
     let error = client.call("crash", json!({})).await.unwrap_err();
-    assert!(matches!(error, SidecarError::Crashed(_) | SidecarError::NotRunning));
+    assert!(matches!(
+        error,
+        SidecarError::Crashed(_) | SidecarError::NotRunning
+    ));
     tokio::time::sleep(Duration::from_millis(80)).await;
     assert!(process
         .stderr_tail()

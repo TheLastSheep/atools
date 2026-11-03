@@ -7,8 +7,14 @@ use serde::{Deserialize, Serialize};
 /// Plugin manifest (parsed from `plugin.json`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginManifest {
+    /// Supported host platforms (`darwin`, `win32`, `linux`); empty is unrestricted.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub platform: Vec<String>,
     /// Plugin name (e.g. "utools-demo").
     pub name: String,
+    /// Human-readable ZTools title; never used as a stable identifier.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
     /// Semantic version string.
     #[serde(default)]
     pub version: String,
@@ -101,10 +107,10 @@ impl PluginManifest {
                     return Err("Web plugins must use host_bridge transport".to_string());
                 }
             }
-            PluginRuntimeKind::Rust | PluginRuntimeKind::Node => {
+            PluginRuntimeKind::Rust | PluginRuntimeKind::Node | PluginRuntimeKind::Wasm => {
                 if runtime.transport == PluginRuntimeTransport::HostBridge {
                     return Err(
-                        "Rust and Node plugins must use json_rpc_stdio or mcp_stdio transport"
+                        "Rust, Node, and Wasm plugins must use json_rpc_stdio or mcp_stdio transport"
                             .to_string(),
                     );
                 }
@@ -130,6 +136,8 @@ pub enum PluginRuntimeKind {
     Rust,
     Node,
     Web,
+    #[serde(alias = "wasm_component")]
+    Wasm,
 }
 
 /// Compatibility contract implemented by a plugin.
@@ -201,7 +209,7 @@ pub struct ToolManifest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginSetting {
     /// If true, the plugin runs as a singleton.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_lenient_bool")]
     pub single: bool,
     /// Initial window height in pixels.
     #[serde(default = "default_height")]
@@ -226,6 +234,9 @@ pub struct Development {
 /// A feature declaration inside a plugin manifest.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Feature {
+    /// Additional host-platform restriction for this feature; empty is unrestricted.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub platform: Vec<String>,
     /// Unique code identifying this feature within the plugin.
     pub code: String,
     /// Human-readable display label (shown as the command title in the UI).
@@ -238,14 +249,39 @@ pub struct Feature {
     #[serde(default)]
     pub icon: Option<String>,
     /// Whether this feature is pushed to the main search list.
-    #[serde(default, rename = "mainPush")]
+    #[serde(
+        default,
+        rename = "mainPush",
+        deserialize_with = "deserialize_lenient_bool"
+    )]
     pub main_push: bool,
     /// Whether this feature is hidden from the main list by default.
-    #[serde(default, rename = "mainHide")]
+    #[serde(
+        default,
+        rename = "mainHide",
+        deserialize_with = "deserialize_lenient_bool"
+    )]
     pub main_hide: bool,
     /// Command match rules that activate this feature.
     #[serde(default)]
     pub cmds: Vec<Cmd>,
+}
+
+fn deserialize_lenient_bool<'de, D>(deserializer: D) -> Result<bool, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let val = Option::<serde_json::Value>::deserialize(deserializer)?;
+    Ok(match val {
+        None | Some(serde_json::Value::Null) => false,
+        Some(serde_json::Value::Bool(b)) => b,
+        Some(serde_json::Value::Number(n)) => n.as_i64().unwrap_or(0) != 0,
+        Some(serde_json::Value::String(s)) => {
+            let trimmed = s.trim().to_ascii_lowercase();
+            !trimmed.is_empty() && trimmed != "false" && trimmed != "0" && trimmed != "no"
+        }
+        Some(_) => true,
+    })
 }
 
 /// A command match rule.
@@ -261,19 +297,75 @@ pub enum Cmd {
 }
 
 /// A typed command rule with a specific match strategy.
+mod typed_command;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(from = "typed_command::Wire")]
 pub struct CmdTyped {
     /// The type of match to perform.
     #[serde(rename = "type")]
     pub type_: CmdType,
     /// Optional label shown in the UI.
     pub label: Option<String>,
-    /// Regex pattern for `Regex` type.
-    #[serde(default, rename = "match")]
+    /// Regex pattern for `Regex` type, or serialized match object for `Window`/`Files`.
+    #[serde(
+        default,
+        rename = "match",
+        alias = "regex",
+        deserialize_with = "deserialize_match_field"
+    )]
     pub match_: Option<String>,
-    /// Minimum input length for `Over` type.
-    #[serde(default)]
+    /// Ordinary-text exclusion for `Over`; fixed-text matching ignores this field.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exclude: Option<String>,
+    /// Minimum input length for `Over` type (`length` or `minLength` in ZTools/uTools).
+    #[serde(
+        default,
+        alias = "minLength",
+        deserialize_with = "deserialize_length_field"
+    )]
     pub length: Option<u32>,
+    /// Upper text UTF-16 length or inclusive files selection count.
+    #[serde(
+        default,
+        rename = "maxLength",
+        deserialize_with = "deserialize_length_field"
+    )]
+    pub max_length: Option<u32>,
+    /// Optional files-only kind restriction, retained across static/dynamic persistence.
+    #[serde(default, rename = "fileType", skip_serializing_if = "Option::is_none")]
+    pub file_type: Option<String>,
+    /// Case-insensitive filename suffixes, without implicit leading-dot removal.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub extensions: Option<Vec<String>>,
+}
+
+fn deserialize_match_field<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let val = Option::<serde_json::Value>::deserialize(deserializer)?;
+    Ok(match val {
+        None | Some(serde_json::Value::Null) => None,
+        Some(serde_json::Value::String(s)) => Some(s),
+        Some(other) => Some(other.to_string()),
+    })
+}
+
+fn deserialize_length_field<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let val = Option::<serde_json::Value>::deserialize(deserializer)?;
+    Ok(match val {
+        None | Some(serde_json::Value::Null) => None,
+        Some(serde_json::Value::Number(n)) => n
+            .as_u64()
+            .map(|v| u32::try_from(v).unwrap_or(u32::MAX))
+            .or_else(|| n.as_i64().map(|v| v.max(0) as u32)),
+        Some(serde_json::Value::String(s)) => s.trim().parse::<u32>().ok(),
+        _ => None,
+    })
 }
 
 /// The type of a typed command rule.

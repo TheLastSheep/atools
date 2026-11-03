@@ -121,7 +121,9 @@ fn sample_plugin() -> Plugin {
         path: "/tmp/timestamp-plugin".to_string(),
         enabled: true,
         manifest: PluginManifest {
+            platform: vec![],
             name: "timestamp-plugin".to_string(),
+            title: None,
             version: "2.1.0".to_string(),
             main: Some("index.html".to_string()),
             logo: None,
@@ -131,6 +133,7 @@ fn sample_plugin() -> Plugin {
             homepage: None,
             plugin_setting: None,
             features: vec![Feature {
+                platform: vec![],
                 code: "timestamp".to_string(),
                 label: Some("Timestamp converter".to_string()),
                 explain: "Convert timestamps".to_string(),

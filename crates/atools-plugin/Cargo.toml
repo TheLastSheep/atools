@@ -18,9 +18,18 @@ dirs.workspace = true
 uuid.workspace = true
 rquickjs.workspace = true
 crossbeam-channel = "0.5"
+html5ever = "0.38"
+sha2 = "0.10"
+semver = "1.0"
+url = "2.5.8"
+base64 = "0.22.1"
+flate2 = "1.1"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
 [dev-dependencies]
 tempfile = "3.10"
+
+[features]
+native-smoke = []

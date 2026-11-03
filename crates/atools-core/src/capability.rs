@@ -9,6 +9,9 @@ use crate::models::{
 };
 use crate::skill::SkillDefinition;
 
+mod database_catalog;
+pub use database_catalog::capability_catalog_from_db;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CapabilitySourceKind {
@@ -208,7 +211,7 @@ impl Capability {
             source: CapabilitySource {
                 kind: CapabilitySourceKind::PluginFeature,
                 id: plugin.id.clone(),
-                name: plugin.name.clone(),
+                name: plugin.display_name().to_string(),
             },
             input_schema: json!({
                 "type": "object",
@@ -329,7 +332,7 @@ pub fn capability_catalog(
             (
                 plugin.id.as_str(),
                 (
-                    plugin.name.as_str(),
+                    plugin.display_name(),
                     plugin.version.as_str(),
                     plugin.manifest.effective_runtime_kind(),
                     plugin.manifest.effective_compatibility(),
@@ -391,14 +394,20 @@ fn permission_scope_id(scope: &PermissionScope) -> String {
     match scope {
         PermissionScope::ClipboardRead => "clipboard_read",
         PermissionScope::ClipboardWrite => "clipboard_write",
+        PermissionScope::InputKeyboard => "input_keyboard",
+        PermissionScope::ClipboardDelete => "clipboard_delete",
         PermissionScope::FileRead => "file_read",
         PermissionScope::FileWrite => "file_write",
         PermissionScope::Network => "network",
         PermissionScope::Shell => "shell",
         PermissionScope::Screenshot => "screenshot",
+        PermissionScope::DisplayRead => "display_read",
         PermissionScope::BrowserContext => "browser_context",
         PermissionScope::PluginData => "plugin_data",
+        PermissionScope::SecretStorage => "secret_storage",
         PermissionScope::SystemSettings => "system_settings",
+        PermissionScope::PluginWindow => "plugin_window",
+        PermissionScope::PluginBackground => "plugin_background",
     }
     .to_string()
 }
@@ -406,6 +415,11 @@ fn permission_scope_id(scope: &PermissionScope) -> String {
 fn builtin_tool_human_invocable(name: &str) -> bool {
     matches!(
         name,
-        "compress_images" | "ocr_image" | "open_or_reveal_path" | "open_url"
+        "compress_images"
+            | "ocr_image"
+            | "open_or_reveal_path"
+            | "open_url"
+            | "convert_ztools_plugin"
+            | "inspect_ztools_source_build"
     )
 }

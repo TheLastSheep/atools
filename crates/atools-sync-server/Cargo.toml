@@ -1,0 +1,30 @@
+[package]
+name = "atools-sync-server"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Optional private ZTools-compatible document sync server"
+
+[dependencies]
+axum = { version = "0.8.9", features = ["ws"] }
+base64 = "0.22"
+bcrypt = "0.17"
+futures = { workspace = true }
+jsonwebtoken = { version = "9.3.1", default-features = false }
+rand = "0.8"
+rusqlite = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = "0.10"
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"
+tokio-tungstenite = "0.29"
+tower = { version = "0.5", features = ["util"] }

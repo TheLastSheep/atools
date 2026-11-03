@@ -82,7 +82,11 @@ impl JsonRpcSidecar {
         Ok(Self { process })
     }
 
-    pub async fn call(&self, method: &str, params: Value) -> Result<SidecarToolResult, SidecarError> {
+    pub async fn call(
+        &self,
+        method: &str,
+        params: Value,
+    ) -> Result<SidecarToolResult, SidecarError> {
         self.process
             .request(method, params)
             .await

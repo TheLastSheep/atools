@@ -5,12 +5,14 @@ use std::sync::{Arc, Weak};
 
 use anyhow::{Context, Result};
 use atools_core::db::Database;
-use atools_core::models::{Document, Feature, Plugin};
+use atools_core::models::{Document, Plugin};
 use atools_plugin::runtime::JsRuntime;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tracing::{debug, warn};
+
+mod dynamic_features;
 
 /// Handles IPC calls from plugin JavaScript contexts.
 ///
@@ -94,8 +96,12 @@ impl ApiHandler {
             "db.remove" => self.db_remove(plugin_id, args).await,
             "db.allDocs" => self.db_all_docs(plugin_id, args).await,
             "db.bulkDocs" => self.db_bulk_docs(plugin_id, args).await,
-            "db.putAttachment" => self.db_put_attachment(plugin_id, args).await,
+            "db.putAttachment" | "db.postAttachment" => {
+                self.db_put_attachment(plugin_id, args).await
+            }
             "db.getAttachment" => self.db_get_attachment(plugin_id, args).await,
+            "db.getAttachmentType" => self.db_get_attachment_type(plugin_id, args).await,
+            "db.replicateStateFromCloud" => Ok(json!(null)),
 
             // Storage (key-value)
             "storage.set" => self.storage_set(plugin_id, args).await,
@@ -103,9 +109,8 @@ impl ApiHandler {
             "storage.remove" => self.storage_remove(plugin_id, args).await,
 
             // Features
-            "features.set" => self.feature_set(plugin_id, args).await,
-            "features.remove" => self.feature_remove(plugin_id, args).await,
-            "features.get" => self.feature_get(plugin_id).await,
+            "features.set" | "features.remove" | "features.get" =>
+                dynamic_features::execute(&self.db, plugin_id, method, args),
             "settings.redirectHotKey" => unsupported_native(method),
             "settings.redirectAiModels" => unsupported_native(method),
 
@@ -120,9 +125,10 @@ impl ApiHandler {
             "plugin.getPath" => self.plugin_get_path(plugin_id).await,
 
             // System info
-            "system.isMacOS" => Ok(json!(true)),
-            "system.isWindows" => Ok(json!(false)),
-            "system.isLinux" => Ok(json!(false)),
+            "system.isMacOS" => Ok(json!(cfg!(target_os = "macos"))),
+            "system.isWindows" => Ok(json!(cfg!(target_os = "windows"))),
+            "system.isLinux" => Ok(json!(cfg!(target_os = "linux"))),
+            "system.isDev" => Ok(json!(cfg!(debug_assertions))),
             "system.getPath" => self.system_get_path(args).await,
             "system.getFileIcon" => self.system_get_file_icon(args).await,
             "system.notify" => Ok(json!(null)), // Handled by Tauri layer
@@ -635,6 +641,27 @@ impl ApiHandler {
         }
     }
 
+    async fn db_get_attachment_type(&self, plugin_id: &str, args: Vec<Value>) -> Result<Value> {
+        let mut iter = args.into_iter();
+        let doc_id = iter
+            .next()
+            .and_then(|v| v.as_str().map(String::from))
+            .context("Missing doc_id")?;
+        let name = iter
+            .next()
+            .and_then(|v| v.as_str().map(String::from))
+            .unwrap_or_else(|| "default".to_string());
+
+        match self
+            .db
+            .get_attachment(plugin_id, &doc_id, &name)
+            .context("Database getAttachmentType failed")?
+        {
+            Some((_data, content_type)) => Ok(json!(content_type)),
+            None => Ok(json!(null)),
+        }
+    }
+
     // --- Storage methods ---
 
     async fn storage_set(&self, plugin_id: &str, args: Vec<Value>) -> Result<Value> {
@@ -681,67 +708,6 @@ impl ApiHandler {
             .context("Storage remove failed")?;
 
         Ok(json!(true))
-    }
-
-    // --- Features methods ---
-
-    async fn feature_set(&self, plugin_id: &str, args: Vec<Value>) -> Result<Value> {
-        let features: Vec<Feature> = serde_json::from_value(
-            args.into_iter()
-                .next()
-                .context("Missing features argument")?,
-        )
-        .context("Failed to parse features")?;
-
-        self.db
-            .index_features(plugin_id, &features)
-            .context("Feature indexing failed")?;
-
-        Ok(json!(true))
-    }
-
-    async fn feature_remove(&self, plugin_id: &str, args: Vec<Value>) -> Result<Value> {
-        let code = args
-            .first()
-            .and_then(|v| v.as_str())
-            .context("Missing feature code argument")?;
-
-        // Fetch all current features, filter out the one to remove, and re-index.
-        let all_features = self
-            .db
-            .all_features()
-            .context("Failed to fetch features for removal")?;
-
-        let remaining: Vec<_> = all_features
-            .into_iter()
-            .filter(|entry| entry.plugin_id == plugin_id && entry.code != code)
-            .map(|entry| Feature {
-                code: entry.code,
-                label: Some(entry.label),
-                explain: entry.explain,
-                icon: entry.icon,
-                main_push: entry.main_push,
-                main_hide: false,
-                cmds: entry.cmds,
-            })
-            .collect();
-
-        self.db
-            .index_features(plugin_id, &remaining)
-            .context("Feature remove failed")?;
-
-        Ok(json!(true))
-    }
-
-    async fn feature_get(&self, plugin_id: &str) -> Result<Value> {
-        let all_features = self.db.all_features().context("Failed to fetch features")?;
-
-        let plugin_features: Vec<_> = all_features
-            .into_iter()
-            .filter(|entry| entry.plugin_id == plugin_id)
-            .collect();
-
-        Ok(serde_json::to_value(plugin_features)?)
     }
 
     // --- Plugin path ---

@@ -1,21 +1,41 @@
 //! Feature matching engine for ATools.
 //!
-//! Provides utilities to match user input against plugin feature commands,
-//! supporting text matching, pinyin abbreviations, regex patterns, and
-//! length-based triggers.
+//! Provides high-performance utilities to match user input against plugin feature commands,
+//! supporting zero-allocation ASCII fast-paths, full 20,902+ CJK pinyin initials and full
+//! pinyin (`quanpin`), cached JS/Rust regex patterns, and pre-indexed `FeatureSearchIndex`.
 
-use crate::models::{Cmd, CmdType, FeatureEntry};
+use std::collections::HashMap;
+
+use once_cell::sync::Lazy;
+use parking_lot::RwLock;
+use pinyin::ToPinyin;
+use regex::{Regex, RegexBuilder};
+
+use crate::models::FeatureEntry;
 
 /// Scoring constants for different match types.
 pub const SCORE_EXACT: i32 = 100;
 pub const SCORE_PREFIX: i32 = 90;
 pub const SCORE_REGEX: i32 = 80;
+pub const SCORE_IMG: i32 = 75;
+pub const SCORE_FILES: i32 = 70;
 pub const SCORE_OVER: i32 = 60;
 pub const SCORE_CONTAINS: i32 = 50;
 pub const SCORE_PINYIN: i32 = 30;
 
+mod index;
+pub use index::{
+    FeatureSearchIndex, MediaFile, MAX_MEDIA_FILES, MAX_MEDIA_PATH_BYTES,
+    MAX_MEDIA_PATH_TOTAL_BYTES, MAX_MEDIA_RULE_NAME_BYTES, MAX_MEDIA_RULE_NAME_WORK,
+};
+
+const MAX_REGEX_CACHE_ENTRIES: usize = 2048;
+
+static REGEX_CACHE: Lazy<RwLock<HashMap<String, Option<Regex>>>> =
+    Lazy::new(|| RwLock::new(HashMap::with_capacity(256)));
+
 /// Match result containing scoring information.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MatchResult {
     /// The feature code that matched.
     pub feature_code: String,
@@ -27,287 +47,182 @@ pub struct MatchResult {
     pub match_type: &'static str,
 }
 
-/// Search all features and return match results sorted by score.
+#[cfg(test)]
+mod tests;
+
+/// Search all features and return match results sorted by score (descending),
+/// then feature priority (descending), then feature code (ascending).
 pub fn search_all(features: &[FeatureEntry], query: &str) -> Vec<MatchResult> {
-    if query.is_empty() {
-        return Vec::new();
-    }
-
-    let query_lower = query.to_lowercase();
-    let mut matches: Vec<MatchResult> = features
-        .iter()
-        .filter_map(|feature| match_feature(&query_lower, feature))
-        .collect();
-
-    // Sort by score (descending), then by priority (descending), then alphabetically
-    matches.sort_by(|a, b| {
-        b.score
-            .cmp(&a.score)
-            .then_with(|| a.feature_code.cmp(&b.feature_code))
-    });
-
-    matches
+    search_all_checked(features, query)
+        .expect("search_all budget exceeded; use search_all_checked for untrusted catalogs/input")
 }
 
-/// Match query against a single feature entry.
-fn match_feature(query: &str, feature: &FeatureEntry) -> Option<MatchResult> {
-    let mut best_match: Option<MatchResult> = None;
+/// Fallible convenience search. Repeated user searches should retain a prebuilt index.
+pub fn search_all_checked(
+    features: &[FeatureEntry],
+    query: &str,
+) -> crate::Result<Vec<MatchResult>> {
+    FeatureSearchIndex::try_build(features)?.search_checked(query)
+}
 
-    for cmd in &feature.cmds {
-        if let Some((score, match_type)) = cmd_match_query(query, cmd) {
-            let result = MatchResult {
-                feature_code: feature.code.clone(),
-                plugin_id: feature.plugin_id.clone(),
-                score,
-                match_type,
-            };
+mod typed_text_bank_key;
+mod typed_text_digits;
+mod typed_text_metrics;
+mod typed_text_pattern;
+mod typed_text_prepare;
+mod typed_text_regex;
 
-            best_match = Some(match best_match {
-                Some(existing) if existing.score >= score => existing,
-                _ => result,
-            });
+#[cfg(all(test, target_os = "macos"))]
+#[path = "matcher/query_cpu_diagnostics.rs"]
+mod query_cpu_diagnostics;
+pub(crate) use typed_text_pattern::has_text_literal;
+#[cfg(test)]
+pub(crate) use typed_text_regex::compile_count as typed_text_compile_count;
+pub use typed_text_regex::MAX_TYPED_TEXT_REGEX_WORK;
+pub(crate) use typed_text_regex::{TypedTextRegexBank, TEXT_REGEX_ALLOWANCE_BYTES};
+
+/// Compile or retrieve a cached [`Regex`], supporting both raw Rust regex patterns
+/// and JavaScript `/pattern/flags` regex literals used across ZTools plugins.
+fn get_or_compile_regex(pattern: &str) -> Option<Regex> {
+    if let Some(cached) = REGEX_CACHE.read().get(pattern) {
+        return cached.clone();
+    }
+
+    let compiled = compile_ztools_regex(pattern);
+    let mut cache = REGEX_CACHE.write();
+    if cache.len() >= MAX_REGEX_CACHE_ENTRIES {
+        cache.clear();
+    }
+    cache.insert(pattern.to_string(), compiled.clone());
+    compiled
+}
+
+fn compile_ztools_regex(pattern: &str) -> Option<Regex> {
+    let trimmed = pattern.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    if let Some(rest) = trimmed.strip_prefix('/') {
+        if let Some(last_slash) = rest.rfind('/') {
+            let body = &rest[..last_slash];
+            let flags = &rest[last_slash + 1..];
+            if flags
+                .chars()
+                .all(|f| matches!(f, 'i' | 'g' | 'm' | 's' | 'u' | 'y' | 'x'))
+            {
+                // Each ZTools query starts a fresh JS regexp at lastIndex=0.
+                // Sticky matching must start at zero even when multiline is enabled.
+                let anchored;
+                let body = if flags.contains('y') {
+                    anchored = format!(r"\A(?:{body})");
+                    anchored.as_str()
+                } else {
+                    body
+                };
+                let mut builder = RegexBuilder::new(body);
+                builder.case_insensitive(flags.contains('i'));
+                builder.multi_line(flags.contains('m'));
+                builder.dot_matches_new_line(flags.contains('s'));
+                builder.ignore_whitespace(flags.contains('x'));
+                if let Ok(re) = builder.build() {
+                    return Some(re);
+                }
+            }
         }
     }
 
-    best_match
+    Regex::new(trimmed).ok()
 }
 
-/// Check if a query matches a specific command.
-/// Returns (score, match_type) if matched.
-fn cmd_match_query(query: &str, cmd: &Cmd) -> Option<(i32, &'static str)> {
-    match cmd {
-        Cmd::Text(text) => {
-            let text_lower = text.to_lowercase();
-
-            // Exact match: score 100
-            if text_lower == query {
-                return Some((SCORE_EXACT, "exact"));
-            }
-
-            // Prefix match: score 90
-            if text_lower.starts_with(query) {
-                return Some((SCORE_PREFIX, "prefix"));
-            }
-
-            // Pinyin match for Chinese characters: score 30
-            if text.chars().any(|c| !c.is_ascii() && c.is_alphabetic()) {
-                if let Some(pinyin_match) = try_pinyin_match(text, query) {
-                    return Some(pinyin_match);
-                }
-            }
-
-            // Contains match: score 50
-            if text_lower.contains(query) {
-                return Some((SCORE_CONTAINS, "contains"));
-            }
-
-            None
+#[inline]
+fn match_precomputed_pinyin(
+    initials: Option<&str>,
+    full_pinyin: Option<&str>,
+    query_lower: &str,
+) -> bool {
+    if let Some(init) = initials {
+        if init.starts_with(query_lower) {
+            return true;
         }
-        Cmd::Typed(typed) => match typed.type_ {
-            CmdType::Regex => {
-                if let Some(pattern) = &typed.match_ {
-                    if let Ok(re) = regex::Regex::new(pattern) {
-                        if re.is_match(query) {
-                            return Some((SCORE_REGEX, "regex"));
-                        }
-                    }
-                }
-                None
-            }
-            CmdType::Over => {
-                if let Some(len) = typed.length {
-                    if query.len() as u32 >= len {
-                        return Some((SCORE_OVER, "over"));
-                    }
-                }
-                None
-            }
-            CmdType::Img | CmdType::Files | CmdType::Window => {
-                // These types require specialized matching logic (file paths, images, etc.)
-                // For now, return None
-                None
-            }
-        },
     }
+    if query_lower.len() >= 2 {
+        if let Some(full) = full_pinyin {
+            if full.starts_with(query_lower) {
+                return true;
+            }
+        }
+    }
+    false
 }
 
-/// Try to match query against pinyin abbreviation of Chinese text.
-fn try_pinyin_match(text: &str, query: &str) -> Option<(i32, &'static str)> {
-    let pinyin = to_pinyin_initials(text);
-    let pinyin_lower = pinyin.to_lowercase();
-    let query_lower = query.to_lowercase();
-
-    if pinyin_lower.starts_with(&query_lower) {
-        Some((SCORE_PINYIN, "pinyin"))
-    } else {
-        None
-    }
-}
-
-/// Convert Chinese characters to their pinyin initials.
-/// Example: "天气查询" -> "tqcx"
+/// Convert Chinese characters to their pinyin initials (covers 20,902+ CJK characters).
+/// Example: `"天气查询"` -> `"tqcx"`, `"Paste剪切板"` -> `"Pastejqb"`.
 pub fn to_pinyin_initials(text: &str) -> String {
-    text.chars()
-        .map(|c| {
-            if c.is_ascii() {
-                c
-            } else {
-                pinyin_initial_from_char(c)
-            }
-        })
-        .collect()
+    let mut out = String::with_capacity(text.len());
+    for c in text.chars() {
+        if c.is_ascii() {
+            out.push(c);
+        } else {
+            out.push(pinyin_initial_from_char(c));
+        }
+    }
+    out
 }
 
-/// Get pinyin initial from a single Chinese character.
-/// This is a simplified lookup table for ~300 common characters covering all 26 initials.
-fn pinyin_initial_from_char(c: char) -> char {
-    // Use a HashMap-based lookup for better performance and correctness
-    use std::collections::HashMap;
-    use std::sync::OnceLock;
+/// Convert Chinese characters to their full toneless pinyin (`quanpin`).
+/// Example: `"剪贴板"` -> `"jiantieban"`.
+pub fn to_pinyin_full(text: &str) -> String {
+    let mut out = String::with_capacity(text.len() * 2);
+    for c in text.chars() {
+        if c.is_ascii() {
+            out.push(c);
+        } else if let Some(py) = c.to_pinyin() {
+            out.push_str(py.plain());
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
 
-    static PINYIN_MAP: OnceLock<HashMap<char, char>> = OnceLock::new();
+fn to_pinyin_initials_lower(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for c in text.chars() {
+        if c.is_ascii() {
+            out.push(c.to_ascii_lowercase());
+        } else {
+            out.push(pinyin_initial_from_char(c).to_ascii_lowercase());
+        }
+    }
+    out
+}
 
-    let map = PINYIN_MAP.get_or_init(|| {
-        let mut m = HashMap::new();
-
-        // Helper function to add chars for an initial
-        let mut add_chars = |initial: char, chars: &[char]| {
-            for &ch in chars {
-                m.insert(ch, initial);
+fn to_pinyin_full_lower(text: &str) -> String {
+    let mut out = String::with_capacity(text.len() * 2);
+    for c in text.chars() {
+        if c.is_ascii() {
+            out.push(c.to_ascii_lowercase());
+        } else if let Some(py) = c.to_pinyin() {
+            out.push_str(py.plain());
+        } else {
+            for lc in c.to_lowercase() {
+                out.push(lc);
             }
-        };
+        }
+    }
+    out
+}
 
-        add_chars('a', &['阿', '爱', '安', '暗', '按', '奥', '案', '傲']);
-        add_chars(
-            'b',
-            &[
-                '八', '把', '百', '办', '包', '报', '被', '本', '比', '边', '不', '步',
-            ],
-        );
-        add_chars(
-            'c',
-            &[
-                '擦', '才', '草', '层', '查', '常', '成', '出', '处', '春', '此', '从',
-            ],
-        );
-        add_chars(
-            'd',
-            &[
-                '大', '打', '代', '带', '单', '当', '到', '的', '得', '等', '地', '点', '定', '东',
-                '动', '都', '读', '度', '多',
-            ],
-        );
-        add_chars('e', &['额', '而', '儿', '二', '耳', '恶', '恩', '饿']);
-        add_chars(
-            'f',
-            &[
-                '发', '法', '反', '方', '房', '放', '非', '分', '风', '夫', '服', '福', '父', '复',
-                '副', '翻',
-            ],
-        );
-        add_chars(
-            'g',
-            &[
-                '该', '改', '干', '感', '刚', '高', '告', '哥', '个', '给', '根', '更', '工', '公',
-                '功', '共', '古', '故', '关', '国', '过',
-            ],
-        );
-        add_chars(
-            'h',
-            &[
-                '还', '孩', '海', '含', '好', '号', '和', '河', '很', '红', '后', '候', '呼', '花',
-                '华', '化', '话', '欢', '回', '会', '活', '火',
-            ],
-        );
-        add_chars(
-            'j',
-            &[
-                '家', '加', '价', '间', '见', '江', '将', '教', '接', '街', '节', '结', '解', '今',
-                '金', '进', '近', '经', '九', '就', '旧', '军',
-            ],
-        );
-        add_chars(
-            'k',
-            &[
-                '开', '看', '考', '科', '可', '课', '克', '客', '空', '口', '快', '况',
-            ],
-        );
-        add_chars(
-            'l',
-            &[
-                '来', '老', '乐', '了', '类', '冷', '离', '里', '理', '力', '立', '利', '连', '两',
-                '林', '领', '六', '路', '绿', '论',
-            ],
-        );
-        add_chars(
-            'm',
-            &[
-                '妈', '马', '买', '满', '毛', '么', '没', '每', '美', '门', '们', '米', '面', '名',
-                '明', '母', '木', '目',
-            ],
-        );
-        add_chars(
-            'n',
-            &[
-                '拿', '那', '男', '南', '难', '内', '能', '你', '年', '念', '农', '女',
-            ],
-        );
-        add_chars('o', &['哦', '欧', '偶']);
-        add_chars(
-            'p',
-            &['爬', '怕', '排', '旁', '跑', '朋', '皮', '片', '平', '普'],
-        );
-        add_chars(
-            'q',
-            &[
-                '七', '其', '起', '气', '前', '钱', '强', '亲', '青', '清', '情', '请', '去', '全',
-                '却',
-            ],
-        );
-        add_chars('r', &['然', '让', '热', '人', '认', '任', '日', '如', '入']);
-        add_chars(
-            's',
-            &[
-                '三', '色', '山', '上', '少', '身', '什', '生', '声', '十', '时', '实', '事', '市',
-                '世', '是', '手', '书', '说', '四', '送', '所', '岁',
-            ],
-        );
-        add_chars(
-            't',
-            &['他', '她', '它', '太', '天', '条', '同', '头', '土', '推'],
-        );
-        add_chars(
-            'w',
-            &[
-                '外', '万', '王', '往', '望', '为', '位', '文', '问', '我', '五', '无', '物',
-            ],
-        );
-        add_chars(
-            'x',
-            &[
-                '西', '希', '习', '洗', '喜', '下', '先', '现', '想', '向', '小', '笑', '写', '些',
-                '心', '新', '信', '行', '学', '雪',
-            ],
-        );
-        add_chars(
-            'y',
-            &[
-                '呀', '压', '牙', '眼', '样', '要', '也', '业', '一', '以', '意', '因', '应', '用',
-                '有', '又', '右', '于', '与', '元', '员', '远', '月', '云', '译',
-            ],
-        );
-        add_chars(
-            'z',
-            &[
-                '在', '再', '早', '怎', '造', '站', '张', '找', '这', '真', '正', '整', '知', '只',
-                '中', '种', '重', '主', '住', '自', '字', '走', '最', '做', '作', '坐',
-            ],
-        );
-
-        m
-    });
-
-    *map.get(&c).unwrap_or(&c)
+/// Get pinyin initial from a single Chinese character in $O(1)$ time via the static CJK table.
+#[inline]
+fn pinyin_initial_from_char(c: char) -> char {
+    if let Some(py) = c.to_pinyin() {
+        if let Some(first) = py.plain().chars().next() {
+            return first;
+        }
+    }
+    c
 }
 
 #[cfg(test)]
@@ -316,140 +231,18 @@ mod pinyin_tests {
 
     #[test]
     fn test_pinyin_initials() {
-        assert!(!to_pinyin_initials("你好").is_empty());
-        assert!(!to_pinyin_initials("天气").is_empty());
+        assert_eq!(to_pinyin_initials("你好"), "nh");
+        assert_eq!(to_pinyin_initials("天气"), "tq");
+        assert_eq!(to_pinyin_initials("剪贴板"), "jtb");
+        assert_eq!(to_pinyin_full("剪贴板"), "jiantieban");
     }
 
     #[test]
     fn test_pinyin_initial_from_char() {
         let initial = pinyin_initial_from_char('你');
-        assert!(initial.is_ascii());
+        assert_eq!(initial, 'n');
+        assert_eq!(pinyin_initial_from_char('剪'), 'j');
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::models::{CmdTyped, FeatureEntry};
-
-    fn make_feature(code: &str, cmds: Vec<Cmd>, priority: i32) -> FeatureEntry {
-        FeatureEntry {
-            code: code.to_string(),
-            plugin_id: "test-plugin".to_string(),
-            plugin_name: "Test Plugin".to_string(),
-            label: code.to_string(),
-            icon: None,
-            explain: format!("Feature {}", code),
-            cmds,
-            main_push: false,
-            priority,
-        }
-    }
-
-    #[test]
-    fn test_search_all_exact_match() {
-        let features = vec![
-            make_feature("calc", vec![Cmd::Text("calculator".to_string())], 10),
-            make_feature("weather", vec![Cmd::Text("weather".to_string())], 5),
-        ];
-
-        let matches = search_all(&features, "calculator");
-        assert_eq!(matches.len(), 1);
-        assert_eq!(matches[0].feature_code, "calc");
-        assert_eq!(matches[0].score, 100);
-        assert_eq!(matches[0].match_type, "exact");
-    }
-
-    #[test]
-    fn test_search_all_prefix_match() {
-        let features = vec![make_feature(
-            "calc",
-            vec![Cmd::Text("calculator".to_string())],
-            10,
-        )];
-
-        let matches = search_all(&features, "calc");
-        assert_eq!(matches.len(), 1);
-        assert_eq!(matches[0].score, 90);
-        assert_eq!(matches[0].match_type, "prefix");
-    }
-
-    #[test]
-    fn test_search_all_contains_match() {
-        let features = vec![make_feature(
-            "calc",
-            vec![Cmd::Text("calculator".to_string())],
-            10,
-        )];
-
-        let matches = search_all(&features, "cula");
-        assert_eq!(matches.len(), 1);
-        assert_eq!(matches[0].score, 50);
-        assert_eq!(matches[0].match_type, "contains");
-    }
-
-    #[test]
-    fn test_search_all_no_match() {
-        let features = vec![make_feature(
-            "calc",
-            vec![Cmd::Text("calculator".to_string())],
-            10,
-        )];
-
-        let matches = search_all(&features, "xyz");
-        assert_eq!(matches.len(), 0);
-    }
-
-    #[test]
-    fn test_search_all_regex_match() {
-        let features = vec![make_feature(
-            "color",
-            vec![Cmd::Typed(CmdTyped {
-                type_: CmdType::Regex,
-                label: None,
-                match_: Some(r"^#[0-9a-fA-F]{6}$".to_string()),
-                length: None,
-            })],
-            10,
-        )];
-
-        let matches = search_all(&features, "#ff0000");
-        assert_eq!(matches.len(), 1);
-        assert_eq!(matches[0].score, 80);
-        assert_eq!(matches[0].match_type, "regex");
-    }
-
-    #[test]
-    fn test_search_all_over_match() {
-        let features = vec![make_feature(
-            "long-query",
-            vec![Cmd::Typed(CmdTyped {
-                type_: CmdType::Over,
-                label: None,
-                match_: None,
-                length: Some(10),
-            })],
-            10,
-        )];
-
-        let matches = search_all(&features, "short");
-        assert_eq!(matches.len(), 0);
-
-        let matches = search_all(&features, "this is a very long query");
-        assert_eq!(matches.len(), 1);
-        assert_eq!(matches[0].score, 60);
-        assert_eq!(matches[0].match_type, "over");
-    }
-
-    #[test]
-    fn test_search_all_empty_query() {
-        let features = vec![make_feature(
-            "calc",
-            vec![Cmd::Text("calculator".to_string())],
-            10,
-        )];
-
-        let matches = search_all(&features, "");
-        assert_eq!(matches.len(), 0);
-    }
-}
+pub(crate) use index::file_regex_literal_source;

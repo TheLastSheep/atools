@@ -11,7 +11,9 @@ use serde_json::json;
 #[test]
 fn test_plugin_manifest_roundtrip() {
     let manifest = PluginManifest {
+        platform: vec![],
         name: "test-plugin".to_string(),
+        title: None,
         version: "1.0.0".to_string(),
         main: Some("index.html".to_string()),
         logo: Some("logo.png".to_string()),
@@ -168,6 +170,7 @@ fn test_native_node_and_rust_runtime_manifests() {
 #[test]
 fn test_feature_with_label() {
     let feature = Feature {
+        platform: vec![],
         code: "calc".to_string(),
         label: Some("Calculator".to_string()),
         explain: "Simple calculator".to_string(),
@@ -233,7 +236,9 @@ fn test_document_roundtrip() {
 #[test]
 fn test_plugin_record_roundtrip() {
     let manifest = PluginManifest {
+        platform: vec![],
         name: "p".to_string(),
+        title: None,
         version: "1".to_string(),
         main: None,
         logo: None,

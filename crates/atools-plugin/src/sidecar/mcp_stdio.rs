@@ -46,10 +46,10 @@ impl McpSidecar {
         let value = self
             .process
             .initialize_mcp(json!({
-                    "protocolVersion": MCP_PROTOCOL_VERSION,
-                    "capabilities": {},
-                    "clientInfo": {"name":"ATools", "version":env!("CARGO_PKG_VERSION")}
-                }))
+                "protocolVersion": MCP_PROTOCOL_VERSION,
+                "capabilities": {},
+                "clientInfo": {"name":"ATools", "version":env!("CARGO_PKG_VERSION")}
+            }))
             .await?;
         let initialized = serde_json::from_value(value)
             .map_err(|error| SidecarError::Protocol(error.to_string()))?;

@@ -17,13 +17,19 @@
 pub mod bridge;
 pub mod context;
 pub mod ipc_handler;
+pub mod legacy_node;
 pub mod loader;
+pub mod node_preload;
+pub mod package_resolution;
 pub mod runtime;
 pub mod sidecar;
+pub mod source_build;
 
 // Re-export the most commonly used types at crate root for convenience.
 pub use context::PluginContext;
 pub use ipc_handler::{IpcError, IpcHandler, IpcResult};
+pub use legacy_node::LegacyNodeSession;
+pub use node_preload::{NodePreloadBridge, PreloadInspection};
 pub use runtime::JsRuntime;
 pub use sidecar::{
     JsonRpcSidecar, McpSidecar, SidecarError, SidecarLaunchSpec, SidecarSupervisor,

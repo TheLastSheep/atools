@@ -88,6 +88,39 @@ pub const SHIM_JS: &str = r#"(function() {
         throw new Error('____IPC____ not defined - runtime error');
     }
 
+    if (typeof globalThis.window === 'undefined') {
+        globalThis.window = globalThis;
+    }
+    if (typeof globalThis.self === 'undefined') {
+        globalThis.self = globalThis;
+    }
+    if (typeof globalThis.module === 'undefined') {
+        globalThis.module = { exports: {} };
+    }
+    if (typeof globalThis.exports === 'undefined') {
+        globalThis.exports = globalThis.module.exports;
+    }
+    if (typeof globalThis.process === 'undefined') {
+        globalThis.process = {
+            platform: 'darwin',
+            env: {},
+            cwd: function() { return '/'; },
+            versions: { node: '20.0.0' },
+            nextTick: function(fn) { Promise.resolve().then(fn); }
+        };
+    }
+    if (typeof globalThis.console === 'undefined') {
+        globalThis.console = {
+            log: function() {},
+            info: function() {},
+            warn: function() {},
+            error: function() {},
+            debug: function() {}
+        };
+    }
+    globalThis.window.services = globalThis.window.services || {};
+    globalThis.window.exports = globalThis.window.exports || {};
+
     // ---- IPC infrastructure ----
     // Maps reqId -> { resolve, reject } for pending Promise callbacks.
     var ____pending____ = {};
@@ -325,6 +358,22 @@ pub const SHIM_JS: &str = r#"(function() {
             },
             removeAttachment: function(docId, name, rev) {
                 return ipc('db.removeAttachment', toJson([docId, name, rev]));
+            },
+            promises: {
+                put: function(doc) { return ipc('db.put', toJson([doc])); },
+                get: function(id) { return ipc('db.get', toJson([id])); },
+                remove: function(doc) { return ipc('db.remove', toJson([doc])); },
+                allDocs: function(opts) { return ipc('db.allDocs', toJson([opts || {}])); },
+                bulkDocs: function(docs) { return ipc('db.bulkDocs', toJson([docs])); },
+                putAttachment: function(docId, rev, name, data, type) {
+                    return ipc('db.putAttachment', toJson([docId, rev, name, data, type]));
+                },
+                getAttachment: function(docId, name) {
+                    return ipc('db.getAttachment', toJson([docId, name]));
+                },
+                removeAttachment: function(docId, name, rev) {
+                    return ipc('db.removeAttachment', toJson([docId, name, rev]));
+                }
             }
         },
 
@@ -343,6 +392,16 @@ pub const SHIM_JS: &str = r#"(function() {
         readImage: function() { return ipc('clipboard.readImage', '[]'); },
         getCopyedFiles: function() { return ipc('clipboard.getCopyedFiles', '[]').then(normalizeCopiedFiles); },
         getCopiedFiles: function() { return ipc('clipboard.getCopyedFiles', '[]').then(normalizeCopiedFiles); },
+        clipboard: {
+            onChange: function(cb) {
+                if (typeof cb === 'function') _on('clipboardChange', cb);
+                return function() {};
+            },
+            getHistory: function() { return Promise.resolve({ items: [], total: 0 }); },
+            paste: function() { return Promise.resolve(true); },
+            deleteItem: function() { return Promise.resolve(true); },
+            clearHistory: function() { return Promise.resolve(true); }
+        },
 
         // Input helpers
         setSubInput: function(opts) { return ipc('input.setSubInput', toJson([opts])); },
@@ -399,12 +458,15 @@ pub const SHIM_JS: &str = r#"(function() {
 
         // Agent tool registration. The Rust host discovers manifest-declared
         // tools first; this keeps runtime registration available for plugins
-        // that expect the ZTools API shape.
+        // that expect the ZTools API shape (both 2-arg and 3-arg signatures).
         registerTool: function(name, definition, handler) {
             if (typeof name === 'object' && name) {
                 handler = definition;
                 definition = name;
                 name = definition.name || definition.id || definition.title;
+            } else if (typeof definition === 'function' && typeof handler !== 'function') {
+                handler = definition;
+                definition = {};
             }
             if (!name) {
                 throw new Error('registerTool requires a tool name');
@@ -456,7 +518,10 @@ pub const SHIM_JS: &str = r#"(function() {
         readCurrentFolderPath: function() { return ipc('context.currentFolderPath', '[]'); },
         getPathForFile: function(file) { return ipc('system.getPathForFile', toJson([file])); },
 
-        // Platform detection
+        // Platform & Version detection
+        getAppVersion: function() { return '3.0.0'; },
+        getAppName: function() { return 'ATools'; },
+        isDev: function() { return false; },
         isMacOS: function() { return ipc('system.isMacOS', '[]'); },
         isMacOs: function() { return ipc('system.isMacOS', '[]'); },
         isWindows: function() { return ipc('system.isWindows', '[]'); },
@@ -464,6 +529,7 @@ pub const SHIM_JS: &str = r#"(function() {
 
         // Helpers
         shellShowItem: function(path) { return ipc('shell.showItem', toJson([path])); },
+        shellShowItemInFolder: function(path) { return ipc('shell.showItem', toJson([path])); },
         getNativeId: function() { return ipc('system.nativeId', '[]'); }
     };
     globalThis.utools.db.promises = globalThis.utools.db;

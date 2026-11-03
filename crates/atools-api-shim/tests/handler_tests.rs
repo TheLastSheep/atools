@@ -23,7 +23,9 @@ fn setup() -> (ApiHandler, TempDir) {
         path: "/tmp/test-plugin".to_string(),
         enabled: true,
         manifest: PluginManifest {
+            platform: vec![],
             name: "Test Plugin".to_string(),
+            title: None,
             version: "1.0.0".to_string(),
             main: None,
             logo: None,
@@ -529,7 +531,9 @@ async fn test_ztools_provider_manifest_default_and_invocation() {
         path: plugin_dir.to_string_lossy().to_string(),
         enabled: true,
         manifest: PluginManifest {
+            platform: vec![],
             name: "provider-plugin".to_string(),
+            title: None,
             version: "3.0.1".to_string(),
             main: None,
             logo: None,

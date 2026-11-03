@@ -10,14 +10,20 @@ use crate::utils::{generate_rev, now_iso};
 pub enum PermissionScope {
     ClipboardRead,
     ClipboardWrite,
+    InputKeyboard,
+    ClipboardDelete,
     FileRead,
     FileWrite,
     Network,
     Shell,
     Screenshot,
+    DisplayRead,
     BrowserContext,
     PluginData,
+    SecretStorage,
     SystemSettings,
+    PluginWindow,
+    PluginBackground,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
