@@ -40,6 +40,24 @@ try {
     "Esc:收起",
   ]);
 
+  const emptyHome = mod.searchStatusBarView({
+    mode: "home",
+    count: 0,
+    selectedIndex: 0,
+    selectedLabel: "",
+    tabAction: "select",
+  });
+  assert.deepEqual(emptyHome.hints.map((hint) => `${hint.key}:${hint.label}`), ["Esc:收起"]);
+  const emptyHomeTarget = mod.searchStatusBarView({
+    mode: "home",
+    count: 0,
+    selectedIndex: 0,
+    selectedLabel: "",
+    tabAction: "target",
+    tabTargetHint: "选择目标",
+  });
+  assert.deepEqual(emptyHomeTarget.hints.map((hint) => `${hint.key}:${hint.label}`), ["Tab:选择目标", "Esc:收起"]);
+
   const pinnedHome = mod.searchStatusBarView({
     mode: "home",
     count: 11,
@@ -65,16 +83,21 @@ try {
     selectedLabel: "GitHub 搜索 rust",
     selectedAction: "打开",
     tabAction: "target",
+    tabTargetHint: "交给 字符转换",
   });
   assert.equal(results.title, "搜索结果");
   assert.equal(results.detail, "3 / 4 · GitHub 搜索 rust");
   assert.deepEqual(results.hints.map((hint) => `${hint.key}:${hint.label}`), [
     "↑:上一行",
     "↓:下一行",
+    "PgUp/PgDn:翻页",
     "Enter:打开",
-    "Tab:执行",
+    "Tab:交给 字符转换",
     "Esc:清空",
   ]);
+
+  const unconfigured = mod.searchStatusBarView({ mode: "results", count: 0, selectedIndex: 0, selectedLabel: "", tabAction: "target" });
+  assert.ok(unconfigured.hints.some(hint => hint.key === "Tab" && hint.label === "设置目标"));
 
   const executeResult = mod.searchStatusBarView({
     mode: "results",
@@ -88,6 +111,7 @@ try {
   assert.deepEqual(executeResult.hints.map((hint) => `${hint.key}:${hint.label}`), [
     "↑:上一行",
     "↓:下一行",
+    "PgUp/PgDn:翻页",
     "Enter:执行",
     "Tab:切换",
     "Esc:清空",
@@ -105,6 +129,7 @@ try {
   assert.deepEqual(copiedTextResult.hints.map((hint) => `${hint.key}:${hint.label}`), [
     "↑:上一行",
     "↓:下一行",
+    "PgUp/PgDn:翻页",
     "Enter:复制",
     "Tab:切换",
     "Esc:清空",
@@ -121,15 +146,29 @@ try {
   assert.equal(empty.title, "搜索结果");
   assert.equal(empty.detail, "0 项匹配");
   assert.deepEqual(empty.hints.map((hint) => `${hint.key}:${hint.label}`), [
-    "Enter:执行首项",
-    "Tab:切换",
     "Esc:清空",
   ]);
 
-  const [component, app, commands] = await Promise.all([
+  const retryEmpty = mod.searchStatusBarView({
+    mode: "results",
+    count: 0,
+    selectedIndex: 0,
+    selectedLabel: "",
+    tabAction: "select",
+    retryOnEnter: true,
+  });
+  assert.deepEqual(retryEmpty.hints.map((hint) => `${hint.key}:${hint.label}`), ["Enter:重试搜索", "Esc:清空"]);
+
+  const [component, app, primarySurface, resultsSurface, layout, surfacePresentation, searchController, commands, search] = await Promise.all([
     readFile(new URL("src/components/SearchStatusBar.svelte", root), "utf8"),
     readFile(new URL("src/App.svelte", root), "utf8"),
+    readFile(new URL("src/components/LauncherPrimarySurface.svelte", root), "utf8"),
+    readFile(new URL("src/components/LauncherResultsSurface.svelte", root), "utf8"),
+    readFile(new URL("src/lib/launcherWindowLayout.ts", root), "utf8"),
+    readFile(new URL("src/lib/launcherSurfacePresentation.svelte.ts", root), "utf8"),
+    readFile(new URL("src/lib/launcherSearchController.ts", root), "utf8"),
     readFile(new URL("src-tauri/src/commands.rs", root), "utf8"),
+    readFile(new URL("src/lib/launcherSearch.ts", root), "utf8"),
   ]);
 
   assert.match(component, /class="search-status-bar"/);
@@ -138,54 +177,57 @@ try {
   assert.match(component, /\.status-detail\s*\{[\s\S]*?text-overflow:\s*ellipsis;/);
   assert.match(component, /\.status-hints\s*\{[\s\S]*?display:\s*flex;/);
   assert.match(component, /\.keycap\s*\{[\s\S]*?min-width:\s*24px;/);
-  assert.match(component, /\.hint:nth-child\(n \+ 4\)\s*\{[\s\S]*?display:\s*none;/);
+  assert.match(component, /container:\s*search-status \/ inline-size;/);
+  assert.match(component, /@container search-status \(max-width: 880px\) \{(?:(?!@container search-status)[\s\S])*?\.hint\.navigation-hint, \.full-tab-label\s*\{\s*display:\s*none;/);
+  assert.match(component, /@container search-status \(max-width: 640px\) \{(?:(?!@container search-status)[\s\S])*?\.hint\.paging-hint\s*\{\s*display:\s*none;/);
+  assert.match(component, /@container search-status \(max-width: 640px\) \{(?:(?!@container search-status)[\s\S])*?\.status-title\s*\{\s*display:\s*none;/);
+  assert.match(component, /@container search-status \(max-width: 640px\) \{(?:(?!@container search-status)[\s\S])*?\.status-position\s*\{\s*display:\s*inline;/);
+  assert.match(component, /@container search-status \(max-width: 640px\) \{(?:(?!@container search-status)[\s\S])*?\.status-copy:not\(\.has-feedback\) \.status-detail\s*\{\s*display:\s*none;/);
+  assert.match(component, /@container search-status \(max-width: 520px\) \{[\s\S]*?\.hint\.compact-navigation\s*\{\s*display:\s*none;/);
+  assert.match(component, /@container search-status \(max-width: 520px\) \{[\s\S]*?\.action-menu-hint\s*\{\s*display:\s*none;/);
+  assert.match(component, /\.hint\.navigation-hint, \.full-tab-label\s*\{\s*display:\s*none;/);
+  assert.match(component, /\.hint\.compact-navigation\s*\{\s*display:\s*inline-flex;/);
 
-  assert.match(app, /import SearchStatusBar from "\.\/components\/SearchStatusBar\.svelte";/);
-  assert.match(app, /const SEARCH_STATUS_BAR_HEIGHT = 34;/);
-  assert.match(app, /const REMOTE_SEARCH_DEBOUNCE_MS = 16;/);
-  assert.match(app, /const FEATURE_SEARCH_TIMEOUT_MS = 1200;/);
-  assert.match(app, /const LOCAL_APP_SEARCH_TIMEOUT_MS = 1800;/);
-  assert.match(app, /const HOME_PANEL_VERTICAL_PADDING = 18;/);
-  assert.match(app, /const HOME_MIN_WINDOW_HEIGHT = 280;/);
-  assert.match(app, /const HOME_MAX_WINDOW_HEIGHT = 340;/);
-  assert.match(app, /HOME_PANEL_VERTICAL_PADDING[\s\S]*?\+ SEARCH_STATUS_BAR_HEIGHT[\s\S]*?Math\.max\(HOME_MIN_WINDOW_HEIGHT, Math\.min\(HOME_MAX_WINDOW_HEIGHT, measured\)\)/);
-  assert.match(app, /return SEARCH_BAR_HEIGHT \+ listHeight \+ SEARCH_STATUS_BAR_HEIGHT \+ SHELL_BORDER_HEIGHT;/);
-  assert.match(app, /\{#if activePanel === "settings" && activePlugin === null\}[\s\S]*?<SettingsHeader/);
-  assert.match(app, /<SearchStatusBar[\s\S]*?mode="results"/);
-  assert.match(app, /<SearchStatusBar[\s\S]*?mode="home"/);
-  assert.match(
-    app,
-    /const featureSettled = await settleSearchWithin\([\s\S]*?featureCall,[\s\S]*?FEATURE_SEARCH_TIMEOUT_MS[\s\S]*?results = partialResults[\s\S]*?const localAppSettled = await settleSearchWithin\([\s\S]*?localAppCall,[\s\S]*?LOCAL_APP_SEARCH_TIMEOUT_MS/,
-    "Plugin results should render before slower local application search completes",
-  );
-  assert.match(
-    app,
-    /setTimeout\(resolve, REMOTE_SEARCH_DEBOUNCE_MS\)[\s\S]*?runId !== searchRunId[\s\S]*?invoke<SearchResult\[]>\("search_features"/,
-    "Remote searches should debounce and discard superseded keystrokes before invoking Rust",
-  );
-  assert.match(
-    app,
-    /results = partialResults;[\s\S]*?remoteSearchStatus = "ready";[\s\S]*?const localAppSettled/,
-    "Local application enrichment must not leave the primary search response stuck in searching state",
-  );
-  assert.match(
-    app,
-    /function settleSearchWithin<T>[\s\S]*?setTimeout\(\(\) =>[\s\S]*?status: "rejected"[\s\S]*?clearTimeout\(timeoutId\)/,
-    "Every native search stage should have a deadline instead of leaving the palette searching forever",
-  );
+  assert.match(app, /import LauncherPrimarySurface from "\.\/components\/LauncherPrimarySurface\.svelte";/);
+  assert.match(app, /<LauncherPrimarySurface[\s\S]*?resultsSurface=\{/);
+  assert.match(primarySurface, /import LauncherResultsSurface, \{ type LauncherResultsSurfaceProps \} from "\.\/LauncherResultsSurface\.svelte";/);
+  assert.match(primarySurface, /<LauncherResultsSurface \{\.\.\.resultsSurface\} \/>/);
+  assert.match(resultsSurface, /import SearchStatusBar from "\.\/SearchStatusBar\.svelte";/);
+  assert.match(layout, /searchStatusBarHeight:\s*34/);
+  assert.match(search, /const REMOTE_SEARCH_DEBOUNCE_MS = 16;/);
+  assert.match(search, /const FEATURE_SEARCH_TIMEOUT_MS = 1200;/);
+  assert.match(search, /const LOCAL_APP_SEARCH_TIMEOUT_MS = 1800;/);
+  assert.match(layout, /homePanelVerticalPadding:\s*22/);
+  assert.match(layout, /homeMinWindowHeight:\s*280/);
+  assert.match(layout, /homeContentBorderHeight:\s*1/);
+  assert.match(layout, /homeSectionHeaderHeight:\s*22/);
+  assert.match(layout, /recentTileHeight:\s*86/);
+  assert.match(layout, /recentRowGap:\s*0/);
+  assert.doesNotMatch(layout, /homeMaxWindowHeight/);
+  assert.match(layout, /export function homeWindowHeightFor[\s\S]*?return Math\.max\(LAUNCHER_LAYOUT\.homeMinWindowHeight, measured\)/);
+  assert.match(layout, /return LAUNCHER_LAYOUT\.searchBarHeight \+ listHeight \+ LAUNCHER_LAYOUT\.searchStatusBarHeight \+ LAUNCHER_LAYOUT\.shellBorderHeight;/);
+  assert.match(primarySurface, /\{#if showSettingsHeader\}[\s\S]*?<SettingsHeader/);
+  assert.match(resultsSurface, /<SearchStatusBar[\s\S]*?mode="results"/);
+  assert.match(resultsSurface, /<SearchStatusBar[\s\S]*?mode="home"/);
+  assert.match(searchController, /await enrichLauncherSearch\(\{/);
+  assert.match(surfacePresentation, /resolveSearchSelection\(state\.launcherResults, state\.userSearchSelection\)/);
+  assert.match(search, /await Promise.all\(sources.map/);
+  assert.match(search, /setTimeout[\s\S]*?status: "rejected"/);
+  assert.match(searchController, /setTimeout\(resolve, REMOTE_SEARCH_DEBOUNCE_MS\)[\s\S]*?runId !== state\.searchRunId/);
   assert.doesNotMatch(
-    app,
-    /await resizePalette\(resultsWindowHeightFor\((?:localResults|partialResults|mergedResults)\)\)/,
+    surfacePresentation,
+    /await ports\.resizePalette\(height\)/,
     "Window resizing should not serialize the search response path",
   );
+  assert.match(surfacePresentation, /void ports\.resizePalette\(height\)/);
   assert.match(
     commands,
     /pub async fn search_features\([\s\S]*?spawn_blocking\(move \|\| \{[\s\S]*?search_features_inner/,
     "SQLite feature search should execute outside the Tauri UI command path",
   );
   assert.match(
-    app,
-    /void hydrateLocalAppResultIcons\(runId, newQuery, localAppResults\)/,
+    searchController,
+    /onApps: \(items\) => \{ void hydrateLocalAppResultIcons\(runId, newQuery, items\); \}/,
     "Local app icon hydration should not block search completion",
   );
 

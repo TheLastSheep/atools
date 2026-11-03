@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "digestAlgorithm": "AToolsLocalTreeV1: SHA-256 over sorted complete directory records and every file path, byte length, and SHA-256; unchanged original directories only",
+  "sourceReview": {
+    "local-plain-text": {
+      "reviewScope": "Complete unchanged original directory. Static source review and byte pinning only; no plugin execution or acceptance implied.",
+      "entryPoints": [
+        "plugin.json",
+        "index.html",
+        "assets/index.js",
+        "preload/services.js"
+      ],
+      "selectors": [
+        ".cm-content[contenteditable=\"true\"]",
+        "button[title=\"新建文稿\"]",
+        "button[title=\"文稿列表\"]",
+        ".editor-drawer-item",
+        ".editor-md-preview"
+      ],
+      "anchors": [
+        "plugin.json selects editor, index.html and unchanged preload/services.js",
+        "preload/services.js requires node:fs and node:path; getPath(downloads) is statically detected, requiring standard metadata before Node; read/write services are excluded",
+        "assets/index.js stores plain-text-notes and plain-text-active with localStorage, mapped by the production webStorage bridge to isolated SQLite UTF-16 values",
+        "assets/index.js ordinary CodeMirror input invokes its 300ms autosave and first nonempty line sliced to 20 UTF-16 code units as title",
+        "assets/index.js original Markdown toggle updates mode, original new-draft and drawer row controls update active draft; export, Mod-s and drag/drop excluded"
+      ],
+      "riskBoundary": "Original plugin bytes remain read-only. Real visible and foreground native window, real contenteditable focus and browser selectAll/insertText commands are mandatory; focus failure is a failure and must never use model/React/storage injection. Selected controls only; original autosave writes both fixed storage keys and independent SQLite projection reads only those keys. Approvals are data then standard path metadata then Node. No preload service, export, Mod-S, clipboard, native file panel, file access or network. Whole close drains data/path/Node/resources before fresh approvals and new iframe restore two drafts and active Markdown mode."
+    }
+  },
+  "cases": [
+    {
+      "caseId": "local-plain-text",
+      "id": "plain-text",
+      "featureCode": "editor",
+      "searchQuery": "edit",
+      "title": "纯文本编辑",
+      "runtime": "node",
+      "dataAccess": true,
+      "verifyDataPersistence": true,
+      "pathAccess": "standard",
+      "version": "1.0.2",
+      "frameOperations": "tests/components/nativeOriginalPlainTextFrameOperations.js",
+      "directorySha256": "cac445cf31c918e213dcc0d1dde206e5bcc3514957c46088307e88e48601fda2",
+      "fileCount": 7,
+      "sourceKind": "local_full_directory",
+      "sourcePath": "ZTools-plugins/plugins/plain-text",
+      "sourceReview": "output/legacy-node-2026-10-17/local-plain-text-source-review-v1.json",
+      "sourceReviewStatus": "prepared_for_parent_native_fixture_decision"
+    }
+  ],
+  "snapshots": {
+    "local-plain-text": {
+      "directorySha256": "cac445cf31c918e213dcc0d1dde206e5bcc3514957c46088307e88e48601fda2",
+      "fileCount": 7,
+      "files": [
+        {
+          "path": "assets/index.css",
+          "bytes": 12901,
+          "sha256": "77d607186d13ed710a7fa7f44ea4e4d80f1c408e847dd7d96f359bd4b6ec2f7d"
+        },
+        {
+          "path": "assets/index.js",
+          "bytes": 895480,
+          "sha256": "e2214685a5402a41ca9c8c1f3fb21945d721282a8d5cda3e660a49710e6a13b3"
+        },
+        {
+          "path": "index.html",
+          "bytes": 360,
+          "sha256": "c2d1c68b413019634e815fda57b874b89f6dea9f9bd14217bddedb0e30f814d8"
+        },
+        {
+          "path": "logo.png",
+          "bytes": 17691,
+          "sha256": "076988d92f4293ca4f75974e4a7652cfaee0092fa393963f4552795ca02a639a"
+        },
+        {
+          "path": "plugin.json",
+          "bytes": 1333,
+          "sha256": "afb5afaef21bf31b84f605947d1cb52a3995ee9156f8fcc83219f813f45a5b42"
+        },
+        {
+          "path": "preload/package.json",
+          "bytes": 25,
+          "sha256": "8005a3491db7d92f36ac66369861589f9c47123d3a7c71e643fc2c06168cd45a"
+        },
+        {
+          "path": "preload/services.js",
+          "bytes": 1186,
+          "sha256": "3544e9e1a8368fa8c95a0059eb9b20d7eafb544b3a7081aad54d024feadafd58"
+        }
+      ],
+      "directories": [
+        "assets",
+        "preload"
+      ]
+    }
+  }
+}

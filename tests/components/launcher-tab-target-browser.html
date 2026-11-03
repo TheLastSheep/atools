@@ -1,0 +1,9 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>ATools Tab target fixture</title></head><body><div id="app"></div><script type="module">
+import "/src/styles/global.css";
+import * as fixture from "./launcherTabTargetBrowserFixture.ts";
+window.fixture = fixture;
+const seed = !sessionStorage.getItem("atools-tab-target-fixture-seeded");
+sessionStorage.setItem("atools-tab-target-fixture-seeded", "true");
+await fixture.mountFresh(seed);
+window.launcherTabTargetReady = true;
+</script></body></html>

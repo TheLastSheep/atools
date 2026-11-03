@@ -63,10 +63,7 @@ try {
   assert.equal(noHotkeyCards[1].value, "手动启动 / 托盘显示");
   assert.equal(noHotkeyCards[2].value, "0/2 启用");
 
-  const [panel, app] = await Promise.all([
-    readFile(new URL("src/components/SettingsPanel.svelte", root), "utf8"),
-    readFile(new URL("src/App.svelte", root), "utf8"),
-  ]);
+  const panel = await readFile(new URL("src/components/SettingsPanel.svelte", root), "utf8");
   assert.match(panel, /generalOverviewCards/);
   assert.match(panel, /通用设置概览/);
   assert.match(panel, /基础设置/);
@@ -78,8 +75,10 @@ try {
   assert.match(panel, /proxyEnabled \? "代理将用于 WebDAV 同步和 AI 模型连接测试"/);
   assert.match(panel, /bind:checked=\{showRecentInSearch\}/);
   assert.match(panel, /showRecentInSearch,/);
-  assert.match(app, /showHomeRecent = \$derived\(isHomeSearch && trimmedQuery\.length === 0 && appSettings\.showRecentInSearch\)/);
-  assert.match(app, /expanded=\{activePlugin !== null \|\| activePanel !== "home" \|\| query\.trim\(\)\.length > 0 \|\| showHomeRecent\}/);
+  // The rendered empty-home behavior with this setting disabled is covered by
+  // tests/components/launcher-empty-search-tab.test.ts.
+  // Expanded/collapsed navigation is exercised through the rendered App in
+  // tests/components/plugin-market-navigation-app.test.ts.
   assert.match(panel, /插件 DevTools 会按该偏好打开/);
   assert.match(panel, /bind:value=\{devToolsMode\}/);
   assert.match(panel, /onchange=\{persistSoon\}/);
@@ -89,16 +88,18 @@ try {
   assert.match(panel, /插件市场地址/);
   assert.match(panel, /bind:value=\{pluginMarketUrl\}/);
   assert.match(panel, /pluginMarketCustom \? "插件市场页将使用该地址" : "默认使用 ZTools 官方市场/);
-  assert.match(panel, /openPluginMarketUrl/);
-  assert.match(panel, /const trimmedUrl = effectivePluginMarketUrl\(\)/);
-  assert.match(panel, /callHumanCapability\("open_url", \{ url: trimmedUrl \}\)/);
+  // Opening the effective configured source (official/custom), invalid URLs and
+  // capability failures are exercised through SettingsPanel and the reusable
+  // source action in tests/components/plugin-market-source-action.test.ts.
   assert.match(panel, /打开市场地址/);
   assert.match(panel, /setFloatingBallVisible/);
-  assert.match(panel, /invoke\("set_floating_ball_visible", \{ visible: floatingBallEnabled \}\)/);
+  assert.doesNotMatch(panel, /invoke\("set_floating_ball_visible"/);
+  assert.match(panel, /浏览器预览模式不会创建悬浮球窗口/);
   assert.match(panel, /floatingBallEnabled \? "悬浮球窗口会常驻屏幕边缘/);
   assert.match(panel, /onchange=\{persistFloatingBallChange\}/);
   assert.match(panel, /setSuperPanelVisible/);
-  assert.match(panel, /invoke\("set_super_panel_visible", \{ visible: superPanelEnabled \}\)/);
+  assert.doesNotMatch(panel, /invoke\("set_super_panel_visible"/);
+  assert.match(panel, /浏览器预览模式不会创建超级面板窗口/);
   assert.match(panel, /superPanelEnabled \? "超级面板会常驻屏幕上方/);
   assert.match(panel, /onchange=\{persistSuperPanelChange\}/);
   assert.equal(panel.includes("代理设置尚未接入请求层"), false);

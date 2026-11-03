@@ -1,20 +1,23 @@
+import { injectPluginBridgeFactories } from "./lib/plugin-bridge-fixture.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 
 const root = new URL("../", import.meta.url);
 
-const [componentSource, capabilitySource, shimSource, smokeChecklist] = await Promise.all([
+const [componentSource, capabilitySource, shimSource, smokeChecklist, navigationSource] = await Promise.all([
   readFile(new URL("src/components/PluginPanel.svelte", root), "utf8"),
   readFile(new URL("src/lib/pluginBridgeCapabilities.ts", root), "utf8"),
   readFile(new URL("crates/atools-plugin/src/bridge.rs", root), "utf8"),
   readFile(new URL("docs/macos-smoke-checklist.md", root), "utf8"),
+  readFile(new URL("src/components/PluginNavigationBar.svelte", root), "utf8"),
 ]);
 
 const bridgeMatch = componentSource.match(/const UTOOLS_BRIDGE = `([\s\S]*?)`;/);
 assert.ok(bridgeMatch, "PluginPanel should define UTOOLS_BRIDGE");
+const bridgeTemplate = await injectPluginBridgeFactories(bridgeMatch[1]);
 
-const bridgeSource = bridgeMatch[1]
+const bridgeSource = bridgeTemplate
   .replace(/<\\\/script>/g, "</script>")
   .replace(/^\s*<script>\s*/, "")
   .replace(/\s*<\/script>\s*$/, "")
@@ -47,6 +50,7 @@ const windowStub = {
     list.push(cb);
     listeners.set(type, list);
   },
+  removeEventListener(type, cb) { listeners.set(type, (listeners.get(type) || []).filter(listener => listener !== cb)); },
   dispatchEvent(event) {
     const type = typeof event === "string" ? event : event.type;
     for (const cb of listeners.get(type) || []) {
@@ -164,7 +168,12 @@ assert.match(componentSource, /function handlePluginChromeAction/, "PluginPanel 
 assert.match(componentSource, /case "detach":[\s\S]*dispatchPluginDetachEvent\(\)/, "detach chrome action should notify registered onPluginDetach callbacks");
 assert.match(componentSource, /function closePluginPanel\(\)/, "PluginPanel should close through a lifecycle-aware helper");
 assert.match(componentSource, /onDestroy\(\(\) => \{[\s\S]*dispatchPluginOutEvent\(true\)/, "destroying the plugin host should send a kill-style onPluginOut fallback");
-assert.match(componentSource, /onclick=\{closePluginPanel\}/, "the back button should notify plugin out before closing");
+const navigationTag = componentSource.match(/<PluginNavigationBar\b[\s\S]*?\/>/)?.[0] || "";
+assert.match(navigationTag, /onreturn=\{closePluginPanel\}/, "PluginPanel should bind the shared navigation return to its lifecycle-aware close helper");
+assert.match(navigationSource, /<button\b[^>]*aria-label="返回搜索"[^>]*onclick=\{onreturn\}/, "the actual child return button should invoke the caller's onreturn callback");
+const closePanelSource = componentSource.match(/function closePluginPanel\(\) \{([\s\S]*?)\n  \}/)?.[1] || "";
+const outPosition = closePanelSource.indexOf("dispatchPluginOutEvent(false)");
+assert.ok(outPosition >= 0 && closePanelSource.indexOf("onclose()") > outPosition, "the shared return callback must notify plugin out before closing");
 assert.match(componentSource, /if \(data\.__ipc_close__\) \{[\s\S]*closePluginPanel\(\);/, "iframe close requests should notify plugin out before closing");
 assert.match(componentSource, /function handleMainWindowLifecycle[\s\S]*else \{[\s\S]*closePluginPanel\(\);/, "Web preview hide fallback should use the lifecycle-aware close path");
 assert.match(capabilitySource, /id:\s*"events"/, "shared bridge capability inventory should include an events group");

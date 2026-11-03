@@ -1,0 +1,31 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Opaque origin probe</title><body>Opaque HTTP rejection observer</body><script>
+(() => {
+  "use strict";
+  const config=__ATOOLS_BOOTSTRAP_CONFIG__;
+  let afterStarted=false;
+  const denied=read=>{try{read();return false;}catch{return true;}};
+  const base={noTauri:!("__TAURI_INTERNALS__" in window)&&!("__TAURI__" in window),
+    parentDomDenied:denied(()=>window.parent.document.documentElement.nodeName),
+    siblingDomDenied:denied(()=>window.parent.frames[1].document.documentElement.nodeName)};
+  function request(phase){return new Promise(resolve=>{
+    const xhr=new XMLHttpRequest();let complete=false;
+    const finish=kind=>{if(complete)return;complete=true;resolve({kind,status:xhr.status,
+      httpDenied:kind==="error"||kind==="load"&&[401,403].includes(xhr.status)});};
+    try{xhr.open("POST",config.endpoint,true);xhr.timeout=2000;xhr.setRequestHeader("Content-Type","text/plain");
+      xhr.onload=()=>finish("load");xhr.onerror=()=>finish("error");xhr.ontimeout=()=>finish("timeout");xhr.onabort=()=>finish("abort");
+      xhr.send(JSON.stringify({id:"opaque",phase}));}catch{finish("exception");}
+  });}
+  async function probe(phase){
+    let result;
+    try{result=await request(phase==="before"?"opaque":"revoked");}catch{result={status:null,httpDenied:false,kind:"exception"};}
+    window.parent.postMessage({kind:"atools-bootstrap-opaque",runId:config.runId,id:"opaque",phase,
+      result:{...base,status:result.status,httpDenied:result.httpDenied,errorCodes:result.httpDenied?[]:["OPAQUE_HTTP_"+result.kind.toUpperCase()]}},config.parentOrigin);
+  }
+  window.addEventListener("message",event=>{
+    if(afterStarted||event.source!==window.parent||event.origin!==config.parentOrigin||event.data?.runId!==config.runId
+      ||event.data.kind!=="atools-bootstrap-opaque-control"||event.data.operation!=="probe-revoked")return;
+    afterStarted=true;void probe("after");
+  });
+  void probe("before");
+})();
+</script></html>

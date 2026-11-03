@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const root = new URL("../", import.meta.url);
-const [commands, history, homePanel, tauriConfigText] = await Promise.all([
+const [commands, history, homeTile, tauriConfigText] = await Promise.all([
   readFile(new URL("src-tauri/src/commands.rs", root), "utf8"),
   readFile(new URL("src/lib/commandHistory.ts", root), "utf8"),
-  readFile(new URL("src/components/HomePanel.svelte", root), "utf8"),
+  readFile(new URL("src/components/HomeCommandTile.svelte", root), "utf8"),
   readFile(new URL("src-tauri/tauri.conf.json", root), "utf8"),
 ]);
 const tauriConfig = JSON.parse(tauriConfigText);
@@ -19,8 +19,8 @@ assert.match(commands, /value\.starts_with\("data:"\)/, "Self-contained feature 
 assert.match(commands, /resolved[\s\S]*?\.canonicalize\(\)/, "Relative plugin icons should become canonical local paths");
 assert.match(history, /icon: result\.icon\?\.trim\(\) \|\| ""/, "Command history should retain resolved plugin icons");
 assert.match(history, /icon: entry\.icon \|\| null/, "Home commands should receive persisted plugin icons");
-assert.match(homePanel, /resultIconSrc\(icon, hasTauriAssetRuntime\(\), convertFileSrc\)/, "Home should convert local icon paths through the Tauri asset protocol");
-assert.match(homePanel, /<img src=\{source\} alt="" \/>/, "Home should render the original icon when available");
+assert.match(homeTile, /resultIconSrc\(command\.icon, hasTauriAssetRuntime\(\), convertFileSrc\)/, "Home tiles should convert local icon paths through the Tauri asset protocol");
+assert.match(homeTile, /<img src=\{source\} alt="" \/>/, "Home tiles should render the original icon when available");
 assert.equal(tauriConfig.app.security.assetProtocol?.enable, true, "The Tauri asset protocol must be enabled for imported local logos");
 assert.deepEqual(
   tauriConfig.app.security.assetProtocol?.scope,

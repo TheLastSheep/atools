@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Launcher retry keyboard acceptance</title>
+  </head>
+  <body>
+    <main>
+      <h1>搜索重试键盘验收</h1>
+      <p>输入 qa-retry-enter 或 qa-retry-space，测试搜索框与重试按钮的真实键盘行为。</p>
+      <label>Tab 模式
+        <select aria-label="Tab 模式" id="tab-mode">
+          <option value="navigate">切换结果</option>
+          <option value="target-command">启动目标指令</option>
+        </select>
+      </label>
+      <button id="reset-fixture" type="button">重置搜索与计数</button>
+      <output id="fixture-counts" aria-live="polite">搜索 0 次，启动 0 次</output>
+      <div id="app"></div>
+    </main>
+    <script type="module">
+      import "/src/styles/global.css";
+      import { mountRetryFocusFixture } from "./search-retry-focus-browser-fixture.ts";
+      void mountRetryFocusFixture().catch(error => {
+        const alert = document.createElement("pre");
+        alert.setAttribute("role", "alert");
+        alert.textContent = `fixture 启动失败：${error instanceof Error ? error.stack || error.message : String(error)}`;
+        document.body.append(alert);
+        console.error("Search retry keyboard fixture failed", error);
+      });
+    </script>
+  </body>
+</html>

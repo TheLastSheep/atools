@@ -13,6 +13,7 @@ import AppUpdaterHarness from "./AppUpdaterHarness.svelte";
 afterEach(cleanup);
 
 const update: AppUpdateMetadata = {
+  candidateId: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   currentVersion: "3.0.0",
   version: "3.0.1",
   date: "2026-07-15T00:00:00Z",
@@ -35,7 +36,7 @@ function fakeDependencies(options: {
   desktop?: boolean;
 } = {}) {
   let timerHandler: (() => void) | undefined;
-  let progressHandler: ((event: { payload: AppUpdateProgress }) => void) | undefined;
+  let progressHandler: ((event: { payload: unknown }) => void) | undefined;
   const unlisten = vi.fn();
   const invoke = vi.fn(async (command: string) => {
     if (command === "check_app_update") {
@@ -103,16 +104,69 @@ describe("app updater controller", () => {
     });
   });
 
-  it("schedules one delayed startup check and can cancel it", async () => {
+  it("registers the native startup without a second JS timer", async () => {
     const fake = fakeDependencies();
     const controller = createAppUpdaterController(fake.deps);
-
     const cancel = controller.scheduleStartupCheck();
-    expect(fake.deps.setTimer).toHaveBeenCalledWith(expect.any(Function), 3000);
-    fake.fireTimer();
-    await vi.waitFor(() => expect(fake.invoke).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(fake.invoke).toHaveBeenCalledWith("startup_app_update"));
+    expect(fake.deps.setTimer).not.toHaveBeenCalled();
     cancel();
-    expect(fake.deps.clearTimer).toHaveBeenCalledWith(3000);
+  });
+
+  it("rejects malformed candidate metadata before presenting a confirmation", async () => {
+    const fake = fakeDependencies({ check: { ...update, candidateId: "invalid" } });
+    const controller = createAppUpdaterController(fake.deps);
+    await expect(controller.check("manual")).rejects.toMatchObject({ code: "invalid_response" });
+    expect(controller.snapshot().update).toBeNull();
+  });
+
+  it("keeps a later status event when the startup response arrives late", async () => {
+    const pending = deferred<unknown>();
+    let listener: ((event: { payload: unknown }) => void) | undefined;
+    const fake = fakeDependencies();
+    fake.deps.listen = vi.fn(async (_event, handler) => { listener = handler; return () => undefined; });
+    fake.deps.invoke = vi.fn(() => pending.promise);
+    const controller = createAppUpdaterController(fake.deps);
+    const cancel = controller.scheduleStartupCheck();
+    await vi.waitFor(() => expect(listener).toBeDefined());
+    listener?.({ payload: { operation: "idle", update, checked: true, lastError: null } });
+    pending.resolve({ operation: "idle", update: null, checked: false, lastError: null });
+    await Promise.resolve(); await Promise.resolve();
+    expect(controller.snapshot().update).toEqual(update);
+    cancel();
+  });
+
+  it("rejects metadata whose encoded JSON exceeds the transport budget", async () => {
+    const fake = fakeDependencies({ check: { ...update, body: "\0".repeat(11000) } });
+    const controller = createAppUpdaterController(fake.deps);
+    await expect(controller.check("manual")).rejects.toMatchObject({ code: "invalid_response" });
+    expect(controller.snapshot().update).toBeNull();
+  });
+
+  it("does not present a pending check after lifecycle cancellation and permits a new check", async () => {
+    const pending = deferred<AppUpdateMetadata | null>();
+    const fake = fakeDependencies({ check: pending.promise });
+    const controller = createAppUpdaterController(fake.deps);
+    const cancel = controller.scheduleStartupCheck();
+    const first = controller.check("manual");
+    cancel();
+    expect(controller.snapshot().phase).not.toBe("checking");
+    pending.resolve(update); await first;
+    expect(controller.snapshot().promptVisible).toBe(false);
+    await controller.check("manual");
+    expect(controller.snapshot().update).toEqual(update);
+  });
+
+  it("does not present a pending failure after lifecycle cancellation", async () => {
+    let reject!: (reason: unknown) => void;
+    const pending = new Promise<AppUpdateMetadata | null>((_resolve, fail) => { reject = fail; });
+    const fake = fakeDependencies({ check: pending });
+    const controller = createAppUpdaterController(fake.deps);
+    const cancel = controller.scheduleStartupCheck();
+    const check = controller.check("manual"); cancel();
+    reject({ code: "network", message: "failed" });
+    await expect(check).rejects.toMatchObject({ code: "network" });
+    expect(controller.snapshot()).toMatchObject({ phase: "idle", promptVisible: false, errorCode: "" });
   });
 
   it("keeps startup failures non-blocking and normalizes native errors", async () => {
@@ -164,6 +218,7 @@ describe("app updater controller", () => {
     await controller.installAndRestart();
     expect(fake.invoke).toHaveBeenLastCalledWith("install_app_update", {
       expectedVersion: "3.0.1",
+      expectedCandidateId: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     });
     expect(controller.snapshot().phase).toBe("restarting");
   });
@@ -259,5 +314,97 @@ describe("app update prompt", () => {
 
     expect((screen.getByRole("button", { name: "稍后" }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole("button", { name: "正在安装" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
+
+describe("automatic preference and explicit manual intent", () => {
+  function setup() {
+    const handlers = new Map<string, (event: {payload: unknown}) => void>();
+    const pending = deferred<AppUpdateMetadata | null>();
+    const fake = fakeDependencies({check: pending.promise});
+    fake.deps.listen = vi.fn(async (name, handler) => {handlers.set(name, handler); return () => handlers.delete(name);});
+    const invoke = fake.deps.invoke;
+    fake.deps.invoke = vi.fn(async (name, args) => name === "get_setting" ? '{"autoCheckUpdate":false}' : invoke(name, args));
+    const controller = createAppUpdaterController(fake.deps);
+    const cancel = controller.scheduleStartupCheck();
+    return {handlers, pending, fake, controller, cancel};
+  }
+  it("hides automatic discovery while off but preserves manual await after real status events", async () => {
+    const s = setup(); await vi.waitFor(() => expect(s.handlers.size).toBe(2));
+    await Promise.resolve(); await Promise.resolve();
+    const available = {operation:"idle",update,checked:true,lastError:null};
+    s.handlers.get("app-update-status")?.({payload:available});
+    expect(s.controller.snapshot().promptVisible).toBe(false);
+    const manual = s.controller.check("manual");
+    s.handlers.get("app-update-status")?.({payload:{operation:"checking",update:null,checked:false,lastError:null}});
+    s.handlers.get("app-update-status")?.({payload:available});
+    s.pending.resolve(update); await manual;
+    expect(s.controller.snapshot()).toMatchObject({phase:"available",promptVisible:true});
+    s.handlers.get("app-update-status")?.({payload:{...available,lastError:{code:"download_failed",message:"下载失败"}}});
+    expect(s.controller.snapshot()).toMatchObject({phase:"error",promptVisible:true});
+    s.cancel(); expect(s.handlers.size).toBe(0);
+  });
+  it("a later preference event defeats a late startup read and dismissal returns to auto gating", async () => {
+    const s = setup(); const read = deferred<unknown>();
+    s.fake.deps.invoke = vi.fn(async name => name === "get_setting" ? read.promise : undefined);
+    await vi.waitFor(() => expect(s.handlers.size).toBe(2));
+    s.handlers.get("atools://renderer-general-settings")?.({payload:{version:1,raw:'{"autoCheckUpdate":false}'}});
+    read.resolve('{"autoCheckUpdate":true}');await Promise.resolve();await Promise.resolve();
+    s.handlers.get("app-update-status")?.({payload:{operation:"idle",update,checked:true,lastError:null}});
+    expect(s.controller.snapshot().promptVisible).toBe(false);
+    s.handlers.get("atools://renderer-general-settings")?.({payload:{version:1,raw:'{"autoCheckUpdate":true}'}});
+    s.handlers.get("app-update-status")?.({payload:{operation:"idle",update,checked:true,lastError:null}});
+    expect(s.controller.snapshot().promptVisible).toBe(true);s.cancel();
+  });
+});
+
+describe("r79 review preference ordering", () => {
+  function ordered() {
+    const read = deferred<unknown>();
+    const handlers = new Map<string, (event: {payload: unknown}) => void>();
+    const fake = fakeDependencies();
+    fake.deps.listen = vi.fn(async (name, handler) => {handlers.set(name, handler); return () => handlers.delete(name);});
+    const invoke = fake.deps.invoke;
+    fake.deps.invoke = vi.fn(async (name, args) => name === "get_setting" ? read.promise : invoke(name, args));
+    const controller = createAppUpdaterController(fake.deps);
+    const cancel = controller.scheduleStartupCheck();
+    return {read, handlers, fake, controller, cancel};
+  }
+  it.each([true, false])("late preference %s reprojects prior availability without another check", async enabled => {
+    const s = ordered(); await vi.waitFor(() => expect(s.handlers.size).toBe(2));
+    s.handlers.get("app-update-status")?.({payload:{operation:"idle",update,checked:true,lastError:null}});
+    expect(s.controller.snapshot().promptVisible).toBe(false);
+    s.read.resolve(JSON.stringify({autoCheckUpdate:enabled}));
+    await vi.waitFor(() => expect(s.controller.snapshot().promptVisible).toBe(enabled));
+    expect(s.fake.deps.invoke).not.toHaveBeenCalledWith("check_app_update"); s.cancel();
+  });
+  it("explicit dismissal before the initial preference resolves is not revived", async () => {
+    const s = ordered(); await vi.waitFor(() => expect(s.handlers.size).toBe(2));
+    s.handlers.get("app-update-status")?.({payload:{operation:"idle",update,checked:true,lastError:null}});
+    s.controller.dismiss(); s.read.resolve('{"autoCheckUpdate":true}');
+    await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+    expect(s.controller.snapshot().promptVisible).toBe(false); s.cancel();
+  });
+  it("duplicate preference does not replay a dismissed discovery or a progress/error event", async () => {
+    const s = ordered(); await vi.waitFor(() => expect(s.handlers.size).toBe(2));
+    s.read.resolve('{"autoCheckUpdate":true}'); await Promise.resolve(); await Promise.resolve();
+    s.handlers.get("app-update-status")?.({payload:{operation:"idle",update,checked:true,lastError:null}});
+    s.controller.dismiss();
+    s.handlers.get("atools://renderer-general-settings")?.({payload:{version:1,raw:'{"autoCheckUpdate":true}'}});
+    expect(s.controller.snapshot().promptVisible).toBe(false);
+    const before = s.controller.snapshot();
+    s.handlers.get("atools://renderer-general-settings")?.({payload:{version:1,raw:'{"autoCheckUpdate":true}'}});
+    expect(s.controller.snapshot()).toEqual(before);s.cancel();
+  });
+  it("manual install progress remains visible with auto disabled", async () => {
+    const s = ordered();await vi.waitFor(() => expect(s.handlers.size).toBe(2));
+    s.read.resolve('{"autoCheckUpdate":false}');await Promise.resolve();await Promise.resolve();
+    await s.controller.check("manual");expect(s.controller.snapshot().promptVisible).toBe(true);
+    const stop=await s.controller.startProgressListener();
+    await s.controller.installAndRestart();
+    s.handlers.get("app-update-progress")?.({payload:{event:"downloading",downloaded:3,total:10}});
+    expect(s.controller.snapshot()).toMatchObject({phase:"downloading",promptVisible:true,downloaded:3});
+    stop();s.cancel();
   });
 });

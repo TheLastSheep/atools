@@ -47,10 +47,17 @@ try {
 
   const pluginPanel = await readFile(new URL("src/components/PluginPanel.svelte", root), "utf8");
   assert.match(pluginPanel, /pluginDialogSmokeGuardEnabled\(\)/);
-  assert.match(pluginPanel, /dialogSmokeGuardError\("showOpenDialog"\)/);
-  assert.match(pluginPanel, /dialogSmokeGuardError\("showSaveDialog"\)/);
-  assert.match(pluginPanel, /openDialog\(normalizeDialogBridgeOptions\(args\.options\)\)/);
-  assert.match(pluginPanel, /saveDialog\(normalizeDialogBridgeOptions\(args\.options\)\)/);
+  assert.match(pluginPanel, /pluginNativeDialogBridgeScript\(activePluginDialogs\.configuration\(\), pluginDialogSmokeGuardEnabled\(\)\)/);
+  assert.match(pluginPanel, /synchronous authorized frame transport/);
+  assert.doesNotMatch(pluginPanel, /openDialog\(normalizeDialogBridgeOptions/);
+  assert.doesNotMatch(pluginPanel, /saveDialog\(normalizeDialogBridgeOptions/);
+  assert.equal(mod.pluginDialogSmokeGuardEnabled({ VITE_ATOOLS_DESKTOP_SMOKE: "1", VITE_ATOOLS_NATIVE_DIALOG_ACCEPTANCE: "true" }), false);
+  const bridge = await readFile(new URL("src/lib/pluginNativeDialogBridge.ts", root), "utf8");
+  assert.match(bridge, /xhr\.open\("POST", endpoint, false\)/);
+  assert.match(bridge, /showOpenDialogSync/);
+  assert.match(bridge, /showSaveDialogSync/);
+  assert.match(bridge, /原操作不会自动重放/);
+
 } finally {
   await rm(outDir, { recursive: true, force: true });
 }

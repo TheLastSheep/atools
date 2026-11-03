@@ -35,6 +35,8 @@ try {
   assert.equal(items[2].path, undefined);
   assert.equal(mod.pasteQueryLabel(items), "粘贴了 2 张图片、1 个文件");
 
+  assert.equal(mod.classifyPastedContent({files:[{name:"relative.pdf",webkitRelativePath:"folder/relative.pdf"} ]})[0].path, undefined);
+
   const results = mod.pasteResultsForItems(items);
   assert.deepEqual(results.map((result) => result.plugin_id), ["paste", "paste", "paste", "paste", "paste"]);
   assert.deepEqual(results.map((result) => result.label), [

@@ -55,7 +55,7 @@ function createHarness({
   let createdUrl = "";
   let createdOptions = null;
   let childIpcOnce = null;
-  let parentCallback = null;
+  const parentIpc = new Map();
   let destroyed = false;
 
   const parentWindow = parentProxy(parentRawInvoke);
@@ -77,7 +77,7 @@ function createHarness({
   };
   childWindow.utools = {
     sendToParent(channel, payload) {
-      parentCallback?.(channel, payload);
+      parentIpc.get(channel)?.({ channel }, payload);
       return Promise.resolve(true);
     },
   };
@@ -119,19 +119,27 @@ function createHarness({
     isDestroyed() {
       return destroyed;
     },
+    setAlwaysOnTop() {}, setFullScreen() {}, setSkipTaskbar() {},
   };
 
   const mainWindow = {
+    require(name) {
+      assert.equal(name,"electron");
+      return {ipcRenderer:{
+        on(channel,listener){parentIpc.set(channel,listener);},
+        off(channel,listener){if(parentIpc.get(channel)===listener)parentIpc.delete(channel);},
+      }};
+    },
     utools: {
       createBrowserWindow(url, options, callback) {
         createCount += 1;
         createdUrl = url;
         createdOptions = options;
-        parentCallback = callback;
-        if (createDelayMs > 0) {
-          return new Promise((resolve) => setTimeout(() => resolve(handle), createDelayMs));
-        }
-        return Promise.resolve(handle);
+        handle.ready = new Promise(resolve => {
+          const ready=()=>{if(!destroyed)callback();resolve(handle);};
+          if(createDelayMs>0)setTimeout(ready,createDelayMs);else queueMicrotask(ready);
+        });
+        return handle;
       },
     },
   };
@@ -154,6 +162,7 @@ function createHarness({
     snapshot() {
       return { createCount, closeCount, createdUrl, createdOptions };
     },
+    listenerCount:()=>parentIpc.size,
   };
 }
 
@@ -229,6 +238,9 @@ try {
   assert.equal(success.executeJavascriptChecked, true);
   assert.equal(success.ipcRoundtripChecked, true);
   assert.equal(success.cleanupChecked, true);
+  assert.equal(success.synchronousHandleChecked,true);
+  assert.equal(success.readyCallbackCount,1);
+  assert.equal(successHarness.listenerCount(),0);
   assert.deepEqual(plain(successHarness.snapshot()), {
     createCount: 1,
     closeCount: 1,
@@ -361,13 +373,16 @@ try {
     sampleIndex: 0,
     timeoutMs: 20,
   }));
-  assert.equal(delayedCreate.cleanupChecked, false, "a create that misses the probe deadline cannot claim synchronous cleanup");
+  assert.equal(delayedCreate.created,false,"The handle alone cannot prove actual child readiness");
+  assert.equal(delayedCreate.cleanupChecked, true, "The immediate handle remains available to close after a readiness deadline");
   await new Promise((resolve) => setTimeout(resolve, 60));
   assert.equal(
     delayedCreateHarness.snapshot().closeCount,
     1,
-    "a create that resolves after the probe timeout must still close through the finishing branch",
+    "readiness arriving after the probe timeout must not duplicate close",
   );
+  assert.equal(delayedCreate.readyCallbackCount,0,"A closed child must not invoke a late readiness callback");
+  assert.equal(delayedCreateHarness.listenerCount(),0);
 
   const componentSource = await readFile(componentUrl, "utf8");
   assert.match(componentSource, /desktopBrowserWindowIsolationProbeSource/);
@@ -414,7 +429,13 @@ try {
     componentSource.indexOf("async function createPluginBrowserWindow"),
     componentSource.indexOf("function pluginBrowserWindowNavigationResult"),
   );
-  assert.match(childCreationSection, /injectPluginBridge\(html, "browserWindow", id\)/);
+  assert.match(childCreationSection, /const preloadScript = await prepareBrowserWindowPreload\(options,/,
+    "child creation must prepare its declared preload before constructing the document");
+  assert.match(childCreationSection, /injectPluginBridge\(html, "browserWindow", id, preloadScript\)/,
+    "the child must receive the prepared original preload after its host bridge");
+  assert.ok(childCreationSection.indexOf("const preloadScript = await prepareBrowserWindowPreload")
+    < childCreationSection.indexOf('injectPluginBridge(html, "browserWindow", id, preloadScript)'),
+  "preload preparation and its current creator/navigation checks must precede document injection");
   assert.doesNotMatch(
     childCreationSection,
     /injectDesktopSmokeBridgeProbe/,

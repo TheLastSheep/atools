@@ -26,8 +26,8 @@ assert.ok(panelSource.includes("固定"), "HomePanel should render the fixed com
 assert.ok(panelSource.includes("globalCommandIndex"), "HomePanel should preserve one continuous keyboard selection index");
 assert.ok(!panelSource.includes("section.empty"), "HomePanel should omit empty fixed-section chrome");
 assert.ok(panelSource.includes("HomeCapabilityRail"), "HomePanel should load the product capability rail");
-assert.ok(capabilityRailSource.includes("核心能力与运行状态"), "HomePanel should expose the product capability rail");
-assert.ok(capabilityRailSource.includes('onpanelchange("results")'), "HomePanel should expose Result Center as a first-level action");
+assert.ok(capabilityRailSource.includes("常用入口"), "HomePanel should expose the product capability rail");
+assert.ok(capabilityRailSource.includes('panel: "results"'), "HomePanel should expose Result Center as a first-level action");
 
 assert.ok(settingsSource.includes("固定栏显示行数"), "Settings should expose fixed command row count");
 assert.ok(settingsSource.includes("initialMenu"), "SettingsPanel should support an initial menu prop for direct navigation");

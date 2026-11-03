@@ -1,3 +1,5 @@
+import { assertInitialHostedIpcRegistration } from "./lib/hosted-ipc-fixture-assertions.mjs";
+import { injectPluginBridgeFactories } from "./lib/plugin-bridge-fixture.mjs";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFile } from "node:fs/promises";
@@ -7,8 +9,10 @@ const componentSource = await readFile(new URL("src/components/PluginPanel.svelt
 
 const bridgeMatch = componentSource.match(/const UTOOLS_BRIDGE = `([\s\S]*?)`;/);
 assert.ok(bridgeMatch, "PluginPanel should define the injected utools bridge");
+const bridgeTemplate = await injectPluginBridgeFactories(bridgeMatch[1]);
 
-let bridgeSource = bridgeMatch[1]
+let bridgeSource = bridgeTemplate
+  .replace(/__ACTION_PAYLOAD__/g, JSON.stringify(null))
   .replace(/<\\\/script>/g, "</script>")
   .replace(/^\s*<script>\s*/, "")
   .replace(/\s*<\/script>\s*$/, "")
@@ -82,6 +86,8 @@ const context = vm.createContext({
 });
 
 vm.runInContext(bridgeSource, context, { filename: "UTOOLS_BRIDGE.vm.js" });
+assertInitialHostedIpcRegistration(postedMessages);
+postedMessages.length = 0; // Subsequent synchronous operations must still make zero business requests.
 
 assert.equal(typeof windowStub.utools.onDbPull, "function", "utools.onDbPull should be exposed");
 assert.match(componentSource, /var _dbListeners = \{ change: \[\], docs: \[\] \}/);

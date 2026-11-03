@@ -1,3 +1,5 @@
+import { assertInitialHostedIpcRegistration } from "./lib/hosted-ipc-fixture-assertions.mjs";
+import { injectPluginBridgeFactories } from "./lib/plugin-bridge-fixture.mjs";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -290,7 +292,8 @@ try {
 
   const bridgeMatch = componentSource.match(/const UTOOLS_BRIDGE = `([\s\S]*?)`;/);
   assert.ok(bridgeMatch, "PluginPanel should define the injected uTools bridge");
-  const bridgeSource = bridgeMatch[1]
+  const bridgeTemplate = await injectPluginBridgeFactories(bridgeMatch[1]);
+  const bridgeSource = bridgeTemplate
     .replace(/<\\\/script>/g, "</script>")
     .replace(/^\s*<script>\s*/, "")
     .replace(/\s*<\/script>\s*$/, "")
@@ -342,7 +345,8 @@ try {
   class EventStub {
     constructor(type, init = {}) { this.type = type; Object.assign(this, init); }
   }
-  const parentStub = {};
+  const documentControlPosts = [];
+  const parentStub = { postMessage(message) { documentControlPosts.push(message); } };
   const windowStub = {
     parent: parentStub,
     top: {},
@@ -359,6 +363,7 @@ try {
     document: documentStub,
     navigator: { platform: "MacIntel", userAgent: "Mozilla/5.0" },
     Event: EventStub,
+    CustomEvent: EventStub,
     KeyboardEvent: EventStub,
     MouseEvent: EventStub,
     WheelEvent: EventStub,
@@ -376,6 +381,7 @@ try {
     clearTimeout() {},
   });
   vm.runInContext(bridgeSource, context, { filename: "isolated-hosted-browser-window-bridge.vm.js" });
+  assertInitialHostedIpcRegistration(documentControlPosts);
 
   const wrongChannel = new MessageChannel();
   cleanupWith(() => wrongChannel.port1.close());

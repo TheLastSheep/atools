@@ -29,12 +29,15 @@ try {
   await writeFile(runtimeOutFile, transformed.code.replace("./hotkeyRecorder", "./hotkeyRecorder.mjs"));
 
   const mod = await import(pathToFileURL(runtimeOutFile).href);
-  const [appSource, settingsPanelSource, settingsSource, smokeChecklist] = await Promise.all([
+  const [appComponentSource, actionsControllerSource, settingsPanelSource, settingsSource, smokeChecklist, hotkeySource] = await Promise.all([
     readFile(new URL("src/App.svelte", root), "utf8"),
+    readFile(new URL("src/lib/launcherResultActionsController.ts", root), "utf8"),
     readFile(new URL("src/components/SettingsPanel.svelte", root), "utf8"),
     readFile(new URL("src/lib/settings.ts", root), "utf8"),
     readFile(new URL("docs/macos-smoke-checklist.md", root), "utf8"),
+    readFile(new URL("src-tauri/src/general_settings_runtime/app_shortcuts.rs", root), "utf8"),
   ]);
+  const appSource = appComponentSource + "\n" + actionsControllerSource;
   const assertSmokeChecked = (row, message) => {
     assert.ok(smokeChecklist.includes(`- [x] ${row}`), message);
   };
@@ -133,13 +136,24 @@ try {
   );
   assert.ok(appSource.includes("appSettings.appShortcuts"), "App should read custom app shortcuts from settings");
   assert.ok(appSource.includes("availableAppShortcutTargetCodes"), "App should restrict app shortcuts to real targets");
-  assert.ok(appSource.includes("appShortcutTargetFromKeyboardEvent(event, appSettings.appShortcuts"), "App should evaluate custom shortcuts from keyboard events");
-  assert.ok(appSource.includes("await activateFeature(match.targetCode);"), "App should trigger the matched shortcut target");
+  assert.ok(appSource.includes("appShortcutTargetFromKeyboardEvent(event, appSettings.appShortcuts") || appSource.includes("appShortcutTargetFromKeyboardEvent(event, state.appSettings.appShortcuts"), "App should evaluate custom shortcuts from keyboard events");
+  const appShortcutActivation = appSource.match(/async function activateAppShortcut\(match: AppShortcutTargetMatch\) \{([\s\S]*?)\n  \}/)?.[1];
+  assert.ok(appShortcutActivation, "App should define the custom app shortcut activation path");
+  assert.match(
+    appShortcutActivation,
+    /(?:ports\.)?activateFeature\(match\.targetCode,\s*null,\s*\{\s*expectedPluginId:\s*(?:ports\.)?expectedLauncherPluginId\(target\)\s*\}\);/,
+    "App should activate the matched shortcut target with its expected plugin owner",
+  );
   assert.ok(appSource.includes("focusSearch();"), "App should return focus to main search after triggering a custom shortcut");
   assert.ok(
     appSource.includes("editableTarget: isEditableKeyboardTarget(event.target) && !isMainSearchKeyboardTarget(event.target)"),
     "App should allow main-search shortcut activation while guarding ordinary editable inputs",
   );
+  const showFailureBlock = hotkeySource.match(/if let Err\(error\) = crate::window::show_main_window\(&handle\) \{([\s\S]*?)\n\s*\}/)?.[1];
+  assert.ok(showFailureBlock, "App shortcut should handle main-window show failures");
+  assert.match(showFailureBlock, /tracing::error!\(%error,/);
+  assert.match(showFailureBlock, /return;/);
+  assert.doesNotMatch(showFailureBlock, /direct-launch-plugin/);
 
   assertSmokeChecked(
     "自定义应用快捷键保存到本地设置；刷新后仍保留；主搜索框聚焦时按自定义组合键会触发对应目标。",

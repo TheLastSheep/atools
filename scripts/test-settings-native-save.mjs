@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { transformWithEsbuild } from "vite";
+import { bundleTsTestModule } from "./lib/bundle-ts-test-module.mjs";
 
 const root = new URL("../", import.meta.url);
 const outDir = await mkdtemp(join(root.pathname, ".tmp-settings-native-save-"));
@@ -14,12 +14,7 @@ try {
     readFile(sourcePath, "utf8"),
     readFile(new URL("src/components/SettingsPanel.svelte", root), "utf8"),
   ]);
-  const transformed = await transformWithEsbuild(source, sourcePath, {
-    format: "esm",
-    target: "esnext",
-    loader: "ts",
-  });
-  await writeFile(outFile, transformed.code);
+  await writeFile(outFile, await bundleTsTestModule(sourcePath));
 
   const invokeCalls = [];
   const invokeOutcomes = new Map();
@@ -44,6 +39,7 @@ try {
         if (outcome === null) return null;
         if (outcome instanceof Error) throw outcome;
         if (typeof outcome === "string") throw new Error(outcome);
+        if (outcome.status === "resolve") return outcome.value;
         if (outcome.status === "reject") throw new Error(outcome.message);
         if (outcome.status === "throw-string") throw String(outcome.error);
         return null;
@@ -120,7 +116,7 @@ try {
   const serialCoordinator = new mod.SettingsSaveCoordinator(initialQueued, async (nextSettings, previousSettings) => {
     serialCalls.push({ nextSettings, previousSettings });
     serialEvents.push(`start:${nextSettings.hotkey}`);
-    if (nextSettings === queuedA) await firstGate.promise;
+    if (nextSettings.hotkey === queuedA.hotkey) await firstGate.promise;
     serialEvents.push(`finish:${nextSettings.hotkey}`);
   });
   const queuedAPromise = serialCoordinator.enqueue(queuedA);
@@ -147,7 +143,7 @@ try {
   const failureCalls = [];
   const failureCoordinator = new mod.SettingsSaveCoordinator(initialQueued, async (nextSettings, previousSettings) => {
     failureCalls.push({ nextSettings, previousSettings });
-    if (nextSettings === queuedA) {
+    if (nextSettings.hotkey === queuedA.hotkey) {
       await failedGate.promise;
       throw new Error("A persistence failed");
     }
@@ -168,198 +164,230 @@ try {
   failureCoordinator.hydrate(hydratedSettings);
   assert.deepEqual(failureCoordinator.lastSaved(), hydratedSettings, "hydrate should reset the saved snapshot");
 
-  const orderedMethods = [
-    "update_global_hotkey",
-    "set_tray_icon_visible",
-    "set_launch_at_login",
-    "set_super_panel_visible",
-    "set_floating_ball_visible",
-  ];
-
-  // 全部成功应静默返回。
-  invokeCalls.length = 0;
-  invokeOutcomes.clear();
-  await mod.applyNativeSettings(base);
-  assert.equal(invokeCalls.length, 5, "applyNativeSettings should invoke five native settings commands");
-  assert.deepEqual(
-    invokeCalls.map((call) => call.cmd),
-    orderedMethods,
-    "Native commands should run in the expected order",
-  );
-  assert.deepEqual(
-    invokeCalls.map((call) => call.args),
-    [
-      { shortcut: base.hotkey },
-      { visible: base.showTrayIcon },
-      { enabled: base.launchAtLogin },
-      { visible: base.superPanelEnabled },
-      { visible: base.floatingBallEnabled },
-    ],
-    "Native command payload should match settings values",
-  );
-
-  // 单一失败应抛出包含方法名和计数的错误。
-  invokeCalls.length = 0;
-  invokeOutcomes.clear();
-  invokeOutcomes.set("set_tray_icon_visible", "command unavailable");
-  let trayError;
-  try {
-    await mod.applyNativeSettings(base);
-    assert.fail("Single native failure should reject");
-  } catch (error) {
-    trayError = error;
-  }
-  assert.ok(trayError instanceof Error, "Failure should be surfaced as an Error");
-  assert.ok(invokeCalls.length === 5, "all native methods should still be attempted on partial failure");
-  assert.match(
-    trayError.message,
-    /系统设置保存失败/,
-    "Failure should include aggregate native settings summary",
-  );
-  assert.match(trayError.message, /成功 4\/5/, "Failure summary should include success count");
-  assert.match(trayError.message, /失败 1 项/, "Failure summary should include failure count");
-  assert.match(trayError.message, /set_tray_icon_visible/, "Failure should include failed method name");
-  assert.match(trayError.message, /command unavailable/, "Failure should include failed reason");
-
-  // 多失败应聚合所有失败明细。
-  invokeCalls.length = 0;
-  invokeOutcomes.clear();
-  invokeOutcomes.set("set_launch_at_login", new Error("permission denied"));
-  invokeOutcomes.set("set_floating_ball_visible", { status: "throw-string", error: "ball ipc not ready" });
-  let multiError;
-  try {
-    await mod.applyNativeSettings(base);
-    assert.fail("Multiple native failures should reject");
-  } catch (error) {
-    multiError = error;
-  }
-  assert.ok(multiError instanceof Error, "Failure should be surfaced as an Error");
-  assert.equal(invokeCalls.length, 5, "All native methods should still be attempted when multiple failures occur");
-  assert.match(multiError.message, /失败 2 项/, "Failure summary should include multiple failure count");
-  assert.ok(multiError.message.includes("成功 3/5"), "Failure summary should include success count");
-  assert.ok(
-    multiError.message.includes("set_launch_at_login") && multiError.message.includes("set_floating_ball_visible"),
-    "Failure message should include both failed method names",
-  );
-
-  const previous = {
+  // Capacity includes the active save and queued saves; rejected overflow never enters the queue.
+  const capacityGate = deferred();
+  const capacityStarted = deferred();
+  const capacityCalls = [];
+  const capacityCoordinator = new mod.SettingsSaveCoordinator(initialQueued, async (nextSettings) => {
+    capacityCalls.push(nextSettings.hotkey);
+    if (nextSettings.hotkey === "Option+CAP0") {
+      capacityStarted.resolve();
+      await capacityGate.promise;
+      throw new Error("first capacity save failed");
+    }
+  });
+  const capacityAdmissions = Array.from({ length: 32 }, (_, index) => capacityCoordinator.enqueue({
     ...base,
-    hotkey: "Option+P",
-    showTrayIcon: false,
-    launchAtLogin: false,
-    superPanelEnabled: false,
-    floatingBallEnabled: false,
+    hotkey: `Option+CAP${index}`,
+  }));
+  await capacityStarted.promise;
+  await assert.rejects(
+    capacityCoordinator.enqueue({ ...base, hotkey: "Option+CAP-OVERFLOW" }),
+    /queue is full \(32 pending saves maximum\)/,
+  );
+  assert.deepEqual(capacityCalls, ["Option+CAP0"], "Overflow must not disturb or bypass the active save");
+  const capacityDrain = Promise.allSettled(capacityAdmissions);
+  capacityGate.resolve();
+  const capacityResults = await capacityDrain;
+  assert.equal(capacityResults[0].status, "rejected", "The active failed save should reject its original caller");
+  assert.equal(capacityResults.slice(1).every(result => result.status === "fulfilled"), true,
+    "Already accepted queued saves should drain after the first failure");
+  assert.equal(capacityCalls.length, 32, "Only the 32 admitted saves should reach persistence");
+  await capacityCoordinator.enqueue({ ...base, hotkey: "Option+CAPACITY-REUSED" });
+  assert.equal(capacityCalls.length, 33, "Settled saves should release capacity for later work");
+
+  const mutableInitial = mod.normalizeSettings({
+    ...base,
+    appShortcuts: [{ id: "shortcut-1", shortcut: "Option+I", targetCode: "feature:one", enabled: true }],
+    wakeupBlacklist: ["initial"],
+    tabTarget: { pluginId: "plugin-one", code: "feature-one", label: "Initial" },
+    pluginMarketTrustedPublicKeys: ["initial-key"],
+  });
+  const initialSnapshot = JSON.parse(JSON.stringify(mutableInitial));
+  const nativeReadGate = deferred();
+  invokeCalls.length = 0;
+  invokeOutcomes.clear();
+  invokeOutcomes.set("get_setting", { status: "resolve", value: nativeReadGate.promise });
+  invokeOutcomes.set("save_general_settings", { status: "reject", message: "coordinated Native rejection" });
+  const mutationCoordinator = new mod.SettingsSaveCoordinator(
+    mutableInitial,
+    async (nextSettings, previousSettings) => mod.applyAndSaveAToolsSettings(nextSettings, previousSettings),
+  );
+
+  mutableInitial.appShortcuts[0].shortcut = "mutated-constructor-input";
+  assert.deepEqual(mutationCoordinator.lastSaved(), initialSnapshot, "Constructor inputs cannot mutate saved state");
+  const exposedSaved = mutationCoordinator.lastSaved();
+  exposedSaved.appShortcuts[0].shortcut = "mutated-lastSaved-result";
+  assert.deepEqual(mutationCoordinator.lastSaved(), initialSnapshot, "lastSaved must return an isolated copy");
+  const hydratedInput = JSON.parse(JSON.stringify(initialSnapshot));
+  mutationCoordinator.hydrate(hydratedInput);
+  hydratedInput.appShortcuts[0].shortcut = "mutated-hydrate-input";
+  assert.deepEqual(mutationCoordinator.lastSaved(), initialSnapshot, "hydrate inputs cannot mutate saved state");
+
+  const submitted = {
+    ...initialSnapshot,
+    appShortcuts: [{ ...initialSnapshot.appShortcuts[0], shortcut: "Option+S" }],
+    wakeupBlacklist: ["initial", "submitted"],
+    tabTarget: { ...initialSnapshot.tabTarget, label: "Submitted" },
+    pluginMarketTrustedPublicKeys: ["initial-key", "submitted-key"],
   };
-  const next = {
+  const submittedSnapshot = JSON.parse(JSON.stringify(submitted));
+  const rejectedNativeSave = mutationCoordinator.enqueue(submitted);
+  const observedNativeRejection = assert.rejects(rejectedNativeSave, /coordinated Native rejection/);
+  for (let attempt = 0; attempt < 4 && !invokeCalls.some(call => call.cmd === "get_setting"); attempt += 1) {
+    await Promise.resolve();
+  }
+  assert.equal(invokeCalls.some(call => call.cmd === "get_setting"), true, "The save should be waiting on its strict Native snapshot");
+  submitted.appShortcuts[0].shortcut = "mutated-caller-after-enqueue";
+  submitted.wakeupBlacklist.push("mutated-caller-after-enqueue");
+  submitted.tabTarget.label = "mutated-caller-after-enqueue";
+  submitted.pluginMarketTrustedPublicKeys.push("mutated-caller-after-enqueue");
+  nativeReadGate.resolve(JSON.stringify(initialSnapshot));
+  await observedNativeRejection;
+
+  const rejectedSaveCall = invokeCalls.find(call => call.cmd === "save_general_settings");
+  assert.ok(rejectedSaveCall, "The coordinated save should reach the Native transaction");
+  assert.deepEqual(rejectedSaveCall.args.expected, { raw: JSON.stringify(initialSnapshot) });
+  assert.equal(Object.getPrototypeOf(rejectedSaveCall.args.changes), null);
+  const expectedChanges = { ...submittedSnapshot };
+  delete expectedChanges.launchAtLogin;
+  delete expectedChanges.hotkey;
+  delete expectedChanges.windowDefaultHeight;
+  assert.deepEqual(JSON.parse(JSON.stringify(rejectedSaveCall.args.changes)), expectedChanges,
+    "Enqueue captures the caller settings before the delayed Native read");
+  assert.deepEqual(mutationCoordinator.lastSaved(), initialSnapshot,
+    "A rejected Native save and caller mutation must not advance or alter lastSaved");
+
+  assert.equal(typeof mod.applyNativeSettings, "undefined", "The editor must not expose a second client-side native settings writer");
+
+  const previous = mod.normalizeSettings({
+    ...base,
+    theme: "persisted",
+  });
+  const next = mod.normalizeSettings({
     ...base,
     hotkey: "Option+N",
     showTrayIcon: true,
     launchAtLogin: true,
     superPanelEnabled: true,
     floatingBallEnabled: true,
-  };
+  });
 
-  // next 单项失败时，只回滚其余已成功应用的命令。
   invokeCalls.length = 0;
   invokeOutcomes.clear();
-  invokeOutcomes.set("set_tray_icon_visible", [{ status: "reject", message: "tray apply failed" }]);
-  let compensatedError;
-  try {
-    await mod.applyNativeSettings(next, previous);
-    assert.fail("Partial native failure should reject after compensation");
-  } catch (error) {
-    compensatedError = error;
-  }
-  assert.ok(compensatedError instanceof Error);
-  assert.equal(invokeCalls.length, 9, "Four successful next commands should be rolled back");
-  assert.deepEqual(
-    invokeCalls[0],
-    {
-      cmd: "update_global_hotkey",
-      args: { shortcut: next.hotkey, previousShortcut: previous.hotkey },
-    },
-    "Forward hotkey apply should carry the persisted previous shortcut",
+  invokeOutcomes.set("get_setting", { status: "resolve", value: JSON.stringify({ theme: "changed-elsewhere", unknown: { keep: true } }) });
+  await assert.rejects(
+    mod.applyAndSaveAToolsSettings(next, previous),
+    /changed since this edit was opened/,
   );
-  assert.deepEqual(invokeCalls.slice(5).map((call) => call.cmd), [
-    "update_global_hotkey",
-    "set_launch_at_login",
-    "set_super_panel_visible",
-    "set_floating_ball_visible",
-  ]);
-  assert.deepEqual(invokeCalls.slice(5).map((call) => call.args), [
-    { shortcut: previous.hotkey, previousShortcut: next.hotkey },
-    { enabled: previous.launchAtLogin },
-    { visible: previous.superPanelEnabled },
-    { visible: previous.floatingBallEnabled },
-  ]);
-  assert.equal(
-    invokeCalls.filter((call) => call.cmd === "set_tray_icon_visible").length,
-    1,
-    "The failed next command must not be retried as a rollback",
-  );
-  assert.match(compensatedError.message, /成功 4\/5/);
-  assert.match(compensatedError.message, /set_tray_icon_visible: tray apply failed/);
+  assert.deepEqual(invokeCalls.map(call => call.cmd), ["get_setting"],
+    "A fresh Native snapshot must not be used to rebase a stale full settings object");
 
-  // 补偿本身失败时，错误需同时保留 apply 与 rollback 上下文。
+  const previousWithUnknown = mod.normalizeSettings({ ...base, theme: "persisted", importedPreference: "opened-value" });
   invokeCalls.length = 0;
   invokeOutcomes.clear();
-  invokeOutcomes.set("set_tray_icon_visible", [{ status: "reject", message: "tray apply failed" }]);
-  invokeOutcomes.set("set_launch_at_login", [null, { status: "reject", message: "login rollback failed" }]);
-  let rollbackError;
-  try {
-    await mod.applyNativeSettings(next, previous);
-    assert.fail("Rollback failure should reject with both contexts");
-  } catch (error) {
-    rollbackError = error;
-  }
-  assert.ok(rollbackError instanceof Error);
-  assert.match(rollbackError.message, /tray apply failed/);
-  assert.match(rollbackError.message, /回滚失败/);
-  assert.match(rollbackError.message, /set_launch_at_login: login rollback failed/);
+  invokeOutcomes.set("get_setting", {
+    status: "resolve",
+    value: JSON.stringify({ ...previousWithUnknown, importedPreference: "external-value" }),
+  });
+  await assert.rejects(
+    mod.applyAndSaveAToolsSettings(next, previousWithUnknown),
+    /changed since this edit was opened/,
+  );
+  assert.deepEqual(invokeCalls.map(call => call.cmd), ["get_setting"],
+    "A changed unknown field in the caller's prior snapshot must also reject without a save");
 
-  // DB 持久化失败时不得更新 localStorage，并应将全部原生项回滚到 previous。
+  // A failed atomic save reports the Native error and leaves both stores untouched.
   invokeCalls.length = 0;
   invokeOutcomes.clear();
   localStorageWrites.length = 0;
-  storage.set(mod.SETTINGS_STORAGE_KEY, "previous-local-value");
-  invokeOutcomes.set("set_setting", { status: "reject", message: "settings db unavailable" });
-  let persistenceError;
-  try {
-    await mod.applyAndSaveAToolsSettings(next, previous);
-    assert.fail("Persistence failure should reject after native rollback");
-  } catch (error) {
-    persistenceError = error;
-  }
-  assert.ok(persistenceError instanceof Error);
-  assert.match(persistenceError.message, /持久化失败/);
-  assert.match(persistenceError.message, /settings db unavailable/);
-  assert.equal(storage.get(mod.SETTINGS_STORAGE_KEY), "previous-local-value");
-  assert.equal(localStorageWrites.length, 0, "Tauri DB failure must not leave a new localStorage value");
-  assert.deepEqual(
-    invokeCalls[0],
-    {
-      cmd: "update_global_hotkey",
-      args: { shortcut: next.hotkey, previousShortcut: previous.hotkey },
+  const initialRaw = JSON.stringify({ theme: "persisted", unknown: { keep: true } });
+  storage.set(mod.SETTINGS_STORAGE_KEY, "stale-local-value");
+  invokeOutcomes.set("get_setting", { status: "resolve", value: initialRaw });
+  invokeOutcomes.set("save_general_settings", { status: "reject", message: "CAS conflict" });
+  await assert.rejects(mod.applyAndSaveAToolsSettings(next, previous), /CAS conflict/);
+  assert.deepEqual(invokeCalls.map((call) => call.cmd), ["get_setting", "save_general_settings"]);
+  assert.equal(invokeCalls[1].args.expected.raw, initialRaw, "The transaction should use the strict Native raw snapshot");
+  const expectedNextPatch = { ...next };
+  delete expectedNextPatch.launchAtLogin;
+  delete expectedNextPatch.windowDefaultHeight;
+  const failedPatch = invokeCalls[1].args.changes;
+  assert.equal(Object.getPrototypeOf(failedPatch), null, "Native patches should retain the safe null prototype");
+  assert.deepEqual(JSON.parse(JSON.stringify(failedPatch)), expectedNextPatch);
+  assert.equal(invokeCalls[1].args.applyNative, true);
+  assert.equal(storage.get(mod.SETTINGS_STORAGE_KEY), "stale-local-value");
+  assert.equal(localStorageWrites.length, 0, "A failed Native commit cannot refresh the local cache");
+
+  // A committed receipt is authoritative even when its notification was not delivered.
+  invokeCalls.length = 0;
+  invokeOutcomes.clear();
+  localStorageWrites.length = 0;
+  const committedRaw = JSON.stringify({ ...JSON.parse(initialRaw), ...next });
+  invokeOutcomes.set("get_setting", { status: "resolve", value: initialRaw });
+  invokeOutcomes.set("save_general_settings", {
+    status: "resolve",
+    value: {
+      version: 1,
+      raw: committedRaw,
+      notificationDelivered: false,
+      effectsApplied: false,
+      aiInvalidated: false,
     },
-    "Persistence transaction should apply the next hotkey from the persisted previous shortcut",
-  );
-  assert.deepEqual(
-    invokeCalls.slice(-5).map((call) => ({ cmd: call.cmd, args: call.args })),
-    [
-      {
-        cmd: "update_global_hotkey",
-        args: { shortcut: previous.hotkey, previousShortcut: next.hotkey },
+  });
+  await mod.applyAndSaveAToolsSettings(next, previous);
+  assert.deepEqual(invokeCalls.map((call) => call.cmd), ["get_setting", "save_general_settings"]);
+  assert.equal(invokeCalls[1].args.expected.raw, initialRaw);
+  const committedPatch = invokeCalls[1].args.changes;
+  assert.equal(Object.getPrototypeOf(committedPatch), null, "Committed Native patches should retain the safe null prototype");
+  assert.deepEqual(JSON.parse(JSON.stringify(committedPatch)), expectedNextPatch);
+  assert.equal(invokeCalls[1].args.applyNative, true);
+  assert.equal(storage.get(mod.SETTINGS_STORAGE_KEY), committedRaw);
+  assert.equal(localStorageWrites.length, 1, "Only the validated commit receipt should update localStorage");
+
+  // Preview mode still persists locally without invoking Native.
+  invokeCalls.length = 0;
+  invokeOutcomes.clear();
+  localStorageWrites.length = 0;
+  const previewRaw = JSON.stringify({ theme: "preview", unknown: "preserved" });
+  storage.set(mod.SETTINGS_STORAGE_KEY, previewRaw);
+  globalThis.window = {};
+  await mod.applyAndSaveAToolsSettings(next, mod.normalizeSettings({ ...base, theme: "preview" }));
+  const previewCommittedRaw = JSON.stringify({ ...JSON.parse(previewRaw), ...next });
+  assert.equal(invokeCalls.length, 0, "Preview settings must not invoke Native commands");
+  assert.equal(storage.get(mod.SETTINGS_STORAGE_KEY), previewCommittedRaw);
+  assert.equal(localStorageWrites.length, 1, "Preview mode should persist its local CAS result");
+  const validPreviewRaw = storage.get(mod.SETTINGS_STORAGE_KEY);
+  storage.set(mod.SETTINGS_STORAGE_KEY, "{invalid preview JSON");
+  globalThis.window = {};
+  let unhandledPreviewRead;
+  const onUnhandledPreviewRead = (reason) => { unhandledPreviewRead = reason; };
+  process.once("unhandledRejection", onUnhandledPreviewRead);
+  mod.createAToolsSettingsWriter();
+  await new Promise((resolve) => setImmediate(resolve));
+  process.removeListener("unhandledRejection", onUnhandledPreviewRead);
+  assert.equal(unhandledPreviewRead, undefined,
+    "An unused preview writer must handle its captured snapshot read rejection");
+  storage.set(mod.SETTINGS_STORAGE_KEY, validPreviewRaw);
+
+  globalThis.window = {
+    __TAURI_INTERNALS__: {
+      invoke: async (cmd, args = {}) => {
+        invokeCalls.push({ cmd, args });
+        const configured = invokeOutcomes.get(cmd);
+        const outcome = Array.isArray(configured) ? configured.shift() : configured;
+        if (outcome === undefined || outcome === null) return null;
+        if (outcome instanceof Error) throw outcome;
+        if (typeof outcome === "string") throw new Error(outcome);
+        if (outcome.status === "resolve") return outcome.value;
+        if (outcome.status === "reject") throw new Error(outcome.message);
+        if (outcome.status === "throw-string") throw String(outcome.error);
+        return null;
       },
-      { cmd: "set_tray_icon_visible", args: { visible: previous.showTrayIcon } },
-      { cmd: "set_launch_at_login", args: { enabled: previous.launchAtLogin } },
-      { cmd: "set_super_panel_visible", args: { visible: previous.superPanelEnabled } },
-      { cmd: "set_floating_ball_visible", args: { visible: previous.floatingBallEnabled } },
-    ],
-    "Persistence failure should trigger a full native rollback",
-  );
+    },
+  };
 
   assert.match(panelSource, /lastSavedSettings/, "SettingsPanel should keep a last-saved snapshot");
-  assert.match(panelSource, /new SettingsSaveCoordinator\(initialSettings, applyAndSaveAToolsSettings\)/, "SettingsPanel should create one serialized settings coordinator");
+  assert.match(panelSource, /new SettingsSaveCoordinator\(initialSettings, createAToolsSettingsWriter\(\)\)/, "SettingsPanel should bind one serialized writer to its opening read lease");
   assert.match(panelSource, /settingsSaveCoordinator\.hydrate\(settings\)/, "Async load should hydrate the coordinator snapshot");
   assert.match(panelSource, /settingsSaveCoordinator\.enqueue\(settings\)/, "All settings persistence should enter the serialized coordinator");
   assert.match(panelSource, /let saveRevision = 0/, "SettingsPanel should track save UI revisions");
@@ -382,12 +410,6 @@ try {
     "SettingsPanel teardown should register the component-tested pending settings flush",
   );
 
-  // 无 invoke 时应直接跳过，避免在预览环境触发原生调用。
-  invokeCalls.length = 0;
-  invokeOutcomes.clear();
-  globalThis.window = {};
-  await mod.applyNativeSettings(base);
-  assert.equal(invokeCalls.length, 0, "applyNativeSettings should skip when Tauri invoke is unavailable");
 } finally {
   await rm(outDir, { recursive: true, force: true });
 }

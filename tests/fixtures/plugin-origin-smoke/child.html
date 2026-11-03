@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>ATools child origin probe</title>
+<style>html,body{margin:0}#target{position:relative;width:128px;height:48px;background:#123456;overflow:hidden}#swatch{position:absolute;left:8px;top:8px;width:16px;height:16px;background:#ff6600}</style>
+<div id="target"><div id="swatch"></div></div>
+<script src="/html2canvas.js"></script>
+<script>
+(() => {
+  "use strict";
+  const config=__ATOOLS_ORIGIN_CONFIG__;
+  const claimedId=config.foreign&&typeof config.claimedId==="string"?config.claimedId:config.id;
+  const key="atools-origin-probe:"+config.runId+":"+config.id;
+  const value="owned-by-"+config.id+":"+config.runId;
+  const errorInfo=error=>({name:String(error?.name||"Error").slice(0,80),message:String(error?.message||error).slice(0,400)});
+  const noTauri=target=>({noTauri:!("__TAURI_INTERNALS__" in target)&&!("__TAURI__" in target),
+    internalsType:typeof target.__TAURI_INTERNALS__,globalTauriType:typeof target.__TAURI__});
+  const post=(phase,result)=>window.parent.postMessage({kind:"atools-origin-probe",runId:config.runId,id:claimedId,phase,result},"*");
+  const within=(promise,ms,label)=>new Promise((resolve,reject)=>{
+    const timer=setTimeout(()=>reject(Error(label+" timed out")),ms);
+    Promise.resolve(promise).then(result=>{clearTimeout(timer);resolve(result);},error=>{clearTimeout(timer);reject(error);});
+  });
+  function access(read) {
+    try {const result=read();return {outcome:"accessible",valueType:typeof result,nonEmpty:result!==undefined&&result!==null&&result!==""};}
+    catch(error){return {outcome:"denied",error:errorInfo(error)};}
+  }
+  function storageWrite() {
+    try {localStorage.setItem(key,value);return {available:true,key,value,ownRead:localStorage.getItem(key)};}
+    catch(error){return {available:false,error:errorInfo(error)};}
+  }
+  function rawIpc() {
+    const result={channelPresent:false,wrongKey:null,missingKey:null,
+      boundary:"Presence/send-without-throw only; independent Rust counter decides whether either raw request executed"};
+    let channel;
+    try {channel=window.webkit?.messageHandlers?.ipc;result.channelPresent=typeof channel?.postMessage==="function";}
+    catch(error){result.channelError=errorInfo(error);return result;}
+    for(const kind of ["wrongKey","missingKey"]) {
+      if(!result.channelPresent){result[kind]={attempted:false,reason:"raw channel unavailable"};continue;}
+      const payload={cmd:"poc_benign_counter",callback:2147483001,error:2147483002,
+        payload:{caseId:config.id+(kind==="wrongKey"?"-wrong-key":"-missing-key")},
+        options:{headers:{},customProtocolIpcBlocked:true}};
+      if(kind==="wrongKey")payload.__TAURI_INVOKE_KEY__="poc-invalid-invoke-key";
+      try {channel.postMessage(JSON.stringify(payload));result[kind]={attempted:true,sentWithoutThrow:true};}
+      catch(error){result[kind]={attempted:true,sentWithoutThrow:false,error:errorInfo(error)};}
+    }
+    return result;
+  }
+  async function nestedBlank() {
+    const frame=document.createElement("iframe");frame.src="about:blank";frame.style.cssText="position:absolute;left:-10000px;width:8px;height:8px";
+    const result={url:"about:blank",readWrite:false,noTauri:null};
+    try {
+      const loaded=new Promise(resolve=>frame.addEventListener("load",resolve,{once:true}));
+      document.body.append(frame);await within(loaded,1200,"Bare about:blank load");
+      const nested=frame.contentWindow,document_=nested.document;
+      document_.open();document_.write("<!doctype html><body>owned-nested-"+config.id+"</body>");document_.close();
+      result.readWrite=document_.body.textContent==="owned-nested-"+config.id;
+      result.locationOrigin=nested.location.origin;result.noTauri=noTauri(nested);
+    }catch(error){result.error=errorInfo(error);}
+    finally{frame.remove();}
+    return result;
+  }
+  async function canvasProbe() {
+    const result={status:"pending",width:128,height:48,expected:{background:[18,52,86,255],swatch:[255,102,0,255],
+      swatchRect:{x:8,y:8,width:16,height:16}},librarySource:"same-host /html2canvas.js, unchanged local file-tree html2canvas 1.4.1"};
+    try {
+      if(typeof window.html2canvas!=="function")throw Error("Original local html2canvas library did not load");
+      const canvas=await within(window.html2canvas(document.querySelector("#target"),{backgroundColor:"#123456",scale:1,
+        width:128,height:48,logging:false,useCORS:false,allowTaint:false,imageTimeout:1000,removeContainer:true}),5000,"Original html2canvas rendering");
+      const url=canvas.toDataURL("image/png");
+      if(!url.startsWith("data:image/png;base64,"))throw Error("Canvas did not produce PNG base64");
+      const base64=url.slice("data:image/png;base64,".length);
+      if(base64.length>87384)throw Error("PNG base64 exceeded the 64KiB decoded budget");
+      const bytes=atob(base64).length;
+      if(bytes>=64*1024)throw Error("PNG is not below 64KiB");
+      Object.assign(result,{status:"rendered",actualWidth:canvas.width,actualHeight:canvas.height,pngBytes:bytes,pngBase64:base64});
+    }catch(error){Object.assign(result,{status:"failed",error:errorInfo(error)});}
+    return result;
+  }
+  window.addEventListener("message",event=>{
+    const message=event.data;
+    if(config.foreign||event.source!==window.parent||message?.kind!=="atools-origin-control"||message.runId!==config.runId)return;
+    if(message.operation==="read-storage") {
+      if(!Array.isArray(message.peerIds)||message.peerIds.length!==3||message.peerIds.some(id=>typeof id!=="string"||id.length>64)) {
+        post("storage",{available:false,error:{name:"InvalidPeerIds",message:"Exactly three bounded peer IDs are required"}});return;
+      }
+      try {post("storage",{available:true,reads:message.peerIds.map(id=>({id,value:localStorage.getItem("atools-origin-probe:"+config.runId+":"+id)})),parentCommandOrigin:event.origin});}
+      catch(error){post("storage",{available:false,error:errorInfo(error),parentCommandOrigin:event.origin});}
+    } else if(message.operation==="cleanup-storage") {
+      try {localStorage.removeItem(key);post("cleanup",{removed:true,ownRead:localStorage.getItem(key)});}
+      catch(error){post("cleanup",{removed:false,error:errorInfo(error)});}
+    }
+  });
+  async function main() {
+    if(typeof config.runId!=="string"||!config.runId||typeof config.id!=="string"||!config.id)throw Error("Bounded child configuration is incomplete");
+    if(config.foreign) {
+      post("foreign",{foreign:true,actualId:config.id,claimedId,locationOrigin:location.origin,locationHost:location.host,
+        main:noTauri(window),rawIpc:{status:"not-exercised-foreign-document"}});return;
+    }
+    const result={id:config.id,locationOrigin:location.origin,locationHost:location.host,main:noTauri(window),
+      parentDocument:access(()=>window.parent.document.documentElement.nodeName),
+      parentSecret:access(()=>window.parent.__atoolsOriginParentSecret),
+      parentReportNonce:access(()=>window.parent.__atoolsOriginReportNonce),
+      topDocument:access(()=>window.top.document.documentElement.nodeName),
+      siblings:[],storageWrite:storageWrite(),rawIpc:rawIpc(),
+      optionalChecks:{documentDomain:"not-exercised",worker:"not-exercised"}};
+    const peers=Array.isArray(config.peerIndexes)?config.peerIndexes:[];
+    if(peers.length>2||peers.some(index=>!Number.isSafeInteger(index)||index<0||index>2))throw Error("Only the two configured peer frame indexes may be read");
+    result.siblings=peers.map(index=>({index,...access(()=>window.parent.frames[index].document.documentElement.nodeName)}));
+    result.nestedBlank=await nestedBlank();result.canvas=await canvasProbe();
+    post("initial",result);
+  }
+  main().catch(error=>post(config.foreign?"foreign":"initial",{id:config.id,locationOrigin:location.origin,main:noTauri(window),
+    error:errorInfo(error),storageWrite:{available:false},canvas:{status:"not-completed"}}));
+})();
+</script>
+</html>

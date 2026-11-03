@@ -65,7 +65,7 @@ try {
   );
 
   const cards = mod.pluginMarketOverviewCards(status);
-  assert.equal(cards.find((card) => card.label === "市场地址")?.value, "已配置");
+  assert.equal(cards.find((card) => card.label === "市场地址")?.value, "自定义市场");
   assert.match(cards.find((card) => card.label === "市场地址")?.detail ?? "", /market.example.com/);
 
   const previewStatus = mod.pluginMarketStatus({ installedPluginCount: 0, hasTauriRuntime: false });

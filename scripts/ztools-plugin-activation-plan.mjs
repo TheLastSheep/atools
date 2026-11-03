@@ -2,6 +2,11 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { buildZToolsPluginRuntimeSampleReport } from "./ztools-plugin-runtime-sample-report.mjs";
+import {
+  MAX_FILE_ACTIVATION_INPUTS,
+  resolveFileActivationInputs,
+  selectFileActivationFeature,
+} from "./lib/ztools-file-activation-input.mjs";
 
 function sanitizeId(value) {
   const sanitized = String(value || "")
@@ -143,8 +148,32 @@ function renderSmokePlanForPlugin(plugin, feature) {
 
 async function activationPlanFromPlugin(plugin, order, options) {
   const manifest = await readManifest(plugin);
-  const { feature, trigger } = chooseFeatureAndTrigger(manifest, plugin.feature_codes);
+  let feature;
+  let trigger;
+  if (options.inputFiles) {
+    feature = selectFileActivationFeature(manifest, options.inputFiles);
+    trigger = {
+      trigger_type: "files",
+      query: "",
+      command_type: "files",
+      typed_payload: null,
+      manual_reason: "",
+    };
+  } else {
+    ({ feature, trigger } = chooseFeatureAndTrigger(manifest, plugin.feature_codes));
+  }
   const expectedInstallId = sanitizeId(plugin.name);
+
+  const activation = {
+    feature_code: stringOrEmpty(feature?.code),
+    feature_label: stringOrEmpty(feature?.label) || stringOrEmpty(feature?.explain) || stringOrEmpty(feature?.code),
+    trigger_type: trigger.trigger_type,
+    command_type: trigger.command_type,
+    query: trigger.query,
+    typed_payload: trigger.typed_payload,
+    manual_reason: trigger.manual_reason,
+  };
+  if (options.inputFiles) activation.file_paths = options.inputFiles;
 
   return {
     order,
@@ -165,15 +194,7 @@ async function activationPlanFromPlugin(plugin, order, options) {
       expected_enabled_after_import: true,
       required_before_activation: true,
     },
-    activation: {
-      feature_code: stringOrEmpty(feature?.code),
-      feature_label: stringOrEmpty(feature?.label) || stringOrEmpty(feature?.explain) || stringOrEmpty(feature?.code),
-      trigger_type: trigger.trigger_type,
-      command_type: trigger.command_type,
-      query: trigger.query,
-      typed_payload: trigger.typed_payload,
-      manual_reason: trigger.manual_reason,
-    },
+    activation,
     assertions: {
       plugin_path_exists: true,
       main_exists: true,
@@ -192,7 +213,7 @@ async function activationPlanFromPlugin(plugin, order, options) {
 }
 
 function summarize(runtimeReport, plans) {
-  return {
+  const summary = {
     scanned_plugins: runtimeReport.summary.scanned_plugins,
     launchable_plugins: runtimeReport.summary.launchable_plugins,
     planned_samples: plans.length,
@@ -205,19 +226,27 @@ function summarize(runtimeReport, plans) {
     manual_trigger_plans: plans.filter((plan) => plan.activation.trigger_type === "manual").length,
     cleanup_required: plans.length > 0,
   };
+  const fileTriggerPlans = plans.filter((plan) => plan.activation.trigger_type === "files").length;
+  if (fileTriggerPlans > 0) summary.file_trigger_plans = fileTriggerPlans;
+  return summary;
 }
 
 export async function buildZToolsPluginActivationPlan(source, options = {}) {
   const root = resolve(source);
   const maxSamples = Number(options.maxSamples ?? 10);
+  const inputFiles = options.inputFiles === undefined ? undefined : await resolveFileActivationInputs(options.inputFiles);
   const installRoot = options.installRoot || "/tmp/atools-ztools-plugin-smoke";
   const runtimeReport = await buildZToolsPluginRuntimeSampleReport(root, {
     generatedAt: options.generatedAt,
-    maxCandidates: maxSamples,
+    maxCandidates: inputFiles ? 2 : maxSamples,
   });
+  if (inputFiles && runtimeReport.sample_candidates.length !== 1) {
+    const count = runtimeReport.sample_candidates.length > 1 ? "at least 2" : "0";
+    throw new Error(`--input-file requires --source to resolve exactly one launchable plugin plan; found ${count}`);
+  }
   const plans = [];
   for (const plugin of runtimeReport.sample_candidates) {
-    plans.push(await activationPlanFromPlugin(plugin, plans.length + 1, { installRoot }));
+    plans.push(await activationPlanFromPlugin(plugin, plans.length + 1, { installRoot, inputFiles }));
   }
 
   return {
@@ -234,7 +263,7 @@ export async function writeZToolsPluginActivationPlan(report, outputPath) {
   await writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`);
 }
 
-function parseArgs(args) {
+export function parseActivationPlanArgs(args) {
   const options = {
     source: process.env.ZTOOLS_PLUGIN_ACTIVATION_SOURCE || "../ZTools-plugins/plugins",
     output: "",
@@ -256,6 +285,17 @@ function parseArgs(args) {
     } else if (arg === "--install-root") {
       options.installRoot = args[index + 1] || options.installRoot;
       index += 1;
+    } else if (arg === "--input-file") {
+      const path = args[index + 1];
+      if (path === undefined || path === "" || path.startsWith("--")) {
+        throw new Error("--input-file requires a non-empty absolute path");
+      }
+      options.inputFiles ||= [];
+      options.inputFiles.push(path);
+      if (options.inputFiles.length > MAX_FILE_ACTIVATION_INPUTS) {
+        throw new Error(`--input-file accepts at most ${MAX_FILE_ACTIVATION_INPUTS} paths`);
+      }
+      index += 1;
     } else if (arg === "--json") {
       options.json = true;
     }
@@ -269,16 +309,18 @@ function printHumanSummary(report) {
   console.log(`Plans: ${summary.planned_samples} samples from ${summary.launchable_plugins} launchable plugins (${summary.blocked_skipped} blocked skipped)`);
   console.log(`Runtime status: ${summary.ready_plans} ready, ${summary.risk_plans} risk`);
   console.log(`Triggers: ${summary.text_trigger_plans} text, ${summary.regex_trigger_plans} regex, ${summary.typed_payload_plans} typed payload, ${summary.manual_trigger_plans} manual`);
+  if (summary.file_trigger_plans) console.log(`File input plans: ${summary.file_trigger_plans}`);
   if (report.activation_plans.length > 0) {
     console.log(`Top plan: ${report.activation_plans[0].name} -> ${report.activation_plans[0].activation.feature_code} (${report.activation_plans[0].activation.trigger_type})`);
   }
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const args = parseArgs(process.argv.slice(2));
+  const args = parseActivationPlanArgs(process.argv.slice(2));
   const report = await buildZToolsPluginActivationPlan(args.source, {
     maxSamples: args.maxSamples,
     installRoot: args.installRoot,
+    inputFiles: args.inputFiles,
   });
   if (args.output) {
     await writeZToolsPluginActivationPlan(report, args.output);

@@ -39,7 +39,7 @@ try {
     ["事件", "partial"],
     ["剪贴板", "partial"],
     ["输入", "partial"],
-    ["对话框", "ready"],
+    ["对话框", "partial"],
     ["窗口", "partial"],
     ["系统", "ready"],
     ["用户", "partial"],

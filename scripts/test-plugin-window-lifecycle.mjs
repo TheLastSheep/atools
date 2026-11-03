@@ -1,56 +1,57 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { loadProductionPluginBridgeTemplate, readPanelHostSource } from "./lib/plugin-panel-source-test-adapter.mjs";
 
 const root = new URL("../", import.meta.url);
-const componentSource = await readFile(new URL("src/components/PluginPanel.svelte", root), "utf8");
+const messageHandlers = await readPanelHostSource(root, "src/lib/pluginPanelMessageHandlers.ts");
+const bridgeTemplate = await loadProductionPluginBridgeTemplate(root);
 
 assert.match(
-  componentSource,
+  bridgeTemplate,
   /hideMainWindow:\s*function\(isRestorePreWindow\)/,
   "utools.hideMainWindow should accept the restore-window compatibility argument",
 );
 assert.match(
-  componentSource,
+  bridgeTemplate,
   /showMainWindow:\s*function\(\)/,
   "utools.showMainWindow should be exposed",
 );
 assert.match(
-  componentSource,
+  bridgeTemplate,
   /__ipc_main_window__/,
   "main-window lifecycle calls should notify the host",
 );
 assert.match(
-  componentSource,
+  bridgeTemplate,
   /action:\s*'hide'/,
   "hideMainWindow should send an explicit hide action",
 );
 assert.match(
-  componentSource,
+  bridgeTemplate,
   /action:\s*'show'/,
   "showMainWindow should send an explicit show action",
 );
 assert.match(
-  componentSource,
+  bridgeTemplate,
   /restorePreviousWindow:\s*isRestorePreWindow !== false/,
   "hideMainWindow should preserve the uTools restore-window default",
 );
 assert.match(
-  componentSource,
+  messageHandlers,
   /function handleMainWindowLifecycle/,
-  "PluginPanel should handle lifecycle messages in the host",
+  "Plugin message handler should receive lifecycle messages",
 );
 assert.match(
-  componentSource,
-  /invoke\("hide_main_window"/,
+  messageHandlers,
+  /context\.invoke\("hide_main_window"/,
   "host hide action should call the native hide_main_window command",
 );
 assert.match(
-  componentSource,
-  /invoke\("show_main_window"/,
+  messageHandlers,
+  /context\.invoke\("show_main_window"/,
   "host show action should call the native show_main_window command",
 );
 assert.doesNotMatch(
-  componentSource,
+  bridgeTemplate,
   /hideMainWindow:\s*function\(\)\s*\{\s*window\.parent\.postMessage\(\{\s*__ipc_close__:\s*true\s*\}[^}]+return Promise\.resolve\(null\);?\s*\}/,
   "hideMainWindow must not use the old close-only null-resolution path",
 );

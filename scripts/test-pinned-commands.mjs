@@ -10,10 +10,11 @@ const outFile = join(outDir, "pinnedCommands.mjs");
 
 try {
   const sourcePath = new URL("src/lib/pinnedCommands.ts", root).pathname;
-  const [source, appSource, homePanelSource, settingsPanelSource, smokeChecklist] = await Promise.all([
+  const [source, appSource, homePanelSource, homeTileSource, settingsPanelSource, smokeChecklist] = await Promise.all([
     readFile(sourcePath, "utf8"),
     readFile(new URL("src/App.svelte", root), "utf8"),
     readFile(new URL("src/components/HomePanel.svelte", root), "utf8"),
+    readFile(new URL("src/components/HomeCommandTile.svelte", root), "utf8"),
     readFile(new URL("src/components/SettingsPanel.svelte", root), "utf8"),
     readFile(new URL("docs/macos-smoke-checklist.md", root), "utf8"),
   ]);
@@ -53,7 +54,8 @@ try {
   assert.ok(appSource.includes("window.addEventListener(PINNED_COMMANDS_UPDATED_EVENT, onPinnedCommandsUpdated)"), "App should refresh pinned commands after Command Center changes");
   assert.ok(appSource.includes("pinnedCommandOptions().slice(0, pinnedCommandCapacity)"), "App should place pinned commands into the home command list");
   assert.ok(homePanelSource.includes("homeCommandSections(commands"), "HomePanel should split pinned commands into a fixed section");
-  assert.ok(homePanelSource.includes('cmd.source === "pinned"'), "HomePanel should style and render pinned home items separately");
+  assert.ok(homePanelSource.includes("<HomeCommandTile"), "HomePanel should render each section command through its tile component");
+  assert.ok(homeTileSource.includes("class:pinned-item={pinned}"), "HomeCommandTile should style fixed commands separately");
 
   assertSmokeChecked(
     "`所有指令` 行级 `固定` 会把目标加入主搜索首页固定项；`取消固定` 后首页移除该固定项。",

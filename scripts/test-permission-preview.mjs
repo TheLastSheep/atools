@@ -81,10 +81,10 @@ try {
 
   const dialog = await readFile(new URL("../src/components/PermissionConfirmDialog.svelte", import.meta.url), "utf8");
   assert.ok(dialog.includes("Agent 权限确认"), "Permission dialog should identify the confirmation surface");
-  assert.ok(dialog.includes('<h2 id="permission-title">{request.tool_name}</h2>'), "Permission dialog should render the tool name");
-  assert.ok(dialog.includes("<dt>客户端</dt>"), "Permission dialog should render the client label");
-  assert.ok(dialog.includes("<dd>{request.client_id}</dd>"), "Permission dialog should render the client id");
-  assert.ok(dialog.includes("<dt>Scope</dt>"), "Permission dialog should render scope information");
+  assert.ok(dialog.includes('`${displayName} 请求访问本机`') && dialog.includes(': "插件请求访问本机" : request.tool_name'), "Private transport should use verified plugin context with a readable fallback");
+  assert.ok(dialog.includes('privatePlugin ? "请求来源" : "客户端"'), "Permission dialog should identify the request source");
+  assert.ok(dialog.includes('client: request.client_id'), "Technical client identity should remain available in details");
+  assert.ok(dialog.includes("<dt>访问范围</dt>"), "Permission dialog should render scope information");
   assert.ok(dialog.includes("{#each request.scopes as scope}"), "Permission dialog should render all requested scopes");
   assert.ok(dialog.includes("scopeLabel(scope)"), "Permission dialog should render human-readable scope labels");
   assert.ok(dialog.includes("<dt>执行模式</dt>"), "Permission dialog should render the execution mode label");
@@ -98,7 +98,7 @@ try {
   assert.match(dialog, /\.permission-card\s*\{[\s\S]*?max-height: calc\(100vh - 32px\);[\s\S]*?overflow: auto;/, "Permission card should scroll instead of covering action buttons");
   assert.match(dialog, /code\s*\{[\s\S]*?white-space: pre-wrap;[\s\S]*?overflow-wrap: anywhere;/, "Path and argument code cells should wrap long values");
   assert.ok(dialog.includes('<section class={`risk-box ${preview.riskLevel}`}>'), "Permission dialog should style risk level explicitly");
-  assert.ok(dialog.includes("{#each preview.risks as item}"), "Permission dialog should render concrete risk hints");
+  assert.ok(dialog.includes("{#each riskHints as item}"), "Permission dialog should render concrete risk hints");
 
   const checklist = await readFile(new URL("../docs/macos-smoke-checklist.md", import.meta.url), "utf8");
   assert.ok(

@@ -1,0 +1,12 @@
+{
+  "name": "main-push-fixture",
+  "title": "隔离动态查询夹具",
+  "version": "0.0.0-fixture",
+  "main": "index.html",
+  "features": [{
+    "code": "fixture-main-push",
+    "explain": "固定的同页选择验收",
+    "mainPush": true,
+    "cmds": [{ "type": "regex", "match": "/^atools-private-mainpush-query-/" }]
+  }]
+}

@@ -1,15 +1,16 @@
+import { loadProductionPluginBridgeTemplate, readPanelHostSource } from "./lib/plugin-panel-source-test-adapter.mjs";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFile } from "node:fs/promises";
 
 const root = new URL("../", import.meta.url);
-const componentSource = await readFile(new URL("src/components/PluginPanel.svelte", root), "utf8");
+const messageHandlers = await readPanelHostSource(root, "src/lib/pluginPanelMessageHandlers.ts");
+const authenticatedMessageHandler = await readPanelHostSource(root, "src/lib/authenticatedPluginMessageHandler.ts");
+const bridgeTemplate = await loadProductionPluginBridgeTemplate(root);
 const capabilitySource = await readFile(new URL("src/lib/pluginBridgeCapabilities.ts", root), "utf8");
 
-const bridgeMatch = componentSource.match(/const UTOOLS_BRIDGE = `([\s\S]*?)`;/);
-assert.ok(bridgeMatch, "PluginPanel should define the injected utools bridge");
-
-const bridgeSource = bridgeMatch[1]
+const bridgeSource = bridgeTemplate
+  .replace(/__ACTION_PAYLOAD__/g, JSON.stringify(null))
   .replace(/<\\\/script>/g, "</script>")
   .replace(/^\s*<script>\s*/, "")
   .replace(/\s*<\/script>\s*$/, "")
@@ -60,17 +61,12 @@ const documentStub = {
   },
 };
 
-class EventStub {
-  constructor(type) {
-    this.type = type;
-  }
-}
-
 const context = vm.createContext({
   window: windowStub,
   document: documentStub,
   navigator: { platform: "MacIntel" },
-  Event: EventStub,
+  Event,
+  CustomEvent,
   console: {
     error() {},
     warn() {},
@@ -115,13 +111,13 @@ assert.deepEqual(plainMessage(postedMessages.at(-1)), {
 assert.ok(dispatchedEvents.includes("atools-plugin-enter"));
 assert.ok(dispatchedEvents.includes("atools-plugin-ready"));
 
-assert.match(componentSource, /function runPluginFindInPage/, "host should run find requests against the plugin iframe");
-assert.match(componentSource, /const pluginWindow = iframeRef\?\.contentWindow/, "host should read the plugin iframe window");
-assert.match(componentSource, /pluginWindow\.find\(query/, "host should use the iframe window find API when available");
-assert.match(componentSource, /function stopPluginFindInPage/, "host should handle stop-find requests");
-assert.match(componentSource, /removeAllRanges\(\)/, "clearSelection should clear the iframe selection");
-assert.match(componentSource, /__ipc_find_in_page__/, "host should receive findInPage messages");
-assert.match(componentSource, /__ipc_stop_find_in_page__/, "host should receive stopFindInPage messages");
+assert.match(messageHandlers, /function runPluginFindInPage/, "host should run find requests against the plugin iframe");
+assert.match(messageHandlers, /const pluginWindow = context\.iframeWindow\(\) as FindableWindow \| null/, "message handler should read the current plugin frame through its context port");
+assert.match(messageHandlers, /pluginWindow\.find\(query/, "host should use the current iframe window find API when available");
+assert.match(messageHandlers, /function stopPluginFindInPage/, "host should handle stop-find requests");
+assert.match(messageHandlers, /removeAllRanges\(\)/, "clearSelection should clear the iframe selection");
+assert.match(authenticatedMessageHandler, /__ipc_find_in_page__/, "host should receive findInPage messages");
+assert.match(authenticatedMessageHandler, /__ipc_stop_find_in_page__/, "host should receive stopFindInPage messages");
 assert.match(capabilitySource, /"getWindowType"/, "shared capability inventory should include getWindowType");
 assert.match(capabilitySource, /"findInPage"/, "shared capability inventory should include findInPage");
 assert.match(capabilitySource, /"stopFindInPage"/, "shared capability inventory should include stopFindInPage");

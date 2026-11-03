@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN" data-atools-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <title>ATools 插件操作导航栏浏览器验收</title>
+    <style>
+      html, body { width: 100%; min-height: 100%; }
+      body { min-height: 100vh; }
+      #navigation { width: 100%; }
+      .fixture-body {
+        min-height: 340px;
+        padding: 18px;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+      }
+      .fixture-body > p { margin-top: 10px; color: var(--text-secondary); }
+      .fixture-body > button {
+        margin-top: 24px;
+        padding: 8px 12px;
+        border: 1px solid var(--border-strong);
+        border-radius: 6px;
+        background: var(--bg-elevated);
+        color: var(--text-primary);
+      }
+      #fixture-plugin-frame {
+        display: block;
+        width: min(100%, 360px);
+        height: 96px;
+        margin-top: 16px;
+        border: 1px solid var(--border-strong);
+        border-radius: 6px;
+        background: var(--bg-elevated);
+      }
+      #fixture-runtime-info {
+        margin-top: 12px;
+        padding: 10px;
+        border: 1px solid var(--warning);
+        border-radius: 6px;
+        color: var(--text-primary);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="navigation"></div>
+    <main class="fixture-body" data-plugin-body>
+      <h1>插件正文仍可操作</h1>
+      <p>用于记录 Harris 插件的导航、子输入、操作按钮和运行信息基线。</p>
+      <section id="fixture-runtime-info" hidden>
+        运行信息警告：此浏览器夹具没有连接桌面主机。
+      </section>
+      <button id="fixture-body-action" type="button">操作插件正文</button>
+      <iframe id="fixture-plugin-frame" title="插件正文内的固定操作" sandbox="allow-scripts allow-same-origin"></iframe>
+    </main>
+    <script type="module" src="./pluginActionsBrowserFixture.ts"></script>
+  </body>
+</html>

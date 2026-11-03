@@ -1,0 +1,31 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Capability-free bootstrap</title>
+<body>Waiting for a document-bound MessageChannel</body><script>
+(() => {
+  "use strict";
+  const config=__ATOOLS_BOOTSTRAP_CONFIG__;
+  const random=new Uint8Array(16);crypto.getRandomValues(random);
+  const docNonce=Array.from(random).map(value=>value.toString(16).padStart(2,"0")).join("");
+  let claimed=false,port=null,finished=false;
+  const reportError=code=>{if(!finished)window.parent.postMessage({kind:"atools-bootstrap-error",runId:config.runId,id:config.id,docNonce,code},config.parentOrigin);};
+  const timer=setTimeout(()=>{reportError("BOOTSTRAP_HANDOFF_TIMEOUT");finished=true;claimed=true;port?.close();},5000);
+  window.addEventListener("message",event=>{
+    const data=event.data;
+    const valid=!claimed&&!finished&&event.source===window.parent&&event.origin===config.parentOrigin
+      &&data?.kind==="atools-bootstrap-offer"&&data.runId===config.runId&&data.id===config.id&&data.docNonce===docNonce
+      &&Number.isSafeInteger(data.generation)&&data.generation>0&&event.ports?.length===1;
+    if(!valid){for(const unused of event.ports??[])unused.close();return;}
+    claimed=true;port=event.ports[0];const generation=data.generation;
+    port.onmessage=portEvent=>{
+      const payload=portEvent.data;
+      if(finished||payload?.kind!=="atools-bootstrap-payload-html"||payload.runId!==config.runId||payload.id!==config.id
+        ||payload.docNonce!==docNonce||payload.generation!==generation){reportError("BOOTSTRAP_PORT_BINDING_REJECTED");finished=true;clearTimeout(timer);port.close();return;}
+      if(typeof payload.html!=="string"||new TextEncoder().encode(payload.html).length>128*1024){reportError("BOOTSTRAP_HTML_BUDGET_REJECTED");finished=true;clearTimeout(timer);port.close();return;}
+      finished=true;clearTimeout(timer);port.close();
+      Object.defineProperty(window,"__ATOOLS_BOOTSTRAP_HANDOFF__",{value:Object.freeze({runId:config.runId,id:config.id,docNonce,generation}),configurable:true});
+      document.open();document.write(payload.html);document.close();
+    };
+    port.start();port.postMessage({kind:"atools-bootstrap-ack",runId:config.runId,id:config.id,docNonce,generation});
+  });
+  window.parent.postMessage({kind:"atools-bootstrap-hello",runId:config.runId,id:config.id,docNonce},config.parentOrigin);
+})();
+</script></html>

@@ -1,0 +1,624 @@
+{
+  "schemaVersion": 1,
+  "digestAlgorithm": "AToolsLocalTreeV1",
+  "sourceReview": {
+    "local-cron": {
+      "reviewScope": "Complete original directory, including package metadata, docs, assets, and implementation; no plugin execution.",
+      "entryPoints": [
+        "plugin.json",
+        "index.html",
+        "script.js",
+        "style.css"
+      ],
+      "selectors": [
+        "#cronVersion",
+        "#cronResult",
+        "#min_start",
+        "#min_start_val",
+        "#min_start_step",
+        "#versionInfo"
+      ],
+      "anchors": [
+        "script.js:271-296 input listeners",
+        "script.js:493-555 generation",
+        "script.js:617-625 clipboard path intentionally not invoked"
+      ]
+    },
+    "local-content-workbench": {
+      "reviewScope": "Complete original directory, including package metadata, README, tests, source and assets; no plugin execution.",
+      "entryPoints": [
+        "plugin.json",
+        "index.html",
+        "src/core/index.mjs"
+      ],
+      "selectors": [
+        "#input",
+        "#output",
+        "#normalize",
+        "#plain",
+        "#links",
+        "#social"
+      ],
+      "anchors": [
+        "index.html:74-81 input binding and four original action buttons"
+      ]
+    },
+    "local-calculation-paper": {
+      "reviewScope": "Complete original directory, including bundled implementation, license, manifest and assets; arithmetic only, no persistence action.",
+      "entryPoints": [
+        "plugin.json",
+        "index.html",
+        "index.js"
+      ],
+      "selectors": [
+        ".calc textarea[placeholder=\"\u8ba1\u7b97\u516c\u5f0f\"]",
+        ".calc .result"
+      ],
+      "anchors": [
+        "index.js:1 byte offset 899485 compiled controlled textarea with placeholder and onChange",
+        "index.js:1 byte offset 1019030 compiled calculation state-change handler",
+        "result click/copy path intentionally excluded"
+      ]
+    },
+    "local-developer-codec-tools": {
+      "reviewScope": "Complete original directory, including package/lock/workspace, docs, tests, scripts and implementation; no plugin execution.",
+      "entryPoints": [
+        "plugin.json",
+        "index.html",
+        "app.js",
+        "codec.js"
+      ],
+      "selectors": [
+        "#inputText",
+        "#outputText",
+        "#operation",
+        "#runOperation",
+        "#statusLine",
+        ".category-item[data-category=encoding]"
+      ],
+      "anchors": [
+        "app.js:228-247 original async run operation",
+        "app.js:257-270 paste/copy paths intentionally not invoked"
+      ]
+    },
+    "local-json-editor": {
+      "reviewScope": "Complete unchanged original local package directory, including Monaco workers, bundled application, licenses, docs, manifest and assets; static inspection only before bounded native review.",
+      "entryPoints": [
+        "plugin.json",
+        "index.html",
+        "preload.js",
+        "index.js",
+        "json.worker.js",
+        "editor.worker.js"
+      ],
+      "selectors": [
+        "#inputEditor",
+        ".monaco-editor textarea.inputarea",
+        ".handle button"
+      ],
+      "anchors": [
+        "plugin.json:1-28 version 1.7.2, JSON feature and preload declaration",
+        "preload.js:1 top-level Node fs import exposes readFileContent; scenario never invokes files/readFileContent",
+        "index.js:1 byte offset 269717 maps Monaco editorWorkerService and json worker URLs",
+        "index.js:1 byte offset 2354254 creates real Worker(url,{name})",
+        "index.js:1 byte offset 3270066 formats through original editor.action.formatDocument",
+        "index.js:1 byte offset 3273310 initializes Monaco JSON input and paste listener; scenario never dispatches paste",
+        "index.js:1 byte offset 3274k toolbar exposes original reformat action; copy buttons are excluded"
+      ],
+      "riskBoundary": "runtime=node is required because preload executes require(fs); fixture enables only the existing Node permission boundary. Scenario does not invoke readFileContent, files entry, clipboard/paste/copy, URL opening, network schema requests, AI, or any external operation. WebWorker support is accepted only with observed real json.worker.js request/response and JSON diagnostics; no main-thread fallback claim.",
+      "limits": {
+        "maxFiles": 64,
+        "maxDirectories": 64,
+        "maxDepth": 16,
+        "maxPathBytes": 2048,
+        "maxFileBytes": 8388608,
+        "maxTreeBytes": 33554432
+      }
+    },
+    "local-calculation-paper-head": {
+      "reviewScope": "Exact package blobs from ZTools-plugins HEAD 2d47bd91011b6be872eef1d7c56b4c6b57a93b3d and tree 81da0c4397c3190c9ed9d88e49f3b974b4fa32a4; excludes dirty working-tree manifest and does not imply install/runtime acceptance.",
+      "entryPoints": [
+        "plugin.json",
+        "index.html",
+        "index.js"
+      ],
+      "selectors": [
+        ".calc textarea[placeholder=\"\u8ba1\u7b97\u516c\u5f0f\"]",
+        ".calc .result"
+      ],
+      "anchors": [
+        "HEAD index.js byte offset 899485: controlled formula textarea onChange",
+        "HEAD index.js byte offset 1019030: calculation state-change handler",
+        "result click/copy, clipboard, persistence and physical keyboard are excluded"
+      ]
+    }
+  },
+  "cases": [
+    {
+      "caseId": "local-cron",
+      "id": "cron",
+      "version": "1.0.6",
+      "sourceKind": "local_full_directory",
+      "sourcePath": "ZTools-plugins/plugins/cron",
+      "directorySha256": "4b17c9ca821c214247e642fe1fb130e5350218c9c6e5868949011dd4bed84cdd",
+      "fileCount": 9,
+      "featureCode": "cron",
+      "searchQuery": "cron",
+      "title": "cron\u5728\u7ebf\u8868\u8fbe\u5f0f",
+      "runtime": "web",
+      "dataAccess": false,
+      "pathAccess": "none",
+      "verifyDataPersistence": false,
+      "sourceReview": "output/legacy-node-2026-10-16/local-original-source-review.json",
+      "frameOperations": "tests/components/nativeOriginalCronFrameOperations.js",
+      "sourceReviewStatus": "prepared_for_parent_native_fixture_decision"
+    },
+    {
+      "caseId": "local-content-workbench",
+      "id": "content-workbench",
+      "version": "0.1.0",
+      "sourceKind": "local_full_directory",
+      "sourcePath": "ZTools-plugins/plugins/content-workbench",
+      "directorySha256": "a1d9f3947e3db99a975b72a177fa2bd730e47ac4fcbe9744581a8e3c466b1a4e",
+      "fileCount": 8,
+      "featureCode": "content-workbench",
+      "searchQuery": "\u5185\u5bb9\u6574\u7406\u5de5\u574a",
+      "title": "\u5185\u5bb9\u6574\u7406\u5de5\u574a",
+      "runtime": "web",
+      "dataAccess": false,
+      "pathAccess": "none",
+      "verifyDataPersistence": false,
+      "sourceReview": "output/legacy-node-2026-10-16/local-original-source-review.json",
+      "frameOperations": "tests/components/nativeOriginalContentFrameOperations.js",
+      "sourceReviewStatus": "prepared_for_parent_native_fixture_decision"
+    },
+    {
+      "caseId": "local-calculation-paper",
+      "id": "calculation-paper",
+      "version": "1.4.2",
+      "sourceKind": "local_full_directory",
+      "sourcePath": "ZTools-plugins/plugins/calculation-paper",
+      "directorySha256": "613516ae8213396865409c21bb8c4f6b775d993e79f1b6fedba43bce99e2fba5",
+      "fileCount": 8,
+      "featureCode": "calc",
+      "searchQuery": "\u8ba1\u7b97\u7a3f\u7eb8",
+      "title": "\u8ba1\u7b97\u7a3f\u7eb8",
+      "runtime": "web",
+      "dataAccess": true,
+      "pathAccess": "none",
+      "verifyDataPersistence": false,
+      "sourceReview": "output/legacy-node-2026-10-16/local-original-source-review.json",
+      "frameOperations": "tests/components/nativeOriginalCalculationFrameOperations.js",
+      "sourceReviewStatus": "prepared_for_parent_native_fixture_decision"
+    },
+    {
+      "caseId": "local-developer-codec-tools",
+      "id": "developer-codec-tools",
+      "version": "0.1.0",
+      "sourceKind": "local_full_directory",
+      "sourcePath": "ZTools-plugins/plugins/developer-codec-tools",
+      "directorySha256": "e3ed9ae07e7250783695a612dd0188693da1d44f8589740721db24e358f56a4d",
+      "fileCount": 15,
+      "featureCode": "codec-tools",
+      "searchQuery": "\u7f16\u7801\u8f6c\u6362",
+      "title": "\u5f00\u53d1\u52a0\u89e3\u5bc6\u7f16\u7801\u5de5\u5177",
+      "runtime": "web",
+      "dataAccess": false,
+      "pathAccess": "none",
+      "verifyDataPersistence": false,
+      "sourceReview": "output/legacy-node-2026-10-16/local-original-source-review.json",
+      "frameOperations": "tests/components/nativeOriginalCodecFrameOperations.js",
+      "sourceReviewStatus": "prepared_for_parent_native_fixture_decision"
+    },
+    {
+      "caseId": "local-json-editor",
+      "id": "json-editor",
+      "version": "1.7.2",
+      "sourceKind": "local_full_directory",
+      "sourcePath": "ZTools-plugins/plugins/json-editor",
+      "directorySha256": "33a1f7140a8e1e11e291c7d80e5a7c1ce3575f66950cc1a378a2e69c6ec76ea7",
+      "fileCount": 15,
+      "featureCode": "clean-cache",
+      "searchQuery": "Json",
+      "title": "json-editor",
+      "runtime": "node",
+      "dataAccess": false,
+      "pathAccess": "none",
+      "verifyDataPersistence": false,
+      "sourceReview": "output/legacy-node-2026-10-16/local-original-source-review.json",
+      "frameOperations": "tests/components/nativeOriginalJsonEditorFrameOperations.js",
+      "sourceReviewStatus": "prepared_for_parent_native_fixture_decision"
+    },
+    {
+      "caseId": "local-calculation-paper-head",
+      "id": "calculation-paper",
+      "version": "1.4.2",
+      "sourceKind": "local_full_directory",
+      "sourcePath": "ZTools-plugins/plugins/calculation-paper",
+      "sourceCommit": "2d47bd91011b6be872eef1d7c56b4c6b57a93b3d",
+      "sourceTree": "81da0c4397c3190c9ed9d88e49f3b974b4fa32a4",
+      "directorySha256": "613516ae8213396865409c21bb8c4f6b775d993e79f1b6fedba43bce99e2fba5",
+      "fileCount": 8,
+      "featureCode": "calc",
+      "searchQuery": "\u8ba1\u7b97\u7a3f\u7eb8",
+      "title": "\u8ba1\u7b97\u7a3f\u7eb8",
+      "runtime": "web",
+      "dataAccess": true,
+      "pathAccess": "none",
+      "verifyDataPersistence": false,
+      "sourceReview": "output/legacy-node-2026-10-20/calculation-paper-head-source-review.json",
+      "frameOperations": "tests/components/nativeOriginalCalculationHeadFrameOperations.js",
+      "sourceReviewStatus": "prepared_for_parent_native_fixture_decision"
+    }
+  ],
+  "snapshots": {
+    "local-cron": {
+      "directorySha256": "4b17c9ca821c214247e642fe1fb130e5350218c9c6e5868949011dd4bed84cdd",
+      "fileCount": 9,
+      "directories": [],
+      "files": [
+        {
+          "path": "FIXES.md",
+          "bytes": 4647,
+          "sha256": "a3cf674cc6ccd99e96a4ac083a9ac50a77f993aae44b51f6cc57023c1748379a"
+        },
+        {
+          "path": "debug_test.html",
+          "bytes": 8231,
+          "sha256": "60b585cda74f06900fee729022a0c6f4df3c7df032d4c6ef991f486eb05b8111"
+        },
+        {
+          "path": "index.html",
+          "bytes": 12499,
+          "sha256": "7c42e3ce056595fb8094a428c4651f6c5a97aed2612ad0777a8b35ce36695283"
+        },
+        {
+          "path": "logo.png",
+          "bytes": 14652,
+          "sha256": "866243ebd106319071fe19caa211e8017c36df5b4d43073cbfeb71524118f4ed"
+        },
+        {
+          "path": "package-lock.json",
+          "bytes": 893,
+          "sha256": "d3f53606dd1747f1071ba2e7e729c3070af07e595af3b7365cc03ae11789705f"
+        },
+        {
+          "path": "package.json",
+          "bytes": 56,
+          "sha256": "b9b90cbf48494f66ba1d93e566d05e4e4a5c84757a729b5717db19699d031583"
+        },
+        {
+          "path": "plugin.json",
+          "bytes": 605,
+          "sha256": "a4cc605e035cf4f90e7912c24b4197caaf3a51f83b6ea635860428ef090d63ec"
+        },
+        {
+          "path": "script.js",
+          "bytes": 28425,
+          "sha256": "c28934710c57fed38d2ee8ef0b10890d190c9cea649a22a1dfa0d67f1197e6ba"
+        },
+        {
+          "path": "style.css",
+          "bytes": 5661,
+          "sha256": "eb427f126aed73c1729b1ee8513f13489261224a5b4c8df1e7fea422ca7d875a"
+        }
+      ]
+    },
+    "local-content-workbench": {
+      "directorySha256": "a1d9f3947e3db99a975b72a177fa2bd730e47ac4fcbe9744581a8e3c466b1a4e",
+      "fileCount": 8,
+      "directories": [
+        "src",
+        "src/core",
+        "tests"
+      ],
+      "files": [
+        {
+          "path": "README.md",
+          "bytes": 752,
+          "sha256": "1f21cd2a71a828afe617719537dbc3f3595a2950486b54042a7d8c5dac72538b"
+        },
+        {
+          "path": "index.html",
+          "bytes": 3387,
+          "sha256": "3974144209e4576fe2f2de54167fe50c7ba739984c63530aff2be40e6be37944"
+        },
+        {
+          "path": "logo.svg",
+          "bytes": 356,
+          "sha256": "435d0e56789b3fd05dcaad0739ce0c4c7fad9ac6dcc57b3d560297948aa3984a"
+        },
+        {
+          "path": "package-lock.json",
+          "bytes": 266,
+          "sha256": "ed2f162cf5e015acea297c2ea382ae90df6d6a822a274688d9e1193fa5dcbad5"
+        },
+        {
+          "path": "package.json",
+          "bytes": 273,
+          "sha256": "ea5a499243e6c4b3f5083ebc27e7a78b8d40ed1033df68b291ded703d569622c"
+        },
+        {
+          "path": "plugin.json",
+          "bytes": 844,
+          "sha256": "b28d251bf315569377f2df99feb9f328cd6b4455bbdd4810b504422305efd70b"
+        },
+        {
+          "path": "src/core/index.mjs",
+          "bytes": 2162,
+          "sha256": "d9be0cd3d99994dd912d627fea8fb2c9b1fbc191eabdaf92938bd95c96535cc8"
+        },
+        {
+          "path": "tests/core.test.mjs",
+          "bytes": 1518,
+          "sha256": "5ef390198d8d9e99bd6241df5e56a5ddbf12b1f8342be47604aa1bb1b8ccb0a3"
+        }
+      ]
+    },
+    "local-calculation-paper": {
+      "directorySha256": "613516ae8213396865409c21bb8c4f6b775d993e79f1b6fedba43bce99e2fba5",
+      "fileCount": 8,
+      "directories": [
+        "res"
+      ],
+      "files": [
+        {
+          "path": "index.html",
+          "bytes": 163,
+          "sha256": "d776b6d7eb19b9cecf2319ce529a2d17dbf8c0a03de954bb1f18b6197ef7add0"
+        },
+        {
+          "path": "index.js",
+          "bytes": 1025290,
+          "sha256": "f501c6389c211754cf459253c9e6f9d204b44d59cc65b08b29e30665a535a54a"
+        },
+        {
+          "path": "index.js.LICENSE.txt",
+          "bytes": 1857,
+          "sha256": "e44b4c05c3a9b854798417b52c3aa9fbe7a369bd7675aad15b972880465c7f7f"
+        },
+        {
+          "path": "logo.png",
+          "bytes": 5031,
+          "sha256": "390aaa92636d3b3811341f418ca05497bc8751f6df760fa64c3aa5de6c5f3353"
+        },
+        {
+          "path": "plugin.json",
+          "bytes": 1777,
+          "sha256": "430de152b73bc5aef1de87d0a796843752c9cbf3ae4c7ed9ec3b1035b7cc7a34"
+        },
+        {
+          "path": "res/average.svg",
+          "bytes": 427,
+          "sha256": "25e66a14d6abdd20a9d985d303a58a97bc0d90a8da5d576ce0818cafe4d1b243"
+        },
+        {
+          "path": "res/equals.svg",
+          "bytes": 550,
+          "sha256": "27c10c9ddda215cc69cb35383fffb63d37720bc34db9999fbe3a41bc14fecf01"
+        },
+        {
+          "path": "res/sum.svg",
+          "bytes": 1254,
+          "sha256": "e222dbfe0231b0b1907a80d59a9830a5782a7029d14578c2bd4fb18b23c521db"
+        }
+      ]
+    },
+    "local-developer-codec-tools": {
+      "directorySha256": "e3ed9ae07e7250783695a612dd0188693da1d44f8589740721db24e358f56a4d",
+      "fileCount": 15,
+      "directories": [
+        "scripts",
+        "test"
+      ],
+      "files": [
+        {
+          "path": ".gitignore",
+          "bytes": 47,
+          "sha256": "6fd5f0bdc2f4eee7fdb68d1eb55ef898a2e6755ac6a679b7cc37fbeec599268e"
+        },
+        {
+          "path": "CHANGELOG.md",
+          "bytes": 442,
+          "sha256": "d4171f0abd17b193aa2d4da5f66b9bca643119affd6de69a8e9d5f9f10772eae"
+        },
+        {
+          "path": "README.md",
+          "bytes": 780,
+          "sha256": "65c7ebbf7d6e134880f26a91bf4060dac890f7a74c3a18d2ccbbc50601e252e7"
+        },
+        {
+          "path": "app.js",
+          "bytes": 9653,
+          "sha256": "b322e7a33b4900ab18c9c82e0fb1b3e751d1ba67785de65a9cac29af40b594ad"
+        },
+        {
+          "path": "codec.js",
+          "bytes": 16311,
+          "sha256": "60df2fdb863a1b9b461c6edad86fddd6a88d67a1e27d8c3014eb389bba726eaa"
+        },
+        {
+          "path": "index.html",
+          "bytes": 2537,
+          "sha256": "579ee999e9a728416e516bae3f67b2dcee4ec0aad7db0e1584517247e30da072"
+        },
+        {
+          "path": "logo.svg",
+          "bytes": 526,
+          "sha256": "5c3ff552c461210fbabdd0e6438bf47408ce8c8f8a52db3f07c368478dfcf92d"
+        },
+        {
+          "path": "package.json",
+          "bytes": 304,
+          "sha256": "2d9c141e95c4a08028530630e8e33ac26dc44ea96d4ccfedc8a51db347bc9e97"
+        },
+        {
+          "path": "plugin.json",
+          "bytes": 770,
+          "sha256": "b6f29c28a905ac49993c0f4dc486ee7523072c568ddf6d37bddda5ccc4c2c1d9"
+        },
+        {
+          "path": "pnpm-lock.yaml",
+          "bytes": 20234,
+          "sha256": "25ed3de9d54d896d5f8ed53bb20984d68737a679102282182633ce41677034e5"
+        },
+        {
+          "path": "pnpm-workspace.yaml",
+          "bytes": 48,
+          "sha256": "dad6d0d0c2a58fce70bb566123424ef6c566169cdaacee163c3059d66a2a006e"
+        },
+        {
+          "path": "scripts/copy-dist-assets.mjs",
+          "bytes": 517,
+          "sha256": "e7a9a5aa64acac271de7a130eae93f93d886062c0d560503da1cc13ecdedd308"
+        },
+        {
+          "path": "styles.css",
+          "bytes": 4411,
+          "sha256": "8996ceb5473210d2ed2131468615ea6d407d2a37e3c3e3b4be6a614bddee6a05"
+        },
+        {
+          "path": "test/codec.test.mjs",
+          "bytes": 2698,
+          "sha256": "725fd488ea9b11261c4563ccc949c8da453457c85a34263588c95736f45a343e"
+        },
+        {
+          "path": "vite.config.js",
+          "bytes": 282,
+          "sha256": "ffdf2a1c528096676bf441776ec3b35cb2951c73f44b5ae1278e638f893e7bf3"
+        }
+      ]
+    },
+    "local-json-editor": {
+      "directorySha256": "33a1f7140a8e1e11e291c7d80e5a7c1ce3575f66950cc1a378a2e69c6ec76ea7",
+      "fileCount": 15,
+      "directories": [],
+      "files": [
+        {
+          "path": "665.js",
+          "bytes": 38050,
+          "sha256": "85e783a864f7ba412532f1888a64557cf26e609b7c9a05c9682c50b024b1e644"
+        },
+        {
+          "path": "665.js.LICENSE.txt",
+          "bytes": 387,
+          "sha256": "851db1005472825961b6bb9595823f5e33c762f09e9f937160aa417397bf7f3f"
+        },
+        {
+          "path": "README.md",
+          "bytes": 245,
+          "sha256": "d48d264986cb601fc5b8209a50c4fbe611e85389d35c2d68ff8ec45c5989e400"
+        },
+        {
+          "path": "codicon.ttf",
+          "bytes": 57012,
+          "sha256": "ad7f10b0e6e7fbd315520f29c72af38270ae60d82127059405a95d137fa6e860"
+        },
+        {
+          "path": "editor.worker.js",
+          "bytes": 201903,
+          "sha256": "17dfb76a2ec8f94092108141593b03a473947c87675dfc8c45397c31dc5f8e7f"
+        },
+        {
+          "path": "index.html",
+          "bytes": 163,
+          "sha256": "d776b6d7eb19b9cecf2319ce529a2d17dbf8c0a03de954bb1f18b6197ef7add0"
+        },
+        {
+          "path": "index.js",
+          "bytes": 3277121,
+          "sha256": "74b617c034134367f9e0ecb741898defe63d5e2bf43c173229cf2e25a2acc08e"
+        },
+        {
+          "path": "index.js.LICENSE.txt",
+          "bytes": 2273,
+          "sha256": "574739c406b78012e1d184098ffd8c2ef58803f9e191cb14795ae0e135cd3bfd"
+        },
+        {
+          "path": "json.worker.js",
+          "bytes": 328213,
+          "sha256": "aa398accc72751f013c5adc97691e6002f0874e10666296807697cda71235b05"
+        },
+        {
+          "path": "json.worker.js.LICENSE.txt",
+          "bytes": 387,
+          "sha256": "851db1005472825961b6bb9595823f5e33c762f09e9f937160aa417397bf7f3f"
+        },
+        {
+          "path": "logo.png",
+          "bytes": 1621,
+          "sha256": "54b31b7e173d999ea72f433995fabb0729b014ed0cb6e93b56daf18ee289e32e"
+        },
+        {
+          "path": "plugin.json",
+          "bytes": 539,
+          "sha256": "23ea93baf366805b6b81228ceb944f72e24909405d2e64c2db568eb4a214a864"
+        },
+        {
+          "path": "preload.js",
+          "bytes": 107,
+          "sha256": "d37a020e184435abbbc72786cc3f3e2a3d296a0e59a8da2a63be673d6cfcc627"
+        },
+        {
+          "path": "screenshot.png",
+          "bytes": 416199,
+          "sha256": "abe9a02ed96a705e808ab62c675eb712155668bca0b91728930d3c5b6617f9a4"
+        },
+        {
+          "path": "vendors-node_modules_monaco-editor_esm_vs_language_json_jsonMode_js.js",
+          "bytes": 89829,
+          "sha256": "8ac8ffe4b8cf163f7c1f85e58e8e4bb9a3b44ea6d30bf5bfcd509bbf5a738e44"
+        }
+      ]
+    },
+    "local-calculation-paper-head": {
+      "directorySha256": "613516ae8213396865409c21bb8c4f6b775d993e79f1b6fedba43bce99e2fba5",
+      "fileCount": 8,
+      "directories": [
+        "res"
+      ],
+      "files": [
+        {
+          "path": "index.html",
+          "bytes": 163,
+          "sha256": "d776b6d7eb19b9cecf2319ce529a2d17dbf8c0a03de954bb1f18b6197ef7add0"
+        },
+        {
+          "path": "index.js",
+          "bytes": 1025290,
+          "sha256": "f501c6389c211754cf459253c9e6f9d204b44d59cc65b08b29e30665a535a54a"
+        },
+        {
+          "path": "index.js.LICENSE.txt",
+          "bytes": 1857,
+          "sha256": "e44b4c05c3a9b854798417b52c3aa9fbe7a369bd7675aad15b972880465c7f7f"
+        },
+        {
+          "path": "logo.png",
+          "bytes": 5031,
+          "sha256": "390aaa92636d3b3811341f418ca05497bc8751f6df760fa64c3aa5de6c5f3353"
+        },
+        {
+          "path": "plugin.json",
+          "bytes": 1777,
+          "sha256": "430de152b73bc5aef1de87d0a796843752c9cbf3ae4c7ed9ec3b1035b7cc7a34"
+        },
+        {
+          "path": "res/average.svg",
+          "bytes": 427,
+          "sha256": "25e66a14d6abdd20a9d985d303a58a97bc0d90a8da5d576ce0818cafe4d1b243"
+        },
+        {
+          "path": "res/equals.svg",
+          "bytes": 550,
+          "sha256": "27c10c9ddda215cc69cb35383fffb63d37720bc34db9999fbe3a41bc14fecf01"
+        },
+        {
+          "path": "res/sum.svg",
+          "bytes": 1254,
+          "sha256": "e222dbfe0231b0b1907a80d59a9830a5782a7029d14578c2bd4fb18b23c521db"
+        }
+      ]
+    }
+  }
+}

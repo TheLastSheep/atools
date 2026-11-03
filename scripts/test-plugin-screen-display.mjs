@@ -1,3 +1,4 @@
+import { injectPluginBridgeFactories } from "./lib/plugin-bridge-fixture.mjs";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFile } from "node:fs/promises";
@@ -8,8 +9,10 @@ const capabilitySource = await readFile(new URL("src/lib/pluginBridgeCapabilitie
 
 const bridgeMatch = componentSource.match(/const UTOOLS_BRIDGE = `([\s\S]*?)`;/);
 assert.ok(bridgeMatch, "PluginPanel should define the injected utools bridge");
+const bridgeTemplate = await injectPluginBridgeFactories(bridgeMatch[1]);
 
-const bridgeSource = bridgeMatch[1]
+const bridgeSource = bridgeTemplate
+  .replace(/__ACTION_PAYLOAD__/g, JSON.stringify(null))
   .replace(/<\\\/script>/g, "</script>")
   .replace(/^\s*<script>\s*/, "")
   .replace(/\s*<\/script>\s*$/, "")
@@ -80,6 +83,7 @@ const context = vm.createContext({
   document: documentStub,
   navigator: { platform: "MacIntel", userAgent: "Mozilla/5.0 (Macintosh)" },
   Event: EventStub,
+  CustomEvent: class extends EventStub { constructor(type, init) { super(type); this.detail = init?.detail; } },
   console: {
     error() {},
     warn() {},
@@ -96,6 +100,8 @@ const context = vm.createContext({
 });
 
 vm.runInContext(bridgeSource, context, { filename: "UTOOLS_BRIDGE.vm.js" });
+// Production entry dispatch waits for the async initialization barrier.
+await new Promise(resolve => setImmediate(resolve));
 
 assert.equal(typeof windowStub.utools.getPrimaryDisplay, "function", "utools.getPrimaryDisplay should be exposed");
 assert.equal(typeof windowStub.utools.getAllDisplays, "function", "utools.getAllDisplays should be exposed");
@@ -107,46 +113,18 @@ assert.equal(typeof windowStub.utools.dipToScreenPoint, "function", "utools.dipT
 assert.equal(typeof windowStub.utools.screenToDipRect, "function", "utools.screenToDipRect should be exposed");
 assert.equal(typeof windowStub.utools.dipToScreenRect, "function", "utools.dipToScreenRect should be exposed");
 
-const display = plain(windowStub.utools.getPrimaryDisplay());
-assert.deepEqual(display.bounds, { x: 0, y: 0, width: 2560, height: 1440 });
-assert.deepEqual(display.workArea, { x: 10, y: 20, width: 2500, height: 1350 });
-assert.deepEqual(display.size, { width: 2560, height: 1440 });
-assert.deepEqual(display.workAreaSize, { width: 2500, height: 1350 });
-assert.equal(display.scaleFactor, 2);
-assert.equal(display.colorDepth, 30);
-
-assert.deepEqual(plain(windowStub.utools.getAllDisplays()), [display]);
-assert.deepEqual(plain(windowStub.utools.getDisplayNearestPoint({ x: 100, y: 100 })), display);
-assert.deepEqual(plain(windowStub.utools.getDisplayMatching({ x: 100, y: 100, width: 200, height: 120 })), display);
-
-const mousemoveHandlers = listeners.get("mousemove") || [];
-assert.ok(mousemoveHandlers.length >= 1, "bridge should track the latest known cursor position");
-mousemoveHandlers.forEach((handler) => handler({ screenX: 321, screenY: 654 }));
-assert.deepEqual(plain(windowStub.utools.getCursorScreenPoint()), { x: 321, y: 654 });
-
-assert.deepEqual(plain(windowStub.utools.screenToDipPoint({ x: 200, y: 100 })), { x: 100, y: 50 });
-assert.deepEqual(plain(windowStub.utools.dipToScreenPoint({ x: 100, y: 50 })), { x: 200, y: 100 });
-assert.deepEqual(plain(windowStub.utools.screenToDipRect({ x: 20, y: 40, width: 300, height: 160 })), {
-  x: 10,
-  y: 20,
-  width: 150,
-  height: 80,
-});
-assert.deepEqual(plain(windowStub.utools.dipToScreenRect({ x: 10, y: 20, width: 150, height: 80 })), {
-  x: 20,
-  y: 40,
-  width: 300,
-  height: 160,
-});
+// The base/preview bridge has no native authority. Browser screen or mouse
+// events must never be passed off as operating-system display metadata.
+for (const method of ["getPrimaryDisplay", "getAllDisplays", "getCursorScreenPoint", "getDisplayNearestPoint", "getDisplayMatching", "screenToDipPoint", "dipToScreenPoint", "screenToDipRect", "dipToScreenRect"]) {
+  assert.throws(() => windowStub.utools[method](), error => error.code === "ERR_ATOOLS_DISPLAY_UNSUPPORTED");
+}
+assert.equal((listeners.get("mousemove") || []).length, 0, "metadata must not use a DOM pointer history");
 
 assert.ok(dispatchedEvents.includes("atools-plugin-enter"));
 assert.ok(dispatchedEvents.includes("atools-plugin-ready"));
 
-assert.match(componentSource, /function _createDisplaySnapshot\(\)/, "bridge should create display snapshots in one helper");
-assert.match(componentSource, /function _screenToDipRect\(rect\)/, "bridge should expose screen-to-DIP rect conversion helper");
-assert.match(componentSource, /getPrimaryDisplay:\s*function\(\)/, "utools.getPrimaryDisplay should be in the bridge object");
-assert.match(componentSource, /getCursorScreenPoint:\s*function\(\)/, "utools.getCursorScreenPoint should be in the bridge object");
-assert.match(componentSource, /screenToDipPoint:\s*function\(point\)/, "utools.screenToDipPoint should be in the bridge object");
+assert.match(componentSource, /pluginDisplayBridgeScript/, "production injects the permission-bound native implementation");
+assert.doesNotMatch(componentSource, /_lastCursorScreenPoint|function _createDisplaySnapshot/, "no fake per-window display implementation remains");
 assert.match(capabilitySource, /"getPrimaryDisplay"/, "shared capability inventory should include getPrimaryDisplay");
 assert.match(capabilitySource, /"getAllDisplays"/, "shared capability inventory should include getAllDisplays");
 assert.match(capabilitySource, /"getCursorScreenPoint"/, "shared capability inventory should include getCursorScreenPoint");

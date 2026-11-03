@@ -8,7 +8,11 @@ export const AGGREGATE_TEST_SCRIPTS = new Set([
 ]);
 
 export const BROWSER_TEST_SCRIPTS = new Set([
+  "test:launcher-ui-browser",
+  "test:launcher-list-browser",
+  "test:permission-dialog-browser",
   "test:plugin-host-smoke-browser",
+  "test:plugin-deferred-scripts-browser",
   "test:plugin-iframe-context-menu",
   "test:ztools-ui-host-external-plan-browser",
   "test:ztools-ui-host-first-fixture-browser",

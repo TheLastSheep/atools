@@ -1,8 +1,6 @@
 import {
-  lstatSync,
   mkdirSync,
   mkdtempSync,
-  readdirSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -16,6 +14,7 @@ import {
   inspectAppBundle,
   launchAppBundle,
 } from "./smoke-macos-release-app.mjs";
+import { appBundleBytes } from "./lib/app-bundle-size.mjs";
 
 export const RUNTIME_BENCHMARK_PREFIX = "ATOOLS_MACOS_RUNTIME_BENCHMARK ";
 
@@ -141,7 +140,7 @@ export async function runMacosRuntimeBenchmark(options = {}) {
     bundle_mib: Number(options.bundleThresholdMib ?? 100),
   };
   const app = {
-    bundle_bytes: pathBytes(appPath),
+    bundle_bytes: appBundleBytes(appPath),
     executable_bytes: statSync(bundle.executable_path).size,
   };
   const metrics = {
@@ -202,13 +201,6 @@ export function percentile(sortedValues, value) {
   if (sortedValues.length === 0) throw new Error("Cannot compute an empty percentile");
   const index = Math.ceil((value / 100) * (sortedValues.length - 1));
   return sortedValues[Math.min(sortedValues.length - 1, Math.max(0, index))];
-}
-
-function pathBytes(path) {
-  const stat = lstatSync(path);
-  if (stat.isSymbolicLink()) return stat.size;
-  if (!stat.isDirectory()) return stat.size;
-  return readdirSync(path).reduce((total, entry) => total + pathBytes(join(path, entry)), 0);
 }
 
 function round(value) {

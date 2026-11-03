@@ -1,0 +1,244 @@
+{
+  "activeTaskRunCount": 0,
+  "allLeasesInactive": true,
+  "appDataRoot": "__FIXTURE_ROOT__/app-data",
+  "artifactKind": "converted_source_evidence",
+  "businessUsabilityVerified": false,
+  "conversion": {
+    "capabilityId": "convert_ztools_plugin",
+    "output": {
+      "buildSteps": [
+        {
+          "kind": "typecheck"
+        },
+        {
+          "kind": "viteBuild"
+        }
+      ],
+      "businessOperationVerified": false,
+      "dependencyClosureVerified": false,
+      "dependencySetIdSha256": "9171114fe3bf97b2fd4f4745a6a3dcfa54670ebd14524e0167ff1e0527c18c72",
+      "dependencyTreeSha256": "9f324cec3d7522ebc72b8b01d736e7553cd32630baeb9e8bea014c9a4ad81bc2",
+      "installed": true,
+      "manifestSelection": "public",
+      "manifestSha256": "1ad7c1b5ddd7ce687878d8aca0da319d9f75ef6d77e101ed8a706d6a1d268192",
+      "pluginId": "deepread",
+      "sourceRevision": "2fcf2e6713cc47f281e6399238d62f96fbf95700ddafb16fe4d8e8e5d79f4ea7",
+      "toolchainFingerprintSha256": "7ebb9553efb80572d11797ab8a2bb249734bc34f1d54d82efee6a8d6f1579985"
+    },
+    "status": "succeeded",
+    "taskRunId": "run-00000000-0000-4000-8000-000000000006"
+  },
+  "dependencies": {
+    "dependencySetIdSha256": "9171114fe3bf97b2fd4f4745a6a3dcfa54670ebd14524e0167ff1e0527c18c72",
+    "nodeBinaryBytes": 112925600,
+    "nodeBinarySha256": "68f4d07ca49e0500cc135c7e0a445093e228e42e126ac22306d045f0a8c2636b",
+    "packageCount": 54,
+    "toolchainFingerprintSha256": "7ebb9553efb80572d11797ab8a2bb249734bc34f1d54d82efee6a8d6f1579985",
+    "treeBytes": 102604593,
+    "treeEntries": 4982,
+    "treeFiles": 4762,
+    "treeSha256": "9f324cec3d7522ebc72b8b01d736e7553cd32630baeb9e8bea014c9a4ad81bc2"
+  },
+  "expectedSequence": [
+    "inspect_ztools_source_dependencies",
+    "fetch_ztools_source_dependencies",
+    "prepare_ztools_source_dependencies",
+    "inspect_ztools_source_dependencies",
+    "inspect_ztools_source_build",
+    "convert_ztools_plugin"
+  ],
+  "fixtureRoot": "__FIXTURE_ROOT__",
+  "handoffStatus": "conversion_evidence_only",
+  "installationTaskRun": {
+    "capabilityId": "atools-ui.plugin.import",
+    "clientId": "atools-ui",
+    "initiatorType": "human",
+    "status": "succeeded",
+    "taskRunId": "run-00000000-0000-4000-8000-000000000007"
+  },
+  "installedPackage": {
+    "pluginId": "deepread",
+    "treeBytes": 546293,
+    "treeEntries": 11,
+    "treeFiles": 9,
+    "treeSha256": "1808f26053a91d4fafd38d145fbc9adb827848b44832ef1c0cb18c3e2f005298",
+    "version": "1.1.2"
+  },
+  "installedPackagePath": "__FIXTURE_ROOT__/app-data/plugins/deepread",
+  "nativeUiConsumerSupported": false,
+  "pendingPermissionRequestCount": 0,
+  "pluginIdentity": {
+    "featureCode": "deepread",
+    "id": "deepread",
+    "main": "index.html",
+    "preload": "preload/services.js",
+    "runtime": "node",
+    "version": "1.1.2"
+  },
+  "schemaVersion": 1,
+  "source": {
+    "bytes": 668051,
+    "fileCount": 24,
+    "inventorySha256": "1b4f96c212f9c650ff1538b75dbb1cfce04a9c37ac82f101a9c3198803a2cfe1",
+    "manifestSha256": "eddc0d6c83a292ca81f8ca386963bdd6d06727a32224cfe93ee3fdd8153b8080",
+    "path": "__SOURCE_ROOT__",
+    "sourceRevision": "2fcf2e6713cc47f281e6399238d62f96fbf95700ddafb16fe4d8e8e5d79f4ea7",
+    "upstreamHead": "2d47bd91011b6be872eef1d7c56b4c6b57a93b3d"
+  },
+  "sourceCaseId": "fixed-head-deepread-public",
+  "sourceFilesUnchanged": true,
+  "taskRunCount": 7,
+  "taskRuns": [
+    {
+      "capabilityId": "inspect_ztools_source_dependencies",
+      "output": {
+        "archiveBytes": null,
+        "businessUsabilityVerified": false,
+        "cachedBytes": 0,
+        "dependencyClosureVerified": false,
+        "dependencySetIdSha256": "9171114fe3bf97b2fd4f4745a6a3dcfa54670ebd14524e0167ff1e0527c18c72",
+        "dependencySetPrepared": false,
+        "dependencyTreeBytes": null,
+        "dependencyTreeSha256": null,
+        "lifecyclesSkipped": true,
+        "missingCount": 54,
+        "nodeBinaryBytes": 112925600,
+        "nodeBinarySha256": "68f4d07ca49e0500cc135c7e0a445093e228e42e126ac22306d045f0a8c2636b",
+        "packageCount": 54,
+        "planSha256": "859a971bf755fbaec22eb8910e0213154f052351844b26cc2d0c27a173ec564f",
+        "skippedOptionalCount": 24,
+        "sourceRevision": "2fcf2e6713cc47f281e6399238d62f96fbf95700ddafb16fe4d8e8e5d79f4ea7",
+        "status": "eligible",
+        "target": {
+          "cpu": "arm64",
+          "os": "darwin"
+        },
+        "toolchainFingerprintSha256": "7ebb9553efb80572d11797ab8a2bb249734bc34f1d54d82efee6a8d6f1579985",
+        "toolchainHashElapsedMs": 1036
+      },
+      "status": "succeeded",
+      "taskRunId": "run-00000000-0000-4000-8000-000000000001"
+    },
+    {
+      "capabilityId": "fetch_ztools_source_dependencies",
+      "output": {
+        "businessUsabilityVerified": false,
+        "cachedArchiveCount": 0,
+        "dependencySetIdSha256": "9171114fe3bf97b2fd4f4745a6a3dcfa54670ebd14524e0167ff1e0527c18c72",
+        "dependencySetPrepared": false,
+        "elapsedMs": 32177,
+        "fetchedArchiveCount": 54,
+        "lifecyclesSkipped": true,
+        "packageCount": 54,
+        "sourceRevision": "2fcf2e6713cc47f281e6399238d62f96fbf95700ddafb16fe4d8e8e5d79f4ea7",
+        "status": "cached",
+        "verifiedArchiveBytes": 23543379
+      },
+      "status": "succeeded",
+      "taskRunId": "run-00000000-0000-4000-8000-000000000002"
+    },
+    {
+      "capabilityId": "prepare_ztools_source_dependencies",
+      "output": {
+        "archiveBytes": 23543379,
+        "businessUsabilityVerified": false,
+        "dependencyClosureVerified": false,
+        "dependencySetIdSha256": "9171114fe3bf97b2fd4f4745a6a3dcfa54670ebd14524e0167ff1e0527c18c72",
+        "fileCount": 4761,
+        "manifestSha256": "86c4fa09d9beb5191b4684d61bd4f35e7628ecbf9168ace4c8161c1962590646",
+        "nodeBinaryBytes": 112925600,
+        "nodeBinarySha256": "68f4d07ca49e0500cc135c7e0a445093e228e42e126ac22306d045f0a8c2636b",
+        "packageCount": 54,
+        "sourceRevision": "2fcf2e6713cc47f281e6399238d62f96fbf95700ddafb16fe4d8e8e5d79f4ea7",
+        "status": "prepared",
+        "toolchainFingerprintSha256": "7ebb9553efb80572d11797ab8a2bb249734bc34f1d54d82efee6a8d6f1579985",
+        "toolchainHashElapsedMs": 615,
+        "treeBytes": 102604593,
+        "treeEntries": 4982,
+        "treeFiles": 4762,
+        "treeSha256": "9f324cec3d7522ebc72b8b01d736e7553cd32630baeb9e8bea014c9a4ad81bc2",
+        "unpackedBytes": 102591464,
+        "workerElapsedMs": 10583
+      },
+      "status": "succeeded",
+      "taskRunId": "run-00000000-0000-4000-8000-000000000003"
+    },
+    {
+      "capabilityId": "inspect_ztools_source_dependencies",
+      "output": {
+        "archiveBytes": 23543379,
+        "businessUsabilityVerified": false,
+        "cachedBytes": 23543379,
+        "dependencyClosureVerified": false,
+        "dependencySetIdSha256": "9171114fe3bf97b2fd4f4745a6a3dcfa54670ebd14524e0167ff1e0527c18c72",
+        "dependencySetPrepared": true,
+        "dependencyTreeBytes": 102604593,
+        "dependencyTreeSha256": "9f324cec3d7522ebc72b8b01d736e7553cd32630baeb9e8bea014c9a4ad81bc2",
+        "lifecyclesSkipped": true,
+        "missingCount": 0,
+        "nodeBinaryBytes": 112925600,
+        "nodeBinarySha256": "68f4d07ca49e0500cc135c7e0a445093e228e42e126ac22306d045f0a8c2636b",
+        "packageCount": 54,
+        "planSha256": "859a971bf755fbaec22eb8910e0213154f052351844b26cc2d0c27a173ec564f",
+        "skippedOptionalCount": 24,
+        "sourceRevision": "2fcf2e6713cc47f281e6399238d62f96fbf95700ddafb16fe4d8e8e5d79f4ea7",
+        "status": "eligible",
+        "target": {
+          "cpu": "arm64",
+          "os": "darwin"
+        },
+        "toolchainFingerprintSha256": "7ebb9553efb80572d11797ab8a2bb249734bc34f1d54d82efee6a8d6f1579985",
+        "toolchainHashElapsedMs": 681
+      },
+      "status": "succeeded",
+      "taskRunId": "run-00000000-0000-4000-8000-000000000004"
+    },
+    {
+      "capabilityId": "inspect_ztools_source_build",
+      "output": {
+        "buildSteps": [
+          {
+            "kind": "typecheck"
+          },
+          {
+            "kind": "viteBuild"
+          }
+        ],
+        "manifestSelection": "public",
+        "manifestSha256": "1ad7c1b5ddd7ce687878d8aca0da319d9f75ef6d77e101ed8a706d6a1d268192",
+        "pluginId": "deepread",
+        "sourceRevision": "2fcf2e6713cc47f281e6399238d62f96fbf95700ddafb16fe4d8e8e5d79f4ea7",
+        "status": "eligible"
+      },
+      "status": "succeeded",
+      "taskRunId": "run-00000000-0000-4000-8000-000000000005"
+    },
+    {
+      "capabilityId": "convert_ztools_plugin",
+      "output": {
+        "buildSteps": [
+          {
+            "kind": "typecheck"
+          },
+          {
+            "kind": "viteBuild"
+          }
+        ],
+        "businessOperationVerified": false,
+        "dependencyClosureVerified": false,
+        "dependencySetIdSha256": "9171114fe3bf97b2fd4f4745a6a3dcfa54670ebd14524e0167ff1e0527c18c72",
+        "dependencyTreeSha256": "9f324cec3d7522ebc72b8b01d736e7553cd32630baeb9e8bea014c9a4ad81bc2",
+        "installed": true,
+        "manifestSelection": "public",
+        "manifestSha256": "1ad7c1b5ddd7ce687878d8aca0da319d9f75ef6d77e101ed8a706d6a1d268192",
+        "pluginId": "deepread",
+        "sourceRevision": "2fcf2e6713cc47f281e6399238d62f96fbf95700ddafb16fe4d8e8e5d79f4ea7",
+        "toolchainFingerprintSha256": "7ebb9553efb80572d11797ab8a2bb249734bc34f1d54d82efee6a8d6f1579985"
+      },
+      "status": "succeeded",
+      "taskRunId": "run-00000000-0000-4000-8000-000000000006"
+    }
+  ],
+  "taskRunsTerminal": true
+}

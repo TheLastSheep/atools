@@ -32,9 +32,9 @@ try {
   assert.match(cards[0].detail, /网络市场/);
   assert.equal(cards[0].tone, "warning");
 
-  assert.equal(cards[1].value, "未配置");
-  assert.match(cards[1].detail, /通用设置/);
-  assert.equal(cards[1].tone, "warning");
+  assert.equal(cards[1].value, "ZTools 官方市场");
+  assert.match(cards[1].detail, /z-tools\.top/);
+  assert.equal(cards[1].tone, "ready");
 
   assert.equal(cards[2].value, "4/5 可用");
   assert.match(cards[2].detail, /本地导入/);
@@ -55,13 +55,7 @@ try {
   assert.equal(previewCards[3].value, "桌面端读取");
   assert.equal(previewCards[3].tone, "desktop");
 
-  const panel = await readFile(new URL("src/components/SettingsPanel.svelte", root), "utf8");
-  assert.match(panel, /pluginMarketOverviewCards/);
-  assert.match(panel, /插件市场概览/);
-  assert.match(panel, /本地替代入口/);
-  assert.match(panel, /网络插件市场下载安装更新需先配置并读取自定义目录/);
-  assert.match(panel, /class="plugin-market-overview-grid"/);
-  assert.match(panel, /class="plugin-market-overview-card"/);
+
 } finally {
   await rm(outDir, { recursive: true, force: true });
 }

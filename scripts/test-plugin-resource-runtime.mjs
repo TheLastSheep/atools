@@ -1,3 +1,4 @@
+import { injectPluginBridgeFactories } from "./lib/plugin-bridge-fixture.mjs";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFile } from "node:fs/promises";
@@ -9,13 +10,11 @@ const resourceChecklistRow = "插件 HTML 资源兼容由 `pnpm test:plugin-reso
 
 const bridgeMatch = componentSource.match(/const UTOOLS_BRIDGE = `([\s\S]*?)`;/);
 assert.ok(bridgeMatch, "PluginPanel should define the injected utools bridge");
+const bridgeTemplate = await injectPluginBridgeFactories(bridgeMatch[1], { subInputEpoch: 1 });
 assert.match(componentSource, /once: function\(event, listener\)/, "PluginPanel should expose process.once for CommonJS preload compatibility");
 assert.match(componentSource, /nextTick: function\(callback\)/, "PluginPanel should expose process.nextTick for CommonJS preload compatibility");
 assert.match(componentSource, /window\.global = window/, "PluginPanel should expose the CommonJS global alias");
-assert.match(componentSource, /window\.__atoolsNativeWorker/, "PluginPanel should preserve the native Worker constructor");
-assert.match(componentSource, /importScripts\(/, "PluginPanel should bootstrap local classic workers inside the opaque sandbox");
-
-const bridgeSource = bridgeMatch[1]
+const bridgeSource = bridgeTemplate
   .replace(/<\\\/script>/g, "</script>")
   .replace(/^\s*<script>\s*/, "")
   .replace(/\s*<\/script>\s*$/, "")
@@ -175,8 +174,17 @@ const documentStub = {
 };
 
 class EventStub {
-  constructor(type) {
+  constructor(type, options = {}) {
     this.type = type;
+    this.bubbles = Boolean(options.bubbles);
+    this.cancelable = Boolean(options.cancelable);
+  }
+}
+
+class CustomEventStub extends EventStub {
+  constructor(type, options = {}) {
+    super(type, options);
+    this.detail = options.detail;
   }
 }
 
@@ -211,6 +219,8 @@ class CSSStyleSheetStub {
 }
 
 windowStub.CSSStyleSheet = CSSStyleSheetStub;
+windowStub.Event = EventStub;
+windowStub.CustomEvent = CustomEventStub;
 windowStub.Node = ElementStub;
 windowStub.Element = ElementStub;
 
@@ -219,6 +229,7 @@ const context = vm.createContext({
   document: documentStub,
   navigator: { platform: "MacIntel", userAgent: "Mozilla/5.0 (Macintosh)" },
   Event: EventStub,
+  CustomEvent: CustomEventStub,
   MutationObserver: MutationObserverStub,
   CSSStyleSheet: CSSStyleSheetStub,
   Node: ElementStub,
@@ -467,7 +478,8 @@ assert.equal(replacementScript.getAttribute("src"), "asset(/plugins/sample/pages
 assert.equal(head.children.includes(replaceTarget), false, "replace target should be removed after replacement resource resolution");
 assert.equal(head.children.includes(replacementScript), true, "replacement script should be inserted after resource resolution");
 
-assert.match(componentSource, /convertPluginResourceUrl/, "PluginPanel should import the runtime resource converter");
+assert.match(componentSource, /convertPluginRuntimeResourceUrl/, "PluginPanel should use the identity-aware runtime resource converter");
+assert.match(componentSource, /identity\.kind === "main" \? "main" : "browserWindow"/, "runtime resolution should select semantics from the validated frame identity");
 assert.match(componentSource, /__atools_resource_resolve__/, "parent message handler should accept runtime resource requests");
 assert.match(componentSource, /__atools_resource_response__/, "parent message handler should return runtime resource responses");
 assert.match(componentSource, /action\.main_url \|\| "index\.html"/, "runtime resource conversion should honor plugin main_url");

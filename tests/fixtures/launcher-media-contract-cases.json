@@ -1,0 +1,245 @@
+{
+  "schemaVersion": 1,
+  "scope": "Hand-authored selected files matching expectations, independently checked against the current official helper; not universal JS regex equivalence or native filesystem acceptance.",
+  "officialSource": {
+    "path": "/Users/harris/Desktop/ZTools/src/shared/commandContextShared.ts",
+    "bytes": 5485,
+    "sha256": "6ad7b10e20aee47027bab242885a636e2c9b452ddfcd62cab4178ec7494c864c",
+    "head": "9b15fb1a2a9f3ec886016632761c7bb21e39557a"
+  },
+  "options": {
+    "preserveFlags": true,
+    "allowPlainString": true
+  },
+  "cases": [
+    {
+      "name": "empty never matches even with minimum zero",
+      "files": [
+      ],
+      "command": {"type": "files", "minLength": 0},
+      "expected": false
+    },
+    {
+      "name": "single default",
+      "files": [
+        {"path": "/fixture/report.TXT", "name": "report.TXT", "isFile": true, "isDirectory": false}
+      ],
+      "command": {"type": "files"},
+      "expected": true
+    },
+    {
+      "name": "inclusive count bounds",
+      "files": [
+        {"path": "/fixture/report.TXT", "name": "report.TXT", "isFile": true, "isDirectory": false},
+        {"path": "/fixture/second.txt", "name": "second.txt", "isFile": true, "isDirectory": false}
+      ],
+      "command": {"type": "files", "minLength": 2, "maxLength": 2},
+      "expected": true
+    },
+    {
+      "name": "below minimum",
+      "files": [
+        {"path": "/fixture/report.TXT", "name": "report.TXT", "isFile": true, "isDirectory": false}
+      ],
+      "command": {"type": "files", "minLength": 2},
+      "expected": false
+    },
+    {
+      "name": "above maximum",
+      "files": [
+        {"path": "/fixture/report.TXT", "name": "report.TXT", "isFile": true, "isDirectory": false},
+        {"path": "/fixture/second.txt", "name": "second.txt", "isFile": true, "isDirectory": false}
+      ],
+      "command": {"type": "files", "maxLength": 1},
+      "expected": false
+    },
+    {
+      "name": "zero maximum rejects nonempty",
+      "files": [
+        {"path": "/fixture/report.TXT", "name": "report.TXT", "isFile": true, "isDirectory": false}
+      ],
+      "command": {"type": "files", "maxLength": 0},
+      "expected": false
+    },
+    {
+      "name": "file rule rejects mixed directory",
+      "files": [
+        {"path": "/fixture/report.TXT", "name": "report.TXT", "isFile": true, "isDirectory": false},
+        {"path": "/fixture/folder", "name": "folder", "isFile": false, "isDirectory": true}
+      ],
+      "command": {"type": "files", "fileType": "file"},
+      "expected": false
+    },
+    {
+      "name": "directory rule accepts directories",
+      "files": [
+        {"path": "/fixture/folder", "name": "folder", "isFile": false, "isDirectory": true}
+      ],
+      "command": {"type": "files", "fileType": "directory"},
+      "expected": true
+    },
+    {
+      "name": "directory rule rejects file",
+      "files": [
+        {"path": "/fixture/report.TXT", "name": "report.TXT", "isFile": true, "isDirectory": false}
+      ],
+      "command": {"type": "files", "fileType": "directory"},
+      "expected": false
+    },
+    {
+      "name": "extensions ignore directories",
+      "files": [
+        {"path": "/fixture/folder", "name": "folder", "isFile": false, "isDirectory": true}
+      ],
+      "command": {"type": "files", "extensions": ["txt"]},
+      "expected": true
+    },
+    {
+      "name": "extensions compare lowercase suffix",
+      "files": [
+        {"path": "/fixture/report.TXT", "name": "report.TXT", "isFile": true, "isDirectory": false},
+        {"path": "/fixture/second.txt", "name": "second.txt", "isFile": true, "isDirectory": false}
+      ],
+      "command": {"type": "files", "extensions": ["tXt"]},
+      "expected": true
+    },
+    {
+      "name": "extensions do not strip leading dot",
+      "files": [
+        {"path": "/fixture/report.TXT", "name": "report.TXT", "isFile": true, "isDirectory": false}
+      ],
+      "command": {"type": "files", "extensions": [".txt"]},
+      "expected": false
+    },
+    {
+      "name": "filename without dot uses entire final segment",
+      "files": [
+        {"path": "/fixture/README", "name": "README", "isFile": true, "isDirectory": false}
+      ],
+      "command": {"type": "files", "extensions": ["readme"]},
+      "expected": true
+    },
+    {
+      "name": "trailing dot empty extension rejected",
+      "files": [
+        {"path": "/fixture/report.", "name": "report.", "isFile": true, "isDirectory": false}
+      ],
+      "command": {"type": "files", "extensions": [""]},
+      "expected": false
+    },
+    {
+      "name": "empty extension list is unrestricted",
+      "files": [
+        {"path": "/fixture/report.TXT", "name": "report.TXT", "isFile": true, "isDirectory": false}
+      ],
+      "command": {"type": "files", "extensions": []},
+      "expected": true
+    },
+    {
+      "name": "all selected files must match extension",
+      "files": [
+        {"path": "/fixture/report.TXT", "name": "report.TXT", "isFile": true, "isDirectory": false},
+        {"path": "/fixture/photo.png", "name": "photo.png", "isFile": true, "isDirectory": false}
+      ],
+      "command": {"type": "files", "extensions": ["txt"]},
+      "expected": false
+    },
+    {
+      "name": "literal insensitive flag",
+      "files": [
+        {"path": "/fixture/Report.txt", "name": "Report.txt", "isFile": true, "isDirectory": false}
+      ],
+      "command": {"type": "files", "match": "/^report/i"},
+      "expected": true
+    },
+    {
+      "name": "plain pattern is literal substring",
+      "files": [
+        {"path": "/fixture/noteXtxt", "name": "noteXtxt", "isFile": true, "isDirectory": false}
+      ],
+      "command": {"type": "files", "match": ".txt"},
+      "expected": false
+    },
+    {
+      "name": "plain substring is case sensitive",
+      "files": [
+        {"path": "/fixture/Report.txt", "name": "Report.txt", "isFile": true, "isDirectory": false}
+      ],
+      "command": {"type": "files", "match": "report"},
+      "expected": false
+    },
+    {
+      "name": "plain substring succeeds",
+      "files": [
+        {"path": "/fixture/report.TXT", "name": "report.TXT", "isFile": true, "isDirectory": false}
+      ],
+      "command": {"type": "files", "match": ".TXT"},
+      "expected": true
+    },
+    {
+      "name": "invalid literal has no regex match",
+      "files": [
+        {"path": "/fixture/report.TXT", "name": "report.TXT", "isFile": true, "isDirectory": false}
+      ],
+      "command": {"type": "files", "match": "/[/"},
+      "expected": false
+    },
+    {
+      "name": "unsupported literal s flag falls back to substring",
+      "files": [
+        {"path": "/fixture/report.TXT", "name": "report.TXT", "isFile": true, "isDirectory": false}
+      ],
+      "command": {"type": "files", "match": "/txt/s"},
+      "expected": false
+    },
+    {
+      "name": "global starts fresh for each name",
+      "files": [
+        {"path": "/fixture/foo", "name": "foo", "isFile": true, "isDirectory": false},
+        {"path": "/fixture/foo", "name": "foo", "isFile": true, "isDirectory": false}
+      ],
+      "command": {"type": "files", "match": "/foo/g"},
+      "expected": true
+    },
+    {
+      "name": "sticky does not skip prefix",
+      "files": [
+        {"path": "/fixture/atxt", "name": "atxt", "isFile": true, "isDirectory": false}
+      ],
+      "command": {"type": "files", "match": "/txt/y"},
+      "expected": false
+    },
+    {
+      "name": "sticky matches at start",
+      "files": [
+        {"path": "/fixture/txt-a", "name": "txt-a", "isFile": true, "isDirectory": false}
+      ],
+      "command": {"type": "files", "match": "/txt/y"},
+      "expected": true
+    },
+    {
+      "name": "multiline allows later line",
+      "files": [
+        {"path": "/fixture/a\ntxt", "name": "a\ntxt", "isFile": true, "isDirectory": false}
+      ],
+      "command": {"type": "files", "match": "/^txt/m"},
+      "expected": true
+    },
+    {
+      "name": "empty slash body is not a literal",
+      "files": [
+        {"path": "/fixture/report.TXT", "name": "report.TXT", "isFile": true, "isDirectory": false}
+      ],
+      "command": {"type": "files", "match": "//i"},
+      "expected": false
+    },
+    {
+      "name": "directory must also match filename rule",
+      "files": [
+        {"path": "/fixture/folder", "name": "folder", "isFile": false, "isDirectory": true}
+      ],
+      "command": {"type": "files", "fileType": "directory", "extensions": ["png"], "match": "/^fold/"},
+      "expected": true
+    }
+  ]
+}

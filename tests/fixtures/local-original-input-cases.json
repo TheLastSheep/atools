@@ -1,0 +1,237 @@
+{
+  "schemaVersion": 1,
+  "digestAlgorithm": "AToolsLocalTreeV1: SHA-256 over sorted complete directory records and every file path, byte length, and SHA-256; unchanged original directories only",
+  "sourceReview": {
+    "local-uuid-kit": {
+      "reviewScope": "Complete unchanged original UUID Kit directory, including HTML UI, core implementation, Electron-only preload, documentation, logo, package metadata and tests. Static source inspection and byte pinning only; test scripts are not executed.",
+      "entryPoints": [
+        "plugin.json",
+        "index.html",
+        "uuid-core.js",
+        "preload.js"
+      ],
+      "selectors": [
+        "#input",
+        "#out .row .label",
+        "#out .row .value",
+        "#badge",
+        "#meta",
+        "#selftest-fail"
+      ],
+      "anchors": [
+        "plugin.json:1-65 identifies uuid-kit@1.0.0 and parse/gen features; scenario uses text command uuid62, never regex auto-copy entry",
+        "preload.js:1-13 requires electron only and declares a clipboard fallback; the host local Electron adapter supports this module without a Node sidecar",
+        "index.html:110-136 declares copy fallbacks; output-row click and Enter shortcut would write clipboard and are excluded",
+        "index.html:306 binds ordinary input to run(value,false), which parses and renders original conversion output without copying",
+        "index.html:315-345 onPluginEnter installs sub-input callback, reads theme and adjusts height; regex entry passes autoCopy=true and is excluded",
+        "index.html:349-357 invokes original internal selftest and initial empty render; no external operation"
+      ],
+      "riskBoundary": "runtime=web reflects the production local Electron adapter: requiring electron alone does not set needsNode. Ordinary native input, output inspection, invalid-input recovery and host sub-input are in scope; clipboard copy, result-row click, Enter, regex auto-copy, generation/randomness, network, file/system access and plugin tests are excluded. No data or path permission is required for the selected text-entry scenario."
+    },
+    "local-ascii-tree": {
+      "reviewScope": "Complete unchanged original ASCII Tree directory, including HTML/CSS/JS, Node preload, logo, documentation, build/clean scripts and lockfile. Static source inspection and byte pinning only; no build, dependency installation or script execution. The unchanged index.js contains showSaveDialog in the export handler, so production static startup preflight requires the save-dialog capability even when that handler is not invoked.",
+      "entryPoints": [
+        "plugin.json",
+        "index.html",
+        "index.js",
+        "preload.js"
+      ],
+      "selectors": [
+        "#text",
+        "#tree",
+        "#clear-input",
+        "#fill-sample"
+      ],
+      "anchors": [
+        "plugin.json:1-25 identifies ascii-tree@1.0.0, index.html, preload.js and ascii-tree-open feature",
+        "preload.js:1-17 requires node:fs; file writing is exposed only by asciiTreeServices.writeTextFile and excluded from the scenario; plugin-enter callback only dispatches a DOM event",
+        "index.js:1-35 sets storage key ascii-tree:level-text and prefers window.ztools.dbStorage over localStorage",
+        "index.js:113-140 ordinary forward/reverse input stores text through dbStorage.setItem; startup reads dbStorage.getItem",
+        "index.js:146-189 copy and native save/export paths are excluded; showSaveDialog in this unchanged handler is nevertheless detected by production static startup preflight",
+        "index.js:191-230 binds original input, clear/sample controls and beforeunload persistence, then loads stored input and renders the original tree"
+      ],
+      "riskBoundary": "runtime=node is required for the original preload node:fs import. dataAccess=true and verifyDataPersistence=true cover original dbStorage startup/read/write plus full close/reopen restoration in the isolated fixture. dialogAccess=save records the production static preflight requirement caused by showSaveDialog in the unchanged export handler; this metadata and its one-time permission approval do not prove dialog execution. The text-input/reopen scenario never invokes that handler, opens a native panel, or writes a file; root must separately assert nativePanels=0. pathAccess=none: no file service, clipboard, network, build or dependency operation is invoked. Window resize through setExpendHeight is the only additional host UI API used."
+    }
+  },
+  "cases": [
+    {
+      "caseId": "local-uuid-kit",
+      "id": "uuid-kit",
+      "featureCode": "parse",
+      "searchQuery": "uuid62",
+      "title": "UUID 百宝箱",
+      "runtime": "web",
+      "dataAccess": false,
+      "verifyDataPersistence": false,
+      "frameOperations": "tests/components/nativeOriginalUuidFrameOperations.js",
+      "version": "1.0.0",
+      "sourceKind": "local_full_directory",
+      "sourcePath": "ZTools-plugins/plugins/uuid-kit",
+      "directorySha256": "088f727ad939b8af6063179386245cbfd96f1a227e289cba6bdf8d76ebb70e8c",
+      "fileCount": 12,
+      "pathAccess": "none",
+      "sourceReview": "output/legacy-node-2026-10-17/local-original-input-source-review-v2.json",
+      "sourceReviewStatus": "prepared_for_parent_native_fixture_decision"
+    },
+    {
+      "caseId": "local-ascii-tree",
+      "id": "ascii-tree",
+      "featureCode": "ascii-tree-open",
+      "searchQuery": "ascii-tree",
+      "title": "ASCII Tree",
+      "runtime": "node",
+      "dataAccess": true,
+      "verifyDataPersistence": true,
+      "frameOperations": "tests/components/nativeOriginalAsciiTreeFrameOperations.js",
+      "version": "1.0.0",
+      "sourceKind": "local_full_directory",
+      "sourcePath": "ZTools-plugins/plugins/ascii-tree",
+      "directorySha256": "98b09af12fffd827b88a31f8308273aa9d3840b0ee76fb5f56a67cd2e41fb579",
+      "fileCount": 12,
+      "pathAccess": "none",
+      "sourceReview": "output/legacy-node-2026-10-17/local-original-input-source-review-v2.json",
+      "sourceReviewStatus": "prepared_for_parent_native_fixture_decision",
+      "dialogAccess": "save"
+    }
+  ],
+  "snapshots": {
+    "local-uuid-kit": {
+      "directorySha256": "088f727ad939b8af6063179386245cbfd96f1a227e289cba6bdf8d76ebb70e8c",
+      "fileCount": 12,
+      "files": [
+        {
+          "path": ".gitignore",
+          "bytes": 33,
+          "sha256": "406d2d177e2f7b8cf0b9341e3897c8b472fca6e8aa5e1c57fa855e5e4952ed0c"
+        },
+        {
+          "path": "CHANGELOG.md",
+          "bytes": 697,
+          "sha256": "aa400886a6bdfad43d734978a5666eb5795d8f51b10cf123881e82358cb4d04c"
+        },
+        {
+          "path": "README.md",
+          "bytes": 2817,
+          "sha256": "b6fecd3c44ec982c3429c63c9962e9af99141e6e8820c75580fc40b7620a7141"
+        },
+        {
+          "path": "index.html",
+          "bytes": 12363,
+          "sha256": "1311ee7f3d97d3fb2550083fda0da2657f1164e5501392e26090073806df9ddb"
+        },
+        {
+          "path": "logo.png",
+          "bytes": 5141,
+          "sha256": "a77e939035309ec8b9845ecaeeb940d5d0629dffb3808e97badb0cd6605f348d"
+        },
+        {
+          "path": "package.json",
+          "bytes": 242,
+          "sha256": "dd3762c10bd8d7265de0636feb9b0401afd2dd7436d8db306ae8daf40212637f"
+        },
+        {
+          "path": "plugin.json",
+          "bytes": 1637,
+          "sha256": "554f98f38ed3800e974cc979eec4c7d8c0b9f544554fb4e84e466ffcd61f1634"
+        },
+        {
+          "path": "preload.js",
+          "bytes": 390,
+          "sha256": "d59f525e164bcefe1d47425164e0c32d52c93f800593bc7bfb549e89fa80e654"
+        },
+        {
+          "path": "tests/test_ui.js",
+          "bytes": 3538,
+          "sha256": "d459d5d4e6d623bf75ab8260c05801d14b6f89ea372146f7226d9f154714eb88"
+        },
+        {
+          "path": "tests/test_uuid_core.js",
+          "bytes": 2868,
+          "sha256": "e3cfac15759b473a75344da94f690a52dca7d205c9d698b61bc7e03a527b0403"
+        },
+        {
+          "path": "tests/uuid_vectors.json",
+          "bytes": 2106,
+          "sha256": "99d4d737d92e6f350c7310606ffd1fcb3a56c59a9c2f97d1cfffaeeefa0fecf7"
+        },
+        {
+          "path": "uuid-core.js",
+          "bytes": 21576,
+          "sha256": "7c490aae15f5cfd0d007c9fdec77805e3f7bc58603ce20a5a1d8d568f895a1ee"
+        }
+      ],
+      "directories": [
+        "tests"
+      ]
+    },
+    "local-ascii-tree": {
+      "directorySha256": "98b09af12fffd827b88a31f8308273aa9d3840b0ee76fb5f56a67cd2e41fb579",
+      "fileCount": 12,
+      "files": [
+        {
+          "path": ".gitignore",
+          "bytes": 32,
+          "sha256": "baaced129a0fb988bcc4649983742643984f9d68dee307919cd609d31326998c"
+        },
+        {
+          "path": "README.md",
+          "bytes": 926,
+          "sha256": "067b6c1f43fab2a5d84b8e42209f6a65a616330f295bf7cbca127dcf82e67a9b"
+        },
+        {
+          "path": "index.css",
+          "bytes": 4641,
+          "sha256": "ec552324212184c906843986b3cf6e54e2a582ccb1ef57f9b8e2d6108338cd5a"
+        },
+        {
+          "path": "index.html",
+          "bytes": 2597,
+          "sha256": "ed1c320f9b614f570141f726a4db7a1237b64fa1dd7ab43d4e5b5eb0fe8e83d4"
+        },
+        {
+          "path": "index.js",
+          "bytes": 5445,
+          "sha256": "e32d6c5a808a1f41832200289309c2486db2e3e2d177f0cd668635b21ff92495"
+        },
+        {
+          "path": "logo.jpg",
+          "bytes": 163225,
+          "sha256": "50a4f607446fb6f6445ffd1816473563602eada58009933740e966a4ed792fc1"
+        },
+        {
+          "path": "package.json",
+          "bytes": 322,
+          "sha256": "04207fa6728fcd6df3a901b214762179756eda1f19d81ea0f7fd16342e55ff47"
+        },
+        {
+          "path": "plugin.json",
+          "bytes": 592,
+          "sha256": "f5b43a1ba5e711711c1fbe43a998ecf616c22592770c0f9cb429e9eab8727521"
+        },
+        {
+          "path": "pnpm-lock.yaml",
+          "bytes": 382,
+          "sha256": "03dae57b0159cb1fbd9a73c9efe9bb0472323c91c5caaa85e211986f852e00e2"
+        },
+        {
+          "path": "preload.js",
+          "bytes": 381,
+          "sha256": "eb3d3a1d4c5297cd5bf8fbcf51273dbd767c54b31c43fdb9c933893e3b8d0294"
+        },
+        {
+          "path": "scripts/build.mjs",
+          "bytes": 703,
+          "sha256": "6a3b51fd829022e3d97d78e5f45c6dfc48f7cf2cb6d04b8f63f4262303d96a9a"
+        },
+        {
+          "path": "scripts/clean.mjs",
+          "bytes": 401,
+          "sha256": "4c75878bbbc43b63bd3072daa3e49fe509ff335d04530fa0aa72e2866c138b3f"
+        }
+      ],
+      "directories": [
+        "scripts"
+      ]
+    }
+  }
+}

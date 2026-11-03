@@ -1,3 +1,5 @@
+import { assertPluginRedirectHostPath } from "./lib/plugin-redirect-fixture.mjs";
+import { loadProductionPluginBridgeTemplate, readLauncherOwnerSource, readPanelHostSource } from "./lib/plugin-panel-source-test-adapter.mjs";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -10,7 +12,7 @@ const outDir = await mkdtemp(join(root.pathname, ".tmp-plugin-window-redirect-")
 
 try {
   const helperSourcePath = new URL("src/lib/pluginRedirect.ts", root).pathname;
-  const helperSource = await readFile(helperSourcePath, "utf8");
+  const helperSource = await readLauncherOwnerSource(root, "src/lib/pluginRedirect.ts");
   const helperTransformed = await transformWithEsbuild(helperSource, helperSourcePath, {
     format: "esm",
     target: "esnext",
@@ -71,14 +73,16 @@ try {
     "not_found",
   );
 
-  const componentSource = await readFile(new URL("src/components/PluginPanel.svelte", root), "utf8");
+  const contracts = await readPanelHostSource(root, "src/lib/pluginPanelContracts.ts");
+  const nativeBridgeRouter = await readPanelHostSource(root, "src/lib/pluginPanelNativeBridgeRouter.ts");
+  const bridgeTemplate = await loadProductionPluginBridgeTemplate(root);
+  const controllerSource = await readLauncherOwnerSource(root, "src/lib/launcherPluginWindowController.ts");
+  const sessionSource = await readLauncherOwnerSource(root, "src/lib/launcherPluginSessionController.ts");
   const appSource = await readFile(new URL("src/App.svelte", root), "utf8");
   const capabilitySource = await readFile(new URL("src/lib/pluginBridgeCapabilities.ts", root), "utf8");
 
-  const bridgeMatch = componentSource.match(/const UTOOLS_BRIDGE = `([\s\S]*?)`;/);
-  assert.ok(bridgeMatch, "PluginPanel should define the injected utools bridge");
-
-  const bridgeSource = bridgeMatch[1]
+  const bridgeSource = bridgeTemplate
+  .replace(/__ACTION_PAYLOAD__/g, JSON.stringify(null))
     .replace(/<\\\/script>/g, "</script>")
     .replace(/^\s*<script>\s*/, "")
     .replace(/\s*<\/script>\s*$/, "")
@@ -119,17 +123,12 @@ try {
     },
   };
 
-  class EventStub {
-    constructor(type) {
-      this.type = type;
-    }
-  }
-
   const context = vm.createContext({
     window: windowStub,
     document: documentStub,
     navigator: { platform: "MacIntel", userAgent: "Mozilla/5.0 (Macintosh)" },
-    Event: EventStub,
+    Event,
+    CustomEvent,
     console: {
       error() {},
       warn() {},
@@ -177,17 +176,18 @@ try {
   });
   await assert.rejects(failedPromise, /redirect failed/);
 
-  assert.match(componentSource, /onredirect\?:/, "PluginPanel should accept a redirect host callback");
-  assert.match(componentSource, /redirect:\s*function\(label,\s*payload\)/, "bridge should expose redirect(label, payload)");
-  assert.match(componentSource, /case "redirect":/, "host should handle redirect native calls");
-  assert.match(componentSource, /redirect unsupported/, "unsupported redirect errors should name the API");
+  assert.match(contracts, /onredirect\?:/, "PluginPanel should accept a redirect host callback");
+  assert.match(bridgeTemplate, /redirect:\s*function\(label,\s*payload\)/, "bridge should expose redirect(label, payload)");
+  assert.match(nativeBridgeRouter, /case "redirect":/, "host should handle redirect native calls");
+  assert.match(nativeBridgeRouter, /redirect unsupported/, "unsupported redirect errors should name the API");
   assert.match(capabilitySource, /"redirect"/, "shared capability inventory should include redirect");
-  assert.match(appSource, /normalizePluginRedirectLabel/, "App should normalize plugin redirect labels");
-  assert.match(appSource, /selectPluginRedirectResult/, "App should select a redirect target from search results");
-  assert.match(appSource, /function handlePluginRedirect/, "App should handle plugin redirect requests");
-  assert.match(appSource, /invoke<SearchResult\[]>\("search_features"/, "redirect should search plugin features");
-  assert.match(appSource, /activateFeature\(selection\.result\.code,\s*payload \?\? null\)/, "redirect should activate the selected feature with payload");
-  assert.match(appSource, /onredirect:\s*handlePluginRedirect/, "PluginPanel should be wired to App redirect handling");
+  assert.match(helperSource, /normalizePluginRedirectLabel/, "redirect helper should normalize plugin redirect labels");
+  assert.match(helperSource, /selectPluginRedirectResult/, "redirect helper should select a result from search matches");
+  assert.match(controllerSource, /function handlePluginRedirect/, "launcher plugin-window controller should handle redirect requests");
+  assert.match(controllerSource, /invoke<SearchResult\[]>\("search_features"/, "redirect should search plugin features");
+  await assertPluginRedirectHostPath(controllerSource, sessionSource, helper);
+  assert.match(controllerSource, /onredirect:\s*handlePluginRedirect/, "PluginPanel mount props should receive the controller redirect handler");
+  assert.match(appSource, /onRedirect=\{handlePluginRedirect\}/, "App should pass the controller redirect handler into the mounted panel");
 } finally {
   await rm(outDir, { recursive: true, force: true });
 }

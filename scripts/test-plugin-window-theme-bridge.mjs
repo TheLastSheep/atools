@@ -1,15 +1,16 @@
+import { loadProductionPluginBridgeTemplate, readPanelHostSource } from "./lib/plugin-panel-source-test-adapter.mjs";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFile } from "node:fs/promises";
 
 const root = new URL("../", import.meta.url);
-const componentSource = await readFile(new URL("src/components/PluginPanel.svelte", root), "utf8");
+const themeImplementation = await readPanelHostSource(root, "src/lib/pluginUtoolsBridgeSource/utools-api-and-dynamic-features.ts");
+const themeEntry = await readPanelHostSource(root, "src/lib/pluginUtoolsBridgeSource/providers-and-entry-lifecycle.ts");
+const bridgeTemplate = await loadProductionPluginBridgeTemplate(root);
 const capabilitySource = await readFile(new URL("src/lib/pluginBridgeCapabilities.ts", root), "utf8");
 
-const bridgeMatch = componentSource.match(/const UTOOLS_BRIDGE = `([\s\S]*?)`;/);
-assert.ok(bridgeMatch, "PluginPanel should define the injected utools bridge");
-
-const bridgeSource = bridgeMatch[1]
+const bridgeSource = bridgeTemplate
+  .replace(/__ACTION_PAYLOAD__/g, JSON.stringify(null))
   .replace(/<\\\/script>/g, "</script>")
   .replace(/^\s*<script>\s*/, "")
   .replace(/\s*<\/script>\s*$/, "")
@@ -48,17 +49,12 @@ function runBridge({ matchMedia } = {}) {
     },
   };
 
-  class EventStub {
-    constructor(type) {
-      this.type = type;
-    }
-  }
-
   const context = vm.createContext({
     window: windowStub,
     document: documentStub,
     navigator: { platform: "MacIntel", userAgent: "Mozilla/5.0 (Macintosh)" },
-    Event: EventStub,
+    Event,
+    CustomEvent,
     console: {
       error() {},
       warn() {},
@@ -101,6 +97,6 @@ assert.equal(lightWindow.utools.isDarkColors(), false, "light color scheme shoul
 const fallbackWindow = runBridge();
 assert.equal(fallbackWindow.utools.isDarkColors(), false, "missing matchMedia should still return a boolean false");
 
-assert.match(componentSource, /function _isDarkColors\(\)/, "bridge should keep theme detection in a safe helper");
-assert.match(componentSource, /isDarkColors:\s*function\(\)/, "bridge should expose isDarkColors()");
+assert.match(themeImplementation, /function _isDarkColors\(\)/, "bridge should keep theme detection in a safe helper");
+assert.match(themeEntry, /isDarkColors:\s*function\(\)/, "bridge should expose isDarkColors()");
 assert.match(capabilitySource, /"isDarkColors"/, "shared window capability inventory should include isDarkColors");

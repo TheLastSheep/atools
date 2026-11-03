@@ -35,7 +35,7 @@ try {
     assert.ok(smokeChecklist.includes(`- [x] ${row}`), message);
   };
 
-  assert.equal(mod.resultFallbackIcon(searchResult({ code: "system:settings", plugin_id: "system" })), "system");
+  assert.equal(mod.resultFallbackIcon(searchResult({ code: "system:settings", plugin_id: "system" })), "settings");
   assert.equal(mod.resultFallbackIcon(searchResult({ code: "local-app:/Applications/Terminal.app", plugin_id: "local-app" })), "app");
   assert.equal(mod.resultFallbackIcon(searchResult({ code: "local:downloads", plugin_id: "local-launch" })), "folder");
   assert.equal(mod.resultFallbackIcon(searchResult({ code: "web:github", plugin_id: "web-quick-open" })), "web");
@@ -46,15 +46,15 @@ try {
   assert.equal(mod.resultFallbackIcon(searchResult({ code: "alias:%7B%7D", plugin_id: "command-alias" })), "alias");
   assert.equal(mod.resultFallbackIcon(searchResult({ code: "plugin:demo", plugin_id: "plugin" })), "plugin");
 
-  const [resultsList, iconComponent] = await Promise.all([
-    readFile(new URL("src/components/ResultsList.svelte", root), "utf8"),
+  const [resultRow, iconComponent] = await Promise.all([
+    readFile(new URL("src/components/ResultRow.svelte", root), "utf8"),
     readFile(new URL("src/components/ResultTypeIcon.svelte", root), "utf8"),
   ]);
 
-  assert.match(resultsList, /import ResultTypeIcon from "\.\/ResultTypeIcon\.svelte";/);
-  assert.match(resultsList, /resultFallbackIcon/);
-  assert.match(resultsList, /<ResultTypeIcon icon=\{resultFallbackIcon\(item\.result\)\}/);
-  assert.doesNotMatch(resultsList, /class="icon-letter"/);
+  assert.match(resultRow, /import ResultTypeIcon from "\.\/ResultTypeIcon\.svelte";/);
+  assert.match(resultRow, /resultFallbackIcon/);
+  assert.match(resultRow, /<ResultTypeIcon icon=\{resultFallbackIcon\(result\)\}/);
+  assert.doesNotMatch(resultRow, /class="icon-letter"/);
 
   for (const icon of ["system", "app", "folder", "web", "link", "text", "paste", "history", "alias", "plugin"]) {
     assert.match(iconComponent, new RegExp(`icon === "${icon}"`));

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <title>ATools Market Search Browser Fixture</title>
+  </head>
+  <body>
+    <aside id="market-search-observation" role="status" aria-label="路由验收观察"
+      style="box-sizing:border-box;display:block;padding:8px 12px;background:#eaf0fb;color:#172033;border-bottom:1px solid #c7d2e4;font:12px/1.5 system-ui,sans-serif;">
+      正在准备固定市场目录 fixture…
+    </aside>
+    <nav aria-label="本地页面验收控制"
+      style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;background:#f4f6fa;color:#172033;border-bottom:1px solid #d7dce5;font:12px/1.5 system-ui,sans-serif;">
+      <span>本地样式验收：</span>
+      <button type="button" data-fixture-theme="light">验收浅色</button>
+      <button type="button" data-fixture-theme="dark">验收深色</button>
+      <a href="?view=empty-home">空首页验收</a>
+    </nav>
+    <div id="app"></div>
+    <script type="module" src="./marketSearchBrowserFixture.ts"></script>
+  </body>
+</html>

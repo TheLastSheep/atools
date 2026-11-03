@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN" data-atools-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Plugin Navigation Clear Browser Fixture</title>
+    <style>
+      html, body { width: 100%; min-height: 100%; }
+      #navigation { width: 100%; }
+      body { min-height: 100vh; }
+      .fixture-body { min-height: 320px; padding: 16px; background: var(--bg-primary); color: var(--text-primary); }
+    </style>
+  </head>
+  <body>
+    <div id="navigation"></div>
+    <main class="fixture-body" data-fixture-body>
+      <h1>插件内容区域</h1>
+      <p>用于确认导航栏不会覆盖插件主体。</p>
+      <div id="fixture-runtime-info">运行信息面板 fixture</div>
+    </main>
+    <script type="module" src="./pluginNavigationClearBrowserFixture.ts"></script>
+  </body>
+</html>

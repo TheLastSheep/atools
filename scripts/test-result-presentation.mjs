@@ -80,7 +80,7 @@ try {
   assert.equal(selected.matchLabel, "前缀");
   assert.equal(selected.matchTone, "prefix");
   assert.equal(selected.shortcutHint, "Enter 打开");
-  assert.equal(selected.ariaLabel, "GitHub，网页快开，前缀匹配，Enter 打开");
+  assert.equal(selected.ariaLabel, "GitHub，网页快开，Enter 打开");
 
   const aliasRow = mod.resultRowPresentation(results[4], { selected: true });
   assert.equal(aliasRow.matchLabel, "别名");
@@ -91,14 +91,16 @@ try {
   assert.equal(unknownRow.matchTone, "unknown");
 
   const resultsList = await readFile(new URL("src/components/ResultsList.svelte", root), "utf8");
-  assert.match(resultsList, /groupedResultPresentation\(results\)/);
-  assert.match(resultsList, /item\.result\.label/);
-  assert.match(resultsList, /item\.result\.explain/);
-  assert.match(resultsList, /rowMeta\.sourceDetail/);
-  assert.match(resultsList, /rowMeta\.matchLabel/);
+  const resultRow = await readFile(new URL("src/components/ResultRow.svelte", root), "utf8");
+  assert.match(resultsList, /createResultListIndex\(results\)/);
+  assert.match(resultsList, /result=\{item\.result\}/);
+  assert.match(resultRow, /result\.label/);
+  assert.match(resultRow, /rowMeta\.description/);
+  assert.match(resultRow, /rowMeta\.sourceDetail/);
+  assert.match(resultRow, /rowMeta\.matchLabel/);
 
   assertSmokeChecked(
-    "输入 `set` 后搜索结果按来源分组，结果行显示标题、说明、来源 detail、匹配标签。",
+    "搜索结果按来源分组，主标题显示功能名称，右侧显示来源名称；说明与标题相同时不重复显示。",
     "macOS smoke checklist should mark grouped result metadata complete",
   );
 } finally {

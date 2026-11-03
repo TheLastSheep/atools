@@ -6,6 +6,7 @@ import { classifyTestScripts } from "./test-tiers.mjs";
 const root = new URL("../", import.meta.url);
 const packageJson = JSON.parse(await readFile(new URL("package.json", root), "utf8"));
 const browserUtils = await readFile(new URL("scripts/chrome-cdp-smoke-utils.mjs", root), "utf8");
+const ownedViteCli = await readFile(new URL("scripts/lib/owned-vite-cli-process.mjs", root), "utf8");
 const tiers = classifyTestScripts(packageJson.scripts);
 const focusedScripts = Object.keys(packageJson.scripts).filter((name) => /^test:[^:]+/.test(name));
 
@@ -13,7 +14,14 @@ assert.ok(tiers.fast.includes("test:settings-normalization"));
 assert.ok(tiers.fast.includes("test:plugin-invoke-policy"));
 assert.ok(tiers.fast.includes("test:plugin-window-browser-bridge"));
 assert.ok(tiers.fast.includes("test:hosted-browser-window-isolation"));
+assert.ok(tiers.fast.includes("test:local-original-registry"));
+assert.ok(tiers.fast.includes("test:random-data-head-fixture"));
+assert.ok(tiers.fast.includes("test:local-native-fixture-dispatch"));
+assert.ok(tiers.fast.includes("test:published-plugin-probe-env"));
 assert.ok(tiers.browser.includes("test:plugin-host-smoke-browser"));
+assert.ok(tiers.browser.includes("test:plugin-deferred-scripts-browser"));
+assert.ok(!tiers.fast.includes("test:plugin-deferred-scripts-browser"));
+assert.ok(tiers.browser.includes("test:permission-dialog-browser"));
 assert.ok(tiers.browser.includes("test:plugin-iframe-context-menu"));
 assert.ok(tiers.browser.includes("test:ztools-ui-host-plugin-panel-matrix-browser"));
 assert.ok(!tiers.fast.includes("test:plugin-iframe-context-menu"));
@@ -42,13 +50,16 @@ assert.equal(packageJson.scripts["test:desktop"], "pnpm smoke:tauri-desktop");
 assert.equal(packageJson.scripts["test:release"], "pnpm release:check:macos");
 assert.match(
   browserUtils,
-  /spawn\(process\.execPath, \[viteEntry/,
-  "browser tests must launch Vite directly so teardown owns the listening process",
+  /launchOwnedViteCli\(\{ cwd, host, port, probeUrl, timeoutMs:/,
+  "browser CLI tests must delegate startup to the owned Vite worker",
 );
+assert.match(ownedViteCli, /waitForOwnedProbeUntilDeadline/);
+assert.match(ownedViteCli, /child\.kill\("SIGTERM"\)/);
+assert.match(ownedViteCli, /child\.kill\("SIGKILL"\)/);
 assert.doesNotMatch(
   browserUtils,
-  /spawn\("pnpm", \["exec", "vite"/,
-  "browser tests must not leave a Vite grandchild behind after killing pnpm",
+  /spawn\(process\.execPath,\s*\[viteEntry/,
+  "browser tests must not launch an unowned Vite child process",
 );
 assert.doesNotMatch(
   browserUtils,

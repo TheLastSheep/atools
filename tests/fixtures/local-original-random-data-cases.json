@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "repository": "ZTools-plugins",
+  "commit": "2d47bd91011b6be872eef1d7c56b4c6b57a93b3d",
+  "packagePath": "plugins/random-data",
+  "packageTree": "113232c852e07d88dce1e6ba69f3be51ead0f154",
+  "sourceReview": {
+    "local-random-data-head": {
+      "reviewScope": "Complete original package file set from the exact ZTools-plugins Git HEAD and package tree; no dirty worktree files are read.",
+      "entryPoints": [
+        "plugin.json",
+        "index.html",
+        "preload.js"
+      ],
+      "selectors": [
+        "[data-code=\"randomUuid\"]",
+        "[data-code=\"randomUuid\"] [data-action=\"sample\"]",
+        "[data-code=\"randomUuid\"] .chip-input",
+        "[data-code=\"randomUuid\"] .command-chip span",
+        "#saveButton"
+      ],
+      "anchors": [
+        "plugin.json:randomDataSettings static entry and exact command list",
+        "index.html:855-867 original built-in row/sample preview; 938-984 autosave; 1175-1295 command and preview handlers",
+        "preload.js:453 generator-settings; 1192-1215 dbStorage load/save; 1240-1275 original feature sync"
+      ],
+      "riskBoundary": "The pinned preload is pure JavaScript and statically classifies as web/QuickJS-compatible, not a Node runtime proof. This fixture uses the real WebView preload path and existing data authorization; it previews one generated UUID without copy/fill and never invokes keyboard/clipboard commands."
+    }
+  },
+  "cases": [
+    {
+      "caseId": "local-random-data-head",
+      "id": "random-data",
+      "version": "1.2.0",
+      "sourceKind": "local_full_directory",
+      "sourcePath": "ZTools-plugins/plugins/random-data",
+      "sourceCommit": "2d47bd91011b6be872eef1d7c56b4c6b57a93b3d",
+      "sourceTree": "113232c852e07d88dce1e6ba69f3be51ead0f154",
+      "directorySha256": "6c62e8d69ff009636fe948694554722556799b4c5721dc865caf637bbaf02c95",
+      "fileCount": 7,
+      "featureCode": "randomDataSettings",
+      "searchQuery": "随机数据设置",
+      "title": "随机数据",
+      "runtime": "web",
+      "dataAccess": true,
+      "dialogAccess": "none",
+      "pathAccess": "none",
+      "verifyDataPersistence": true,
+      "sourceReview": "output/legacy-node-2026-10-21/local-random-data-head-source-review-v1.json",
+      "frameOperations": "tests/components/nativeOriginalRandomDataFrameOperations.js",
+      "sourceReviewStatus": "prepared_for_parent_native_fixture_decision"
+    }
+  ],
+  "snapshots": {
+    "local-random-data-head": {
+      "directorySha256": "6c62e8d69ff009636fe948694554722556799b4c5721dc865caf637bbaf02c95",
+      "fileCount": 7,
+      "expandedBytes": 77313,
+      "files": [
+        {
+          "path": ".gitignore",
+          "bytes": 21,
+          "sha256": "ad4a605baef6f8dab78d26b0acd88cb195c55f82bba3c41be30b6200fa6093df"
+        },
+        {
+          "path": "CHANGELOG.md",
+          "bytes": 612,
+          "sha256": "694697aeab4831e20218412c05a0b89d5d48596dde729c560e5eecc6ebbd2a9f"
+        },
+        {
+          "path": "README.md",
+          "bytes": 807,
+          "sha256": "4bcbd570328bd057001196ccd7fc9f24b926008a3d4ff04604bcd803392f1608"
+        },
+        {
+          "path": "index.html",
+          "bytes": 40860,
+          "sha256": "492bffd5cfbb4559bae9645374a7346bc70d229adf1ec408d81a41dd5c52647a"
+        },
+        {
+          "path": "logo.svg",
+          "bytes": 316,
+          "sha256": "db6024867f728f8e4b15105bd5588b22dd0994894e5a8d479a250b0a1654507b"
+        },
+        {
+          "path": "plugin.json",
+          "bytes": 653,
+          "sha256": "b3baead7274dbcd6d6796ae06ff96f5b066e1076de7cc677a88c02a6f79d1ce8"
+        },
+        {
+          "path": "preload.js",
+          "bytes": 34044,
+          "sha256": "18b9caa4e0a13a48b321dc3d149c51acba69f272e3daf2f74101a7c0c7eced9a"
+        }
+      ],
+      "directories": []
+    }
+  }
+}

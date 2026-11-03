@@ -30,8 +30,8 @@ try {
   assert.equal(mod.MATCH_TYPE_META.fuzzy.tone, "fuzzy");
 
   assertSmokeChecked(
-    "搜索结果匹配标签带有类型 tone，`精确/前缀/包含`、`别名`、`拼音`、`模糊`、`待处理` 视觉上可区分。",
-    "macOS smoke checklist should mark match tag tone coverage complete",
+    "来源提示保留内部插件 ID 和匹配类型，默认结果行不展示实现诊断；匹配类型元数据仍兼容既有调用。",
+    "macOS smoke checklist should retain match metadata behind source diagnostics",
   );
 } finally {
   await rm(outDir, { recursive: true, force: true });

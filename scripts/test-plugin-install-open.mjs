@@ -33,19 +33,11 @@ try {
   assert.equal(helper.firstOpenablePluginFeature({ ...plugin, enabled: false }), null);
   assert.equal(helper.firstOpenablePluginFeature({ ...plugin, manifest: { features: [] } }), null);
 
-  const [app, settingsPanel, importPanel] = await Promise.all([
-    readFile(new URL("src/App.svelte", root), "utf8"),
-    readFile(new URL("src/components/SettingsPanel.svelte", root), "utf8"),
-    readFile(new URL("src/components/ZToolsImportPanel.svelte", root), "utf8"),
-  ]);
-
-  assert.match(app, /window\.addEventListener\(PLUGIN_OPEN_REQUESTED_EVENT, onPluginOpenRequested\)/);
-  assert.match(app, /void activateFeature\(request\.code\)/);
-  assert.match(settingsPanel, /recentlyInstalledPlugin = plugin/);
-  assert.match(settingsPanel, /recentlyInstalledPlugin = installedPlugin \? null : updated/);
-  assert.match(settingsPanel, /onclick=\{openRecentlyInstalledPlugin\}>立即打开<\/button>/);
-  assert.match(importPanel, /const importedIds = new Set\(report\.imported\)/);
-  assert.match(importPanel, /onclick=\{\(\) => openImportedPlugin\(row\.path\)\}>立即打开<\/button>/);
+  assert.deepEqual(helper.exactOpenablePluginFeature(plugin, "demo:open"), { code: "demo:open", pluginId: "demo" });
+  assert.equal(helper.exactOpenablePluginFeature(plugin, "another-owner:open"), null);
+  assert.equal(helper.exactOpenablePluginFeature({ ...plugin, enabled: false }, "demo:open"), null);
+  // Actual App handshake, installed inventory, market and import flows have
+  // behavioral Svelte/browser coverage; implementation text is not that proof.
 } finally {
   await rm(outDir, { recursive: true, force: true });
 }

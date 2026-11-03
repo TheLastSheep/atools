@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head><meta charset="utf-8"><title>ATools result paging fixture</title></head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import "/src/styles/global.css";
+      import * as fixture from "./launcherPagingBrowserFixture.ts";
+      window.fixture = fixture;
+      fixture.start();
+      window.launcherFixtureReady = true;
+    </script>
+  </body>
+</html>

@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 import { distribution, percentile, runtimeThresholdExceeded } from "./benchmark-macos-runtime.mjs";
+import { createNodeRuntimeBenchmarkConfig } from "./prepare-node-runtime-benchmark-config.mjs";
+import { runBuiltinRuntimeBundleTests } from "./test-builtin-runtime-bundle.mjs";
+import { appBundleBytes } from "./lib/app-bundle-size.mjs";
 
 const root = new URL("../", import.meta.url);
 const packageJson = JSON.parse(await readFile(new URL("package.json", root), "utf8"));
@@ -50,6 +53,24 @@ assert.equal(runtimeThresholdExceeded({
   metrics: { ...thresholdInput.metrics, search_latency_ms: { p99: 151 } },
 }), true);
 
+const canonicalNodeOverlay = JSON.parse(await readFile(new URL("src-tauri/tauri.node-runtime.conf.json", root), "utf8"));
+const benchmarkNodeOverlay = createNodeRuntimeBenchmarkConfig(canonicalNodeOverlay);
+const preservedNodeOverlay = structuredClone(benchmarkNodeOverlay);
+delete preservedNodeOverlay.bundle.createUpdaterArtifacts;
+assert.deepEqual(preservedNodeOverlay, canonicalNodeOverlay);
+assert.equal(benchmarkNodeOverlay.bundle.createUpdaterArtifacts, false);
+
+const nodePin = JSON.parse(await readFile(new URL("resources/node-runtime/pin.json", root), "utf8"));
+for (const target of ["aarch64-apple-darwin", "x86_64-apple-darwin"]) {
+  const binaryBytes = nodePin.targets[target].binaryBytes;
+  assert.ok(binaryBytes > 100 * 1024 * 1024, `${target} pinned binary must remain visible to the 100 MiB gate`);
+  assert.equal(runtimeThresholdExceeded({
+    ...thresholdInput,
+    app: { bundle_bytes: binaryBytes },
+  }), true);
+}
+assert.throws(() => createNodeRuntimeBenchmarkConfig({ bundle: { externalBin: [] } }));
+
 assert.match(packageJson.scripts["benchmark:runtime:ci"], /--iterations 20/);
 assert.match(packageJson.scripts["benchmark:runtime:ci"], /--idle-sample-ms 300000/);
 assert.match(packageJson.scripts["benchmark:runtime:ci"], /--hotkey-threshold-ms 500/);
@@ -58,12 +79,15 @@ assert.match(packageJson.scripts["benchmark:runtime:ci"], /--plugin-activation-t
 assert.match(packageJson.scripts["benchmark:runtime:ci"], /--fail-on-threshold/);
 assert.match(packageJson.scripts["benchmark:runtime:ci"], /macos-runtime\.json/);
 assert.match(workflow, /^  runtime-performance-evidence:/m);
-assert.match(workflow, /createUpdaterArtifacts":false/);
-assert.match(workflow, /pnpm benchmark:runtime:ci/);
+assert.match(workflow, /prepare-node-runtime-benchmark-config\.mjs/);
+assert.match(workflow, /verify-node-runtime-bundle\.mjs --app/);
+assert.match(workflow, /pnpm run benchmark:runtime:ci -- --app/);
 assert.match(workflow, /path: artifacts\/performance\/macos-runtime\.json/);
 assert.match(smoke, /launch_to_first_report_ms/);
 assert.match(smoke, /rss_kib/);
 assert.match(smoke, /alive_after_resource_settle/);
+assert.match(benchmark, /bundle_bytes:\s*appBundleBytes\(appPath\)/);
+assert.match(benchmark, /app\.bundle_bytes \/ 1024 \/ 1024 > thresholds\.bundle_mib/);
 assert.match(benchmark, /schema_version: 5/);
 assert.match(benchmark, /idle_sample: idleSample/);
 assert.match(benchmark, /release_smoke_completed: true/);
@@ -71,3 +95,5 @@ assert.match(benchmark, /plugin_activation_ms/);
 assert.match(benchmark, /hotkey_show_ms/);
 assert.match(benchmark, /hotkey_toggle_success_count/);
 assert.match(benchmark, /search_latency_ms/);
+assert.equal(typeof appBundleBytes, "function");
+await runBuiltinRuntimeBundleTests();

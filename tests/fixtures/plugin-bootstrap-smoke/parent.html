@@ -1,0 +1,178 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Bootstrap handoff fixture</title>
+<style>body{font:14px system-ui;margin:16px}iframe{width:240px;height:90px;margin:8px}pre{white-space:pre-wrap}</style>
+<h1>MessageChannel bootstrap fixture</h1><div id="frames"></div><pre id="status">Starting</pre>
+<script>
+(() => {
+  "use strict";
+  const config=__ATOOLS_BOOTSTRAP_CONFIG__;
+  /* GATE-BEGIN: executable identity policy shared with offline semantic tests. */
+  function createIdentityGate({runId,id,expectedOrigin,source}) {
+    let generation=1,phase="awaiting-hello",docNonce=null,port=null,deliveries=0,helloAccepted=false,ackAccepted=false;
+    const matches=event=>event.source===source&&event.origin===expectedOrigin&&event.data?.runId===runId&&event.data?.id===id;
+    const bindingMatches=data=>data?.runId===runId&&data.id===id&&data.docNonce===docNonce&&data.generation===generation;
+    return {
+      hello(event){
+        if(phase!=="awaiting-hello"||!matches(event)||event.data.kind!=="atools-bootstrap-hello"
+          ||typeof event.data.docNonce!=="string"||!/^[a-f0-9]{32}$/.test(event.data.docNonce))return false;
+        docNonce=event.data.docNonce;helloAccepted=true;phase="awaiting-ack";return true;
+      },
+      attachPort(value){if(phase!=="awaiting-ack"||port)throw Error("PORT_BINDING_REJECTED");port=value;},
+      ack(data){if(phase!=="awaiting-ack"||!port||data?.kind!=="atools-bootstrap-ack"||!bindingMatches(data))return false;
+        ackAccepted=true;phase="delivered";deliveries++;return true;},
+      payload(event){if(phase!=="delivered"||!matches(event)||event.data.kind!=="atools-bootstrap-result"||!bindingMatches(event.data))return false;
+        phase="complete";return true;},
+      invalidate(){const previous=generation;generation++;phase="invalidated";port?.close();port=null;return generation>previous;},
+      close(){port?.close();port=null;},
+      binding:()=>({runId,id,docNonce,generation}),
+      snapshot:()=>({generation,phase,deliveries,helloAccepted,ackAccepted}),
+    };
+  }
+  /* GATE-END */
+  const entries=[],errors=[],events=[];
+  const report={schemaVersion:1,runId:config.runId,status:"running",productionReady:false,errors,events,children:[],
+    deliveryCount:{a:0,b:0},navigation:null,opaque:null,revoked:{ack:false},
+    boundaries:["Independent synthetic fixture; production UI and opaque policy are unchanged",
+      "Endpoint, marker, report nonce and document nonce values are excluded from this report",
+      "Browser replayTicketDenied records navigation load and absence of a second handoff only; native audit must independently prove HTTP 410 and a scriptless response",
+      "Async success does not independently prove OPTIONS; native audit must observe preflight",
+      "Opaque denial after revoke does not alone identify its cause; native audit must prove revoked-token rejection and exactly four successful handlers",
+      "Wrong document-nonce and generation messages are actual pre-navigation binding probes; a post-navigation scriptless document is not an active replay attacker",
+      "Only explicit controlled navigation invalidates identity here; generated HTML authorization, production navigation policy, CORS and lifecycle integration remain pending"]};
+  let submitted=false,messageCount=0,opaqueFrame=null,opaqueSource=null,beforeOpaque=null,afterOpaque=null;
+  const started=performance.now(),elapsed=()=>performance.now()-started;
+  const status=value=>{document.querySelector("#status").textContent=value;};
+  function record(type,id,accepted){if(events.length<64)events.push({type,id,accepted,atMs:elapsed()});}
+  function countMessage(){messageCount++;if(messageCount>64){void finish("MESSAGE_BUDGET_EXCEEDED");return false;}return true;}
+  function nativeInvoke(command,args){
+    if(typeof window.__TAURI_INTERNALS__?.invoke==="function")return window.__TAURI_INTERNALS__.invoke(command,args);
+    if(typeof window.__TAURI__?.core?.invoke==="function")return window.__TAURI__.core.invoke(command,args);
+    throw Error("TRUSTED_NATIVE_INVOKE_UNAVAILABLE");
+  }
+  const within=(promise,ms,code)=>new Promise((resolve,reject)=>{
+    const timer=setTimeout(()=>reject(Error(code)),ms);
+    Promise.resolve(promise).then(value=>{clearTimeout(timer);resolve(value);},error=>{clearTimeout(timer);reject(error);});
+  });
+  async function waitFor(read,ms,code){const end=performance.now()+ms;
+    while(!submitted&&performance.now()<end){const value=read();if(value)return value;await new Promise(resolve=>setTimeout(resolve,20));}
+    throw Error(code);
+  }
+  async function finish(code){
+    if(submitted)return;submitted=true;clearTimeout(overall);
+    if(code&&errors.length<16)errors.push({code:/^[A-Z][A-Z0-9_]{0,79}$/.test(code)?code:"UNEXPECTED_PARENT_FAILURE"});
+    for(const entry of entries){entry.gate.close();report.deliveryCount[entry.id]=entry.gate.snapshot().deliveries;}
+    report.status=code?"failed":"complete";report.elapsedMs=elapsed();report.messageCount=messageCount;
+    report.children=entries.map(entry=>({id:entry.id,origin:entry.result?.origin??null,syncOk:entry.result?.syncOk===true,
+      asyncOk:entry.result?.asyncOk===true,foreignDenied:entry.result?.foreignDenied===true,noTauri:entry.result?.noTauri===true,
+      bindingReplayRejected:entry.bindingRejections.length===2&&new Set(entry.bindingRejections).size===2,
+      bindingRejectionCount:entry.bindingRejections.length,bindingRejectionKinds:[...entry.bindingRejections],payloadAttemptCount:entry.payloadAttempts,
+      markerReceived:entry.result?.markerReceived===true,httpStatus:entry.result?{sync:entry.result.httpStatus?.sync??null,
+        async:entry.result.httpStatus?.async??null,foreign:entry.result.httpStatus?.foreign??null}:null,
+      errorCodes:(entry.result?.errorCodes??[]).filter(code=>/^[A-Z][A-Z0-9_]{0,79}$/.test(code)).slice(0,12)}));
+    const both=entries.length===2&&entries.every(entry=>!!entry.result);
+    report.checks={
+      bootstrapHandoff:both&&entries.every(entry=>entry.gate.snapshot().helloAccepted&&entry.gate.snapshot().ackAccepted&&entry.gate.snapshot().deliveries===1
+        &&entry.result.noTauri===true&&entry.result.markerReceived===true&&entry.bindingRejections.length===2&&new Set(entry.bindingRejections).size===2),
+      payloadOriginPreserved:both&&entries.every(entry=>entry.result.origin===entry.expectedOrigin&&entry.resultEventOrigin===entry.expectedOrigin),
+      syncHttpWorks:both&&entries.every(entry=>entry.result.syncOk===true),
+      asyncPreflightWorks:both&&entries.every(entry=>entry.result.asyncOk===true),
+      foreignHttpDenied:both&&entries.every(entry=>entry.result.foreignDenied===true),
+      opaqueOriginDenied:report.opaque?.eventOrigin==="null"&&report.opaque?.noTauri===true&&report.opaque?.parentDomDenied===true
+        &&report.opaque?.siblingDomDenied===true&&report.opaque?.beforeRevocationDenied===true&&report.opaque?.afterEventOrigin==="null",
+      replayTicketDenied:report.navigation?.loadObserved===true&&report.navigation?.additionalBootstrapMessages===0&&report.navigation?.additionalPayloadMessages===0,
+      navigationIdentityInvalidated:report.navigation?.windowProxyUnchanged===true&&report.navigation?.oldGenerationInvalidated===true,
+      revocationAcknowledged:report.revoked.ack===true&&report.opaque?.afterRevocationDenied===true,
+      noUnexpectedPayloadDelivery:both&&report.deliveryCount.a===1&&report.deliveryCount.b===1
+        &&entries.every(entry=>entry.payloadMessages===1&&entry.payloadAttempts===3)&&report.navigation?.additionalPayloadMessages===0,
+    };
+    status(JSON.stringify({status:report.status,checks:report.checks,errors},null,2));
+    try{await within(nativeInvoke("bootstrap_probe_report",{nonce:config.reportNonce,report}),2000,"REPORT_TIMEOUT");}
+    catch{status("Native bootstrap report failed");}
+  }
+  const overall=setTimeout(()=>void finish("OVERALL_DEADLINE"),25000);
+  window.addEventListener("message",event=>{
+    const data=event.data;
+    if(submitted||!data||data.runId!==config.runId||typeof data.kind!=="string"||!data.kind.startsWith("atools-bootstrap-"))return;
+    if(!countMessage())return;
+    if(event.source===opaqueSource&&data.kind==="atools-bootstrap-opaque") {
+      record("opaque-"+String(data.phase).slice(0,20),"opaque",event.origin==="null");
+      if(data.phase==="before"&&!beforeOpaque)beforeOpaque={...data.result,eventOrigin:event.origin};
+      if(data.phase==="after"&&!afterOpaque)afterOpaque={...data.result,eventOrigin:event.origin};
+      return;
+    }
+    const entry=entries.find(item=>item.source===event.source);
+    if(!entry){record("unknown-source",null,false);return;}
+    if(data.kind==="atools-bootstrap-error") {
+      const binding=entry.gate.binding(),valid=event.origin===entry.expectedOrigin&&data.id===entry.id&&data.docNonce===binding.docNonce
+        &&entry.gate.snapshot().phase!=="invalidated";
+      const known=["BOOTSTRAP_HANDOFF_TIMEOUT","BOOTSTRAP_PORT_BINDING_REJECTED","BOOTSTRAP_HTML_BUDGET_REJECTED"];
+      record("bootstrap-error",entry.id,valid);if(valid)void finish(known.includes(data.code)?data.code:"BOOTSTRAP_REPORTED_FAILURE");return;
+    }
+    if(data.kind==="atools-bootstrap-hello") {
+      entry.bootstrapMessages++;
+      const accepted=entry.gate.hello(event);record("hello",entry.id,accepted);if(!accepted)return;
+      const channel=new MessageChannel(),captured=entry.gate.binding();entry.gate.attachPort(channel.port1);
+      channel.port1.onmessage=portEvent=>{
+        if(submitted||!countMessage())return;
+        const current=entry.gate.binding();
+        if(current.docNonce!==captured.docNonce||current.generation!==captured.generation){record("stale-port",entry.id,false);return;}
+        const acknowledged=entry.gate.ack(portEvent.data);record("ack",entry.id,acknowledged);if(!acknowledged)return;
+        channel.port1.postMessage({kind:"atools-bootstrap-payload-html",...captured,html:entry.payloadHtml});
+      };
+      channel.port1.start();
+      entry.source.postMessage({kind:"atools-bootstrap-offer",...captured},entry.expectedOrigin,[channel.port2]);
+    } else if(data.kind==="atools-bootstrap-result") {
+      entry.payloadAttempts++;
+      const binding=entry.gate.binding(),phase=entry.gate.snapshot().phase;
+      const accepted=entry.gate.payload(event);record("payload",entry.id,accepted);
+      if(accepted){entry.payloadMessages++;entry.result=data.result;entry.resultEventOrigin=event.origin;}
+      else if(phase==="delivered"&&event.origin===entry.expectedOrigin&&data.id===entry.id) {
+        if(data.docNonce!==binding.docNonce)entry.bindingRejections.push("docNonce");
+        else if(data.generation!==binding.generation)entry.bindingRejections.push("generation");
+      }
+    }
+  });
+  async function main(){
+    if(typeof config.runId!=="string"||!config.runId||typeof config.reportNonce!=="string"||!config.reportNonce
+      ||typeof config.parentOrigin!=="string"||location.origin!==config.parentOrigin||config.parentOrigin==="null"
+      ||!Array.isArray(config.frames)||config.frames.length!==2||!["a","b"].every(id=>config.frames.some(frame=>frame.id===id)))throw Error("PARENT_CONFIG_REJECTED");
+    if(new Set([config.parentOrigin,...config.frames.map(frame=>frame.expectedOrigin)]).size!==3)throw Error("ORIGINS_NOT_DISTINCT");
+    for(const item of config.frames){
+      if(typeof item.payloadHtml!=="string"||new TextEncoder().encode(item.payloadHtml).length>128*1024
+        ||typeof item.expectedOrigin!=="string"||item.expectedOrigin==="null"||new URL(item.url).protocol!=="atools-origin:")throw Error("FRAME_CONFIG_REJECTED");
+      const frame=document.createElement("iframe");frame.title="Bootstrap "+item.id;frame.setAttribute("sandbox","allow-scripts allow-same-origin");
+      frame.src=item.url;document.querySelector("#frames").append(frame);
+      const source=frame.contentWindow,gate=createIdentityGate({runId:config.runId,id:item.id,expectedOrigin:item.expectedOrigin,source});
+      entries.push({...item,frame,source,gate,bootstrapMessages:0,payloadMessages:0,payloadAttempts:0,bindingRejections:[]});
+    }
+    await waitFor(()=>entries.every(entry=>entry.gate.snapshot().helloAccepted),2500,"HELLO_TIMEOUT");
+    await waitFor(()=>entries.every(entry=>entry.gate.snapshot().deliveries===1),2500,"ACK_TIMEOUT");
+    await waitFor(()=>entries.every(entry=>!!entry.result),5000,"PAYLOAD_RESULT_TIMEOUT");
+    const a=entries.find(entry=>entry.id==="a"),b=entries.find(entry=>entry.id==="b");
+    const bootstrapBefore=a.bootstrapMessages,payloadBefore=a.payloadAttempts;
+    const invalidated=a.gate.invalidate();
+    const loaded=new Promise(resolve=>a.frame.addEventListener("load",resolve,{once:true}));
+    a.frame.src=b.url;
+    await within(loaded,3000,"REPLAY_NAVIGATION_LOAD_TIMEOUT");
+    await new Promise(resolve=>setTimeout(resolve,750));
+    report.navigation={windowProxyUnchanged:a.frame.contentWindow===a.source,oldGenerationInvalidated:invalidated,loadObserved:true,
+      bootstrapCountAfter:a.bootstrapMessages,payloadCountAfter:a.payloadMessages,payloadAttemptsAfter:a.payloadAttempts,
+      additionalBootstrapMessages:a.bootstrapMessages-bootstrapBefore,additionalPayloadMessages:a.payloadAttempts-payloadBefore,
+      boundary:"Native audit, not absence of JS callbacks, must confirm consumed ticket status 410 and scriptless response"};
+    if(new URL(config.opaqueUrl).protocol!=="atools-origin:")throw Error("OPAQUE_URL_REJECTED");
+    opaqueFrame=document.createElement("iframe");opaqueFrame.title="Opaque before and after revocation";
+    opaqueFrame.setAttribute("sandbox","allow-scripts allow-same-origin");opaqueFrame.src=config.opaqueUrl;
+    document.querySelector("#frames").append(opaqueFrame);opaqueSource=opaqueFrame.contentWindow;
+    await waitFor(()=>!!beforeOpaque,3000,"OPAQUE_BEFORE_TIMEOUT");
+    const revoked=await within(nativeInvoke("bootstrap_probe_revoke",{nonce:config.reportNonce,id:"a"}),2000,"REVOKE_TIMEOUT");
+    report.revoked.ack=revoked?.revoked===true;
+    opaqueSource.postMessage({kind:"atools-bootstrap-opaque-control",runId:config.runId,operation:"probe-revoked"},"*");
+    await waitFor(()=>!!afterOpaque,3000,"OPAQUE_AFTER_TIMEOUT");
+    report.opaque={eventOrigin:beforeOpaque.eventOrigin,afterEventOrigin:afterOpaque.eventOrigin,noTauri:beforeOpaque.noTauri===true,parentDomDenied:beforeOpaque.parentDomDenied===true,
+      siblingDomDenied:beforeOpaque.siblingDomDenied===true,httpDenied:beforeOpaque.httpDenied===true&&afterOpaque.httpDenied===true,
+      beforeRevocationDenied:beforeOpaque.httpDenied===true,afterRevocationDenied:afterOpaque.httpDenied===true,
+      beforeStatus:beforeOpaque.status??null,afterStatus:afterOpaque.status??null,errorCodes:[...(beforeOpaque.errorCodes??[]),...(afterOpaque.errorCodes??[])]};
+    await finish();
+  }
+  main().catch(error=>void finish(error instanceof Error?error.message:"UNEXPECTED_PARENT_FAILURE"));
+})();
+</script></html>

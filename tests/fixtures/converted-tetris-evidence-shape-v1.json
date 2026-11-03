@@ -1,0 +1,238 @@
+{
+  "activeTaskRunCount": 0,
+  "allLeasesInactive": true,
+  "appDataRoot": "__FIXTURE_ROOT__/app-data",
+  "artifactKind": "converted_source_evidence",
+  "businessUsabilityVerified": false,
+  "conversion": {
+    "capabilityId": "convert_ztools_plugin",
+    "output": {
+      "buildSteps": [
+        {
+          "kind": "typecheck"
+        },
+        {
+          "kind": "viteBuild"
+        }
+      ],
+      "businessOperationVerified": false,
+      "dependencyClosureVerified": false,
+      "dependencySetIdSha256": "e39a66838af7a8c214b58458ff39a2ec538366fd3a0b7d8713cb1b85551a0b99",
+      "dependencyTreeSha256": "80d270e3d646bfe7dcb142211ffe4fb44c0e7523ace80a1aa32b6c357f5f1a75",
+      "installed": true,
+      "pluginId": "tetris",
+      "sourceRevision": "8ce6460a07408be7248f3db1b2cc45597e63293868189f04df58e353c722e018",
+      "toolchainFingerprintSha256": "7ebb9553efb80572d11797ab8a2bb249734bc34f1d54d82efee6a8d6f1579985"
+    },
+    "status": "succeeded",
+    "taskRunId": "run-9cb7e2a5-4326-4a34-8a3f-3c9c6cad3f9f"
+  },
+  "dependencies": {
+    "dependencySetIdSha256": "e39a66838af7a8c214b58458ff39a2ec538366fd3a0b7d8713cb1b85551a0b99",
+    "nodeBinaryBytes": 112925600,
+    "nodeBinarySha256": "68f4d07ca49e0500cc135c7e0a445093e228e42e126ac22306d045f0a8c2636b",
+    "packageCount": 51,
+    "toolchainFingerprintSha256": "7ebb9553efb80572d11797ab8a2bb249734bc34f1d54d82efee6a8d6f1579985",
+    "treeBytes": 60542230,
+    "treeEntries": 1426,
+    "treeFiles": 1223,
+    "treeSha256": "80d270e3d646bfe7dcb142211ffe4fb44c0e7523ace80a1aa32b6c357f5f1a75"
+  },
+  "expectedSequence": [
+    "inspect_ztools_source_dependencies",
+    "fetch_ztools_source_dependencies",
+    "prepare_ztools_source_dependencies",
+    "inspect_ztools_source_dependencies",
+    "inspect_ztools_source_build",
+    "convert_ztools_plugin"
+  ],
+  "fixtureRoot": "__FIXTURE_ROOT__",
+  "handoffStatus": "conversion_evidence_only",
+  "installationTaskRun": {
+    "capabilityId": "atools-ui.plugin.import",
+    "clientId": "atools-ui",
+    "initiatorType": "human",
+    "status": "succeeded",
+    "taskRunId": "run-6097bac7-f112-473c-a977-c4d5f25a27a1"
+  },
+  "installedPackage": {
+    "pluginId": "tetris",
+    "treeBytes": 119460,
+    "treeEntries": 9,
+    "treeFiles": 7,
+    "treeSha256": "08c432585fd920b6c0f12e92d1bcde86f0f7258a2cc26fca10dd536d81f9c92e",
+    "version": "1.0.0"
+  },
+  "installedPackagePath": "__FIXTURE_ROOT__/app-data/plugins/tetris",
+  "nativeUiConsumerSupported": false,
+  "pendingPermissionRequestCount": 0,
+  "pluginIdentity": {
+    "featureCode": "tetris",
+    "id": "tetris",
+    "main": "index.html",
+    "preload": null,
+    "runtime": "web",
+    "version": "1.0.0"
+  },
+  "schemaVersion": 1,
+  "source": {
+    "bytes": 143167,
+    "fileCount": 27,
+    "inventorySha256": "275145828f69b4c1284186ef524f95319565d99d7faa7d97bc2f2726c7f21f67",
+    "manifestSha256": "5d5d4e75477f6297a9e1466a444524adae185f754d9df7531afff66d41564c0c",
+    "path": "__SOURCE_ROOT__",
+    "sourceRevision": "8ce6460a07408be7248f3db1b2cc45597e63293868189f04df58e353c722e018",
+    "upstreamHead": "2d47bd91011b6be872eef1d7c56b4c6b57a93b3d"
+  },
+  "sourceCaseId": "fixed-head-tetris",
+  "sourceFilesUnchanged": true,
+  "taskRunCount": 7,
+  "taskRuns": [
+    {
+      "capabilityId": "inspect_ztools_source_dependencies",
+      "output": {
+        "archiveBytes": null,
+        "businessUsabilityVerified": false,
+        "cachedBytes": 0,
+        "dependencyClosureVerified": false,
+        "dependencySetIdSha256": "e39a66838af7a8c214b58458ff39a2ec538366fd3a0b7d8713cb1b85551a0b99",
+        "dependencySetPrepared": false,
+        "dependencyTreeBytes": null,
+        "dependencyTreeSha256": null,
+        "lifecyclesSkipped": true,
+        "missingCount": 51,
+        "nodeBinaryBytes": 112925600,
+        "nodeBinarySha256": "68f4d07ca49e0500cc135c7e0a445093e228e42e126ac22306d045f0a8c2636b",
+        "packageCount": 51,
+        "planSha256": "7b8b23284b555e4dd8ff65cbf98de4213f6780b02472a777db2ad9411ed050e1",
+        "skippedOptionalCount": 49,
+        "sourceRevision": "8ce6460a07408be7248f3db1b2cc45597e63293868189f04df58e353c722e018",
+        "status": "eligible",
+        "target": {
+          "cpu": "arm64",
+          "os": "darwin"
+        },
+        "toolchainFingerprintSha256": "7ebb9553efb80572d11797ab8a2bb249734bc34f1d54d82efee6a8d6f1579985",
+        "toolchainHashElapsedMs": 3349
+      },
+      "status": "succeeded",
+      "taskRunId": "run-cc777c29-f63f-4920-8379-f42783fd43c7"
+    },
+    {
+      "capabilityId": "fetch_ztools_source_dependencies",
+      "output": {
+        "businessUsabilityVerified": false,
+        "cachedArchiveCount": 0,
+        "dependencySetIdSha256": "e39a66838af7a8c214b58458ff39a2ec538366fd3a0b7d8713cb1b85551a0b99",
+        "dependencySetPrepared": false,
+        "elapsedMs": 20261,
+        "fetchedArchiveCount": 51,
+        "lifecyclesSkipped": true,
+        "packageCount": 51,
+        "sourceRevision": "8ce6460a07408be7248f3db1b2cc45597e63293868189f04df58e353c722e018",
+        "status": "cached",
+        "verifiedArchiveBytes": 14749107
+      },
+      "status": "succeeded",
+      "taskRunId": "run-e323f2ad-ee3b-4cbd-8777-e93333b15dca"
+    },
+    {
+      "capabilityId": "prepare_ztools_source_dependencies",
+      "output": {
+        "archiveBytes": 14749107,
+        "businessUsabilityVerified": false,
+        "dependencyClosureVerified": false,
+        "dependencySetIdSha256": "e39a66838af7a8c214b58458ff39a2ec538366fd3a0b7d8713cb1b85551a0b99",
+        "fileCount": 1222,
+        "manifestSha256": "f099185cd15d9333215f63855b3cfd84263dc70a2e6c864ed2a18e25c8927ad2",
+        "nodeBinaryBytes": 112925600,
+        "nodeBinarySha256": "68f4d07ca49e0500cc135c7e0a445093e228e42e126ac22306d045f0a8c2636b",
+        "packageCount": 51,
+        "sourceRevision": "8ce6460a07408be7248f3db1b2cc45597e63293868189f04df58e353c722e018",
+        "status": "prepared",
+        "toolchainFingerprintSha256": "7ebb9553efb80572d11797ab8a2bb249734bc34f1d54d82efee6a8d6f1579985",
+        "toolchainHashElapsedMs": 3272,
+        "treeBytes": 60542230,
+        "treeEntries": 1426,
+        "treeFiles": 1223,
+        "treeSha256": "80d270e3d646bfe7dcb142211ffe4fb44c0e7523ace80a1aa32b6c357f5f1a75",
+        "unpackedBytes": 60529896,
+        "workerElapsedMs": 1373
+      },
+      "status": "succeeded",
+      "taskRunId": "run-1aafe4a9-63e7-4f82-9702-4dec24a13df7"
+    },
+    {
+      "capabilityId": "inspect_ztools_source_dependencies",
+      "output": {
+        "archiveBytes": 14749107,
+        "businessUsabilityVerified": false,
+        "cachedBytes": 14749107,
+        "dependencyClosureVerified": false,
+        "dependencySetIdSha256": "e39a66838af7a8c214b58458ff39a2ec538366fd3a0b7d8713cb1b85551a0b99",
+        "dependencySetPrepared": true,
+        "dependencyTreeBytes": 60542230,
+        "dependencyTreeSha256": "80d270e3d646bfe7dcb142211ffe4fb44c0e7523ace80a1aa32b6c357f5f1a75",
+        "lifecyclesSkipped": true,
+        "missingCount": 0,
+        "nodeBinaryBytes": 112925600,
+        "nodeBinarySha256": "68f4d07ca49e0500cc135c7e0a445093e228e42e126ac22306d045f0a8c2636b",
+        "packageCount": 51,
+        "planSha256": "7b8b23284b555e4dd8ff65cbf98de4213f6780b02472a777db2ad9411ed050e1",
+        "skippedOptionalCount": 49,
+        "sourceRevision": "8ce6460a07408be7248f3db1b2cc45597e63293868189f04df58e353c722e018",
+        "status": "eligible",
+        "target": {
+          "cpu": "arm64",
+          "os": "darwin"
+        },
+        "toolchainFingerprintSha256": "7ebb9553efb80572d11797ab8a2bb249734bc34f1d54d82efee6a8d6f1579985",
+        "toolchainHashElapsedMs": 9672
+      },
+      "status": "succeeded",
+      "taskRunId": "run-f3bbf688-b137-4b2d-bd7d-a8b68b4582ab"
+    },
+    {
+      "capabilityId": "inspect_ztools_source_build",
+      "output": {
+        "buildSteps": [
+          {
+            "kind": "typecheck"
+          },
+          {
+            "kind": "viteBuild"
+          }
+        ],
+        "pluginId": "tetris",
+        "sourceRevision": "8ce6460a07408be7248f3db1b2cc45597e63293868189f04df58e353c722e018",
+        "status": "eligible"
+      },
+      "status": "succeeded",
+      "taskRunId": "run-062ca607-577f-4f2e-bf90-d360e87e8612"
+    },
+    {
+      "capabilityId": "convert_ztools_plugin",
+      "output": {
+        "buildSteps": [
+          {
+            "kind": "typecheck"
+          },
+          {
+            "kind": "viteBuild"
+          }
+        ],
+        "businessOperationVerified": false,
+        "dependencyClosureVerified": false,
+        "dependencySetIdSha256": "e39a66838af7a8c214b58458ff39a2ec538366fd3a0b7d8713cb1b85551a0b99",
+        "dependencyTreeSha256": "80d270e3d646bfe7dcb142211ffe4fb44c0e7523ace80a1aa32b6c357f5f1a75",
+        "installed": true,
+        "pluginId": "tetris",
+        "sourceRevision": "8ce6460a07408be7248f3db1b2cc45597e63293868189f04df58e353c722e018",
+        "toolchainFingerprintSha256": "7ebb9553efb80572d11797ab8a2bb249734bc34f1d54d82efee6a8d6f1579985"
+      },
+      "status": "succeeded",
+      "taskRunId": "run-9cb7e2a5-4326-4a34-8a3f-3c9c6cad3f9f"
+    }
+  ],
+  "taskRunsTerminal": true
+}

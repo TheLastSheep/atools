@@ -55,25 +55,30 @@ try {
     ["recent", "最近使用", 1],
   ]);
 
-  const [homePanel, capabilityRail, app] = await Promise.all([
+  const [homePanel, homeTile, capabilityRail, appRaw, layout, homeController, runtimeLifecycle] = await Promise.all([
     readFile(new URL("src/components/HomePanel.svelte", root), "utf8"),
+    readFile(new URL("src/components/HomeCommandTile.svelte", root), "utf8"),
     readFile(new URL("src/components/HomeCapabilityRail.svelte", root), "utf8"),
     readFile(new URL("src/App.svelte", root), "utf8"),
+    readFile(new URL("src/lib/launcherWindowLayout.ts", root), "utf8"),
+    readFile(new URL("src/lib/launcherHomeController.ts", root), "utf8"),
+    readFile(new URL("src/lib/launcherRuntimeLifecycle.ts", root), "utf8"),
   ]);
+  const app = appRaw + "\n" + homeController + "\n" + runtimeLifecycle;
   assert.doesNotMatch(homePanel, /class="quick-actions"/);
+  assert.match(homePanel, /<HomeCommandTile/);
   assert.match(homePanel, /import\("\.\/HomeCapabilityRail\.svelte"\)/);
   assert.match(capabilityRail, /class="capability-rail"/);
-  assert.match(capabilityRail, /onpanelchange\("results"\)/);
-  assert.match(capabilityRail, /list_task_runs/);
-  assert.match(capabilityRail, /list_capabilities/);
+  assert.match(capabilityRail, /panel: "results"/);
+  assert.doesNotMatch(capabilityRail, /invoke|list_task_runs|list_capabilities/);
   assert.doesNotMatch(homePanel, /class="pinned-empty"/);
-  assert.match(homePanel, /resultIconSrc/);
-  assert.match(homePanel, /<img src=\{source\} alt="" \/>/);
+  assert.match(homeTile, /resultIconSrc/);
+  assert.match(homeTile, /<img src=\{source\} alt="" \/>/);
   assert.match(app, /showHomeRecent/);
   assert.match(app, /showQueryResults/);
   assert.doesNotMatch(app, /<HomePanel[\s\S]*?onsettingsmenu=\{openSettingsMenu\}/);
-  assert.match(app, /const HOME_MIN_WINDOW_HEIGHT = 280;/);
-  assert.match(app, /const HOME_MAX_WINDOW_HEIGHT = 340;/);
+  assert.match(layout, /homeMinWindowHeight:\s*280/);
+  assert.doesNotMatch(layout, /homeMaxWindowHeight/);
   assert.match(app, /invoke<SearchResult\[]>\("feature_catalog"\)/);
   assert.match(app, /listen\("builtin-plugins-loaded"/);
   assert.match(app, /featureCatalogRetryCount < 8/);
@@ -139,10 +144,7 @@ try {
     "空搜索且没有固定指令时不渲染固定空态，首页直接进入最近使用。",
     "macOS smoke checklist should mark compact empty-pinned behavior complete",
   );
-  assertSmokeChecked(
-    "首页一级展示结果中心、插件生态、Agent / MCP 与 Pasteboard，并显示桌面运行状态。",
-    "macOS smoke checklist should mark the core capability rail complete",
-  );
+
 } finally {
   await rm(outDir, { recursive: true, force: true });
 }

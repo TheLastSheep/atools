@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { transformWithEsbuild } from "vite";
+import { bundleTsTestModule } from "./lib/bundle-ts-test-module.mjs";
 
 const root = new URL("../", import.meta.url);
 const outDir = await mkdtemp(join(root.pathname, ".tmp-settings-normalization-"));
@@ -16,12 +16,7 @@ try {
     readFile(new URL("src/styles/global.css", root), "utf8"),
     readFile(new URL("docs/macos-smoke-checklist.md", root), "utf8"),
   ]);
-  const transformed = await transformWithEsbuild(source, sourcePath, {
-    format: "esm",
-    target: "esnext",
-    loader: "ts",
-  });
-  await writeFile(outFile, transformed.code);
+  await writeFile(outFile, await bundleTsTestModule(sourcePath));
 
   const storage = new Map();
   const styleValues = new Map();

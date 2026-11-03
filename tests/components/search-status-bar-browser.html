@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head><meta charset="utf-8"><title>ATools status bar layout fixture</title></head>
+  <body>
+    <main id="status-fixture" style="margin:24px;width:800px;display:flex;flex-direction:column"></main>
+    <script type="module">
+      import "/src/styles/global.css";
+      import * as fixture from "./searchStatusBarBrowserFixture.ts";
+      window.statusFixture = fixture;
+      await fixture.show("results", 800);
+      window.statusFixtureReady = true;
+    </script>
+  </body>
+</html>

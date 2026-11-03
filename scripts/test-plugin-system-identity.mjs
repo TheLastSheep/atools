@@ -1,16 +1,21 @@
+import { loadProductionPluginBridgeTemplate, readPanelHostSource } from "./lib/plugin-panel-source-test-adapter.mjs";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFile } from "node:fs/promises";
 
 const root = new URL("../", import.meta.url);
 const packageInfo = JSON.parse(await readFile(new URL("package.json", root), "utf8"));
-const componentSource = await readFile(new URL("src/components/PluginPanel.svelte", root), "utf8");
+const panelSource = await readPanelHostSource(root, "src/components/PluginPanel.svelte");
+const documentSource = await readPanelHostSource(root, "src/lib/pluginPanelDocumentSourceHost.ts");
+const compilerSource = await readPanelHostSource(root, "src/lib/pluginPanelBridgeCompiler.ts");
+const nativeIdentitySource = await readPanelHostSource(root, "src/lib/pluginUtoolsBridgeSource/attachments-and-db-storage.ts");
+const providerEntrySource = await readPanelHostSource(root, "src/lib/pluginUtoolsBridgeSource/providers-and-entry-lifecycle.ts");
 const capabilitySource = await readFile(new URL("src/lib/pluginBridgeCapabilities.ts", root), "utf8");
 
-const bridgeMatch = componentSource.match(/const UTOOLS_BRIDGE = `([\s\S]*?)`;/);
-assert.ok(bridgeMatch, "PluginPanel should define the injected utools bridge");
+const bridgeTemplate = await loadProductionPluginBridgeTemplate(root);
 
-const bridgeSource = bridgeMatch[1]
+const bridgeSource = bridgeTemplate
+  .replace(/__ACTION_PAYLOAD__/g, JSON.stringify(null))
   .replace(/<\\\/script>/g, "</script>")
   .replace(/^\s*<script>\s*/, "")
   .replace(/\s*<\/script>\s*$/, "")
@@ -73,12 +78,19 @@ class EventStub {
     this.type = type;
   }
 }
+class CustomEventStub extends EventStub {
+  constructor(type, init = {}) {
+    super(type);
+    this.detail = init.detail;
+  }
+}
 
 const context = vm.createContext({
   window: windowStub,
   document: documentStub,
   navigator: { platform: "Linux x86_64", userAgent: "Mozilla/5.0 (X11; Linux x86_64)" },
   Event: EventStub,
+  CustomEvent: CustomEventStub,
   console: {
     error() {},
     warn() {},
@@ -86,6 +98,7 @@ const context = vm.createContext({
   },
   Date,
   Math,
+  TextEncoder,
   setTimeout(cb) {
     cb();
     return 1;
@@ -116,13 +129,19 @@ assert.equal(windowStub.utools.isLinux(), true, "Linux platform detection should
 assert.ok(dispatchedEvents.includes("atools-plugin-enter"));
 assert.ok(dispatchedEvents.includes("atools-plugin-ready"));
 
-assert.match(componentSource, /import packageInfo from "\.\.\/\.\.\/package\.json"/);
-assert.match(componentSource, /function _getNativeId\(\)/, "bridge should keep native id generation in one helper");
-assert.match(componentSource, /getNativeId:\s*function\(\)/, "utools.getNativeId should be in the bridge object");
-assert.match(componentSource, /getAppName:\s*function\(\)/, "utools.getAppName should be in the bridge object");
-assert.match(componentSource, /getAppVersion:\s*function\(\)/, "utools.getAppVersion should be in the bridge object");
-assert.match(componentSource, /isDev:\s*function\(\)/, "utools.isDev should be in the bridge object");
-assert.match(componentSource, /isLinux:\s*function\(\)/, "utools.isLinux should be in the bridge object");
+assert.match(panelSource, /import packageInfo from "\.\.\/\.\.\/package\.json"/);
+assert.match(panelSource, /productName:\s*packageInfo\.productName[\s\S]*productVersion:\s*packageInfo\.version/,
+  "PluginPanel should pass package identity into the document source host");
+assert.match(documentSource, /appName:\s*ports\.productName,\s*appVersion:\s*ports\.productVersion/,
+  "document source host should pass product identity into bridge compilation");
+assert.match(compilerSource, /APP_NAME\|APP_VERSION\)__\/g,\s*token\s*=>\s*pluginBridgeJson\(parameters\[token as keyof typeof parameters\]\)/,
+  "bridge compiler should inject the product name and version placeholders");
+assert.match(nativeIdentitySource, /function _getNativeId\(\)/, "bridge should keep native id generation in its identity owner");
+assert.match(providerEntrySource, /getNativeId:\s*function\(\)/, "bridge should expose utools.getNativeId in its API owner");
+assert.match(providerEntrySource, /getAppName:\s*function\(\)/, "bridge should expose getAppName in its API owner");
+assert.match(providerEntrySource, /getAppVersion:\s*function\(\)/, "bridge should expose getAppVersion in its API owner");
+assert.match(providerEntrySource, /isDev:\s*function\(\)/, "bridge should expose isDev in its API owner");
+assert.match(providerEntrySource, /isLinux:\s*function\(\)/, "bridge should expose isLinux in its API owner");
 assert.match(capabilitySource, /"getNativeId"/, "shared capability inventory should include getNativeId");
 assert.match(capabilitySource, /"getAppName"/, "shared capability inventory should include getAppName");
 assert.match(capabilitySource, /"getAppVersion"/, "shared capability inventory should include getAppVersion");

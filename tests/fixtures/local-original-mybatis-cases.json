@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "repository": "ZTools-plugins",
+  "commit": "2d47bd91011b6be872eef1d7c56b4c6b57a93b3d",
+  "packagePath": "plugins/mybatis-sql-formatter",
+  "packageTree": "c456e308df68a1806772fb7f31edfa95d37f31e0",
+  "sourceReview": {
+    "local-mybatis-sql-formatter-head": {
+      "reviewScope": "Complete package file set from exact ZTools-plugins Git HEAD and package tree; dirty worktree plugin.json is excluded.",
+      "entryPoints": [
+        "plugin.json",
+        "index.html",
+        "preload.js"
+      ],
+      "selectors": [
+        "#input",
+        "#output",
+        "#errorMsg",
+        "#infoBar",
+        ".header-actions button.btn-ghost",
+        ".header-actions button.btn-primary"
+      ],
+      "anchors": [
+        "plugin.json:version 1.0.0, main index.html, preload.js, one format-sql-log over feature",
+        "index.html:220-245 original clear/format/input/output controls",
+        "index.html:256-279 original formatter handler/result and parameter count",
+        "preload.js:1-4 window.services.formatMybatisLog entry"
+      ],
+      "riskBoundary": "The fixed preload is pure JavaScript and uses no Node built-ins or Electron API. The default production PluginPanel prepares and executes it as an isolated WebView preload without a Node sidecar or Node permission. The fixture uses no account, network, file, clipboard, or data APIs and invokes only the original text input, format, and clear controls."
+    }
+  },
+  "cases": [
+    {
+      "caseId": "local-mybatis-sql-formatter-head",
+      "id": "mybatis-sql-formatter",
+      "version": "1.0.0",
+      "sourceKind": "local_full_directory",
+      "sourcePath": "ZTools-plugins/plugins/mybatis-sql-formatter",
+      "sourceCommit": "2d47bd91011b6be872eef1d7c56b4c6b57a93b3d",
+      "sourceTree": "c456e308df68a1806772fb7f31edfa95d37f31e0",
+      "directorySha256": "963a5779f37670bbc40a36574dee5a482e1d68f5727ae544c02772172f70b581",
+      "fileCount": 5,
+      "featureCode": "format-sql-log",
+      "searchQuery": "sql",
+      "title": "MyBatis SQL 日志格式化",
+      "runtime": "web",
+      "dataAccess": false,
+      "dialogAccess": "none",
+      "pathAccess": "none",
+      "verifyDataPersistence": false,
+      "sourceReview": "output/legacy-node-2026-10-21/local-mybatis-sql-formatter-head-source-review-v1.json",
+      "frameOperations": "tests/components/nativeOriginalMybatisFrameOperations.js",
+      "sourceReviewStatus": "prepared_for_parent_native_fixture_decision"
+    }
+  ],
+  "snapshots": {
+    "local-mybatis-sql-formatter-head": {
+      "directorySha256": "963a5779f37670bbc40a36574dee5a482e1d68f5727ae544c02772172f70b581",
+      "fileCount": 5,
+      "expandedBytes": 17005,
+      "files": [
+        {
+          "path": ".gitignore",
+          "bytes": 64,
+          "sha256": "252fb2915ca8cb3f2ab128d5dbf21342040f9d606d82b0d863d82558222507d7"
+        },
+        {
+          "path": "index.html",
+          "bytes": 9101,
+          "sha256": "b66a2942f0bca4d74fe379d9b73edfd2eec5a0573674cb882bebfda7653ccc32"
+        },
+        {
+          "path": "logo.png",
+          "bytes": 2139,
+          "sha256": "78326937b80626a93efe68ed2106dfd0e4d0eddaf29c930d4be0864513279a87"
+        },
+        {
+          "path": "plugin.json",
+          "bytes": 732,
+          "sha256": "757dca4b7e993cb2a7e6810a55c29242c31ecfe04d42f556d6b749039e782bf2"
+        },
+        {
+          "path": "preload.js",
+          "bytes": 4969,
+          "sha256": "9d9373e98b4b01db619c2ca77d0b43497466e569f7fefd96e0c44b61c0e79fd6"
+        }
+      ],
+      "directories": []
+    }
+  }
+}

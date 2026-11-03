@@ -7,16 +7,25 @@ import { transformWithEsbuild } from "vite";
 const root = new URL("../", import.meta.url);
 const outDir = await mkdtemp(join(root.pathname, ".tmp-plugin-inventory-overview-"));
 const outFile = join(outDir, "pluginInventory.mjs");
+const featureSearchOutFile = join(outDir, "pluginInventoryFeatureSearch.mjs");
 
 try {
   const sourcePath = new URL("src/lib/pluginInventory.ts", root).pathname;
   const source = await readFile(sourcePath, "utf8");
+  const featureSearchPath = new URL("src/lib/pluginInventoryFeatureSearch.ts", root).pathname;
+  const featureSearchSource = await readFile(featureSearchPath, "utf8");
+  const featureSearchTransformed = await transformWithEsbuild(featureSearchSource, featureSearchPath, {
+    format: "esm",
+    target: "esnext",
+    loader: "ts",
+  });
+  await writeFile(featureSearchOutFile, featureSearchTransformed.code);
   const transformed = await transformWithEsbuild(source, sourcePath, {
     format: "esm",
     target: "esnext",
     loader: "ts",
   });
-  await writeFile(outFile, transformed.code);
+  await writeFile(outFile, transformed.code.replaceAll('from "./pluginInventoryFeatureSearch"', 'from "./pluginInventoryFeatureSearch.mjs"'));
 
   const mod = await import(pathToFileURL(outFile).href);
 
@@ -25,6 +34,7 @@ try {
   const inventory = mod.pluginInventory([
     {
       id: "builtin-json",
+      source_kind: "builtin",
       name: "JSON",
       version: "1.0.0",
       path: "/Applications/ATools.app/Contents/Resources/plugins/json",
@@ -41,6 +51,7 @@ try {
     },
     {
       id: "imported-user",
+      source_kind: "imported",
       name: "Imported",
       version: "0.2.0",
       path: "/Users/harris/Library/Application Support/ATools/plugins/imported-user",
@@ -90,13 +101,6 @@ try {
   assert.equal(previewCards.find((card) => card.label === "安装入口")?.value, "桌面端安装");
   assert.equal(previewCards.find((card) => card.label === "安装入口")?.tone, "desktop");
 
-  const panel = await readFile(new URL("../src/components/SettingsPanel.svelte", import.meta.url), "utf8");
-  assert.ok(panel.includes("pluginInventoryOverviewCards"), "Installed plugin page should use the shared overview model");
-  assert.ok(panel.includes("插件库存概览"), "Installed plugin page should render an overview section first");
-  assert.ok(panel.includes("插件筛选"), "Installed plugin page should move filtering below overview");
-  assert.ok(panel.includes("本地目录安装、启用状态、卸载和本地清单只保存在本机"), "Installed plugin page should state the local inventory boundary");
-  assert.match(panel, /class="plugin-inventory-overview-grid"/);
-  assert.match(panel, /class="plugin-inventory-overview-card"/);
 } finally {
   await rm(outDir, { recursive: true, force: true });
 }

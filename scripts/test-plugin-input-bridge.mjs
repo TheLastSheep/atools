@@ -1,22 +1,25 @@
+import { loadProductionPluginBridgeTemplate, readPanelHostSource } from "./lib/plugin-panel-source-test-adapter.mjs";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFile } from "node:fs/promises";
 
 const root = new URL("../", import.meta.url);
-const componentSource = await readFile(new URL("src/components/PluginPanel.svelte", root), "utf8");
+const bridgeApiSource = await readPanelHostSource(root, "src/lib/pluginUtoolsBridgeSource/providers-and-entry-lifecycle.ts");
+const nativeRouterSource = await readPanelHostSource(root, "src/lib/pluginPanelNativeBridgeRouter.ts");
+const systemClipboardSource = await readPanelHostSource(root, "src/lib/pluginPanelSystemClipboard.ts");
 const capabilitySource = await readFile(new URL("src/lib/pluginBridgeCapabilities.ts", root), "utf8");
+const bridgeTemplate = await loadProductionPluginBridgeTemplate(root);
 
-const bridgeMatch = componentSource.match(/const UTOOLS_BRIDGE = `([\s\S]*?)`;/);
-assert.ok(bridgeMatch, "PluginPanel should define the injected utools bridge");
-
-const bridgeSource = bridgeMatch[1]
+const bridgeSource = bridgeTemplate
+  .replace(/__ACTION_PAYLOAD__/g, JSON.stringify(null))
   .replace(/<\\\/script>/g, "</script>")
   .replace(/^\s*<script>\s*/, "")
   .replace(/\s*<\/script>\s*$/, "")
   .replace(/__PLUGIN_ID__/g, JSON.stringify("input-bridge-test-plugin"))
   .replace(/__FEATURE_CODE__/g, JSON.stringify("input-bridge-test-feature"))
   .replace(/__APP_NAME__/g, JSON.stringify("ATools 3.0"))
-  .replace(/__APP_VERSION__/g, JSON.stringify("3.0.0"));
+  .replace(/__APP_VERSION__/g, JSON.stringify("3.0.0"))
+  .replace("var _atoolsPluginPermissions = null;", 'var _atoolsPluginPermissions = ["clipboard.write", "input.keyboard"];');
 
 const listeners = new Map();
 const postedMessages = [];
@@ -80,12 +83,14 @@ const context = vm.createContext({
   Math,
   Number,
   Promise,
+  TextEncoder,
   setTimeout(cb) {
     cb();
     return 1;
   },
   clearTimeout() {},
 });
+context.CustomEvent = EventStub;
 
 vm.runInContext(bridgeSource, context, { filename: "UTOOLS_BRIDGE.vm.js" });
 
@@ -127,64 +132,69 @@ const typeCall = postedMessages.find((message) => message.method === "hideMainWi
 assert.ok(typeCall, "hideMainWindowTypeString should route through the native bridge");
 assert.deepEqual(plain(typeCall.args), { text: "ATools" });
 
-assert.match(componentSource, /hideMainWindowPasteText:\s*function\(text\)/, "bridge should expose hideMainWindowPasteText");
-assert.match(componentSource, /hideMainWindowPasteImage:\s*function\(image\)/, "bridge should expose hideMainWindowPasteImage");
-assert.match(componentSource, /hideMainWindowPasteFile:\s*function\(file\)/, "bridge should expose hideMainWindowPasteFile");
-assert.match(componentSource, /hideMainWindowTypeString:\s*function\(text\)/, "bridge should expose hideMainWindowTypeString");
-assert.match(componentSource, /case "hideMainWindowPasteText":/, "host should return a method-scoped paste-text result");
+assert.match(bridgeApiSource, /hideMainWindowPasteText:\s*function\(text\)/, "production bridge entry should expose hideMainWindowPasteText");
+assert.match(bridgeApiSource, /hideMainWindowPasteImage:\s*function\(image\)/, "production bridge entry should expose hideMainWindowPasteImage");
+assert.match(bridgeApiSource, /hideMainWindowPasteFile:\s*function\(file\)/, "production bridge entry should expose hideMainWindowPasteFile");
+assert.match(bridgeApiSource, /hideMainWindowTypeString:\s*function\(text\)/, "production bridge entry should expose hideMainWindowTypeString");
+assert.match(nativeRouterSource, /case "hideMainWindowPasteText":/, "native host router should return a method-scoped paste-text result");
 assert.doesNotMatch(
-  componentSource,
+  nativeRouterSource,
   /hideMainWindowPasteText unsupported/,
   "paste-text should be implemented by the WebView host instead of returning unsupported",
 );
-assert.match(componentSource, /writeText\(/, "paste-text host should write text to the clipboard before pasting");
-assert.match(componentSource, /hideMainWindowForPluginPaste/, "paste-text host should hide the main window before pasting");
-assert.match(componentSource, /keystroke "v" using command down/, "paste-text host should trigger the standard macOS paste shortcut");
-assert.match(componentSource, /case "hideMainWindowPasteImage":/, "host should return a method-scoped paste-image result");
+assert.match(nativeRouterSource, /case "hideMainWindowPasteText":[\s\S]*await writeText\(/, "paste-text router should write text to clipboard before pasting");
+assert.match(systemClipboardSource, /export async function hideMainWindowForPluginPaste/, "clipboard adapter should own main-window hiding for paste");
+assert.match(nativeRouterSource, /keystroke "v" using command down/, "paste-text host should trigger the standard macOS paste shortcut");
+assert.match(nativeRouterSource, /case "hideMainWindowPasteImage":/, "host should return a method-scoped paste-image result");
 assert.doesNotMatch(
-  componentSource,
+  nativeRouterSource,
   /hideMainWindowPasteImage unsupported/,
   "paste-image should be implemented by the WebView host instead of returning unsupported",
 );
 assert.match(
-  componentSource,
-  /case "hideMainWindowPasteImage":[\s\S]*writePluginImageToClipboard\(args\.image\)/,
-  "paste-image host should write the image to the clipboard before pasting",
+  nativeRouterSource,
+  /case "hideMainWindowPasteImage":[\s\S]*writePluginImage\(args\.image\)/,
+  "paste-image router should delegate image writing to its clipboard adapter before pasting",
 );
 assert.match(
-  componentSource,
-  /case "hideMainWindowPasteImage":[\s\S]*hideMainWindowForPluginPaste\(\)/,
+  systemClipboardSource,
+  /export async function writePluginImageToClipboard/,
+  "clipboard adapter should own production image conversion and write" ,
+);
+assert.match(
+  nativeRouterSource,
+  /case "hideMainWindowPasteImage":[\s\S]*await hidePanelForPaste\(onclose\)/,
   "paste-image host should hide the main window before pasting into the foreground app",
 );
-assert.match(componentSource, /case "hideMainWindowPasteFile":/, "host should return a method-scoped paste-file result");
+assert.match(nativeRouterSource, /case "hideMainWindowPasteFile":/, "host should return a method-scoped paste-file result");
 assert.doesNotMatch(
-  componentSource,
+  nativeRouterSource,
   /hideMainWindowPasteFile unsupported/,
   "paste-file should be implemented by the WebView host instead of returning unsupported",
 );
 assert.match(
-  componentSource,
+  nativeRouterSource,
   /case "hideMainWindowPasteFile":[\s\S]*pluginFileClipboardAppleScript\(pathsFromBridgeValue\(args\.file\)\)/,
   "paste-file host should write one or more file paths to the clipboard before pasting",
 );
 assert.match(
-  componentSource,
-  /case "hideMainWindowPasteFile":[\s\S]*hideMainWindowForPluginPaste\(\)/,
+  nativeRouterSource,
+  /case "hideMainWindowPasteFile":[\s\S]*await hidePanelForPaste\(onclose\)/,
   "paste-file host should hide the main window before pasting into the foreground app",
 );
-assert.match(componentSource, /case "hideMainWindowTypeString":/, "host should return a method-scoped type-string result");
+assert.match(nativeRouterSource, /case "hideMainWindowTypeString":/, "host should return a method-scoped type-string result");
 assert.doesNotMatch(
-  componentSource,
+  nativeRouterSource,
   /hideMainWindowTypeString unsupported/,
   "type-string should be implemented by the WebView host instead of returning unsupported",
 );
 assert.match(
-  componentSource,
-  /case "hideMainWindowTypeString":[\s\S]*hideMainWindowForPluginPaste\(\)/,
+  nativeRouterSource,
+  /case "hideMainWindowTypeString":[\s\S]*await hidePanelForPaste\(onclose\)/,
   "type-string host should hide the main window before typing into the foreground app",
 );
 assert.match(
-  componentSource,
+  nativeRouterSource,
   /case "hideMainWindowTypeString":[\s\S]*appleScriptString\(String\(args\.text \?\? ""\)\)/,
   "type-string host should escape text before passing it to AppleScript",
 );

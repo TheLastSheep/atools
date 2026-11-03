@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 1,
+  "repository": "ZTools-plugins",
+  "commit": "2d47bd91011b6be872eef1d7c56b4c6b57a93b3d",
+  "packagePath": "plugins/file-tree",
+  "packageTree": "94c40ccda8babdc2b1c900cdaa31eeda28b56b4a",
+  "treeDigestAlgorithm": "AToolsLocalTreeV1",
+  "directorySha256": "01f6804db14c5b7629674f6fb532cc59be65213e5ae14fab247ed8a51bd14a0a",
+  "fileCount": 12,
+  "directoryCount": 0,
+  "expandedBytes": 460425,
+  "files": {
+    "README.md": {
+      "gitBlob": "f92f59e06b563e5e37f9e2fe83f8685ceff049a2",
+      "bytes": 3477,
+      "sha256": "5da30d0a21ddd2d23a73d74f402a0d970ab2e03f7d5ec37a007c98065405226c"
+    },
+    "codemirror.min.css": {
+      "gitBlob": "2ef25eaa5e7dfad52e6b3439ff2090906abffe23",
+      "bytes": 6037,
+      "sha256": "11077112ab6955d29fe41085c62365c7d4a2f00a570c7475e2aec2a8cbc85fc4"
+    },
+    "codemirror.min.js": {
+      "gitBlob": "3bbc5ab73518a8a58fbe77909a7765bbbe40ffda",
+      "bytes": 170288,
+      "sha256": "1a76110fab03d295155ce6405b151a2a158bf8025678fdab055edf5acd8ea015"
+    },
+    "html2canvas.min.js": {
+      "gitBlob": "aed6bfd70defa322824e5cba11b3ad5d6061ee28",
+      "bytes": 198689,
+      "sha256": "e87e550794322e574a1fda0c1549a3c70dae5a93d9113417a429016838eab8cb"
+    },
+    "icons.css": {
+      "gitBlob": "6d149566b14998f887346ea2935d7e020c2e59c1",
+      "bytes": 6576,
+      "sha256": "f0c51685eea3f779722620b72050ee5eec49fd600486082be03731e1e8383154"
+    },
+    "index.html": {
+      "gitBlob": "ef3584d2320f33adc5914708ff57b71b940b7c3b",
+      "bytes": 8281,
+      "sha256": "572848e820498d8e714e1b5f0fbc19e3e21b6bbac11ff087bfead034e6e2ad73"
+    },
+    "logo.png": {
+      "gitBlob": "84e7a7c1c614bc116c15919517a556c00e263480",
+      "bytes": 22807,
+      "sha256": "e73e700095e6cb534b72ac9baee1fd79b56aa21beba90f3ff2585ea639149ed6"
+    },
+    "main.js": {
+      "gitBlob": "55eca445802513f1366b1f530478b3b92a6edfb7",
+      "bytes": 20728,
+      "sha256": "5b449a905daaf515bbd55d7bc0547fecb16f6f584511a606718eced9f905ce77"
+    },
+    "monokai.min.css": {
+      "gitBlob": "4f2293a34cd8e5b690c048bd2a3bc83d6fdaea2e",
+      "bytes": 1902,
+      "sha256": "8e384a464c2adf6e08c4bd37a561f632d018dec2691d35e9179e5a16b27c6d30"
+    },
+    "plugin.json": {
+      "gitBlob": "93f7eb21b2ecf498b2843aaa53cdd8ee6dc49d77",
+      "bytes": 709,
+      "sha256": "852f0c22ca69cbb79226ab8f1af4a2c638e6e21a071a9dc88e6cfc7a42b5866a"
+    },
+    "preload.js": {
+      "gitBlob": "ef44c2ea305cc38ec06924819b0a2acc6ecc41c6",
+      "bytes": 3158,
+      "sha256": "b8ba8bae26f26f847b88336f39c93888881fce4cb17862113f5dc3fd9e144042"
+    },
+    "styles.css": {
+      "gitBlob": "acdbdb0dd9b01891b409b7b5f5dbd5b9c0949678",
+      "bytes": 17773,
+      "sha256": "b34172cc0a9f3fea4fbac607868e70c44fc737d5a64e206aa24fd938686d9052"
+    }
+  },
+  "cases": [
+    {
+      "caseId": "local-file-tree-head",
+      "id": "file-tree",
+      "version": "1.0.5",
+      "sourceKind": "local_full_directory",
+      "sourcePath": "ZTools-plugins/plugins/file-tree",
+      "sourceCommit": "2d47bd91011b6be872eef1d7c56b4c6b57a93b3d",
+      "sourceTree": "94c40ccda8babdc2b1c900cdaa31eeda28b56b4a",
+      "directorySha256": "01f6804db14c5b7629674f6fb532cc59be65213e5ae14fab247ed8a51bd14a0a",
+      "fileCount": 12,
+      "featureCode": "file-tree",
+      "searchQuery": "目录树",
+      "title": "目录树生成器",
+      "runtime": "node",
+      "dataAccess": false,
+      "pathAccess": "legacy-node-file-read",
+      "verifyDataPersistence": false,
+      "sourceReview": "private fixture; Git HEAD only",
+      "frameOperations": "tests/components/nativeOriginalFileTreeHeadFrameOperations.js",
+      "sourceReviewStatus": "candidate_prepared_runtime_not_verified"
+    }
+  ],
+  "snapshots": {
+    "local-file-tree-head": {
+      "directorySha256": "01f6804db14c5b7629674f6fb532cc59be65213e5ae14fab247ed8a51bd14a0a",
+      "fileCount": 12,
+      "directories": [],
+      "files": [
+        {
+          "path": "README.md",
+          "bytes": 3477,
+          "sha256": "5da30d0a21ddd2d23a73d74f402a0d970ab2e03f7d5ec37a007c98065405226c"
+        },
+        {
+          "path": "codemirror.min.css",
+          "bytes": 6037,
+          "sha256": "11077112ab6955d29fe41085c62365c7d4a2f00a570c7475e2aec2a8cbc85fc4"
+        },
+        {
+          "path": "codemirror.min.js",
+          "bytes": 170288,
+          "sha256": "1a76110fab03d295155ce6405b151a2a158bf8025678fdab055edf5acd8ea015"
+        },
+        {
+          "path": "html2canvas.min.js",
+          "bytes": 198689,
+          "sha256": "e87e550794322e574a1fda0c1549a3c70dae5a93d9113417a429016838eab8cb"
+        },
+        {
+          "path": "icons.css",
+          "bytes": 6576,
+          "sha256": "f0c51685eea3f779722620b72050ee5eec49fd600486082be03731e1e8383154"
+        },
+        {
+          "path": "index.html",
+          "bytes": 8281,
+          "sha256": "572848e820498d8e714e1b5f0fbc19e3e21b6bbac11ff087bfead034e6e2ad73"
+        },
+        {
+          "path": "logo.png",
+          "bytes": 22807,
+          "sha256": "e73e700095e6cb534b72ac9baee1fd79b56aa21beba90f3ff2585ea639149ed6"
+        },
+        {
+          "path": "main.js",
+          "bytes": 20728,
+          "sha256": "5b449a905daaf515bbd55d7bc0547fecb16f6f584511a606718eced9f905ce77"
+        },
+        {
+          "path": "monokai.min.css",
+          "bytes": 1902,
+          "sha256": "8e384a464c2adf6e08c4bd37a561f632d018dec2691d35e9179e5a16b27c6d30"
+        },
+        {
+          "path": "plugin.json",
+          "bytes": 709,
+          "sha256": "852f0c22ca69cbb79226ab8f1af4a2c638e6e21a071a9dc88e6cfc7a42b5866a"
+        },
+        {
+          "path": "preload.js",
+          "bytes": 3158,
+          "sha256": "b8ba8bae26f26f847b88336f39c93888881fce4cb17862113f5dc3fd9e144042"
+        },
+        {
+          "path": "styles.css",
+          "bytes": 17773,
+          "sha256": "b34172cc0a9f3fea4fbac607868e70c44fc737d5a64e206aa24fd938686d9052"
+        }
+      ]
+    }
+  }
+}

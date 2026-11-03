@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>ATools isolated origin probe</title>
+<style>body{margin:16px;font:14px system-ui;background:#f5f5f5;color:#222}#frames{display:flex;gap:12px}iframe{width:192px;height:112px;border:1px solid #999}pre{white-space:pre-wrap}</style>
+<h1>Isolated origin probe</h1><div id="frames"></div><pre id="status">Starting bounded fixture</pre>
+<script>
+(() => {
+  "use strict";
+  const config=__ATOOLS_ORIGIN_CONFIG__;
+  const entries=[],messages=[],loads=[],errors=[];
+  const report={schemaVersion:1,runId:config.runId,status:"running",productionReady:false,
+    parent:{locationOrigin:location.origin,locationHost:location.host,expectedOrigin:config.parentExpectedOrigin},
+    notIntegrated:["generated HTML authorization","navigation identity binding","Origin/CORS policy","child frame/WebView policy","production permission and lifecycle gates"],
+    children:[],messages,loads,errors,foreignNavigation:null,
+    boundaries:["Dedicated origin fixture; production opaque-frame policy is unchanged",
+      "Child storage availability and raw IPC send observations are not proof of isolation or rejection",
+      "PNG pixels require independent native decoding; no child-reported pixel values are used",
+      "The registry retains its initial WindowProxy/id/expectedOrigin; load never rebinds identity",
+      "No child internals is an injection observation, not proof of remote ACL protection for hosts Tauri treats as local"]};
+  const started=performance.now();let submitted=false,foreignSource=null;
+  const elapsed=()=>performance.now()-started;
+  const errorInfo=error=>({name:String(error?.name||"Error").slice(0,80),message:String(error?.message||error).slice(0,500)});
+  const status=text=>{document.querySelector("#status").textContent=text;};
+  const nativeInvoke=(command,args)=>{
+    if(typeof window.__TAURI_INTERNALS__?.invoke==="function")return window.__TAURI_INTERNALS__.invoke(command,args);
+    if(typeof window.__TAURI__?.core?.invoke==="function")return window.__TAURI__.core.invoke(command,args);
+    throw Error("Trusted parent native invoke is unavailable");
+  };
+  const within=(promise,ms,label)=>new Promise((resolve,reject)=>{
+    const timer=setTimeout(()=>reject(Error(label+" timed out")),ms);
+    Promise.resolve(promise).then(value=>{clearTimeout(timer);resolve(value);},error=>{clearTimeout(timer);reject(error);});
+  });
+  async function waitFor(read,ms,label) {
+    const end=performance.now()+ms;
+    while(!submitted&&performance.now()<end){const value=read();if(value)return value;await new Promise(resolve=>setTimeout(resolve,25));}
+    throw Error(label+" timed out or fixture finished");
+  }
+  async function finish(error) {
+    if(submitted)return;submitted=true;clearTimeout(overall);
+    if(error)errors.push(errorInfo(error));
+    report.status=error?"failed":"complete";report.elapsedMs=elapsed();
+    report.children=entries.map(entry=>({id:entry.id,host:entry.host,url:entry.url,expectedOrigin:entry.expectedOrigin,
+      initialEventOrigin:entry.initialEventOrigin??null,registryAccepted:entry.registryAccepted??false,
+      initial:entry.initial??null,parentReadChildDocument:entry.parentReadChildDocument??null,
+      storage:entry.storage??null,cleanup:entry.cleanup??null}));
+    const origins=entries.map(entry=>entry.initial?.locationOrigin??null);
+    const eventOrigins=entries.map(entry=>entry.initialEventOrigin??null);
+    const allChildren=entries.length===3&&entries.every(entry=>!!entry.initial);
+    const parentAndChildOrigins=[report.parent.locationOrigin,...origins];
+    const nonnull=allChildren&&parentAndChildOrigins.every(origin=>typeof origin==="string"&&origin!=="null"&&origin.length>0);
+    const eventNonnull=allChildren&&eventOrigins.every(origin=>typeof origin==="string"&&origin!=="null"&&origin.length>0);
+    const distinct=allChildren&&new Set(parentAndChildOrigins).size===4;
+    const eventDistinct=allChildren&&new Set(eventOrigins).size===3;
+    const expectedMatches=allChildren&&report.parent.locationOrigin===config.parentExpectedOrigin
+      &&entries.every(entry=>entry.initial.locationOrigin===entry.expectedOrigin&&entry.initialEventOrigin===entry.expectedOrigin);
+    const storageAvailable=allChildren&&entries.every(entry=>entry.initial.storageWrite?.available===true&&entry.storage?.available===true);
+    const storageIsolated=storageAvailable&&entries.every(entry=>entry.storage.reads?.length===3
+      &&entry.storage.reads.every(row=>row.id===entry.id?row.value===entry.initial.storageWrite.value:row.value===null));
+    report.classifications={allChildren,nonnullLocationOrigins:nonnull,nonnullMessageOrigins:eventNonnull,
+      distinctLocationOrigins:distinct,distinctMessageOrigins:eventDistinct,expectedOriginsMatch:expectedMatches,
+      locationOrigins:origins,messageOrigins:eventOrigins,parentAndChildLocationOrigins:parentAndChildOrigins,
+      parentOriginMatchesExpected:report.parent.locationOrigin===config.parentExpectedOrigin,
+      storage:storageAvailable?(storageIsolated?"observed-isolated":"observed-shared-or-mismatched"):"unavailable-or-incomplete",
+      originBoundaryCandidate:nonnull&&eventNonnull&&distinct&&eventDistinct&&expectedMatches
+        &&report.foreignNavigation?.originChanged===true&&report.foreignNavigation?.oldRegistryAccepted===false,
+      scope:"Observed custom-scheme origin behavior only; this fixture does not approve a production policy change"};
+    const everyChild=read=>allChildren&&entries.every(entry=>read(entry.initial));
+    report.checks={
+      originsNonOpaqueAndDistinct:nonnull&&eventNonnull&&distinct&&eventDistinct,
+      originsMatchExpected:expectedMatches,
+      parentDomDenied:everyChild(child=>child.parentDocument?.outcome==="denied"&&child.parentSecret?.outcome==="denied"
+        &&child.parentReportNonce?.outcome==="denied"&&child.topDocument?.outcome==="denied")
+        &&entries.every(entry=>entry.parentReadChildDocument?.outcome==="denied"),
+      siblingDomDenied:everyChild(child=>child.siblings?.length===2&&child.siblings.every(peer=>peer.outcome==="denied")),
+      noChildTauri:everyChild(child=>child.main?.noTauri===true&&child.nestedBlank?.noTauri?.noTauri===true)
+        &&report.foreignNavigation?.result?.main?.noTauri===true,
+      nestedCloneWorks:everyChild(child=>child.nestedBlank?.readWrite===true&&child.nestedBlank?.noTauri?.noTauri===true),
+      html2canvasRendered:everyChild(child=>child.canvas?.status==="rendered"&&child.canvas.actualWidth===128&&child.canvas.actualHeight===48
+        &&typeof child.canvas.pngBase64==="string"&&child.canvas.pngBase64.length>0&&child.canvas.pngBytes<64*1024),
+      foreignWindowProxyStable:report.foreignNavigation?.windowProxyUnchanged===true,
+      foreignOriginChanged:report.foreignNavigation?.originChanged===true
+        &&report.foreignNavigation?.actualEventOrigin===report.foreignNavigation?.expectedForeignOrigin,
+      foreignRejectedByOldIdentity:report.foreignNavigation?.oldRegistryAccepted===false,
+      parentPositiveControlWorks:report.parentPositiveControl?.value===1,
+    };
+    if(new TextEncoder().encode(JSON.stringify(report)).length>1024*1024-2048) {
+      for(const child of report.children)if(child.initial?.canvas)delete child.initial.canvas.pngBase64;
+      report.status="failed";errors.push({name:"ReportBudgetExceeded",message:"Report exceeded 1MiB; PNG payloads removed"});
+    }
+    status(JSON.stringify({status:report.status,classifications:report.classifications,errors},null,2));
+    try {await within(nativeInvoke("origin_probe_report",{nonce:config.reportNonce,report}),2500,"Native report");}
+    catch(failure){status("Native report failed: "+JSON.stringify(errorInfo(failure)));}
+  }
+  const overall=setTimeout(()=>void finish(Error("Overall origin fixture deadline exceeded")),25000);
+  window.addEventListener("message",event=>{
+    const data=event.data;
+    if(submitted||!data||data.kind!=="atools-origin-probe"||data.runId!==config.runId)return;
+    const entry=entries.find(item=>item.source===event.source);
+    const identityMatches=!!entry&&data.id===entry.id;
+    const originMatches=!!entry&&event.origin===entry.expectedOrigin;
+    if(messages.length>=48){void finish(Error("Origin message budget exceeded"));return;}
+    messages.push({atMs:elapsed(),phase:String(data.phase).slice(0,40),claimedId:String(data.id).slice(0,64),sourceId:entry?.id??null,
+      actualOrigin:event.origin,expectedOrigin:entry?.expectedOrigin??null,identityMatches,originMatches,
+      acceptedByIdentityOrigin:identityMatches&&originMatches});
+    if(!entry||!identityMatches)return;
+    if(data.phase==="foreign"&&event.source===foreignSource) {
+      report.foreignNavigation={windowProxyUnchanged:event.source===entry.source,claimedId:data.id,
+        actualEventOrigin:event.origin,initialEventOrigin:entry.initialEventOrigin,
+        childLocationOrigin:data.result?.locationOrigin??null,originChanged:event.origin!==entry.initialEventOrigin,
+        oldRegistryAccepted:identityMatches&&originMatches,foreignResultQuarantined:true,
+        expectedForeignOrigin:entries.find(item=>item.id==="b1")?.expectedOrigin??null,result:data.result??null};
+      return;
+    }
+    if(!["initial","storage","cleanup"].includes(data.phase))return;
+    if(data.phase==="initial") {
+      if(entry.initial){errors.push({name:"DuplicateInitialResult",message:entry.id});return;}
+      const canvas=data.result?.canvas;
+      if(typeof canvas?.pngBase64==="string"&&canvas.pngBase64.length>87384){void finish(Error("Child PNG payload exceeded its budget"));return;}
+      entry.initial=data.result;entry.initialEventOrigin=event.origin;entry.registryAccepted=identityMatches&&originMatches;
+    } else if(!entry[data.phase])entry[data.phase]=data.result;
+  });
+  async function main() {
+    if(typeof config.runId!=="string"||!config.runId||typeof config.reportNonce!=="string"||!config.reportNonce
+      ||typeof config.parentExpectedOrigin!=="string"||!config.parentExpectedOrigin
+      ||!Array.isArray(config.frames)||config.frames.length!==3)throw Error("Bounded parent configuration is incomplete");
+    if(new Set(config.frames.map(frame=>frame.id)).size!==3||!["a1","a2","b1"].every(id=>config.frames.some(frame=>frame.id===id)))throw Error("Exactly the three configured identities a1, a2 and b1 are required");
+    const random=new Uint32Array(4);crypto.getRandomValues(random);
+    window.__atoolsOriginParentSecret="parent-only-"+Array.from(random).map(value=>value.toString(16)).join("");
+    window.__atoolsOriginReportNonce=config.reportNonce;
+    report.parentPositiveControl={value:await within(nativeInvoke("poc_benign_counter",{caseId:"parent-positive"}),2500,"Parent positive control")};
+    for(const item of config.frames) {
+      const url=new URL(item.url);
+      if(url.protocol!=="atools-origin:"||url.hostname!==item.host||url.pathname!=="/index.html"||typeof item.expectedOrigin!=="string")throw Error("Only the configured local custom-scheme index pages may load");
+      const frame=document.createElement("iframe");frame.name=item.id;frame.title="Origin "+item.id;
+      frame.setAttribute("sandbox","allow-scripts allow-same-origin");frame.src=item.url;
+      const entry={...item,frame,source:null};entries.push(entry);
+      frame.addEventListener("load",()=>{if(loads.length<12)loads.push({id:entry.id,atMs:elapsed(),windowProxyUnchanged:frame.contentWindow===entry.source,registryRebound:false});});
+      document.querySelector("#frames").append(frame);entry.source=frame.contentWindow;
+    }
+    await waitFor(()=>entries.every(entry=>!!entry.initial),9000,"Three actual child initial results");
+    for(const entry of entries) {
+      try {
+        const document_=entry.frame.contentWindow.document;
+        entry.parentReadChildDocument={outcome:"accessible",documentElementName:document_.documentElement.nodeName};
+      }catch(error){entry.parentReadChildDocument={outcome:"denied",error:errorInfo(error)};}
+    }
+    report.parent.childDocumentReads=entries.map(entry=>({id:entry.id,...entry.parentReadChildDocument}));
+    const peerIds=entries.map(entry=>entry.id);
+    for(const entry of entries)entry.source.postMessage({kind:"atools-origin-control",runId:config.runId,operation:"read-storage",peerIds},"*");
+    await waitFor(()=>entries.every(entry=>!!entry.storage),3000,"Cross-origin localStorage observations");
+    for(const entry of entries)entry.source.postMessage({kind:"atools-origin-control",runId:config.runId,operation:"cleanup-storage"},"*");
+    await waitFor(()=>entries.every(entry=>!!entry.cleanup),2000,"Owned storage key cleanup observations");
+    const original=entries.find(entry=>entry.id==="a1"),peer=entries.find(entry=>entry.id==="b1");
+    foreignSource=original.source;
+    report.foreignNavigation={status:"navigating",initialEventOrigin:original.initialEventOrigin,registryExpectedOrigin:original.expectedOrigin};
+    original.frame.src=new URL("/foreign.html",peer.url).href;
+    await waitFor(()=>report.foreignNavigation?.foreignResultQuarantined===true,3000,"Foreign document using the original WindowProxy");
+    await finish();
+  }
+  main().catch(error=>void finish(error));
+})();
+</script>
+</html>

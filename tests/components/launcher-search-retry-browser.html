@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ATools launcher search retry browser QA</title></head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import "/src/styles/global.css";
+      import { mountFresh } from "./launcher-search-retry-browser-fixture.ts";
+      void (async () => {
+        try {
+          await mountFresh();
+          window.launcherSearchRetryBrowserReady = true;
+        } catch (error) {
+          const message = error instanceof Error ? error.stack || error.message : String(error);
+          window.launcherSearchRetryBrowserStartError = message;
+          const alert = document.createElement("pre");
+          alert.setAttribute("role", "alert");
+          alert.textContent = `Fixture startup failed: ${message}`;
+          document.body.append(alert);
+          console.error("Launcher search retry fixture failed to mount", error);
+        }
+      })();
+    </script>
+  </body>
+</html>

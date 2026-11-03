@@ -1,0 +1,45 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Port-delivered synthetic payload</title>
+<body><div id="marker"></div></body><script>
+(() => {
+  "use strict";
+  const config=__ATOOLS_BOOTSTRAP_CONFIG__,handoff=window.__ATOOLS_BOOTSTRAP_HANDOFF__;
+  let posted=false;
+  const result={origin:location.origin,syncOk:false,asyncOk:false,foreignDenied:false,
+    noTauri:!("__TAURI_INTERNALS__" in window)&&!("__TAURI__" in window),markerReceived:false,httpStatus:{},errorCodes:[]};
+  function send(code){if(posted)return;posted=true;clearTimeout(overall);if(code)result.errorCodes.push(code);
+    const packet={kind:"atools-bootstrap-result",runId:config.runId,id:config.id,docNonce:handoff?.docNonce,generation:handoff?.generation,result};
+    if(typeof handoff?.docNonce==="string"&&Number.isSafeInteger(handoff.generation)) {
+      const wrongNonce=(handoff.docNonce[0]==="0"?"1":"0")+handoff.docNonce.slice(1);
+      window.parent.postMessage({...packet,docNonce:wrongNonce},config.parentOrigin);
+      window.parent.postMessage({...packet,generation:handoff.generation+1},config.parentOrigin);
+    }
+    window.parent.postMessage(packet,config.parentOrigin);}
+  const overall=setTimeout(()=>send("PAYLOAD_OVERALL_TIMEOUT"),5000);
+  function response(xhr,id,phase){try{const value=JSON.parse(xhr.responseText);return xhr.status===200&&value.ok===true&&value.result?.id===id&&value.result?.phase===phase;}catch{return false;}}
+  function asyncRequest(endpoint,id,phase,json){return new Promise(resolve=>{
+    const xhr=new XMLHttpRequest();let complete=false;
+    const finish=kind=>{if(!complete){complete=true;resolve({kind,status:xhr.status,ok:response(xhr,id,phase)});}};
+    try{xhr.open("POST",endpoint,true);xhr.timeout=2000;xhr.setRequestHeader("Content-Type",json?"application/json":"text/plain");
+      xhr.onload=()=>finish("load");xhr.onerror=()=>finish("error");xhr.ontimeout=()=>finish("timeout");xhr.onabort=()=>finish("abort");
+      xhr.send(JSON.stringify({id,phase}));}catch{finish("exception");}
+  });}
+  async function main(){
+    if(!handoff||handoff.runId!==config.runId||handoff.id!==config.id)throw Error("PAYLOAD_HANDOFF_CONTEXT_MISSING");
+    if(config.expectedOrigin!==location.origin)result.errorCodes.push("PAYLOAD_ORIGIN_MISMATCH");
+    if(typeof config.marker!=="string"||!config.marker)throw Error("PAYLOAD_MARKER_MISSING");
+    document.querySelector("#marker").textContent=config.marker;
+    result.markerReceived=document.querySelector("#marker").textContent===config.marker;
+    const sync=new XMLHttpRequest();
+    try{sync.open("POST",config.endpoint,false);sync.setRequestHeader("Content-Type","text/plain");sync.send(JSON.stringify({id:config.id,phase:"sync"}));
+      result.syncOk=response(sync,config.id,"sync");result.httpStatus.sync=sync.status;}
+    catch{result.httpStatus.sync=0;result.errorCodes.push("SYNC_HTTP_EXCEPTION");}
+    const async_=await asyncRequest(config.endpoint,config.id,"async",true);
+    result.asyncOk=async_.ok;result.httpStatus.async=async_.status;if(!async_.ok)result.errorCodes.push("ASYNC_HTTP_"+async_.kind.toUpperCase());
+    const foreign=await asyncRequest(config.foreignEndpoint,config.id,"foreign",false);
+    result.foreignDenied=foreign.kind==="error"||foreign.kind==="load"&&[401,403].includes(foreign.status);
+    result.httpStatus.foreign=foreign.status;if(!result.foreignDenied)result.errorCodes.push("FOREIGN_HTTP_NOT_DENIED_"+foreign.kind.toUpperCase());
+    send();
+  }
+  main().catch(error=>send(error instanceof Error&&/^[A-Z0-9_]+$/.test(error.message)?error.message:"PAYLOAD_UNEXPECTED_FAILURE"));
+})();
+</script></html>

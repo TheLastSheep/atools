@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import {
   assertCheckedChecklistRow,
   CdpClient,
@@ -13,6 +13,9 @@ import {
 const checklistUrl = new URL("../docs/macos-smoke-checklist.md", import.meta.url);
 const packageUrl = new URL("../package.json", import.meta.url);
 const smokeUrl = "http://localhost:1420/?parity=1&pluginHostSmoke=1";
+const outputUrl = new URL("../output/launcher-ui-2026-10-15/", import.meta.url);
+const outputPrefix = process.argv.find((arg) => arg.startsWith("--output-prefix="))?.slice("--output-prefix=".length) || "plugin-host-navigation";
+assert.match(outputPrefix, /^[a-z0-9][a-z0-9-]*$/, "output prefix must be a plain artifact name");
 
 const expectedChecklistRow = "Web 预览 `?parity=1&pluginHostSmoke=1` 只验证插件宿主 UI：显示 `插件运行态预览`、运行状态/SubInput/输出结果/桥接能力 4 个状态卡、桥接能力详情为 `DB / 事件 / 剪贴板 / 输入 / 对话框 / 窗口 / 系统 / 用户 / 上下文`、SubInput 和 output 列表，且 header/runtime/SubInput/body/output 不互相覆盖。";
 const expectedTimestampOutputChecklistRow = "输入时间戳/日期后，插件输出列表可选，选中行显示 `Enter 复制`。";
@@ -40,6 +43,7 @@ async function main() {
 
       await page.send("Runtime.enable");
       await page.send("Page.enable");
+      await page.send("Emulation.setDeviceMetricsOverride", { width: 800, height: 600, deviceScaleFactor: 1, mobile: false });
       await page.send("Page.addScriptToEvaluateOnNewDocument", {
         source: `
           (() => {
@@ -61,6 +65,9 @@ async function main() {
 
       const state = await waitForPluginHostSmoke(page);
       assertPluginHostSmokeState(state);
+      await mkdir(outputUrl, { recursive: true });
+      const screenshot = await page.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
+      await writeFile(new URL(`${outputPrefix}.png`, outputUrl), Buffer.from(screenshot.data, "base64"));
       const movedState = await movePluginOutputSelectionDown(page);
       assertPluginHostSelectionMovedState(movedState);
       const outputMenuState = await openPluginOutputContextMenu(page, 1);
@@ -71,6 +78,11 @@ async function main() {
       assertPluginOutputContextMenuCopyState(copiedOutputMenuState);
       await delay(500);
       assert.deepEqual(consoleIssues, [], "pluginHostSmoke Browser smoke should have 0 console warn/error");
+      await writeFile(new URL(`${outputPrefix}.json`, outputUrl), JSON.stringify({
+        scope: "Synthetic web preview; no original plugin execution or native runtime acceptance.", passed: true,
+        initial: state, keyboardSelection: movedState, menuOpen: outputMenuState, menuEscaped: escapedOutputMenuState,
+        copied: copiedOutputMenuState, consoleIssues, screenshot: `${outputPrefix}.png`,
+      }, null, 2) + "\n");
     } finally {
       await page.close();
     }
@@ -98,6 +110,8 @@ function assertPluginHostSmokeState(state) {
   assert.equal(state.title, "ATools 3.0");
   assert.equal(state.pluginTitle, "插件运行态预览");
   assert.equal(state.featureCode, "pluginHostSmoke");
+  assert.equal(state.featureLabel, "", "legacy preview actions must not display internal feature codes as labels");
+  assert.equal(state.navigationSourceCount, 0, "internal plugin source should appear only in diagnostics");
   assert.equal(state.pluginSource, "plugin-host-smoke");
   assert.equal(state.runtimeChipCount, 4);
   assert.deepEqual(state.runtimeChips.map((chip) => [chip.label, chip.value, chip.detail]), [
@@ -118,7 +132,13 @@ function assertPluginHostSmokeState(state) {
   assert.equal(state.viteOverlayCount, 0);
   assert.equal(state.documentOverflows, false);
   assert.equal(state.bodyOverflows, false);
-  assert.deepEqual(state.overlaps, [], "header/runtime/SubInput/body should not overlap");
+  assert.equal(state.navigationCount, 1, "plugin mode should have one host navigation bar");
+  assert.equal(state.hostInputCount, 1, "plugin mode should expose only its one host search input");
+  assert.equal(state.launcherInputCount, 0, "launcher search should be absent while the plugin is active");
+  assert.equal(state.inputInNavigation, true, "SubInput should belong to the shared navigation header");
+  assert.equal(state.inputInsideNavigationBounds, true, "SubInput should fit within the shared navigation header");
+  assert.ok(state.navigationRect?.height <= 64, "plugin search and identity should remain in one compact header row");
+  assert.deepEqual(state.overlaps, [], "navigation/runtime/body should not overlap");
   assert.equal(state.outputInsideBody, true, "output layer should stay inside the plugin body");
 }
 
@@ -335,9 +355,8 @@ async function readPluginHostSmokeState(page) {
       const intersects = (a, b) => a && b && a.width > 0 && a.height > 0 && b.width > 0 && b.height > 0
         && a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
       const layoutRects = [
-        rectOf(".plugin-header"),
+        rectOf(".plugin-navigation"),
         rectOf(".plugin-runtime-strip"),
-        rectOf(".sub-input-row"),
         rectOf(".plugin-body"),
       ].filter(Boolean);
       const overlaps = [];
@@ -362,6 +381,8 @@ async function readPluginHostSmokeState(page) {
       const bodyRect = rectOf(".plugin-body");
       const outputRect = rectOf(".plugin-output-layer");
       const subInput = document.querySelector(".sub-input");
+      const navigation = document.querySelector(".plugin-navigation");
+      const navigationRect = rectOf(".plugin-navigation"), inputRect = rectOf(".sub-input");
       const root = document.documentElement;
       const body = document.body;
       const overlaySelectors = [
@@ -373,10 +394,20 @@ async function readPluginHostSmokeState(page) {
       return {
         title: document.title,
         pluginTitle: document.querySelector(".plugin-title")?.textContent?.trim() || "",
-        featureCode: document.querySelector(".feature-code")?.textContent?.trim() || "",
-        pluginSource: document.querySelector(".plugin-source")?.textContent?.trim() || "",
+        featureLabel: navigation?.querySelector(".feature-tag")?.textContent?.trim() || "",
+        featureCode: document.querySelector('.plugin-diagnostics [data-plugin-feature-code]')?.textContent?.trim() || "",
+        pluginSource: document.querySelector('.plugin-diagnostics [data-plugin-source]')?.textContent?.trim() || "",
+        navigationSourceCount: navigation?.querySelectorAll(".plugin-source").length || 0,
         runtimeChipCount: runtimeChips.length,
         runtimeChips,
+        navigationCount: document.querySelectorAll(".plugin-navigation").length,
+        hostInputCount: document.querySelectorAll('input:not([type="hidden"])').length,
+        launcherInputCount: document.querySelectorAll('[data-atools-search-input]').length,
+        inputInNavigation: Boolean(subInput && navigation?.contains(subInput)),
+        inputInsideNavigationBounds: Boolean(inputRect && navigationRect
+          && inputRect.left >= navigationRect.left - 1 && inputRect.right <= navigationRect.right + 1
+          && inputRect.top >= navigationRect.top - 1 && inputRect.bottom <= navigationRect.bottom + 1),
+        navigationRect,
         subInput: {
           placeholder: subInput?.getAttribute("placeholder") || "",
           value: subInput?.value || "",

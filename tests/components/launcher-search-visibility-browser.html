@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>ATools launcher visibility lifecycle fixture</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import "/src/styles/global.css";
+      import { mountFresh } from "./launcherSearchVisibilityBrowserFixture.ts";
+      void (async () => {
+        try {
+          await mountFresh();
+          window.launcherSearchVisibilityBrowserReady = true;
+        } catch (error) {
+          const message = error instanceof Error ? error.stack || error.message : String(error);
+          window.launcherSearchVisibilityBrowserStartError = message;
+          const alert = document.createElement("pre");
+          alert.setAttribute("role", "alert");
+          alert.textContent = `Fixture startup failed: ${message}`;
+          document.body.append(alert);
+          console.error("Launcher visibility fixture failed to mount", error);
+        }
+      })();
+    </script>
+  </body>
+</html>

@@ -18,6 +18,15 @@ try {
   });
   await writeFile(join(outDir, "searchMatch.mjs"), transformedMatch.code);
 
+  const identitySourcePath = new URL("src/lib/commandHistoryIdentity.ts", root).pathname;
+  const identitySource = await readFile(identitySourcePath, "utf8");
+  const transformedIdentity = await transformWithEsbuild(identitySource, identitySourcePath, {
+    format: "esm",
+    target: "esnext",
+    loader: "ts",
+  });
+  await writeFile(join(outDir, "commandHistoryIdentity.mjs"), transformedIdentity.code);
+
   const sourcePath = new URL("src/lib/commandHistory.ts", root).pathname;
   const source = await readFile(sourcePath, "utf8");
   const transformed = await transformWithEsbuild(source, sourcePath, {
@@ -25,7 +34,9 @@ try {
     target: "esnext",
     loader: "ts",
   });
-  await writeFile(outFile, transformed.code.replaceAll('from "./searchMatch";', 'from "./searchMatch.mjs";'));
+  await writeFile(outFile, transformed.code
+    .replaceAll('from "./searchMatch";', 'from "./searchMatch.mjs";')
+    .replaceAll('from "./commandHistoryIdentity";', 'from "./commandHistoryIdentity.mjs";'));
 
   const search = await import(pathToFileURL(join(outDir, "searchMatch.mjs")).href);
   search.setSearchPinyinResolver((value) => {
@@ -101,6 +112,38 @@ try {
     availableOnly.map((entry) => entry.code),
     ["system:settings", "url:https%3A%2F%2Fexample.com%2Fdocs"],
   );
+
+  const sameCodeOtherPlugin = { ...pluginEntry, plugin_id: "other-plugin", plugin_name: "Other", label: "Other command" };
+  const trustedMetadata = mod.refreshCommandHistoryMetadata(
+    [pluginEntry, sameCodeOtherPlugin],
+    [{ ...pluginResult, label: "Renamed JSON", plugin_name: "JSON 工具新版", explain: "新说明", icon: "/new/icon.png" }],
+  );
+  assert.deepEqual(trustedMetadata.map((entry) => [entry.plugin_id, entry.code]), [
+    ["json-tools", "json-format"], ["other-plugin", "json-format"],
+  ]);
+  assert.deepEqual(trustedMetadata[0], {
+    ...pluginEntry, label: "Renamed JSON", plugin_name: "JSON 工具新版", explain: "新说明", icon: "/new/icon.png",
+  });
+  assert.deepEqual(trustedMetadata[1], sameCodeOtherPlugin);
+  const visibleForTrustedPlugin = mod.filterCommandHistoryByAvailability(
+    [pluginEntry, sameCodeOtherPlugin],
+    (entry) => entry.plugin_id === "json-tools" && entry.code === "json-format",
+  );
+  assert.deepEqual(visibleForTrustedPlugin.map((entry) => entry.plugin_id), ["json-tools"]);
+
+  const otherPluginResult = { ...pluginResult, plugin_id: "other-plugin", plugin_name: "Other", label: "Other command" };
+  const sameCodeHistory = mod.recordCommandUse(
+    mod.recordCommandUse([], pluginResult, "A input", "2026-06-02T03:00:00.000Z"),
+    otherPluginResult,
+    "B input",
+    "2026-06-02T03:01:00.000Z",
+  );
+  const reusedA = mod.recordCommandUse(sameCodeHistory, pluginResult, "A updated", "2026-06-02T03:02:00.000Z");
+  assert.deepEqual(reusedA.map((entry) => [entry.plugin_id, entry.code]), [
+    ["json-tools", "json-format"], ["other-plugin", "json-format"],
+  ]);
+  assert.deepEqual(reusedA.map((entry) => entry.useCount), [2, 1]);
+  assert.equal(reusedA[1].input, "B input");
 
   const normalized = mod.normalizeCommandHistory([
     { code: "local:desktop", label: "打开 桌面", explain: "文件夹 · ~/Desktop", plugin_id: "local-launch", plugin_name: "本地启动", input: "desktop", usedAt: "2026-06-02T00:00:00.000Z", useCount: 1 },

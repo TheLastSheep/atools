@@ -1,59 +1,21 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { transformWithEsbuild } from "vite";
+import { createRequire } from "node:module";
+import { assertPluginPanelMessageBoundary } from "./lib/assert-plugin-panel-message-boundary.mjs";
+const { build } = createRequire(import.meta.resolve("vite"))("esbuild");
 
 const root = new URL("../", import.meta.url);
-const componentSource = await readFile(new URL("src/components/PluginPanel.svelte", root), "utf8");
-const bridgeMatch = componentSource.match(/const UTOOLS_BRIDGE = `([\s\S]*?)`;/);
-assert.ok(bridgeMatch, "PluginPanel should define the injected uTools bridge");
-assert.doesNotMatch(
-  bridgeMatch[1],
-  /__TAURI_INTERNALS__/,
-  "sandboxed plugin code must never discover window, parent, or top Tauri internals",
-);
-
-const handleMessageStart = componentSource.indexOf("function handleMessage(e: MessageEvent)");
-const handleMessageEnd = componentSource.indexOf("\n  }\n</script>", handleMessageStart);
-assert.ok(handleMessageStart >= 0 && handleMessageEnd > handleMessageStart, "PluginPanel should keep one host message handler");
-const handleMessageSource = componentSource.slice(handleMessageStart, handleMessageEnd);
-const sourceGateIndex = handleMessageSource.indexOf("identifyPluginMessageEvent(pluginMessageSources, e)");
-const firstDispatchIndex = handleMessageSource.indexOf("data.__atools_permission_request__");
-assert.ok(
-  sourceGateIndex >= 0 && sourceGateIndex < firstDispatchIndex,
-  "the WindowProxy identity gate must run before any plugin message dispatch",
-);
-assert.match(
-  handleMessageSource,
-  /if \(sourceIdentity\.kind !== "main"\) return;/,
-  "main-frame-only output, probe, and UI messages must be blocked for hosted children",
-);
-assert.match(componentSource, /use:pluginMainFrame/, "the main iframe must register its WindowProxy");
-assert.match(componentSource, /registerChild\(/, "hosted child iframes must register their WindowProxy");
-assert.match(
-  componentSource,
-  /bindNativeBridgeArgsToSource/,
-  "native bridge calls must bind source-owned identity before dispatch",
-);
-assert.match(
-  componentSource,
-  /pluginPermissionListAllows\(action\.plugin_permissions, value\)/,
-  "host permission checks must use the fail-closed manifest permission policy",
-);
+await assertPluginPanelMessageBoundary(root);
 
 const outDir = await mkdtemp(join(root.pathname, ".tmp-plugin-invoke-policy-"));
 const outFile = join(outDir, "pluginInvokePolicy.mjs");
 
 try {
   const sourcePath = new URL("src/lib/pluginInvokePolicy.ts", root).pathname;
-  const source = await readFile(sourcePath, "utf8");
-  const transformed = await transformWithEsbuild(source, sourcePath, {
-    format: "esm",
-    target: "esnext",
-    loader: "ts",
-  });
-  await writeFile(outFile, transformed.code);
+  await build({ entryPoints: [sourcePath], outfile: outFile, bundle: true,
+    format: "esm", platform: "node", target: "esnext", logLevel: "silent" });
   const policy = await import(pathToFileURL(outFile).href);
 
   const mainSource = {};
@@ -284,19 +246,6 @@ try {
   sources.unregisterMain(deliverySource);
   sources.setMain(mainSource);
 
-  const nativeHandlerStart = componentSource.indexOf("async function handleNativeBridgeCall(");
-  const nativeHandlerEnd = componentSource.indexOf("\n  function handleRuntimeResourceResolveCall", nativeHandlerStart);
-  const nativeHandlerSource = componentSource.slice(nativeHandlerStart, nativeHandlerEnd);
-  assert.match(nativeHandlerSource, /runPluginFrameOperation/, "native calls must revalidate around execution");
-  assert.ok(
-    (nativeHandlerSource.match(/postPluginFrameMessageIfCurrent/g) || []).length >= 2,
-    "native success and error responses must both use generation-gated delivery",
-  );
-  assert.ok(
-    (handleMessageSource.match(/postPluginFrameMessageIfCurrent/g) || []).length >= 2,
-    "invoke success and error responses must both use generation-gated delivery",
-  );
-
   for (const command of ["unknown", "set_setting", "process_exit", "read_text_file", "fs_read_file"]) {
     await assert.rejects(
       dispatch(mainSource, { __ipc_call__: true, reqId: 2, cmd: command, args: {} }),
@@ -511,6 +460,26 @@ try {
     ),
     { id: "child-2", action: "show", args: [] },
     "the main plugin handle must retain control over any of its hosted children",
+  );
+  assert.deepEqual(
+    policy.bindNativeBridgeArgsToSource(
+      "browserWindowAction",
+      { id: "grandchild-1", action: "close", args: [] },
+      initialChildIdentity,
+      { authorizeBrowserWindowTarget: (targetId, identity) => targetId === "grandchild-1" && identity.generation === initialChildIdentity.generation },
+    ),
+    { id: "grandchild-1", action: "close", args: [] },
+    "a hosted child may control a direct child only after the host authorizes creator ownership",
+  );
+  assert.throws(
+    () => policy.bindNativeBridgeArgsToSource(
+      "browserWindowAction",
+      { id: "peer-1", action: "close", args: [] },
+      initialChildIdentity,
+      { authorizeBrowserWindowTarget: () => false },
+    ),
+    /not owned by this current plugin frame/,
+    "a hosted child must not target a peer or ancestor BrowserWindow",
   );
 
   sources.unregisterChild("child-1", childSource);

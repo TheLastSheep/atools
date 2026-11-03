@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <title>Plugin context menu geometry fixture</title>
+</head>
+<body>
+  <main class="fixture">
+    <h1>插件菜单几何与交互验收</h1>
+    <p>固定本地菜单数据；仅展示 Overlay、Controller 与 frame source registry，不启动插件或 native。</p>
+    <nav aria-label="固定菜单场景">
+      <button id="open-five" type="button">5 个常用菜单项</button>
+      <button id="open-nested" type="button">复选框、禁用项与三级子菜单</button>
+      <button id="open-long" type="button">32 项长菜单</button>
+      <button id="replace-document" type="button">替换文档</button>
+      <button id="close-menu" type="button">关闭菜单</button>
+    </nav>
+    <dl class="state" aria-label="菜单状态">
+      <div><dt>当前状态</dt><dd id="menu-state">已关闭</dd></div>
+      <div><dt>最近选择</dt><dd id="selected-id">无</dd></div>
+      <div><dt>选择次数</dt><dd id="selection-count">0</dd></div>
+      <div><dt>文档代次</dt><dd id="document-generation">1</dd></div>
+    </dl>
+    <iframe id="plugin-frame" title="合成插件 frame" srcdoc="<!doctype html><html><body>固定 frame source</body></html>"></iframe>
+  </main>
+  <div id="overlay-root"></div>
+  <script type="module" src="./pluginContextMenuBrowserFixture.ts"></script>
+  <style>
+    :root { color-scheme: light dark; font: 14px/1.45 system-ui, sans-serif; color: var(--text-primary); background: var(--bg-primary); }
+    body { margin: 0; padding: 12px; }
+    .fixture { max-width: 720px; margin: 0 auto; }
+    h1 { margin: 0 0 8px; font-size: 18px; }
+    p { margin: 0 0 12px; color: var(--text-secondary); }
+    nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+    nav button { min-height: 34px; padding: 0 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg-elevated); color: var(--text-primary); font: inherit; }
+    nav button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .state { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin: 0 0 10px; }
+    .state div { padding: 8px; border: 1px solid var(--border); border-radius: 7px; }
+    dt { color: var(--text-secondary); font-size: 11px; } dd { margin: 2px 0 0; overflow-wrap: anywhere; }
+    iframe { display: block; width: 220px; height: 72px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-elevated); }
+  </style>
+</body>
+</html>

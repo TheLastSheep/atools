@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN" data-atools-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ATools 插件窗口设置隔离验收</title>
+    <style>
+      body.plugin-settings-fixture { margin: 0; min-height: 100vh; background: var(--bg-primary); color: var(--text-primary); }
+      main { min-height: 240px; padding: 24px; }
+      .fixture-controls { display: flex; flex-wrap: wrap; gap: 12px; padding: 16px 24px; border-top: 1px solid var(--border); }
+      .fixture-controls button { padding: 8px 12px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--bg-elevated); color: var(--text-primary); }
+    </style>
+  </head>
+  <body class="plugin-settings-fixture">
+    <div id="chrome"></div>
+    <main><h1>插件内容</h1><p>此页使用生产工具栏与设置组件，持久化和原生调用由隔离夹具代替。</p></main>
+    <div class="fixture-controls" aria-label="隔离夹具控制">
+      <button id="plugin-a" type="button">Live Markdown</button>
+      <button id="plugin-b" type="button">Paste</button>
+      <button id="fail-save" type="button">下次保存失败</button>
+      <button id="fail-load" type="button">下次读取失败</button>
+      <button id="theme" type="button">切换深浅色</button>
+    </div>
+    <script type="module" src="./pluginWindowSettingsBrowserFixture.ts"></script>
+  </body>
+</html>

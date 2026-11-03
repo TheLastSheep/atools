@@ -63,9 +63,19 @@ try {
   });
   assert.deepEqual(outputView.chrome, {
     title: "时间戳",
-    feature: "timestamp",
-    source: "timestamp",
+    feature: "",
   });
+  assert.deepEqual(outputView.diagnostics, { featureCode: "timestamp", source: "timestamp" });
+  const viewState = { subInputVisible: false, iframeReady: true, outputItems: [], selectedIndex: 0 };
+  assert.equal(mod.pluginHostView({ ...action, feature_label: " 时间格式转换 ", feature_label_source: "declared" }, viewState).chrome.feature, "时间格式转换");
+  assert.equal(mod.pluginHostView({ ...action, feature_label: "时间戳", feature_label_source: "explain" }, viewState).chrome.feature, "");
+  assert.equal(mod.pluginHostView({ ...action, feature_label: null }, viewState).chrome.feature, "");
+  assert.equal(mod.pluginHostView({ ...action, feature_label: "  " }, viewState).chrome.feature, "");
+  const secondAction = { ...action, feature_code: "timestamp-format", feature_label: "格式化日期", feature_label_source: "command_label" };
+  const secondView = mod.pluginHostView(secondAction, viewState);
+  assert.equal(secondView.chrome.feature, "格式化日期");
+  assert.equal(secondView.diagnostics.featureCode, "timestamp-format");
+  assert.equal(secondAction.feature_code, "timestamp-format");
   assert.deepEqual(outputView.actions.map((action) => [action.id, action.label, action.available]), [
     ["back", "返回", true],
     ["settings", "设置", false],
@@ -149,20 +159,28 @@ try {
   assert.equal(errorView.runtimeChips[0].value, "加载失败");
   assert.equal(errorView.runtimeChips[0].tone, "error");
 
-  const [componentSource, appSource] = await Promise.all([
+  const [componentSource, appSource, diagnosticsSource, navigationSource] = await Promise.all([
     readFile(new URL("src/components/PluginPanel.svelte", root), "utf8"),
     readFile(new URL("src/App.svelte", root), "utf8"),
+    readFile(new URL("src/components/PluginDiagnostics.svelte", root), "utf8"),
+    readFile(new URL("src/components/PluginNavigationBar.svelte", root), "utf8"),
   ]);
-  assert.match(componentSource, /aria-label="插件运行状态"/);
+  assert.match(diagnosticsSource, /aria-label="插件运行状态"/);
   assert.match(componentSource, /hostView\.runtimeChips/);
-  assert.match(componentSource, /class="plugin-runtime-strip"/);
-  assert.match(componentSource, /class="runtime-chip"/);
+  assert.match(componentSource, /identity=\{hostView\.diagnostics\}/);
+  assert.doesNotMatch(componentSource, /source=\{hostView\.chrome\.source\}/, "internal plugin source must stay outside normal navigation");
+  assert.match(diagnosticsSource, /data-plugin-feature-code/);
+  assert.match(diagnosticsSource, /data-plugin-source/);
+  assert.match(diagnosticsSource, /expanded = false/, "internal identities should remain folded by default");
+  assert.match(diagnosticsSource, /class="plugin-runtime-strip"/);
+  assert.match(diagnosticsSource, /class="runtime-chip"/);
   assert.match(componentSource, /function handlePluginChromeAction/, "plugin chrome actions should route through an explicit handler");
   assert.match(componentSource, /case "detach":/, "detach chrome action should have a host implementation");
   assert.match(componentSource, /dispatchPluginDetachEvent\(\)/, "detach action should notify the plugin iframe lifecycle");
-  assert.match(componentSource, /onclick=\{\(\) => handlePluginChromeAction\(chromeAction\.id\)\}/, "plugin chrome buttons should invoke the host action handler");
-  assert.match(componentSource, /\.plugin-runtime-strip\s*\{[\s\S]*?display:\s*grid;/);
-  assert.match(componentSource, /\.runtime-chip\s*\{[\s\S]*?min-width:\s*0;/);
+  assert.match(componentSource, /onaction=\{handlePluginChromeAction\}/, "plugin navigation should delegate chrome actions to the lifecycle handler");
+  assert.match(navigationSource, /onclick=\{\(\) => onaction\(action\.id\)\}/, "chrome buttons should route their exact action identity through the navigation callback");
+  assert.match(diagnosticsSource, /\.plugin-runtime-strip\s*\{[\s\S]*?display:\s*grid;/);
+  assert.match(diagnosticsSource, /\.runtime-chip\s*\{[\s\S]*?min-width:\s*0;/);
   assert.match(componentSource, /WEB_PREVIEW_PLUGIN_PATH/);
   assert.match(componentSource, /loadPreviewPluginHtml/);
   assert.match(componentSource, /let iframeSrc = \$state\(""\)/, "PluginPanel should track preview iframe src for generated real-entry fixtures");

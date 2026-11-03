@@ -1,3 +1,4 @@
+import { injectPluginBridgeFactories } from "./lib/plugin-bridge-fixture.mjs";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFile } from "node:fs/promises";
@@ -11,8 +12,10 @@ const [componentSource, capabilitySource, smokeChecklist] = await Promise.all([
 
 const bridgeMatch = componentSource.match(/const UTOOLS_BRIDGE = `([\s\S]*?)`;/);
 assert.ok(bridgeMatch, "PluginPanel should define the injected utools bridge");
+const bridgeTemplate = await injectPluginBridgeFactories(bridgeMatch[1]);
 
-const bridgeSource = bridgeMatch[1]
+const bridgeSource = bridgeTemplate
+  .replace(/__ACTION_PAYLOAD__/g, JSON.stringify(null))
   .replace(/<\\\/script>/g, "</script>")
   .replace(/^\s*<script>\s*/, "")
   .replace(/\s*<\/script>\s*$/, "")

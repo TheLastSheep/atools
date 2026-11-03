@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "digestAlgorithm": "AToolsLocalTreeV1: SHA-256 over sorted complete directory records and every file path, byte length, and SHA-256; unchanged original directories only",
+  "sourceReview": {
+    "local-subnet-calculator": {
+      "reviewScope": "Complete unchanged original directory. Static source review and byte pinning only; no plugin execution or acceptance implied.",
+      "entryPoints": [
+        "plugin.json",
+        "index.html",
+        "preload.js"
+      ],
+      "selectors": [
+        "#ipInput",
+        "#maskInput",
+        "#calcSection button",
+        ".tab",
+        "#hostCountInput",
+        "#startIpInput",
+        "#reverseSection button",
+        "#resultArea .result-row"
+      ],
+      "anchors": [
+        "plugin.json selects subnet text feature and unchanged preload.js",
+        "preload.js requires electron only; production local Electron adapter must use zero Node sessions",
+        "index.html original calc button binds calculate; results render eleven labeled DOM rows; result value clicks would copy and are excluded",
+        "index.html original reverse tab/button accept host count and start IP and render original reverse rows",
+        "index.html rejects non-contiguous masks and host count zero; selected scenario restores valid results after each error"
+      ],
+      "riskBoundary": "Only fixed values through original input DOM events and original calculation/reverse/tab button clicks. No calculate/render/private function calls, no result-value click, clipboard, file, network, data or path access. Web runtime with exact reviewed Electron-only preload; no Node permission/session/transport. /24, /31, /32 and host-30 reverse rows are asserted independently; invalid mask and host-zero errors must recover."
+    }
+  },
+  "cases": [
+    {
+      "caseId": "local-subnet-calculator",
+      "id": "subnet-calculator",
+      "featureCode": "subnet",
+      "searchQuery": "subnet",
+      "title": "子网掩码计算器",
+      "runtime": "web",
+      "dataAccess": false,
+      "verifyDataPersistence": false,
+      "pathAccess": "none",
+      "version": "1.0.0",
+      "frameOperations": "tests/components/nativeOriginalSubnetFrameOperations.js",
+      "directorySha256": "99fec94248078f493627e6140c55590923255b5f08a8763c042f8cbf0463ec06",
+      "fileCount": 4,
+      "sourceKind": "local_full_directory",
+      "sourcePath": "ZTools-plugins/plugins/subnet-calculator",
+      "sourceReview": "output/legacy-node-2026-10-17/local-subnet-calculator-source-review-v1.json",
+      "sourceReviewStatus": "prepared_for_parent_native_fixture_decision"
+    }
+  ],
+  "snapshots": {
+    "local-subnet-calculator": {
+      "directorySha256": "99fec94248078f493627e6140c55590923255b5f08a8763c042f8cbf0463ec06",
+      "fileCount": 4,
+      "files": [
+        {
+          "path": "index.html",
+          "bytes": 14073,
+          "sha256": "24ccc7856e23443ca7190aaf42c11eabb39d005f46063bb2ab1eff6abd8674ee"
+        },
+        {
+          "path": "logo.png",
+          "bytes": 2985,
+          "sha256": "b5cba065bbcc76dbf7437b288430580b5c347eac03890336db9d83b54bd6c21b"
+        },
+        {
+          "path": "plugin.json",
+          "bytes": 772,
+          "sha256": "ad83b71d52155f8d6996ba1601b48f04a66eef7a02f0e3f0dfe80fa18800aa5b"
+        },
+        {
+          "path": "preload.js",
+          "bytes": 143,
+          "sha256": "3623302f8be9e12405e0f7ce14d9f0ee69fcb7aabdda4b79057401e321f66901"
+        }
+      ],
+      "directories": []
+    }
+  }
+}

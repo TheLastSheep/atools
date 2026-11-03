@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "digestAlgorithm": "SHA-256 over the unchanged compressed ZPX bytes; extracted ASAR members are separately pinned by path, size, and SHA-256",
+  "sourceReview": {
+    "local-my-calculator-zpx": {
+      "reviewScope": "Unchanged original Brotli-compressed ZPX and its complete ASAR member tree; static byte and manifest inspection only. The preload statically calls window.ztools.getPath('downloads'), so startup preflight requests standard path metadata permission.",
+      "archiveFormat": "Brotli-compressed ASAR; production importer receives the .zpx file copy.",
+      "manifest": {
+        "name": "my-calculator",
+        "title": "计算器",
+        "version": "1.0.1",
+        "main": "index.html",
+        "preload": "preload/services.js",
+        "featureCode": "calculator",
+        "commands": [
+          "计算器",
+          "calc",
+          "calculator"
+        ]
+      },
+      "selectors": [
+        ".calculator-buttons button",
+        ".display-expression",
+        ".display-result"
+      ],
+      "anchors": [
+        "plugin.json: original archive manifest identifies my-calculator@1.0.1 and calculator commands",
+        "preload/services.js: requires node:fs and node:path and declares window.ztools.getPath('downloads'); static startup preflight requests standard path metadata permission, while the calculator scenario does not invoke window.services or write files",
+        "index.html: references the pinned bundled assets/index-DTinetUR.js and assets/index-D5L8xNXa.css",
+        "src/Calculator/index.tsx:129-130,166-169,172+: visible calculator buttons and expression/result display"
+      ],
+      "runtimeBoundary": "Node runtime is required for the declared preload only. Static preflight detects window.ztools.getPath('downloads') and requests standard path metadata permission before the iframe starts. The UI scenario clicks original visible calculator buttons and checks output; it does not invoke window.services or write files, evaluate private component state, or alter plugin source."
+    }
+  },
+  "cases": [
+    {
+      "caseId": "local-my-calculator-zpx",
+      "id": "my-calculator",
+      "version": "1.0.1",
+      "sourceKind": "local_original_archive",
+      "sourcePath": "ZTools-plugins/plugins/my-calculator/my-calculator.zpx",
+      "archiveExtension": "zpx",
+      "archiveSha256": "af29034f61199203a4e3161b3e119cd9bca4d544ae7e23127b4e04e7e407b1cd",
+      "archiveBytes": 83406,
+      "fileCount": 8,
+      "featureCode": "calculator",
+      "searchQuery": "calc",
+      "title": "计算器",
+      "runtime": "node",
+      "dataAccess": false,
+      "pathAccess": "standard",
+      "verifyDataPersistence": false,
+      "sourceReview": "output/legacy-node-2026-10-17/local-my-calculator-zpx-source-review-v2.json",
+      "frameOperations": "tests/components/nativeOriginalCalculatorFrameOperations.js",
+      "sourceReviewStatus": "prepared_for_parent_native_fixture_decision"
+    }
+  ],
+  "witnesses": {
+    "local-my-calculator-zpx": {
+      "archiveSha256": "af29034f61199203a4e3161b3e119cd9bca4d544ae7e23127b4e04e7e407b1cd",
+      "archiveBytes": 83406,
+      "directories": [
+        "assets",
+        "preload"
+      ],
+      "files": [
+        {
+          "path": "assets/index-D5L8xNXa.css",
+          "bytes": 3600,
+          "sha256": "f40d0e57084a7060423d84bd32101acae160287926f2e14c7b7eb38ed56dd324"
+        },
+        {
+          "path": "assets/index-DTinetUR.js",
+          "bytes": 200437,
+          "sha256": "987d1a7646dd34158a00e2414dec1e71b9c22f24aef1758c80c052b67a15952a"
+        },
+        {
+          "path": "index.html",
+          "bytes": 378,
+          "sha256": "4ecc0edd540133cc79a3692bba761647922dd08d991a15e86963a7c028a4df48"
+        },
+        {
+          "path": "logo.png",
+          "bytes": 27912,
+          "sha256": "353973a52fb415c0c14aeae996e1a2ac4ce1ac6913b1e8559b793870fb37d2e2"
+        },
+        {
+          "path": "logo.svg",
+          "bytes": 4565,
+          "sha256": "2728e5531ed84865f6cef104e641aa5218ec41f1e563f7d692dc44ce26df7376"
+        },
+        {
+          "path": "plugin.json",
+          "bytes": 580,
+          "sha256": "4d15ef10b4b61b94a32c4edc716166570e644eefd676c9dccd4a23cb077f3900"
+        },
+        {
+          "path": "preload/package.json",
+          "bytes": 28,
+          "sha256": "58b55392b5778941e1e96892a70edc12e2d7bb8541289b237fbddc9926ed51bd"
+        },
+        {
+          "path": "preload/services.js",
+          "bytes": 913,
+          "sha256": "a31df2f3c6c9c40cf0056cb2f896f60a11486d34c0c154164f5993da08a8bb3c"
+        }
+      ]
+    }
+  }
+}

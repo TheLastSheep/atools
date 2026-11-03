@@ -5,6 +5,7 @@ import { access, mkdtemp, rm } from "node:fs/promises";
 import { createConnection } from "node:net";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { launchOwnedViteCli } from "./lib/owned-vite-cli-process.mjs";
 
 export async function launchChrome() {
   const chromePath = await findChromePath();
@@ -49,37 +50,15 @@ export async function launchViteServer(options = {}) {
   const port = Number(options.port ?? 1420);
   const cwd = options.cwd || new URL("..", import.meta.url).pathname;
   const probeUrl = options.probeUrl || `http://localhost:${port}/?parity=1`;
-  const viteEntry = join(cwd, "node_modules", "vite", "bin", "vite.js");
-  const child = spawn(process.execPath, [viteEntry, "--host", host, "--port", String(port), "--strictPort"], {
-    cwd,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  let output = "";
-  child.stdout.on("data", (chunk) => {
-    output += chunk.toString();
-  });
-  child.stderr.on("data", (chunk) => {
-    output += chunk.toString();
-  });
+  let owned;
   try {
-    await waitForViteReady(child, { probeUrl, timeoutMs: options.timeoutMs ?? 20000 });
+    owned = await launchOwnedViteCli({ cwd, host, port, probeUrl, timeoutMs: options.timeoutMs ?? 20000 });
   } catch (error) {
-    child.kill("SIGTERM");
-    await waitForProcessExit(child, 3000);
-    throw new Error(`${error.message}\nVite output:\n${output}`);
+    const wrapped = new Error(error.message, { cause: error });
+    wrapped.atoolsLifecycle = error.atoolsLifecycle || { vite: error.ownedViteLifecycle };
+    throw wrapped;
   }
-  return {
-    close: async () => {
-      if (child.exitCode === null && child.signalCode === null) {
-        child.kill("SIGTERM");
-      }
-      const exited = await waitForProcessExit(child, 3000);
-      if (!exited && child.exitCode === null && child.signalCode === null) {
-        child.kill("SIGKILL");
-        await waitForProcessExit(child, 1000);
-      }
-    },
-  };
+  return { close: async () => { await owned.close(); } };
 }
 
 export async function createPageWebSocketUrl(browserWebSocketUrl) {
@@ -197,7 +176,7 @@ export function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function findChromePath() {
+export async function findChromePath() {
   const candidates = [
     process.env.CHROME_BIN,
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
@@ -317,54 +296,6 @@ class WebSocketConnection {
   }
 }
 
-function waitForViteReady(child, options) {
-  const { probeUrl, timeoutMs } = options;
-  return new Promise((resolve, reject) => {
-    let settled = false;
-    let lastError;
-    const timer = setTimeout(() => {
-      finish(reject, new Error(`Timed out waiting for Vite server: ${lastError?.message || "HTTP probe did not become ready"}`));
-    }, timeoutMs);
-    const interval = setInterval(() => {
-      void checkReady();
-    }, 250);
-    const onData = () => {
-      void checkReady();
-    };
-    const onError = (error) => finish(reject, error);
-    const onExit = (code, signal) => finish(reject, new Error(`Vite exited before ready: code=${code} signal=${signal}`));
-    const finish = (callback, value) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      clearInterval(interval);
-      child.stdout.off("data", onData);
-      child.stderr.off("data", onData);
-      child.off("error", onError);
-      child.off("exit", onExit);
-      callback(value);
-    };
-    const checkReady = async () => {
-      try {
-        const response = await fetch(probeUrl);
-        await response.body?.cancel();
-        if (response.ok) {
-          finish(resolve);
-          return;
-        }
-        lastError = new Error(`HTTP ${response.status}`);
-      } catch (error) {
-        lastError = error;
-      }
-    };
-    child.stdout.on("data", onData);
-    child.stderr.on("data", onData);
-    child.once("error", onError);
-    child.once("exit", onExit);
-    void checkReady();
-  });
-}
-
 function readHandshake(socket, key) {
   return new Promise((resolve, reject) => {
     let buffer = Buffer.alloc(0);
@@ -449,7 +380,7 @@ function decodeServerFrame(buffer) {
   };
 }
 
-function waitForProcessExit(child, timeoutMs) {
+export function waitForProcessExit(child, timeoutMs) {
   return new Promise((resolve) => {
     if (child.exitCode !== null || child.signalCode !== null) {
       resolve(true);

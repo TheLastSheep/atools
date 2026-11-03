@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head><meta charset="utf-8"><title>ATools result presentation fixture</title></head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import "/src/styles/global.css";
+      import * as fixture from "./launcherPresentationBrowserFixture.ts";
+      window.fixture = fixture;
+      fixture.mountFixture();
+      window.launcherPresentationReady = true;
+    </script>
+  </body>
+</html>

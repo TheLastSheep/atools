@@ -1,3 +1,4 @@
+import { injectPluginBridgeFactories } from "./lib/plugin-bridge-fixture.mjs";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -58,8 +59,10 @@ try {
 
 const bridgeMatch = componentSource.match(/const UTOOLS_BRIDGE = `([\s\S]*?)`;/);
 assert.ok(bridgeMatch, "PluginPanel should define the injected utools bridge");
+const bridgeTemplate = await injectPluginBridgeFactories(bridgeMatch[1]);
 
-const bridgeSource = bridgeMatch[1]
+const bridgeSource = bridgeTemplate
+  .replace(/__ACTION_PAYLOAD__/g, JSON.stringify(null))
   .replace(/<\\\/script>/g, "</script>")
   .replace(/^\s*<script>\s*/, "")
   .replace(/\s*<\/script>\s*$/, "")
@@ -121,6 +124,7 @@ const context = vm.createContext({
   document: documentStub,
   navigator: { platform: "MacIntel", userAgent: "Mozilla/5.0 (Macintosh)" },
   Event: EventStub,
+  CustomEvent: class extends EventStub { constructor(type, init) { super(type); this.detail = init?.detail; } },
   console: {
     error() {},
     warn() {},
@@ -138,6 +142,8 @@ const context = vm.createContext({
 });
 
 vm.runInContext(bridgeSource, context, { filename: "UTOOLS_BRIDGE.vm.js" });
+// Production entry dispatch waits for the async initialization barrier.
+await new Promise(resolve => setImmediate(resolve));
 
 function respondToNativeCall(call, payload) {
   const handlers = listeners.get("message") || [];

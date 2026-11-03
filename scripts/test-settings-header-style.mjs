@@ -2,50 +2,48 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const root = new URL("../", import.meta.url);
-const [header, zMark, smokeChecklist] = await Promise.all([
+const [header, smokeChecklist] = await Promise.all([
   readFile(new URL("src/components/SettingsHeader.svelte", root), "utf8"),
-  readFile(new URL("src/components/ZMark.svelte", root), "utf8"),
   readFile(new URL("docs/macos-smoke-checklist.md", root), "utf8"),
 ]);
-const assertSmokeChecked = (row, message) => {
-  assert.ok(smokeChecklist.includes(`- [x] ${row}`), message);
+const assertSmokePending = (row, message) => {
+  assert.ok(smokeChecklist.includes(`- [ ] ${row}`), message);
 };
+const count = (source, pattern) => [...source.matchAll(pattern)].length;
 
-assert.match(header, /\.settings-header\s*\{[\s\S]*?height:\s*94px;/);
-assert.match(header, /\.settings-header\s*\{[\s\S]*?display:\s*flex;/);
-assert.match(header, /\.settings-header\s*\{[\s\S]*?padding:\s*20px 22px 0;/);
+assert.equal(count(header, /<AToolsMark\b/g), 1, "settings header should render one brand mark");
+assert.match(header, /<AToolsMark size="small"\s*\/>/);
+assert.doesNotMatch(header, /<AToolsMark[^>]*label=/);
+assert.equal(count(header, /<h1\b/g), 1, "settings header should have one primary heading");
+assert.match(header, /<div class="settings-title">[\s\S]*?<h1>\s*设置\s*<\/h1>[\s\S]*?<\/div>/);
+assert.doesNotMatch(header, /active-tab|secondary-tab|tab-close/);
+
+assert.match(header, /<header class="settings-header">/);
+assert.match(header, /\.settings-header\s*\{[\s\S]*?height:\s*56px;[\s\S]*?padding:\s*0\s+20px;/);
 assert.match(header, /\.settings-header\s*\{[\s\S]*?-webkit-app-region:\s*drag;/);
-assert.match(header, /\.tab\s*\{[\s\S]*?height:\s*72px;/);
-assert.match(header, /\.tab\s*\{[\s\S]*?gap:\s*14px;/);
-assert.match(header, /\.tab\s*\{[\s\S]*?font-size:\s*26px;/);
-assert.match(header, /<ZMark size="small" \/>/);
-assert.match(header, /<ZMark size="large" label="设置" \/>/);
-assert.match(header, /\.active-tab\s*\{[\s\S]*?min-width:\s*196px;/);
-assert.match(header, /\.active-tab\s*\{[\s\S]*?border-radius:\s*36px 0 0 36px;/);
-assert.match(header, /\.active-tab\s*\{[\s\S]*?clip-path:\s*polygon\(0 0, 100% 0, calc\(100% - 28px\) 100%, 0 100%\);/);
-assert.match(header, /\.secondary-tab\s*\{[\s\S]*?min-width:\s*154px;/);
-assert.match(header, /\.secondary-tab\s*\{[\s\S]*?margin-left:\s*-28px;/);
-assert.match(header, /\.secondary-tab\s*\{[\s\S]*?padding-left:\s*42px;/);
-assert.match(header, /\.tab-close\s*\{[\s\S]*?width:\s*28px;[\s\S]*?height:\s*28px;/);
-assert.match(header, /\.more-btn\s*\{[\s\S]*?width:\s*32px;[\s\S]*?height:\s*72px;/);
-assert.match(header, /\.more-btn span\s*\{[\s\S]*?width:\s*5px;[\s\S]*?height:\s*5px;/);
-assert.match(header, /@media \(max-width: 1000px\)\s*\{[\s\S]*?\.settings-header\s*\{[\s\S]*?height:\s*58px;/);
-assert.match(header, /@media \(max-width: 1000px\)\s*\{[\s\S]*?\.tab\s*\{[\s\S]*?height:\s*44px;[\s\S]*?font-size:\s*16px;/);
-assert.match(header, /@media \(max-width: 1000px\)\s*\{[\s\S]*?\.settings-header :global\(\.z-mark\.small\),[\s\S]*?--mark-size:\s*42px;/);
+assert.match(header, /\.settings-title\s*\{[\s\S]*?display:\s*flex;[\s\S]*?gap:\s*10px;/);
+assert.match(header, /\.settings-header\s+:global\(\.atools-mark\.small\)\s*\{[\s\S]*?--mark-size:\s*30px;/);
+assert.match(header, /\.more-btn\s*\{[\s\S]*?width:\s*32px;/);
+assert.match(header, /\.return-button,\s*\.more-btn\s*\{[\s\S]*?height:\s*32px;/);
+assert.match(header, /\.more-wrapper\s*\{[\s\S]*?-webkit-app-region:\s*no-drag;/);
 
-assert.match(zMark, /\.z-mark\.small\s*\{[\s\S]*?--mark-size:\s*42px;/);
-assert.match(zMark, /\.z-mark\.large\s*\{[\s\S]*?--mark-size:\s*72px;/);
-assert.match(zMark, /\.z-mark\.large\s*\{[\s\S]*?--stroke-height:\s*7px;/);
-assert.match(zMark, /\.z-mark\s*\{[\s\S]*?border-radius:\s*50%;/);
-assert.match(zMark, /class="z-stroke top"/);
-assert.match(zMark, /class="z-stroke diagonal"/);
-assert.match(zMark, /class="z-stroke bottom"/);
+const returnButton = header.match(/<button\b[^>]*class="return-button"[^>]*>[\s\S]*?<\/button>/)?.[0];
+assert.ok(returnButton, "header should expose its close and return button");
+assert.match(returnButton, /aria-label="回到主搜索"/);
+assert.match(returnButton, /onclick=\{closeAndReturnHome\}/);
+assert.match(returnButton, /返回搜索/);
+assert.match(returnButton, /<svg\b[\s\S]*?(?:arrow|path)[\s\S]*?<\/svg>/i);
+assert.match(header, /function closeAndReturnHome\(\)\s*\{[\s\S]*?showMoreMenu\s*=\s*false;[\s\S]*?onclose\(\);[\s\S]*?\}/);
+assert.match(header, /class="more-btn"[\s\S]*?aria-haspopup="menu"[\s\S]*?aria-expanded=\{showMoreMenu\}[\s\S]*?onclick=\{toggleMoreMenu\}/);
+assert.match(header, /role="menu"/);
+assert.match(header, /role="menuitem"/);
+assert.match(header, /function copyRuntimeInfo\(\)[\s\S]*?navigator\.clipboard\?\.writeText[\s\S]*?已复制运行信息[\s\S]*?复制失败/);
+assert.match(header, /function onWindowKeydown\(event: KeyboardEvent\)[\s\S]*?event\.key !== "Escape"[\s\S]*?event\.stopImmediatePropagation\(\)[\s\S]*?closeMoreMenu\(\)/);
+assert.match(header, /function onWindowClick\(\)[\s\S]*?closeMoreMenu\(\)/);
 
-assertSmokeChecked(
-  "设置页顶部标签、左侧宽侧栏菜单、通用设置布局接近 ZTools，顶部小/大 Z 图标均为三笔画圆形标识。",
-  "macOS smoke checklist should mark the Settings ZTools shell and Z mark structure complete",
-);
-assertSmokeChecked(
-  "设置页在 800px 主窗下使用约 58px 顶栏、44px 标签和 42px Z 图标，更多按钮三点居中，且没有横向溢出。",
-  "macOS smoke checklist should mark the Settings header sizing complete",
+assert.match(header, /\.more-menu\s*\{[\s\S]*?right:\s*12px;/);
+assert.match(header, /\.more-menu-item\s*\{[\s\S]*?min-height:\s*42px;/);
+assertSmokePending(
+  "设置页顶部标签、左侧宽侧栏菜单、通用设置布局接近 ZTools；顶部小/大紫色 A 标记与首页、关于页一致。",
+  "macOS smoke checklist should retain manual settings header acceptance as pending",
 );
