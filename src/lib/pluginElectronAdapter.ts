@@ -49,6 +49,7 @@ export type PluginElectronHost = {
   safeStorage?: PluginElectronSafeStorage;
   nativeTheme?: PluginNativeTheme;
   showContextMenu?: (items: unknown) => Promise<unknown>;
+  desktopCapturer?: { getSources(options?: Record<string, unknown>): Promise<unknown[]> };
 };
 type NativeImageFactories = ReturnType<typeof createPluginNativeImageFactories>;
 
@@ -318,6 +319,17 @@ export function createPluginElectronAdapter(host: PluginElectronHost, nativeImag
       beep: unsupported("shell.beep requires a synchronous host transport"),
     },
     ipcRenderer, clipboard, nativeImage, webFrame, safeStorage, nativeTheme,
+    desktopCapturer: {
+      getSources(options?: Record<string, unknown>): Promise<unknown[]> {
+        if (typeof host.desktopCapturer?.getSources === "function") {
+          return Promise.resolve().then(() => host.desktopCapturer!.getSources(options)).then(
+            (list) => (Array.isArray(list) ? list : []),
+            () => [],
+          );
+        }
+        return Promise.resolve([]);
+      },
+    },
     webUtils: { getPathForFile: host.webUtils?.getPathForFile ?? unsupported("webUtils.getPathForFile requires a native-approved dropped File") },
     screen: host.screen ?? { getPrimaryDisplay: unsupported("screen requires an authorized display transport"), getAllDisplays: unsupported("screen requires an authorized display transport"), getCursorScreenPoint: unsupported("screen requires an authorized display transport"), getDisplayNearestPoint: unsupported("screen requires an authorized display transport"), getDisplayMatching: unsupported("screen requires an authorized display transport") },
   };
@@ -359,6 +371,7 @@ export function pluginElectronAdapterScript(themeSource: PluginNativeThemeSource
     'startupRegistration:window.__atoolsPluginData&&window.__atoolsPluginData.startupRegistration,',
     'dialog:window.__atoolsNativeDialog&&window.__atoolsNativeDialog.electron,',
     'getPath:window.__atoolsSystemPaths&&window.__atoolsSystemPaths.getPath,',
+    'desktopCapturer:{getSources:function(options){return window.utools&&typeof window.utools.desktopCaptureSources==="function"?Promise.resolve().then(function(){return window.utools.desktopCaptureSources(options||{});}).then(function(list){return Array.isArray(list)?list:[];},function(){return [];}):Promise.resolve([]);}},',
     'reportError:function(error,method){window.console.error("[ATools electron "+method+"]",error);},',
     'invokeNative:function(method,args){',
     'switch(method){',

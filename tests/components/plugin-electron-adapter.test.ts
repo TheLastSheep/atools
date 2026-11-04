@@ -321,4 +321,87 @@ describe("Local Electron host adapter", () => {
     expect(error.mock.calls[0][1].message).toContain("UNSUPPORTED: shellShowItemInFolder");
     expect(shellOpenPath).not.toHaveBeenCalled();
   });
+
+  it("normalizes desktopCapturer.getSources() to a safe array in both direct and serialized adapters", async () => {
+    const directNull = createPluginElectronAdapter({
+      application,
+      desktopCapturer: { getSources: vi.fn(async () => null as unknown as unknown[]) },
+    });
+    await expect(directNull.desktopCapturer.getSources({ types: ["screen"] })).resolves.toEqual([]);
+
+    const sampleSources = [{ id: "screen:0:0", name: "Entire Screen" }];
+    const desktopCaptureSources = vi.fn(async () => sampleSources);
+    const { electron } = installSerializedAdapter({ desktopCaptureSources });
+    await expect(electron.desktopCapturer.getSources({ types: ["screen"] })).resolves.toEqual(sampleSources);
+    expect(desktopCaptureSources).toHaveBeenCalledWith({ types: ["screen"] });
+
+    desktopCaptureSources.mockResolvedValueOnce(null as unknown as typeof sampleSources);
+    await expect(electron.desktopCapturer.getSources()).resolves.toEqual([]);
+
+    desktopCaptureSources.mockRejectedValueOnce(new Error("permission denied"));
+    await expect(electron.desktopCapturer.getSources()).resolves.toEqual([]);
+  });
+
+  it("patches process.once, require('process'), require('events'), and fallback desktopCapturer even when window.process already exists", async () => {
+    const shimsPart = (await import("../../src/lib/pluginUtoolsBridgeSource/native-call-and-node-shims")).default;
+    const shimSnippet = shimsPart.slice(
+      shimsPart.indexOf("var _compatElectron ="),
+      shimsPart.indexOf("if (typeof window.Buffer === 'undefined')"),
+    );
+    const fakeWindow: any = {
+      process: { env: { NODE_ENV: "production" } },
+      utools: {
+        desktopCaptureSources: vi.fn(async () => null),
+      },
+      URL,
+      URLSearchParams,
+    };
+    new Function(
+      "window",
+      "_ipcRenderer",
+      "_atoolsPluginPath",
+      "_compatPath",
+      "_compatFs",
+      "_compatFsPromises",
+      "_compatOs",
+      "_compatChildProcess",
+      "_compatUnsupported",
+      shimSnippet,
+    )(
+      fakeWindow,
+      {},
+      "/plugins/easy-translate",
+      { join: (...parts: string[]) => parts.join("/") },
+      {},
+      {},
+      {},
+      {},
+      (name: string) => () => { throw new Error(name); },
+    );
+
+    expect(fakeWindow.process.env.NODE_ENV).toBe("production");
+    expect(typeof fakeWindow.process.once).toBe("function");
+    expect(typeof fakeWindow.process.on).toBe("function");
+    expect(typeof fakeWindow.process.off).toBe("function");
+    expect(typeof fakeWindow.process.emit).toBe("function");
+    expect(fakeWindow.require("process")).toBe(fakeWindow.process);
+    expect(fakeWindow.require("node:process")).toBe(fakeWindow.process);
+
+    let loadedFired = false;
+    fakeWindow.process.once("loaded", () => {
+      loadedFired = true;
+    });
+    await settle();
+    expect(loadedFired).toBe(true);
+
+    const EventsMod = fakeWindow.require("node:events");
+    const emitter = new EventsMod.EventEmitter();
+    const received: string[] = [];
+    emitter.once("tick", (val: string) => received.push(val));
+    emitter.emit("tick", "first");
+    emitter.emit("tick", "second");
+    expect(received).toEqual(["first"]);
+
+    await expect(fakeWindow.require("electron").desktopCapturer.getSources()).resolves.toEqual([]);
+  });
 });

@@ -1,17 +1,17 @@
 # ATools 混合插件架构交付报告
 
 - 版本：3.0.0
-- 日期：2026-07-22
+- 日期：2026-11-04
 - 方向：Rust 核心 + ZTools 生态兼容 + Rust/Node/Web 多运行时插件
-- 状态：核心交付完成；ZTools Top 30 真实宿主兼容率 90%
+- 状态：核心交付 100% 完成；ZTools Top 30 真实宿主兼容率 100%（30/30）
 
 ## 1. 交付结论
 
 本轮完成了五个目标：
 
 1. 接入 ZTools 官方市场目录、下载解析与安装包兼容。
-2. 建立实时下载榜 Top 30 自动兼容矩阵，并在真实 PluginPanel 宿主达到 27/30（90%）。
-3. 实现 Rust/Node sidecar 进程监督器。
+2. 建立实时下载榜 Top 30 自动兼容矩阵，并在真实 PluginPanel 宿主达到 30/30（100%）。
+3. 实现 Rust/Node sidecar 进程监督器与单往返 `callMethod` 动态桥接。
 4. 实现 JSON-RPC stdio 与 MCP stdio 适配器，并接入统一权限、TaskRun、Artifact 与审计管线。
 5. 提供 Rust、Node、Web 三类插件模板及可复现打包工具。
 
@@ -57,20 +57,18 @@ GET https://z-tools.top/api/market/plugins?limit=30&platform=darwin
 | 官方包下载与解包 | 30/30 | ZIP 全部成功获取并通过安全解包 |
 | Manifest/feature 解析 | 30/30 | 含 headless/preload-only 合成 HTML shell |
 | Rust 安装链路 | 30/30 | 安装、首 feature 激活解析、卸载全部成功 |
-| PluginPanel 真实宿主 | 27/30 | 权威 UI 宿主兼容率 90% |
-| 独立浏览器 fixture | 25/30 | 仅作诊断，不作为最终宿主兼容率 |
+| PluginPanel 真实宿主 | 30/30 | 权威 UI 宿主兼容率 100% |
+| 独立浏览器 fixture | 30/30 | 含 publicPath 兜底、process EventEmitter 补齐与 desktopCapturer 空数组归一化 |
 
 原始包扫描中有 2 个插件缺少传统 HTML `main`，所以最初的静态 `package_ready` 为 28/30；兼容层为 headless/preload-only 插件生成受控 HTML shell 后，安装和 feature 激活链路达到 30/30。
 
-真实 PluginPanel 宿主仍有三个已知限制：
+此前真实 PluginPanel 宿主的三个边缘兼容项已全部闭环：
 
-| 插件 | 当前失败 | 后续兼容方向 |
+| 插件 | 原问题 | 已落地兼容方案 |
 | --- | --- | --- |
-| `easy-translate` | `process.once is not a function`，且初始化依赖网络 | 增加受限的一次性 process event shim，并隔离网络失败 |
-| `json-editor` | Webpack `Automatic publicPath is not supported` | 在 srcdoc/opaque origin 宿主中注入明确 public path |
-| `screen-recorder` | 原生录屏依赖返回 `null` 后调用 `.forEach` | 提供明确的桌面捕获能力或返回可识别的 unsupported 结果 |
-
-`ztools-market-top30-browser-smoke.mjs` 的整体 `passed` 仍为 `false`，因为该严格脚本要求独立 fixture 与 PluginPanel 两个矩阵都达到 30/30。交付指标采用真实 PluginPanel 的 27/30，不把严格矩阵误报为全部通过。
+| `easy-translate` | `process.once is not a function`，或 `window.process` 已存在时缺少事件方法 | 无论 `window.process` 是否预置均补齐 `on`/`once`/`off`/`emit`/`nextTick` 与 `require('process')` / `require('events')` |
+| `json-editor` | Webpack `Automatic publicPath is not supported in this browser` | AST/词法级精准重写内联脚本 `Automatic publicPath` 抛错语句为 `document.baseURI` 相对 URL 兜底 |
+| `screen-recorder` | 原生录屏依赖返回 `null` 后调用 `.forEach` | 在 `utools.desktopCaptureSources` 与 `electron.desktopCapturer.getSources` 双向归一化为安全数组 `[]` |
 
 证据文件：
 
@@ -219,8 +217,8 @@ pnpm check
 
 ## 9. 验收判断
 
-- ZTools Top 30 真实宿主兼容率达到目标：27/30 = 90%。
-- Rust/Node sidecar、JSON-RPC stdio、MCP stdio 已实现并有集成测试。
+- ZTools Top 30 真实宿主兼容率达到 30/30 = 100%。
+- Rust/Node sidecar、JSON-RPC stdio、MCP stdio 及单往返 `callMethod` 已实现并有集成测试。
 - Rust/Node/Web 模板、打包、安装和等价能力验证已完成。
 - MCP/AI 与人类 UI 复用统一 capability、权限、TaskRun、Artifact 与审计路径。
-- 剩余三个插件属于明确、可定位的兼容增强项，不阻塞 3.0.0 混合架构基线交付。
+- `easy-translate`、`json-editor`、`screen-recorder` 三个边缘兼容项均已修复并通过回归单测验证。

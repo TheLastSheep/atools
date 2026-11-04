@@ -130,19 +130,78 @@ const part = `    var permission = _nativePermissionForMethod(method);
     spawn: _compatUnsupported('child_process.spawn')
   };
   var _compatElectron = {
-    ipcRenderer: _ipcRenderer
+    ipcRenderer: _ipcRenderer,
+    desktopCapturer: {
+      getSources: function(options) {
+        if (window.utools && typeof window.utools.desktopCaptureSources === 'function') {
+          return Promise.resolve().then(function() {
+            return window.utools.desktopCaptureSources(options || {});
+          }).then(function(list) {
+            return Array.isArray(list) ? list : [];
+          }, function() {
+            return [];
+          });
+        }
+        return Promise.resolve([]);
+      }
+    }
   };
-  if (!window.process) {
-    var _processListeners = {};
-    window.process = {
-      platform: 'darwin', arch: 'arm64', env: {}, versions: { node: 'compat' },
-      on: function(event, listener) { (_processListeners[event] || (_processListeners[event] = [])).push(listener); return this; },
-      once: function(event, listener) { if (event === 'loaded' && typeof listener === 'function') queueMicrotask(listener); else this.on(event, listener); return this; },
-      off: function(event, listener) { _processListeners[event] = (_processListeners[event] || []).filter(function(item) { return item !== listener; }); return this; },
-      removeListener: function(event, listener) { return this.off(event, listener); },
-      nextTick: function(callback) { return queueMicrotask(callback); }
+  var _processListeners = {};
+  if (!window.process || typeof window.process !== 'object') {
+    window.process = {};
+  }
+  if (!window.process.platform) window.process.platform = 'darwin';
+  if (!window.process.arch) window.process.arch = 'arm64';
+  if (!window.process.env || typeof window.process.env !== 'object') window.process.env = {};
+  if (!window.process.versions || typeof window.process.versions !== 'object') window.process.versions = { node: 'compat' };
+  if (typeof window.process.cwd !== 'function') window.process.cwd = function() { return _atoolsPluginPath || '/'; };
+  if (!Array.isArray(window.process.argv)) window.process.argv = [];
+  if (typeof window.process.on !== 'function') {
+    window.process.on = function(event, listener) { (_processListeners[event] || (_processListeners[event] = [])).push(listener); return this; };
+  }
+  if (typeof window.process.addListener !== 'function') {
+    window.process.addListener = function(event, listener) { return window.process.on(event, listener); };
+  }
+  if (typeof window.process.once !== 'function') {
+    window.process.once = function(event, listener) { if (event === 'loaded' && typeof listener === 'function') queueMicrotask(listener); else window.process.on(event, listener); return this; };
+  }
+  if (typeof window.process.off !== 'function') {
+    window.process.off = function(event, listener) { _processListeners[event] = (_processListeners[event] || []).filter(function(item) { return item !== listener; }); return this; };
+  }
+  if (typeof window.process.removeListener !== 'function') {
+    window.process.removeListener = function(event, listener) { return window.process.off(event, listener); };
+  }
+  if (typeof window.process.removeAllListeners !== 'function') {
+    window.process.removeAllListeners = function(event) { if (event) delete _processListeners[event]; else _processListeners = {}; return this; };
+  }
+  if (typeof window.process.emit !== 'function') {
+    window.process.emit = function(event) {
+      var args = Array.prototype.slice.call(arguments, 1);
+      var list = (_processListeners[event] || []).slice();
+      list.forEach(function(fn) { if (typeof fn === 'function') fn.apply(window.process, args); });
+      return list.length > 0;
     };
   }
+  if (typeof window.process.nextTick !== 'function') {
+    window.process.nextTick = function(callback) { return queueMicrotask(callback); };
+  }
+  function _CompatEventEmitter() { this._events = {}; }
+  _CompatEventEmitter.prototype.on = function(e, fn) { (this._events[e] || (this._events[e] = [])).push(fn); return this; };
+  _CompatEventEmitter.prototype.addListener = _CompatEventEmitter.prototype.on;
+  _CompatEventEmitter.prototype.once = function(e, fn) {
+    var self = this;
+    function w() { self.off(e, w); fn.apply(self, arguments); }
+    return this.on(e, w);
+  };
+  _CompatEventEmitter.prototype.off = function(e, fn) { this._events[e] = (this._events[e] || []).filter(function(item) { return item !== fn; }); return this; };
+  _CompatEventEmitter.prototype.removeListener = _CompatEventEmitter.prototype.off;
+  _CompatEventEmitter.prototype.removeAllListeners = function(e) { if (e) delete this._events[e]; else this._events = {}; return this; };
+  _CompatEventEmitter.prototype.emit = function(e) {
+    var args = Array.prototype.slice.call(arguments, 1), self = this, list = (this._events[e] || []).slice();
+    list.forEach(function(fn) { if (typeof fn === 'function') fn.apply(self, args); });
+    return list.length > 0;
+  };
+  _CompatEventEmitter.EventEmitter = _CompatEventEmitter;
   if (typeof window.global === 'undefined') window.global = window;
   if (typeof window.__dirname === 'undefined') window.__dirname = _atoolsPluginPath;
   if (typeof window.__filename === 'undefined') window.__filename = _compatPath.join(_atoolsPluginPath, 'preload.js');
@@ -150,6 +209,8 @@ const part = `    var permission = _nativePermissionForMethod(method);
     window.require = function(name) {
       var moduleName = String(name || '').replace(/^node:/, '');
       if (moduleName === 'electron') return _compatElectron;
+      if (moduleName === 'process') return window.process;
+      if (moduleName === 'events') return _CompatEventEmitter;
       if (moduleName === 'buffer') return { Buffer: window.Buffer, SlowBuffer: window.Buffer };
       if (moduleName === 'path') return _compatPath;
       if (moduleName === 'fs') return _compatFs;

@@ -76,6 +76,9 @@ Module._load = function(request, parent, isMain) {
         getPrimaryDisplay: () => ({ id: 1, bounds: { x: 0, y: 0, width: 1920, height: 1080 }, workArea: { x: 0, y: 0, width: 1920, height: 1080 }, scaleFactor: 2 }),
         getAllDisplays: () => [{ id: 1, bounds: { x: 0, y: 0, width: 1920, height: 1080 }, workArea: { x: 0, y: 0, width: 1920, height: 1080 }, scaleFactor: 2 }],
         getCursorScreenPoint: () => ({ x: 0, y: 0 })
+      },
+      desktopCapturer: {
+        getSources: async () => []
       }
     };
   }

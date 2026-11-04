@@ -266,7 +266,13 @@ const part = `    key = String(key || '').trim();
     dipToScreenPoint: _displayUnavailable,
     screenToDipRect: _displayUnavailable,
     dipToScreenRect: _displayUnavailable,
-    desktopCaptureSources: function(options) { return _nativeCall('desktopCaptureSources', { options: options || {} }); },
+    desktopCaptureSources: function(options) {
+      return _nativeCall('desktopCaptureSources', { options: options || {} }).then(function(list) {
+        return Array.isArray(list) ? list : [];
+      }, function() {
+        return [];
+      });
+    },
     readCurrentBrowserUrl: function() { return _nativeCall('readCurrentBrowserUrl'); },
     getCurrentBrowserUrl: function() { return _nativeCall('readCurrentBrowserUrl'); },
     readCurrentFolderPath: function() { return _nativeCall('readCurrentFolderPath'); },

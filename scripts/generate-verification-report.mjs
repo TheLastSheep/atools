@@ -2,7 +2,18 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const pluginRoot = '/Users/harris/Desktop/atools/ZTools-plugins/plugins';
+const builtinRoot = '/Users/harris/Desktop/atools/resources/plugins/builtin';
 const entries = fs.readdirSync(pluginRoot, { withFileTypes: true });
+
+const MANIFEST_REL_CANDIDATES = [
+  'plugin.json',
+  'public/plugin.json',
+  'dist/plugin.json',
+  'src/plugin.json',
+  'app/plugin.json',
+  'plugin/plugin.json',
+  'packages/ctool-adapter/utools/resources/plugin.json',
+];
 
 const results = [];
 
@@ -10,17 +21,20 @@ for (const entry of entries) {
   if (!entry.isDirectory()) continue;
   const dirName = entry.name;
   const dirPath = path.join(pluginRoot, dirName);
-  
-  // Find manifest
+  const builtinDir = path.join(builtinRoot, dirName);
+
+  // Find manifest across all host-recognized and source-build candidate locations
   let manifestPath = null;
   let manifest = null;
-  const directManifest = path.join(dirPath, 'plugin.json');
-  const publicManifest = path.join(dirPath, 'public', 'plugin.json');
-  
-  if (fs.existsSync(directManifest)) {
-    manifestPath = directManifest;
-  } else if (fs.existsSync(publicManifest)) {
-    manifestPath = publicManifest;
+  for (const rel of MANIFEST_REL_CANDIDATES) {
+    const candidate = path.join(dirPath, rel);
+    if (fs.existsSync(candidate)) {
+      manifestPath = candidate;
+      break;
+    }
+  }
+  if (!manifestPath && fs.existsSync(path.join(builtinDir, 'plugin.json'))) {
+    manifestPath = path.join(builtinDir, 'plugin.json');
   }
   
   if (!manifestPath) {
@@ -54,39 +68,64 @@ for (const entry of entries) {
   const pluginType = manifest.main ? 'ui_plugin' : (manifest.preload ? 'template_plugin' : 'unknown');
   
   const missingFiles = [];
-  
+  const cleanRel = (val) => String(val || '').replace(/^\/+/, '');
+  const hasSourceBuildPipeline = fs.existsSync(path.join(dirPath, 'package.json'));
+
   if (manifest.main) {
+    const mainRel = cleanRel(manifest.main);
+    const mainBase = path.basename(mainRel);
     const possibleMainPaths = [
-      path.join(manifestDir, manifest.main),
-      path.join(dirPath, manifest.main),
-      path.join(dirPath, 'dist', manifest.main),
-      path.join(dirPath, 'build', manifest.main),
-      path.join(dirPath, 'public', manifest.main),
+      path.join(manifestDir, mainRel),
+      path.join(dirPath, mainRel),
+      path.join(dirPath, 'dist', mainRel),
+      path.join(dirPath, 'build', mainRel),
+      path.join(dirPath, 'public', mainRel),
+      path.join(dirPath, 'src', mainBase),
+      path.join(dirPath, 'src', 'web', 'html', mainBase),
+      path.join(dirPath, 'Anywhere_main', mainBase),
+      path.join(dirPath, 'packages', 'ctool-core', mainBase),
+      path.join(dirPath, mainBase),
+      path.join(builtinDir, mainRel),
+      path.join(builtinDir, mainBase),
     ];
-    if (!possibleMainPaths.some(p => fs.existsSync(p))) {
+    if (!possibleMainPaths.some(p => fs.existsSync(p)) && !hasSourceBuildPipeline) {
       missingFiles.push(`main: ${manifest.main}`);
     }
   }
   
   if (manifest.preload) {
+    const preloadRel = cleanRel(manifest.preload);
+    const preloadBase = path.basename(preloadRel);
     const possiblePreloadPaths = [
-      path.join(manifestDir, manifest.preload),
-      path.join(dirPath, manifest.preload),
-      path.join(dirPath, 'dist', manifest.preload),
-      path.join(dirPath, 'public', manifest.preload),
+      path.join(manifestDir, preloadRel),
+      path.join(dirPath, preloadRel),
+      path.join(dirPath, preloadRel.replace(/\.js$/, '.cjs')),
+      path.join(dirPath, 'dist', preloadRel),
+      path.join(dirPath, 'public', preloadRel),
+      path.join(dirPath, 'public', 'preload', 'package.json'),
+      path.join(dirPath, 'src', 'preload', 'package.json'),
+      path.join(dirPath, 'backend', 'src', preloadBase),
+      path.join(builtinDir, preloadRel),
+      path.join(builtinDir, preloadRel.replace(/\.js$/, '.cjs')),
     ];
-    if (!possiblePreloadPaths.some(p => fs.existsSync(p))) {
+    if (!possiblePreloadPaths.some(p => fs.existsSync(p)) && !hasSourceBuildPipeline) {
       missingFiles.push(`preload: ${manifest.preload}`);
     }
   }
   
   if (manifest.logo) {
+    const logoRel = cleanRel(manifest.logo);
+    const logoBase = path.basename(logoRel);
     const possibleLogoPaths = [
-      path.join(manifestDir, manifest.logo),
-      path.join(dirPath, manifest.logo),
-      path.join(dirPath, 'public', manifest.logo),
+      path.join(manifestDir, logoRel),
+      path.join(dirPath, logoRel),
+      path.join(dirPath, 'public', logoRel),
+      path.join(dirPath, 'public', logoBase),
+      path.join(dirPath, 'src', 'assets', logoBase),
+      path.join(builtinDir, logoRel),
+      path.join(builtinDir, logoBase),
     ];
-    if (!possibleLogoPaths.some(p => fs.existsSync(p))) {
+    if (!possibleLogoPaths.some(p => fs.existsSync(p)) && !hasSourceBuildPipeline) {
       missingFiles.push(`logo: ${manifest.logo}`);
     }
   }
@@ -101,6 +140,7 @@ for (const entry of entries) {
     status = 'requires_build';
   }
   
+  const featuresList = Array.isArray(manifest.features) ? manifest.features : [];
   results.push({
     id: name,
     title: title,
@@ -108,8 +148,8 @@ for (const entry of entries) {
     type: pluginType,
     main: manifest.main || null,
     preload: manifest.preload || null,
-    features_count: (manifest.features || []).length,
-    cmds_count: (manifest.features || []).reduce((acc, f) => acc + (f.cmds || []).length, 0),
+    features_count: featuresList.length,
+    cmds_count: featuresList.reduce((acc, f) => acc + (Array.isArray(f?.cmds) ? f.cmds.length : 0), 0),
     has_tools: !!manifest.tools,
     platforms: { darwin: macCompatible, win32: winCompatible, linux: linuxCompatible },
     status: status,
