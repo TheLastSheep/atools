@@ -181,6 +181,7 @@ impl SubInputBuffer {
         transition(&current, InputAction::Value, true, false, true)
     }
 
+    #[cfg(test)]
     pub(crate) fn snapshot(&self) -> SubInputSnapshot {
         let current = self.lock();
         snapshot(&current)

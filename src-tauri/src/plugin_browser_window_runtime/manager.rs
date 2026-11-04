@@ -255,6 +255,7 @@ impl Runtime {
 
     /// Used only after the adapter confirms that builder creation failed and no
     /// native window with this UUID label exists.
+    #[cfg(test)]
     pub fn discard_unbuilt(&self, label: &str) -> Option<Arc<NativeWindow>> {
         let mut store = self.store.lock();
         let window = store.windows.get(label)?.clone();

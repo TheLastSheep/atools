@@ -137,6 +137,7 @@ impl Sessions {
             .cloned()
             .ok_or_else(|| "Clipboard session closed; reopen the plugin".into())
     }
+    #[cfg(test)]
     pub fn open(
         &self,
         id: &str,

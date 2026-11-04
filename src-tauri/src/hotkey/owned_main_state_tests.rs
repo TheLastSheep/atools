@@ -1,7 +1,5 @@
 use crate::hotkey::main_binding::{MainBinding, parse_main_binding};
-use std::{cell::Cell, collections::HashSet, str::FromStr};
-
-use tauri_plugin_global_shortcut::Shortcut;
+use std::{cell::Cell, collections::HashSet};
 
 use super::super::{OwnedMainHotkeyRegistry, RegisterFailure, ShortcutPort};
 use super::OwnedMainHotkeyStateSnapshot;
@@ -59,7 +57,7 @@ fn unregistered_snapshot_distinguishes_unattempted_from_startup_recovery() {
     assert_send::<OwnedMainHotkeyStateSnapshot>();
 
     let registry = OwnedMainHotkeyRegistry::default();
-    let mut port = FakePort::default();
+    let port = FakePort::default();
     let before = registry.read_state(&port).unwrap();
     assert_eq!(before.label(), None);
     assert!(!before.startup_attempted());

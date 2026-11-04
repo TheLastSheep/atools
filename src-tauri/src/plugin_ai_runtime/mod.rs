@@ -60,6 +60,7 @@ pub(crate) async fn stop(app: &AppHandle) {
 pub(crate) fn finalize_task_run(app: &AppHandle, run: &atools_core::task_run::TaskRun) {
     lifecycle::finalize_task_run(app, run)
 }
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn runtime_state(app: &AppHandle) -> serde_json::Value {
     manager(app).map(|r|{let(requests,by_client,timers,acks,tombstones)=r.counts();serde_json::json!({
         "requests":requests,"byClient":by_client,"timers":timers,"pendingAcks":acks,"tombstones":tombstones

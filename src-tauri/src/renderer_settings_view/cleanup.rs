@@ -3,10 +3,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Manager, Wry};
 use tokio::time::Instant;
 
-use super::{
-    lifecycle::{self, emit_phase},
-    phase::SessionPhase,
-};
+use super::{lifecycle::emit_phase, phase::SessionPhase};
 
 const OUT_ACK_TIMEOUT: Duration = Duration::from_secs(1);
 const CHILD_ABSENCE_TIMEOUT: Duration = Duration::from_secs(1);

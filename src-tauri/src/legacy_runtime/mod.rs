@@ -31,6 +31,8 @@ mod session_process_budget;
 mod session_process_budget_tests;
 mod sessions;
 mod types;
+#[cfg(feature = "legacy-node-smoke")]
+pub(crate) use commands::install_manager;
 pub async fn invalidate(app: &tauri::AppHandle, db: &atools_core::Database, plugin: Option<&str>) {
     if let Some(hints) = app.try_state::<std::sync::Arc<node_entry::Hints>>() {
         if let Some(plugin) = plugin {
@@ -74,7 +76,6 @@ use async_trait::async_trait;
 use atools_core::agent::{PermissionDecision, ToolDefinition};
 use atools_core::db::Database;
 use atools_core::task_run::{TaskIssue, TaskRunStatus};
-pub use commands::install_manager;
 pub(crate) use inventory::inventory_snapshot;
 use serde_json::{json, Value};
 pub use sessions::Sessions;

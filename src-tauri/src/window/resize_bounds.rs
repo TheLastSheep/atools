@@ -24,6 +24,7 @@ impl std::fmt::Display for ResizeBoundsError {
 
 impl std::error::Error for ResizeBoundsError {}
 
+#[cfg(test)]
 pub(super) fn plan_resize(
     requested_logical_height: u32,
     scale_factor: f64,

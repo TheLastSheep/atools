@@ -1,6 +1,8 @@
 //! Bounded, dependency-service-local diagnostics for cancelled PREPARE runs.
 //! This supplements the existing cancellation result and never owns admission.
-use atools_core::task_run::{TaskRun, TaskRunStatus};
+use atools_core::task_run::TaskRun;
+#[cfg(any(test, feature = "source-dependency-smoke"))]
+use atools_core::task_run::TaskRunStatus;
 use parking_lot::Mutex;
 use serde_json::{json, Map, Value};
 use std::{
@@ -282,10 +284,12 @@ pub(super) fn attach_to_run(run: &mut TaskRun, context: &Context) {
         _ => {}
     }
 }
+#[cfg(any(test, feature = "source-dependency-smoke"))]
 pub(super) fn project_metrics(metrics: &Value) -> Option<Value> {
     let diagnostic = metrics.get("operationDiagnostic")?;
     valid_diagnostic(diagnostic).then(|| diagnostic.clone())
 }
+#[cfg(any(test, feature = "source-dependency-smoke"))]
 pub(super) fn project_cancelled_prepare(
     capability: &str,
     status: TaskRunStatus,

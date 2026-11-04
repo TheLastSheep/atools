@@ -5,6 +5,7 @@ use tauri::WebviewWindow;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum SkipTaskbarBehavior {
     Noop,
+    #[cfg_attr(target_os = "macos", allow(dead_code))]
     Native(bool),
 }
 

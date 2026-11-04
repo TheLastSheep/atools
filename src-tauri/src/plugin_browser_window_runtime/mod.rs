@@ -33,7 +33,7 @@ pub(crate) fn stop(app: &tauri::AppHandle) {
     lifecycle::stop(app);
 }
 
-pub(super) fn manager(app: &tauri::AppHandle) -> Result<std::sync::Arc<manager::Runtime>, String> {
+fn manager(app: &tauri::AppHandle) -> Result<std::sync::Arc<manager::Runtime>, String> {
     app.try_state::<std::sync::Arc<manager::Runtime>>()
         .map(|state| state.inner().clone())
         .ok_or_else(|| "Native BrowserWindow runtime is unavailable".into())

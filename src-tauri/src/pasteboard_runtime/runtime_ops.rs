@@ -4,8 +4,8 @@ use super::model::{
     PasteboardBackend, PasteboardCaptureStatus,
 };
 use super::support::{
-    create_image_thumbnail, extension_for_media_type, hex_sha256, normalized_title, safe_blob_path,
-    snapshot_fingerprint, validate_inline_text, MAX_ATTACHMENT_BYTES,
+    create_image_thumbnail, hex_sha256, normalized_title, safe_blob_path, snapshot_fingerprint,
+    validate_inline_text, MAX_ATTACHMENT_BYTES,
 };
 use atools_core::{
     AppConfig, Database, PasteboardBlob, PasteboardItem, PasteboardItemKind, PasteboardSourceApp,

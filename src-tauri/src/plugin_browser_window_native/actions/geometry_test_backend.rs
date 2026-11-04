@@ -1,5 +1,5 @@
 use crate::plugin_browser_window_native::{
-    size_policy::{ConstraintBasis, FrameMetrics, NativeConstraints},
+    size_policy::{FrameMetrics, NativeConstraints},
     snapshot::{NativeBounds, NativeSnapshot},
 };
 

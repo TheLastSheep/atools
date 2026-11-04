@@ -20,7 +20,7 @@ use std::{
     sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
-use tauri::{AppHandle, Emitter, Manager, State, Webview, Window};
+use tauri::{AppHandle, Emitter, State, Webview, Window};
 
 const EVENT_NAME: &str = "atools://renderer-app-state";
 const APP_LAUNCHED_EVENT_NAME: &str = "atools://renderer-app-launched";

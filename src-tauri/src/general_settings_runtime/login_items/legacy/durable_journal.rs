@@ -7,6 +7,7 @@ use super::super::journal::{Journal, MAX_JOURNAL_BYTES};
 
 pub(super) const JOURNAL_C: &CStr = c"transaction.json";
 pub(super) const PENDING_C: &CStr = c"transaction.pending";
+#[cfg(test)]
 pub(super) const JOURNAL_NAME: &str = "transaction.json";
 
 pub(super) fn has_pending(directory: &Directory) -> Result<bool, &'static str> {

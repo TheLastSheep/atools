@@ -86,37 +86,30 @@ pub(crate) use task_run_cancellation::cancel_task_run_by_id;
 pub use task_run_execution::{call_tool_with_audit, resume_tool_with_audit};
 pub(crate) use task_run_results::{initialize_new_task_run, task_run_result};
 
-use ai::{
-    agent_ai_config_from_db, ai_chat_completions_url, search_clipboard, settings_string,
-    truncate_for_error,
-};
+use ai::search_clipboard;
 use clipboard_ops::clipboard_retention_days;
 use file_operations::{find_local_files_tool_call, rename_files_tool_call};
-use image_compression::{
-    best_sips_quality_candidate, compress_image_item, compressed_output_path, compression_ratio,
-    quality_candidate_path, tune_image_to_target, write_webp_output, CompressionImageFormat,
-};
 use ocr_context::{
-    default_ignored_dirs, image_mime_for_path, matches_ignore_patterns, read_browser_url,
-    read_finder_path, read_foreground_app, run_osascript, slash_path, visit_files, wildcard_match,
-    ContextValue,
+    default_ignored_dirs, image_mime_for_path, read_browser_url, read_finder_path,
+    read_foreground_app, visit_files,
 };
-use path_context_operations::{open_url, validated_open_url};
+use path_context_operations::open_url;
+#[cfg(test)]
+use path_context_operations::validated_open_url;
 use permissions::{
     all_permission_scopes, build_pending_agent_tool_request_with_run, normalize_scope_id,
     permission_scope_description, permission_scope_id, permission_scope_is_high_risk,
-    permission_scope_label, persisted_scope_policy, tool_has_denied_scope,
+    permission_scope_label, persisted_scope_policy,
 };
-use registry_api::{agent_plugin_tool_name, tool_name_part};
+use registry_api::agent_plugin_tool_name;
 use task_run_results::{
-    memory_scope_for_call, output_field_artifact, output_items, path_artifact,
-    structured_failed_items, structured_result_artifacts, structured_result_summary,
-    structured_result_task_status, task_run_envelope, task_run_error, task_run_success,
+    memory_scope_for_call, structured_failed_items, structured_result_artifacts,
+    structured_result_summary, structured_result_task_status, task_run_error, task_run_success,
 };
 use tool_definitions::{
     ask_ai_model_tool, compress_images_tool, find_local_files_tool, get_current_context_tool,
     ocr_image_tool, open_or_reveal_path_tool, open_url_tool, rename_files_tool,
-    search_clipboard_tool, tool,
+    search_clipboard_tool,
 };
 
 pub(super) fn new_task_run(client_id: &str, tool_name: &str, arguments: Value) -> TaskRun {

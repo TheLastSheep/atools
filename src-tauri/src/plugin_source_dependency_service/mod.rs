@@ -8,7 +8,10 @@ mod registry;
 mod archive_store;
 #[cfg(target_os = "macos")]
 mod cache_inventory;
-#[cfg(target_os = "macos")]
+#[cfg(all(
+    target_os = "macos",
+    any(test, feature = "legacy-node-smoke", feature = "source-dependency-smoke")
+))]
 mod converted_package;
 #[cfg(target_os = "macos")]
 mod diagnostics;
@@ -43,10 +46,9 @@ pub(super) struct ConversionDependencies {
     pub dependency_tree_sha256: String,
 }
 
-pub(crate) use registry::{
-    definitions, is_dependency_tool, is_mutating_tool, is_tool, FETCH, INSPECT, PREPARE,
-};
+pub(crate) use registry::{definitions, is_tool};
 
+#[cfg(any(test, feature = "legacy-node-smoke", feature = "source-dependency-smoke"))]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ConvertedPackageTree {
     pub sha256: String,
@@ -55,26 +57,45 @@ pub(crate) struct ConvertedPackageTree {
     pub bytes: u64,
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(all(
+    target_os = "macos",
+    any(test, feature = "legacy-node-smoke", feature = "source-dependency-smoke")
+))]
 pub(in crate::plugin_source_build) use converted_package::{
     calculate_converted_package_tree, read_converted_handoff, read_converted_package_manifest,
-    read_converted_source_evidence,
 };
-#[cfg(not(target_os = "macos"))]
+#[cfg(all(
+    target_os = "macos",
+    any(test, feature = "source-dependency-smoke")
+))]
+pub(in crate::plugin_source_build) use converted_package::read_converted_source_evidence;
+#[cfg(all(
+    not(target_os = "macos"),
+    any(test, feature = "legacy-node-smoke", feature = "source-dependency-smoke")
+))]
 pub(super) fn calculate_converted_package_tree(
     _: &std::path::Path,
 ) -> Result<ConvertedPackageTree, String> {
     Err("SOURCE_BUILD_PLATFORM_UNSUPPORTED".into())
 }
-#[cfg(not(target_os = "macos"))]
+#[cfg(all(
+    not(target_os = "macos"),
+    any(test, feature = "legacy-node-smoke", feature = "source-dependency-smoke")
+))]
 pub(super) fn read_converted_handoff(_: &std::path::Path) -> Result<Vec<u8>, String> {
     Err("SOURCE_BUILD_PLATFORM_UNSUPPORTED".into())
 }
-#[cfg(not(target_os = "macos"))]
+#[cfg(all(
+    not(target_os = "macos"),
+    any(test, feature = "legacy-node-smoke", feature = "source-dependency-smoke")
+))]
 pub(super) fn read_converted_source_evidence(_: &std::path::Path) -> Result<Vec<u8>, String> {
     Err("SOURCE_BUILD_PLATFORM_UNSUPPORTED".into())
 }
-#[cfg(not(target_os = "macos"))]
+#[cfg(all(
+    not(target_os = "macos"),
+    any(test, feature = "legacy-node-smoke", feature = "source-dependency-smoke")
+))]
 pub(super) fn read_converted_package_manifest(_: &std::path::Path) -> Result<Vec<u8>, String> {
     Err("SOURCE_BUILD_PLATFORM_UNSUPPORTED".into())
 }

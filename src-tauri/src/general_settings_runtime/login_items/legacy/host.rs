@@ -13,7 +13,7 @@ use super::{
     configuration::{self, ValidatedConfiguration},
     durable::DurableLegacy,
     host_paths::{self, HostPaths},
-    migration::{self, Choice, LegacyPort},
+    migration::{self, Choice},
     recovery,
 };
 

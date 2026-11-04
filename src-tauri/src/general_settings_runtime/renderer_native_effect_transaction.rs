@@ -15,7 +15,6 @@ use crate::hotkey::OwnedMainHotkeyStateSnapshot;
 const MAX_NATIVE_OPACITY_DELTA: f64 = 0.005;
 const OPACITY_RECOVERY_FAILED: &str = "SETTINGS_OPACITY_RECOVERY_FAILED";
 const NATIVE_RECOVERY_FAILED: &str = "SETTINGS_NATIVE_RECOVERY_FAILED";
-const HOTKEY_REJECTED: &str = "SETTINGS_HOTKEY_REJECTED";
 
 type OpacityFuture = Pin<Box<dyn Future<Output = Result<f64, String>> + Send + 'static>>;
 pub(super) type ReadApplyOpacity = Box<dyn FnMut(Option<f64>) -> OpacityFuture + Send + 'static>;

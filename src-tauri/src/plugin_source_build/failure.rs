@@ -162,11 +162,6 @@ impl SourceBuildFailure {
         matches!(self, Self::Runner(failure) if failure.cleanup_unconfirmed())
             || self.is_code("SOURCE_BUILD_CLEANUP_UNCONFIRMED")
     }
-
-    pub(crate) fn cancelled(&self) -> bool {
-        self.is_code("SOURCE_BUILD_CANCELLED")
-            || matches!(self, Self::Runner(failure) if failure.classification == RunnerFailureClass::Cancelled)
-    }
 }
 
 impl From<String> for SourceBuildFailure {

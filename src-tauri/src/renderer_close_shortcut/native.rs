@@ -7,7 +7,7 @@ use super::{
 use objc2::{msg_send, rc::Retained, runtime::AnyObject, sel, MainThreadMarker};
 use objc2_app_kit::{NSApplication, NSEventModifierFlags};
 use objc2_foundation::NSString;
-use tauri::{menu::Menu, AppHandle, Manager, Wry};
+use tauri::{menu::Menu, AppHandle, Wry};
 
 /// Retains the native object while its address is used as identity, preventing ABA.
 /// A non-main Drop dispatches the owned +1 back to the native thread.

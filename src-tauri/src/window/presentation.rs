@@ -22,15 +22,6 @@ pub(crate) fn main_panel_active(app: &AppHandle) -> bool {
     }
 }
 
-#[cfg(feature = "ztools-multiwebview")]
-pub(crate) fn focus_main_native_window(app: &AppHandle) -> tauri::Result<()> {
-    let window = main_window(app)?;
-    if !main_panel_active(app) {
-        window.set_focus()?;
-    }
-    Ok(())
-}
-
 pub(super) fn show_main_window(app: &AppHandle, intent: ShowIntent) -> tauri::Result<()> {
     #[cfg(feature = "ztools-multiwebview")]
     super::cancel_auto_back_on_show(app);

@@ -20,7 +20,7 @@ pub(super) fn opaque_id() -> String {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(super) struct Owner {
+pub(crate) struct Owner {
     pub window: String,
     pub plugin: String,
     pub instance: String,

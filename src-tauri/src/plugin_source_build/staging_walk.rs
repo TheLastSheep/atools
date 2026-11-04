@@ -9,6 +9,7 @@ use std::io::Write;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub(super) enum Event<'a> {
     RootOpened,
     BeforeDirectoryOpen(&'a Path),

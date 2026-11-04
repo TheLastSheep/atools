@@ -6,62 +6,6 @@ use super::preferences::SettingsPreferences;
 #[cfg(target_os = "macos")]
 const LAUNCH_AT_LOGIN_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3);
 
-pub(crate) async fn bootstrap(
-    app: &AppHandle,
-    prefs: &SettingsPreferences,
-) -> Result<Value, String> {
-    let snapshot = prefs.snapshot().await;
-    let value = snapshot
-        .get("value")
-        .ok_or_else(|| "General settings snapshot is unavailable".to_owned())?;
-    let theme = value
-        .get("theme")
-        .and_then(Value::as_str)
-        .ok_or_else(|| "Committed General theme is unavailable".to_owned())?;
-    let opacity = value
-        .get("opacity")
-        .and_then(Value::as_f64)
-        .filter(|opacity| opacity.is_finite() && (0.3..=1.0).contains(opacity))
-        .ok_or_else(|| "Committed General opacity is unavailable".to_owned())?;
-    let current_shortcut = super::preferences::current_hotkey_display(app)?;
-
-    set_main_theme(app, theme)?;
-    let (launch_at_login, launch_at_login_available, applied_opacity, opacity_applied) = {
-        #[cfg(target_os = "macos")]
-        {
-            let (launch_at_login, launch_at_login_available) = get_launch_at_login(app).await;
-            let actual_opacity = crate::native_window_opacity::read_apply(
-                crate::window::main_window(app).map_err(|_| "Main window is unavailable")?,
-                Some(opacity),
-            )
-            .await?;
-            (
-                launch_at_login,
-                launch_at_login_available,
-                actual_opacity,
-                true,
-            )
-        }
-        #[cfg(not(target_os = "macos"))]
-        {
-            // The General record's opacity is a configured target only on these
-            // platforms. Keep the page usable and report the unsupported action.
-            (None, false, opacity, false)
-        }
-    };
-
-    Ok(json!({
-        "platform": platform_name()?,
-        "currentShortcut": current_shortcut,
-        "launchAtLogin": launch_at_login,
-        "launchAtLoginAvailable": launch_at_login_available,
-        "opacity": applied_opacity,
-        "theme": theme,
-        "themeApplied": true,
-        "opacityApplied": opacity_applied,
-    }))
-}
-
 pub(crate) struct PreparedAppearance {
     theme: String,
     opacity: f64,

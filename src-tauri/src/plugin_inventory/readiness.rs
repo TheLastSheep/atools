@@ -49,6 +49,7 @@ impl PluginInventoryReadiness {
         Self::new(Phase::Pending)
     }
 
+    #[cfg(any(test, feature = "legacy-node-smoke"))]
     pub(crate) fn prepopulated_ready() -> Self {
         let readiness = Self::new(Phase::Ready);
         readiness

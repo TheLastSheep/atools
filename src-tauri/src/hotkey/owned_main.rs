@@ -1,8 +1,6 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::main_binding::{parse_main_binding, MainBinding};
-#[cfg(test)]
-use tauri_plugin_global_shortcut::Shortcut;
 
 pub(super) const HOTKEY_REJECTED: &str = "SETTINGS_HOTKEY_REJECTED";
 pub(super) const HOTKEY_OUTCOME_UNKNOWN: &str = "SETTINGS_HOTKEY_OUTCOME_UNKNOWN";
@@ -26,12 +24,13 @@ pub(crate) use state::OwnedMainHotkeyStateSnapshot;
 
 #[path = "owned_main_tauri.rs"]
 mod tauri_adapter;
-pub(super) use tauri_adapter::{owned_registry_uses_shortcut,shutdown_locked};
+pub(super) use tauri_adapter::{owned_registry_uses_shortcut, shutdown_locked};
+#[cfg(feature = "legacy-node-smoke")]
+pub(crate) use tauri_adapter::{read_owned_main_hotkey, restore_owned_main_hotkey};
 pub(crate) use tauri_adapter::{
-    apply_owned_main_hotkey, mark_startup_attempted, read_owned_main_hotkey,
-    read_owned_main_hotkey_state, release_owned_main_hotkey, restore_owned_main_hotkey,
-    restore_owned_main_hotkey_state, set_owned_main_hotkey, set_owned_main_hotkey_from,
-    setup_owned_main_hotkey,
+    apply_owned_main_hotkey, mark_startup_attempted, read_owned_main_hotkey_state,
+    release_owned_main_hotkey, restore_owned_main_hotkey_state, set_owned_main_hotkey,
+    set_owned_main_hotkey_from, setup_owned_main_hotkey,
 };
 
 #[derive(Clone, Debug)]
@@ -110,6 +109,7 @@ enum RegisterFailure {
     Rejected,
     RejectedCode(String),
     PartialOwned,
+    #[allow(dead_code)]
     Unavailable(String),
 }
 
@@ -195,6 +195,7 @@ impl OwnedMainHotkeyRegistry {
         Ok(())
     }
 
+    #[cfg(any(test, feature = "legacy-node-smoke"))]
     fn read<P: ShortcutPort>(&self, port: &P) -> Result<OwnedMainHotkeySnapshot, String> {
         let current = self.verify_current(port)?;
         if !port.is_healthy(current.binding)? {

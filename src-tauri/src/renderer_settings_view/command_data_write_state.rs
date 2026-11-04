@@ -108,6 +108,7 @@ impl CommandDataBuffers {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn staged_write_offset(&self, write_token: &str) -> Result<usize, BridgeError> {
         let buffers = self.buffers.lock();
         ensure_open(&buffers)?;

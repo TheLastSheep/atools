@@ -8,7 +8,9 @@ use std::sync::{
 use std::time::Instant;
 use tokio::sync::watch;
 
-pub(super) use super::identity::{is_private_id, private_id, validate_window_id};
+#[cfg(test)]
+pub(super) use super::identity::private_id;
+pub(super) use super::identity::{is_private_id, validate_window_id};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Operation {

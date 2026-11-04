@@ -52,7 +52,7 @@ pub(crate) struct BuildDiagnostics {
     pub full_tree_containment: bool,
     pub aggregate_resource_caps: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub manifest_rewrite: Option<manifest_output::ManifestRewriteReceipt>,
+    pub(super) manifest_rewrite: Option<manifest_output::ManifestRewriteReceipt>,
 }
 
 pub(crate) struct PreparedBuild {

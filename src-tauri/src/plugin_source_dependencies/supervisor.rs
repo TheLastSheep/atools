@@ -9,7 +9,9 @@ use std::time::{Duration, Instant};
 use serde::Deserialize;
 
 const MATERIALIZE_FLAG: &str = "--atools-locked-dependency-worker";
+#[allow(dead_code)]
 const POLICY_FLAG: &str = "--atools-locked-dependency-policy-probe";
+#[allow(dead_code)]
 pub(crate) const IGNORE_CANCEL_PROBE_FLAG: &str = "--atools-locked-dependency-ignore-cancel-probe";
 pub(crate) const CANCEL_IGNORE_READY_MARKER: &[u8] = b"CANCEL_IGNORE_PROBE_READY\n";
 const WALL_LIMIT: Duration = Duration::from_secs(120);
@@ -34,6 +36,7 @@ enum Response {
     Failed {
         code: String,
     },
+    #[allow(dead_code)]
     PolicyProbe {
         fork_denied: bool,
         network_connect_denied: bool,
@@ -125,6 +128,7 @@ pub(crate) fn run_materializer(
 /// Test-only policy probe uses the identical parent supervisor and is not an
 /// alternate materialization protocol.
 #[cfg(target_os = "macos")]
+#[allow(dead_code)]
 pub(crate) fn run_policy_probe(
     executable: &Path,
     cache_root: &Path,
@@ -163,6 +167,7 @@ pub(crate) fn run_policy_probe(
 /// QA-only control: wait until the child confirms it consumed the full stdin
 /// plan, then verify a child that ignores the pipe is still killed and reaped.
 #[cfg(target_os = "macos")]
+#[allow(dead_code)]
 pub(crate) fn run_cancel_ignoring_probe(
     executable: &Path,
     archive_root: &Path,

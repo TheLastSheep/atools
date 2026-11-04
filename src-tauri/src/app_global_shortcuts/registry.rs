@@ -1,15 +1,13 @@
 //! Typed AppBinding OS ownership; shared algorithm, separate FeatureCode collection.
 use super::{BindingTarget, Runtime};
 use crate::general_settings_runtime::app_shortcut_registry::{
-    parse_shortcut, DesiredShortcut, OwnedAppShortcutRegistry, OwnedAppShortcutSnapshot,
-    ShortcutPort,
+    parse_shortcut, DesiredShortcut, OwnedAppShortcutRegistry, ShortcutPort,
 };
 use std::collections::BTreeMap;
 use tauri::{AppHandle, Manager};
 use tauri_plugin_global_shortcut::{GlobalShortcut, Shortcut, ShortcutState};
 
 pub(super) type Registry = OwnedAppShortcutRegistry<BindingTarget>;
-pub(super) type Snapshot = OwnedAppShortcutSnapshot<BindingTarget>;
 pub(super) struct Port<'a> {
     pub app: &'a AppHandle,
     pub runtime: &'a std::sync::Arc<Runtime>,

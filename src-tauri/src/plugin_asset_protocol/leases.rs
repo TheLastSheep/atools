@@ -81,7 +81,7 @@ struct Store {
     preparations: HashMap<String, Owner>,
 }
 
-pub(super) struct Preparation {
+pub(crate) struct Preparation {
     id: String,
     pub owner: Owner,
     resources: Weak<Resources>,
@@ -125,6 +125,7 @@ impl Resources {
         })
     }
 
+    #[cfg(test)]
     pub fn commit(
         &self,
         preparation: Preparation,
@@ -256,6 +257,7 @@ impl Resources {
             .map(|_| action())
     }
 
+    #[cfg(test)]
     pub fn close(&self, owner: &Owner) {
         let mut store = self.store.lock();
         store.leases.retain(|_, lease| &lease.owner != owner);
@@ -271,6 +273,7 @@ impl Resources {
         store.preparations.retain(|_, pending| pending != owner);
         revoke(owner)
     }
+    #[cfg(test)]
     pub fn invalidate_plugin(&self, plugin: &str) {
         let mut store = self.store.lock();
         store.leases.retain(|_, lease| lease.owner.plugin != plugin);
@@ -290,6 +293,7 @@ impl Resources {
             .retain(|_, pending| pending.plugin != plugin);
         revoke(plugin)
     }
+    #[cfg(test)]
     pub fn close_window(&self, window: &str) {
         let mut store = self.store.lock();
         store.leases.retain(|_, lease| lease.owner.window != window);

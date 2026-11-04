@@ -138,7 +138,6 @@ pub(super) enum CachedArchive {
 }
 
 pub(super) struct ArchiveStore {
-    root_path: PathBuf,
     archive_path: PathBuf,
     sets_path: PathBuf,
     root: Directory,
@@ -190,7 +189,6 @@ impl ArchiveStore {
         let archive_path = root_path.join("archives");
         let sets_path = root_path.join("sets");
         Ok(Self {
-            root_path,
             archive_path,
             sets_path,
             root,
@@ -205,29 +203,8 @@ impl ArchiveStore {
     pub fn set_path(&self, set_id: &str) -> PathBuf {
         self.sets_path.join(set_id)
     }
-    pub fn root_path(&self) -> &Path {
-        &self.root_path
-    }
-    pub fn archives(&self) -> &Directory {
-        &self.archives
-    }
     pub fn sets(&self) -> &Directory {
         &self.sets
-    }
-    pub fn root(&self) -> &Directory {
-        &self.root
-    }
-
-    pub fn archive_metadata(&self, package: &LockedPackageV1) -> Result<Option<u64>, String> {
-        validate_id(&package.archive_id_sha256)?;
-        let Some(meta) = self
-            .archives
-            .child_metadata_optional(OsStr::new(&package.archive_id_sha256))?
-        else {
-            return Ok(None);
-        };
-        validate_archive_metadata(&meta)?;
-        Ok(Some(meta.st_size as u64))
     }
 
     pub fn open_archive(&self, package: &LockedPackageV1) -> Result<File, String> {
@@ -277,6 +254,7 @@ impl ArchiveStore {
         archive_publication::publish_repaired_archive(self, temporary, package, corrupt)
     }
 
+    #[cfg(test)]
     pub fn remove_archive_temp(&self, name: &str) -> Result<(), String> {
         match self.archives.child_metadata_optional(OsStr::new(name))? {
             Some(meta) => self.archives.unlink(OsStr::new(name), false, Some(&meta)),
@@ -323,24 +301,12 @@ impl ArchiveStore {
 
     pub fn duplicate_for_inventory(&self) -> Result<Self, String> {
         Ok(Self {
-            root_path: self.root_path.clone(),
             archive_path: self.archive_path.clone(),
             sets_path: self.sets_path.clone(),
             root: self.root.duplicate()?,
             archives: self.archives.duplicate()?,
             sets: self.sets.duplicate()?,
         })
-    }
-
-    pub fn has_archive(&self, package: &LockedPackageV1) -> Result<bool, String> {
-        Ok(self.archive_metadata(package)?.is_some())
-    }
-
-    pub fn validate_cached_archive(&self, package: &LockedPackageV1) -> Result<bool, String> {
-        Ok(matches!(
-            self.inspect_archive(package)?,
-            CachedArchive::Verified { .. }
-        ))
     }
 
     pub fn inspect_archive(&self, package: &LockedPackageV1) -> Result<CachedArchive, String> {

@@ -17,7 +17,6 @@ pub(super) use lock::Lock;
 #[path = "durable_directory.rs"]
 mod directory;
 
-const MAX_CONFIGURATION_BYTES: u64 = 16 * 1024;
 const MAX_JOURNAL_BYTES: u64 = 4 * 1024;
 pub(super) const SOURCE_NAME: &str = "com.atools.desktop.plist";
 

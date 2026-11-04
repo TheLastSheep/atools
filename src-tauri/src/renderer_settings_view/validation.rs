@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use serde::Serialize;
 use serde_json::{Map, Value};
-use tauri::{AppHandle, Manager, Webview, Window, Wry};
+use tauri::{AppHandle, Webview, Window, Wry};
 
 use super::{
     identity::{is_expected_settings_url, is_valid_session_id},

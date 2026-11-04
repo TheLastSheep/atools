@@ -5,12 +5,11 @@ use super::model::{
 };
 use super::runtime_ops::PasteboardRuntime;
 use super::support::{
-    create_image_thumbnail, default_ignored_bundle_ids, extension_for_media_type,
-    ignored_snapshot_reason, normalize_bundle_id, prefer_kind, remove_pruned_blobs,
-    snapshot_fingerprint, validate_inline_text, DEFAULT_ATTACHMENT_BUDGET_BYTES,
-    DEFAULT_LEGACY_HISTORY_RETENTION_DAYS, DEFAULT_RETENTION_DAYS,
+    create_image_thumbnail, extension_for_media_type, ignored_snapshot_reason, normalize_bundle_id,
+    prefer_kind, remove_pruned_blobs, snapshot_fingerprint, validate_inline_text,
+    DEFAULT_ATTACHMENT_BUDGET_BYTES, DEFAULT_LEGACY_HISTORY_RETENTION_DAYS, DEFAULT_RETENTION_DAYS,
 };
-use atools_core::{PasteboardBlob, PasteboardItem, PasteboardItemKind};
+use atools_core::{PasteboardItem, PasteboardItemKind};
 use serde_json::{json, Map, Value};
 
 impl PasteboardRuntime {

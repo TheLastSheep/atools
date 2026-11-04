@@ -1,5 +1,7 @@
 //! Native requested-content geometry; passive viewport clipping never changes the request.
-use tauri::{AppHandle, PhysicalPosition, PhysicalSize};
+#[cfg(feature = "ztools-multiwebview")]
+use tauri::AppHandle;
+use tauri::{PhysicalPosition, PhysicalSize};
 
 pub(super) fn requested_pixels(desired: f64, scale: f64) -> Result<u32, String> {
     super::settings_height_geometry::project(desired, scale).map(|value| value.physical_content)
@@ -41,6 +43,7 @@ pub(crate) fn create_settings_child<T>(
     create(position, size)
 }
 
+#[cfg(feature = "ztools-multiwebview")]
 pub(crate) fn validate_settings_content(app: &AppHandle, desired: f64) -> Result<(), String> {
     let scale = super::main_window(app)
         .map_err(|error| error.to_string())?
@@ -49,17 +52,13 @@ pub(crate) fn validate_settings_content(app: &AppHandle, desired: f64) -> Result
     requested_pixels(desired, scale).map(|_| ())
 }
 
+#[cfg(any(feature = "ztools-multiwebview", test))]
 pub(super) fn parent_request(desired: f64, scale: f64) -> Result<f64, String> {
     super::settings_height_geometry::project(desired, scale)
         .map(|value| value.logical_content + 58.0)
 }
 
-pub(crate) fn resize_settings_content(app: &AppHandle, desired: f64) -> Result<(), String> {
-    // Resolve the projection using the scale read inside the actual parent resize plan.
-    super::resize_main_window_height(app, super::HeightRequest::SettingsContent(desired))
-        .map_err(|error| error.to_string())
-}
-
+#[cfg(feature = "ztools-multiwebview")]
 pub(crate) fn resize_settings_content_on_window(
     app: &AppHandle,
     window: &tauri::Window,

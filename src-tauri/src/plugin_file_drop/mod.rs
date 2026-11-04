@@ -77,7 +77,7 @@ pub(crate) fn close_owner(app: &AppHandle, owner: &Owner) {
     lifecycle::close_owner(app, owner);
 }
 
-pub(super) fn claim_selection(
+fn claim_selection(
     runtime: &Runtime,
     id: &str,
     window: &str,
@@ -104,7 +104,7 @@ pub(super) fn claim_selection(
     }
     Ok(selection)
 }
-pub(super) fn insert_request(runtime: &Runtime, request: Arc<Request>) -> Result<(), String> {
+fn insert_request(runtime: &Runtime, request: Arc<Request>) -> Result<(), String> {
     let mut store = runtime.store.lock();
     if store.stopped
         || store.requests.len() >= types::MAX_REQUESTS
@@ -119,7 +119,7 @@ pub(super) fn insert_request(runtime: &Runtime, request: Arc<Request>) -> Result
     store.requests.insert(request.id.clone(), request);
     Ok(())
 }
-pub(super) fn register_request_timer(runtime: &Runtime, id: &str, timer: TimerHandle) {
+fn register_request_timer(runtime: &Runtime, id: &str, timer: TimerHandle) {
     let mut store = runtime.store.lock();
     if store.requests.contains_key(id) {
         if let Some(old) = store.request_timers.insert(id.into(), timer) {
@@ -129,7 +129,7 @@ pub(super) fn register_request_timer(runtime: &Runtime, id: &str, timer: TimerHa
         timer.abort();
     }
 }
-pub(super) fn register_selection_timer(runtime: &Runtime, id: &str, timer: TimerHandle) {
+fn register_selection_timer(runtime: &Runtime, id: &str, timer: TimerHandle) {
     let mut store = runtime.store.lock();
     if store.selections.contains_key(id) {
         if let Some(old) = store.selection_timers.insert(id.into(), timer) {
@@ -139,7 +139,7 @@ pub(super) fn register_selection_timer(runtime: &Runtime, id: &str, timer: Timer
         timer.abort();
     }
 }
-pub(super) fn request(runtime: &Runtime, id: &str) -> Result<Arc<Request>, String> {
+fn request(runtime: &Runtime, id: &str) -> Result<Arc<Request>, String> {
     runtime
         .store
         .lock()
@@ -148,7 +148,7 @@ pub(super) fn request(runtime: &Runtime, id: &str) -> Result<Arc<Request>, Strin
         .cloned()
         .ok_or("File-drop request expired or consumed".into())
 }
-pub(super) fn is_current(runtime: &Runtime, request: &Arc<Request>) -> bool {
+fn is_current(runtime: &Runtime, request: &Arc<Request>) -> bool {
     runtime
         .store
         .lock()
@@ -157,14 +157,14 @@ pub(super) fn is_current(runtime: &Runtime, request: &Arc<Request>) -> bool {
         .is_some_and(|r| Arc::ptr_eq(r, request))
         && request.valid()
 }
-pub(super) fn remove_request(runtime: &Runtime, id: &str) -> Option<Arc<Request>> {
+fn remove_request(runtime: &Runtime, id: &str) -> Option<Arc<Request>> {
     let mut store = runtime.store.lock();
     if let Some(timer) = store.request_timers.remove(id) {
         timer.abort();
     }
     store.requests.remove(id)
 }
-pub(super) fn remove_selection(runtime: &Runtime, id: &str) -> Option<Selection> {
+fn remove_selection(runtime: &Runtime, id: &str) -> Option<Selection> {
     let mut store = runtime.store.lock();
     if let Some(timer) = store.selection_timers.remove(id) {
         timer.abort();

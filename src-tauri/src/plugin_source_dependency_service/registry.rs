@@ -4,7 +4,6 @@ use serde_json::json;
 pub(crate) const INSPECT: &str = "inspect_ztools_source_dependencies";
 pub(crate) const FETCH: &str = "fetch_ztools_source_dependencies";
 pub(crate) const PREPARE: &str = "prepare_ztools_source_dependencies";
-pub(crate) const CACHE_LIMIT: u64 = 512 * 1024 * 1024;
 const PLAN_PACKAGE_LIMIT: u64 = 4_096;
 const PLAN_ARCHIVE_BYTES_LIMIT: u64 = 128 * 1024 * 1024;
 const UNPACKED_BYTES_LIMIT: u64 = 512 * 1024 * 1024;
@@ -113,16 +112,6 @@ pub(crate) fn definitions() -> [ToolDefinition; 3] {
 
 pub(crate) fn is_tool(name: &str) -> bool {
     matches!(name, INSPECT | FETCH | PREPARE)
-}
-pub(crate) fn is_mutating_tool(name: &str) -> bool {
-    matches!(name, FETCH | PREPARE)
-}
-pub(crate) fn is_dependency_tool(name: &str) -> bool {
-    is_tool(name)
-}
-
-pub(crate) fn capability(name: &str) -> bool {
-    is_tool(name)
 }
 
 #[cfg(test)]

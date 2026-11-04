@@ -59,6 +59,7 @@ pub(crate) fn bind_run(
     *slot = Some(run.into());
     Ok(())
 }
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn validate_tool(tool: &ToolDefinition) -> Result<&str, String> {
     super::registry::validate(tool)
 }

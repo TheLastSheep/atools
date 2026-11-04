@@ -5,7 +5,6 @@ use super::support::{
 use async_trait::async_trait;
 use atools_core::{PasteboardBlob, PasteboardItem, PasteboardSourceApp};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::collections::BTreeSet;
 use std::path::Path;
 

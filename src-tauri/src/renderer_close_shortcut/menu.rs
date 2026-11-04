@@ -5,7 +5,7 @@ use super::{
     Runtime, Snapshot,
 };
 use tauri::{
-    menu::{AboutMetadata, Menu, MenuItem, MenuItemKind, PredefinedMenuItem, Submenu},
+    menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu},
     AppHandle, Manager, Wry,
 };
 pub(super) const CLOSE_ON: &str = "atools.original.close.on";

@@ -57,7 +57,6 @@ pub(super) struct FetchResult {
     pub cached_archives: usize,
     pub fetched_archives: usize,
     pub archive_bytes: u64,
-    pub elapsed_ms: u64,
 }
 
 pub(super) async fn fetch_missing(
@@ -68,7 +67,6 @@ pub(super) async fn fetch_missing(
     deadline: Instant,
     cleanup_unconfirmed: &Arc<AtomicBool>,
 ) -> Result<FetchResult, String> {
-    let started = Instant::now();
     let client = Client::builder()
         .no_proxy()
         .redirect(reqwest::redirect::Policy::none())
@@ -217,7 +215,6 @@ pub(super) async fn fetch_missing(
         cached_archives: cached,
         fetched_archives: fetched,
         archive_bytes: verified_plan_bytes,
-        elapsed_ms: started.elapsed().as_millis().min(u64::MAX as u128) as u64,
     })
 }
 

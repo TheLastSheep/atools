@@ -1,6 +1,7 @@
 //! Terminal intent cleanup and native-window shutdown selection.
 use super::super::intents::{Intent, NativeWindow, Reservation, WindowLife};
 use super::super::manager::Runtime;
+#[cfg(test)]
 use crate::plugin_asset_protocol::Owner;
 use std::{
     collections::HashSet,
@@ -60,6 +61,7 @@ impl Runtime {
         (intents, windows, reservations)
     }
 
+    #[cfg(test)]
     pub fn close_owner(
         &self,
         owner: &Owner,

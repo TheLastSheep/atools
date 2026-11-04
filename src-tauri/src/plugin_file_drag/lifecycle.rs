@@ -117,6 +117,7 @@ impl Drop for OpeningIntent {
 }
 
 impl Sessions {
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn existing_owners(&self, document_id: &str) -> Vec<Owner> {
         let state = self.store.lock();
         let mut owners = state
@@ -251,6 +252,7 @@ impl Sessions {
         let _ = super::native::shutdown(app).await;
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn counts(&self) -> (usize, usize, usize, usize) {
         let state = self.store.lock();
         (

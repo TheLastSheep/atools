@@ -83,7 +83,7 @@ pub(crate) async fn prepare_plugin_secret_storage(
         false,
     )
     .await;
-    let mut value = result.structured_content;
+    let value = result.structured_content;
     if value["permission_required"] == true {
         if let Some(run) = value["runId"].as_str() {
             if !rt.bind_run(&intent, run) {

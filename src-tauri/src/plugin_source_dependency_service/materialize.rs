@@ -23,7 +23,6 @@ const DEPENDENCY_STAGE_CLEANUP_ENTRIES: usize = 210_000;
 
 pub(super) struct PrepareResult {
     pub set: VerifiedSet,
-    pub archive_bytes: u64,
     pub elapsed_ms: u64,
     pub node_pin: NodePin,
 }
@@ -31,7 +30,6 @@ pub(super) struct PrepareResult {
 struct Preflight {
     store: ArchiveStore,
     plan: LockedDependencyPlanV1,
-    archive_bytes: u64,
     cached_set: Option<VerifiedSet>,
     plan_bytes: Vec<u8>,
     worker_executable: PathBuf,
@@ -107,7 +105,6 @@ pub(super) async fn prepare(
     if let Some(set) = preflight.cached_set {
         return Ok(PrepareResult {
             set,
-            archive_bytes: preflight.archive_bytes,
             elapsed_ms: 0,
             node_pin: preflight.node_pin,
         });
@@ -254,7 +251,6 @@ pub(super) async fn prepare(
     .await?;
     Ok(PrepareResult {
         set: publish,
-        archive_bytes: preflight.archive_bytes,
         elapsed_ms: worker_elapsed_ms,
         node_pin: preflight.node_pin,
     })
@@ -280,7 +276,7 @@ fn prepare_preflight(
     let store =
         ArchiveStore::open_existing(&cache_root)?.ok_or("SOURCE_DEPENDENCY_ARCHIVE_MISSING")?;
     store.cache_totals(cancelled)?;
-    let archive_bytes = require_archives(&store, &plan)?;
+    let _archive_bytes = require_archives(&store, &plan)?;
     let cached_set = registry_store::verify_existing(&store, &plan, cancelled)?;
     let plan_bytes = serde_json::to_vec(&plan).map_err(|_| "SOURCE_DEPENDENCY_PLAN_INVALID")?;
     if plan_bytes.len() > atools_plugin::source_build::MAX_PLAN_JSON_BYTES {
@@ -303,7 +299,6 @@ fn prepare_preflight(
     Ok(Preflight {
         store,
         plan,
-        archive_bytes,
         cached_set,
         plan_bytes,
         worker_executable,

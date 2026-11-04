@@ -12,11 +12,13 @@ mod paste_shelf_owner;
 mod shutdown_owners;
 pub(crate) mod recording;
 pub(crate) mod recording_runtime;
+#[cfg(feature = "legacy-node-smoke")]
+#[allow(unused_imports)]
+pub(crate) use owned_main::{read_owned_main_hotkey, restore_owned_main_hotkey};
 pub(crate) use owned_main::{
-    apply_owned_main_hotkey, mark_startup_attempted, read_owned_main_hotkey,
-    read_owned_main_hotkey_state, release_owned_main_hotkey, restore_owned_main_hotkey,
-    restore_owned_main_hotkey_state, set_owned_main_hotkey, setup_owned_main_hotkey,
-    validate_main_hotkey_label, OwnedMainHotkeyRegistry, OwnedMainHotkeySnapshot,
+    apply_owned_main_hotkey, mark_startup_attempted, read_owned_main_hotkey_state,
+    release_owned_main_hotkey, restore_owned_main_hotkey_state, set_owned_main_hotkey,
+    setup_owned_main_hotkey, validate_main_hotkey_label, OwnedMainHotkeyRegistry,
     OwnedMainHotkeyStateSnapshot,
 };
 pub(crate) use paste_stack::{
@@ -80,6 +82,7 @@ pub(crate) fn is_shortcut_registered(app: &AppHandle, shortcut: &str) -> bool {
 }
 
 /// Register a custom app/plugin direct launch shortcut
+#[cfg(feature = "legacy-node-smoke")]
 pub fn register_app_shortcut(
     app: &AppHandle,
     shortcut: &str,

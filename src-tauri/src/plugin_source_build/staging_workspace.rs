@@ -20,6 +20,7 @@ pub(in crate::plugin_source_build) struct Workspace {
     cleanup_entry_limit: usize,
 }
 impl Workspace {
+    #[cfg(test)]
     pub fn create() -> Result<Self, String> {
         Self::with_signal(Arc::new(AtomicBool::new(false)))
     }

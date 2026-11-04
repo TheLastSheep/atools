@@ -45,6 +45,7 @@ impl ClipboardRequest {
     pub fn is_content_write(&self) -> bool {
         matches!(self, Self::ContentWrite(_) | Self::Paste(_))
     }
+    #[cfg(test)]
     pub fn is_paste(&self) -> bool {
         matches!(self, Self::Paste(_))
     }

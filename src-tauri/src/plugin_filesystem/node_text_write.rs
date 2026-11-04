@@ -26,6 +26,7 @@ enum WritePlan {
 
 /// Handles only the exact bridge envelope. Unsupported paths return false before
 /// creating or changing a file; once a write begins, every failure is an error.
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) async fn handle(request: &Value) -> Result<Value, String> {
     handle_authorized(request, || Ok(())).await
 }
@@ -109,7 +110,7 @@ where
         io::Write,
         os::{
             fd::{AsRawFd, FromRawFd},
-            unix::{ffi::OsStrExt, fs::MetadataExt},
+            unix::fs::MetadataExt,
         },
     };
 

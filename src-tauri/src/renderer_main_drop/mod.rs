@@ -95,6 +95,7 @@ pub(crate) fn resume(app: &AppHandle) {
         r.state.lock().resume();
     }
 }
+#[cfg(test)]
 pub(crate) fn invalidate(app: &AppHandle) {
     if let Some(r) = runtime(app) {
         delivery::revoke(&r, |s| s.rotate(), |v| emit(app, v));

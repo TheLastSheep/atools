@@ -1,4 +1,4 @@
-use super::{index::ZipArchiveIndex, path, ZipLimits};
+use super::{index::ZipArchiveIndex, path};
 use std::{
     fs,
     io::Write,

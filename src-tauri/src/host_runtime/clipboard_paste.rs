@@ -230,6 +230,7 @@ impl PasteHost for SystemPasteHost {
     }
 }
 
+#[cfg(test)]
 pub(crate) fn write_content(
     backend: &dyn ClipboardAccess,
     content: ContentPayload,
@@ -312,7 +313,6 @@ mod native {
     use super::ForegroundTarget;
     use core_graphics::event::{CGEvent, CGEventFlags, CGEventTapLocation, KeyCode};
     use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
-    use objc2::AnyThread;
     use objc2_app_kit::NSWorkspace;
     use objc2_core_graphics::{CGPreflightPostEventAccess, CGRequestPostEventAccess};
     use parking_lot::Mutex;

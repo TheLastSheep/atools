@@ -16,6 +16,7 @@ pub(super) fn validate_generation(generation: u64) -> Result<(), String> {
     }
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub(super) fn validate_nonce(nonce: &str) -> Result<(), String> {
     if nonce.len() == 32
         && nonce
@@ -28,6 +29,7 @@ pub(super) fn validate_nonce(nonce: &str) -> Result<(), String> {
     }
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub(super) fn validate_frame_id(frame_id: &str) -> Result<(), String> {
     if frame_id == "main" {
         return Ok(());

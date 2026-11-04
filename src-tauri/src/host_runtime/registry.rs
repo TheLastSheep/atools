@@ -61,6 +61,7 @@ impl Access {
         }
     }
     /// Primary scope retained for older diagnostics; registration uses `scopes()`.
+    #[cfg(test)]
     pub fn scope(self) -> PermissionScope {
         self.scopes()[0]
     }

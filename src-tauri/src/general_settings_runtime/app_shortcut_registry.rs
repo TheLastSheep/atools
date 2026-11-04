@@ -290,6 +290,7 @@ impl<T: Clone + Eq> OwnedAppShortcutRegistry<T> {
     }
 }
 
+#[cfg(any(test, feature = "legacy-node-smoke"))]
 impl OwnedAppShortcutRegistry<String> {
     pub(crate) fn register_single<P: ShortcutPort>(
         &mut self,

@@ -15,7 +15,6 @@ pub(super) struct TauriNativeSettings {
     app_shortcut_snapshot: Option<super::app_shortcut_registry::OwnedAppShortcutSnapshot>,
 }
 
-const HOTKEY_REJECTED: &str = "SETTINGS_HOTKEY_REJECTED";
 const NATIVE_RECOVERY_FAILED: &str = "SETTINGS_NATIVE_RECOVERY_FAILED";
 const LAUNCH_AT_LOGIN_UNAVAILABLE: &str = "SETTINGS_LAUNCH_AT_LOGIN_UNAVAILABLE";
 const LAUNCH_AT_LOGIN_RECOVERY_FAILED: &str = "SETTINGS_LAUNCH_AT_LOGIN_RECOVERY_FAILED";

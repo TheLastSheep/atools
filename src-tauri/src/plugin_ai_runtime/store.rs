@@ -164,6 +164,7 @@ impl Runtime {
         }
         removed
     }
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn counts(&self) -> (usize, usize, usize, usize, usize) {
         let store = self.store.lock();
         let acknowledgements = store

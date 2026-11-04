@@ -1,5 +1,5 @@
 //! One immutable, bounded projection of the original renderer command directory.
-use crate::{launcher_app_catalog::LauncherApp, state::AppState};
+use crate::state::AppState;
 use atools_core::db::{RendererCommandCatalogSnapshot, RENDERER_COMMAND_CATALOG_MAX_PLUGINS};
 use serde_json::{Map, Value};
 use tauri::AppHandle;

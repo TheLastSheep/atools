@@ -2,7 +2,9 @@ mod accessibility;
 pub mod agent_tools;
 pub(crate) mod ai_runtime;
 mod app_builder;
+#[cfg_attr(not(feature = "ztools-multiwebview"), allow(dead_code))]
 mod app_global_shortcuts;
+#[cfg_attr(not(feature = "ztools-multiwebview"), allow(dead_code))]
 mod app_launch_fence;
 mod app_launch_service;
 mod app_lifecycle;
@@ -18,6 +20,7 @@ mod commands;
 mod content_search;
 mod feature_activation;
 mod feature_activation_audit;
+#[cfg_attr(not(feature = "ztools-multiwebview"), allow(dead_code))]
 mod general_settings_runtime;
 mod launcher_app_catalog;
 mod launcher_app_catalog_source;
@@ -36,23 +39,27 @@ mod plugin_market_target;
 mod plugin_market_target_probe;
 mod renderer_app_state;
 mod renderer_clipboard;
+#[cfg_attr(not(feature = "ztools-multiwebview"), allow(dead_code))]
 mod renderer_close_shortcut;
 #[cfg(feature = "ztools-multiwebview")]
 mod renderer_commands_catalog;
 mod renderer_context_menu;
 mod renderer_general_settings;
+#[cfg_attr(not(feature = "ztools-multiwebview"), allow(dead_code))]
 mod renderer_main_drop;
 mod renderer_recommendation_pins;
 mod renderer_settings;
 #[cfg(feature = "ztools-multiwebview")]
 mod renderer_settings_view;
 mod renderer_window_drag;
+#[cfg_attr(not(feature = "ztools-multiwebview"), allow(dead_code))]
 mod renderer_window_material;
 mod webview_command_policy;
 #[cfg(feature = "market-metadata-probe")]
 pub use plugin_market_target_probe::run as run_official_market_target_probe;
 pub mod crash;
 mod desktop_smoke;
+#[cfg_attr(not(feature = "ztools-multiwebview"), allow(dead_code))]
 mod hotkey;
 pub mod mcp_server;
 pub mod pasteboard_native;
@@ -71,11 +78,12 @@ mod plugin_inventory;
 mod plugin_lifecycle;
 mod plugin_main_push;
 mod plugin_source_build;
-mod plugin_window_preferences;
+#[cfg(feature = "legacy-node-smoke")]
 pub(crate) use plugin_source_build::{
     calculate_converted_package_tree, read_converted_handoff, read_converted_package_manifest,
     ConvertedPackageTree,
 };
+mod plugin_window_preferences;
 #[cfg(all(feature = "source-dependency-smoke", target_os = "macos"))]
 pub fn run_source_dependency_pipeline_smoke() -> Result<(), String> {
     plugin_source_build::run_source_dependency_pipeline_smoke()
@@ -120,6 +128,7 @@ mod legacy_runtime;
 mod node_runtime_provider;
 mod plugin_browser_window_runtime;
 mod plugin_data_runtime;
+#[cfg_attr(not(feature = "ztools-multiwebview"), allow(dead_code))]
 mod plugin_dialog_runtime;
 pub(crate) mod plugin_file_drag;
 pub(crate) mod plugin_file_drop;
@@ -142,10 +151,12 @@ mod plugin_display_runtime;
 #[cfg(all(feature = "legacy-node-smoke", target_os = "macos"))]
 pub use host_runtime::desktop_smoke::run as run_host_clipboard_desktop_smoke;
 mod providers;
+#[cfg_attr(not(feature = "ztools-multiwebview"), allow(dead_code))]
 mod renderer_updater;
 mod settings_write;
 mod state;
 mod tray;
+#[cfg_attr(not(feature = "ztools-multiwebview"), allow(dead_code))]
 mod updater;
 pub mod webdav;
 mod window;

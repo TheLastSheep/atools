@@ -4,7 +4,7 @@ use super::{
 };
 use serde_json::json;
 use std::{path::PathBuf, time::Instant};
-use tauri::{Emitter, Manager};
+use tauri::Emitter;
 
 pub(super) fn queue_drop(
     app: &tauri::AppHandle,

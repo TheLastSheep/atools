@@ -6,6 +6,7 @@ mod service;
 mod spec;
 mod transaction;
 
+#[cfg(feature = "legacy-node-smoke")]
 use std::path::Path;
 #[cfg(any(test, all(feature = "legacy-node-smoke", target_os = "macos")))]
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -104,36 +105,6 @@ fn read_apply_locked(
     #[cfg(not(target_os = "macos"))]
     {
         let _ = (app, expected, target);
-        Err(UNSUPPORTED.to_owned())
-    }
-}
-
-pub(crate) fn read_apply_production(
-    expected: Option<bool>,
-    target: Option<bool>,
-) -> Result<bool, String> {
-    with_os_operation(|| read_apply_production_locked(expected, target))
-}
-
-fn read_apply_production_locked(
-    expected: Option<bool>,
-    target: Option<bool>,
-) -> Result<bool, String> {
-    #[cfg(target_os = "macos")]
-    {
-        if !spec::PRODUCTION_IDENTIFIERS
-            .iter()
-            .any(|expected| service::current_bundle_identifier_matches(expected))
-        {
-            return Err(UNAVAILABLE.to_owned());
-        }
-        production_legacy::recover_locked()?;
-        reject_legacy_configuration()?;
-        run_transaction(expected, target)
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        let _ = (expected, target);
         Err(UNSUPPORTED.to_owned())
     }
 }
@@ -270,7 +241,7 @@ fn with_isolated_cleanup<T>(
     )
 }
 
-#[cfg(not(all(feature = "legacy-node-smoke", target_os = "macos")))]
+#[cfg(all(feature = "legacy-node-smoke", not(target_os = "macos")))]
 pub(crate) fn install_isolated(
     _app: &AppHandle,
     _root: &Path,
@@ -278,11 +249,6 @@ pub(crate) fn install_isolated(
     _executable: &Path,
 ) -> Result<(), String> {
     Err(UNSUPPORTED.to_owned())
-}
-
-#[cfg(target_os = "macos")]
-pub(crate) fn legacy_path() -> Result<std::path::PathBuf, String> {
-    spec::legacy_path()
 }
 
 pub(crate) fn legacy_plist(executable_path: &str) -> String {

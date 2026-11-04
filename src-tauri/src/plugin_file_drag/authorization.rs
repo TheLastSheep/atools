@@ -16,7 +16,7 @@ const MAX_AGE: Duration = super::types::SESSION_TTL;
 const UI_CLIENT: &str = "atools-ui";
 
 #[derive(Clone)]
-pub(super) struct OnceAuthorization {
+pub(crate) struct OnceAuthorization {
     run_id: String,
     intent_id: String,
     owner: super::types::Owner,

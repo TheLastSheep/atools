@@ -11,6 +11,7 @@ pub(crate) use blur_guard::{
 };
 #[cfg(feature = "ztools-multiwebview")]
 mod auto_back;
+#[cfg(any(feature = "ztools-multiwebview", test))]
 mod content_height;
 #[cfg(all(target_os = "macos", feature = "macos-main-panel-prototype"))]
 pub(crate) mod macos_main_panel;
@@ -23,10 +24,11 @@ mod position_macos;
 mod presentation;
 mod resize_apply;
 mod resize_bounds;
+#[cfg(any(feature = "ztools-multiwebview", test))]
 mod settings_height_geometry;
+#[cfg(feature = "ztools-multiwebview")]
 pub(crate) use content_height::{
-    create_settings_child, resize_settings_content, resize_settings_content_on_window,
-    validate_settings_content,
+    create_settings_child, resize_settings_content_on_window, validate_settings_content,
 };
 
 #[cfg(all(target_os = "macos", feature = "macos-main-panel-prototype"))]
@@ -38,16 +40,16 @@ pub(crate) use auto_back::{
 };
 #[cfg(feature = "ztools-multiwebview")]
 pub(crate) use main_child_layout::handle_main_child_layout_event;
+#[cfg(all(feature = "ztools-multiwebview", feature = "legacy-node-smoke"))]
+pub(crate) use main_child_layout::attach_main_child_layout;
 #[cfg(feature = "ztools-multiwebview")]
 pub(crate) use main_child_layout::{
-    attach_main_child_layout, attach_settings_child_layout, attach_settings_child_layout_on_window,
-    main_child_is_visible, main_child_layout_active_count, MainChildLayoutLease,
+    attach_settings_child_layout_on_window, main_child_is_visible,
+    main_child_layout_active_count, MainChildLayoutLease,
 };
 pub(crate) use main_roles::{main_webview, main_window};
 pub(crate) use position::position_main_window_for_foreground;
 pub(crate) use position::remember_main_window_position;
-#[cfg(feature = "ztools-multiwebview")]
-pub(crate) use presentation::focus_main_native_window;
 
 const DEFAULT_WINDOW_HEIGHT: u32 = 600;
 
@@ -87,12 +89,17 @@ fn resize_main_window_to_height(
 
 enum HeightRequest {
     Total(f64),
+    #[cfg(feature = "ztools-multiwebview")]
     SettingsContent(f64),
 }
 impl HeightRequest {
-    fn resolve(self, scale: f64) -> Result<f64, String> {
+    fn resolve(
+        self,
+        #[cfg_attr(not(feature = "ztools-multiwebview"), allow(unused_variables))] scale: f64,
+    ) -> Result<f64, String> {
         match self {
             Self::Total(height) => Ok(height),
+            #[cfg(feature = "ztools-multiwebview")]
             Self::SettingsContent(desired) => content_height::parent_request(desired, scale),
         }
     }

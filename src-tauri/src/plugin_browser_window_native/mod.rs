@@ -14,4 +14,4 @@ pub(crate) use actions::start_dragging;
 pub use adapter::{attach_parent, create_main_from_config};
 pub(crate) use dragging::StartAuthorization;
 pub use options::WindowSpec;
-pub use snapshot::{forget_window, snapshot, NativeBounds, NativeSnapshot};
+pub use snapshot::{forget_window, snapshot};

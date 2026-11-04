@@ -4,6 +4,7 @@ use crate::plugin_asset_protocol::Owner;
 use std::collections::HashMap;
 use std::sync::Weak;
 
+#[cfg_attr(not(test), allow(dead_code))]
 const MAX_SOURCE_KEYS: usize = 256;
 
 #[derive(Clone, Hash, PartialEq, Eq)]
@@ -27,6 +28,7 @@ impl Key {
     }
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 struct Watermark {
     generation: u64,
     document_nonce: String,
@@ -46,6 +48,7 @@ impl Registry {
         self.by_id.get(id).cloned()
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn bind(
         &mut self,
         binding: SourceBinding,

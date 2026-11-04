@@ -13,7 +13,7 @@ const MANIFEST_LIMIT: u64 = 256 * 1024;
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct ManifestRewriteReceipt {
+pub(crate) struct ManifestRewriteReceipt {
     pub before_sha256: String,
     pub after_sha256: String,
     pub mapped_fields: Vec<&'static str>,

@@ -25,6 +25,7 @@ pub(crate) trait AiDeltaSink: Send {
     async fn send_delta(&mut self, delta: AiDelta) -> Result<(), AiServiceError>;
 }
 
+#[cfg(test)]
 const MODEL_LIST_BUDGET: Duration = Duration::from_secs(15);
 const FIRST_RESPONSE_BUDGET: Duration = Duration::from_secs(20);
 const IDLE_BUDGET: Duration = Duration::from_secs(15);
@@ -76,6 +77,7 @@ impl Default for AiCancelHandle {
 
 pub struct AiChatOutcome {
     pub message: Option<AiAssistantMessage>,
+    #[cfg_attr(not(test), allow(dead_code))]
     pub finish_reason: Option<String>,
     pub output_bytes: usize,
 }
@@ -101,6 +103,7 @@ impl AiTransport {
         Ok(Self { client, config })
     }
 
+    #[cfg(test)]
     pub async fn list_models(
         &self,
         cancel: &AiCancelHandle,
@@ -335,6 +338,7 @@ fn ensure_success(status: StatusCode) -> Result<(), AiServiceError> {
     }
 }
 
+#[cfg(test)]
 fn optional_model_text(value: Option<&Value>) -> Result<Option<String>, AiServiceError> {
     match value {
         None | Some(Value::Null) => Ok(None),
@@ -343,6 +347,7 @@ fn optional_model_text(value: Option<&Value>) -> Result<Option<String>, AiServic
     }
 }
 
+#[cfg(test)]
 async fn read_body(
     response: Response,
     cap: usize,

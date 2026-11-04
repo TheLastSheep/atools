@@ -3,10 +3,11 @@ use super::native_image::{
     EncodeRequest, ImageDescriptor, NativeImageCancellation, NativeImageEngine, NativeImageError,
     NativeImageSession, OpenSourceKind, OutputFormat, ResizeStep,
 };
+#[cfg(test)]
 use super::native_image_session::ImageSessionStore;
-use super::native_image_worker::{
-    run_open_worker, run_worker, worker_error, WorkerFailure, WORKER_DEADLINE,
-};
+#[cfg(test)]
+use super::native_image_worker::WorkerFailure;
+use super::native_image_worker::{run_open_worker, run_worker, worker_error, WORKER_DEADLINE};
 use super::types::Session;
 use atools_core::{
     agent::{PermissionScope, ToolDefinition},
@@ -275,7 +276,7 @@ fn encoded_length(byte_length: usize) -> Option<usize> {
 #[derive(Debug)]
 enum PathReadError {
     Budget(NativeImageError),
-    Source(SidecarError),
+    Source(#[allow(dead_code)] SidecarError),
 }
 
 async fn reserve_path_source<F, Fut>(

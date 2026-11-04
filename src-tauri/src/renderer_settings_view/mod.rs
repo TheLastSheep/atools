@@ -50,7 +50,9 @@ use std::sync::Arc;
 use serde_json::Value;
 use tauri::{Builder, Manager, Wry};
 
-use self::{bundle::SettingsBundle, session::SettingsViewRuntime};
+#[cfg(feature = "legacy-node-smoke")]
+use self::bundle::SettingsBundle;
+use self::session::SettingsViewRuntime;
 
 pub(crate) const SETTINGS_SCHEME: &str = "atools-settings";
 pub(crate) const SETTINGS_EVENT: &str = "atools://renderer-settings-view";
@@ -73,9 +75,7 @@ pub(crate) use main_authority::{
     revoke_main_for_shutdown,
 };
 #[cfg(feature = "legacy-node-smoke")]
-pub(crate) use native_drop::{
-    fixture_binding_active, inject_owned_fixture_drop, FixtureDropCompletion, FixtureDropReceipt,
-};
+pub(crate) use native_drop::{fixture_binding_active, inject_owned_fixture_drop};
 #[cfg(feature = "legacy-node-smoke")]
 pub(crate) use preferences::project_general_settings;
 pub(crate) use session::UpdaterGrant;
@@ -84,6 +84,7 @@ pub(crate) fn register(builder: Builder<Wry>) -> Builder<Wry> {
     protocol::register(builder)
 }
 
+#[cfg(feature = "legacy-node-smoke")]
 pub(crate) fn install_bundle(
     app: &tauri::AppHandle,
     bundle: Arc<SettingsBundle>,

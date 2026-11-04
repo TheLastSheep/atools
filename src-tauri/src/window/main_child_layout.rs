@@ -64,23 +64,29 @@ fn plan_owned_layout(
     Ok(plan)
 }
 
+#[cfg(any(test, feature = "ztools-multiwebview"))]
 #[derive(Clone, Debug)]
 struct ActiveRegistration {
     id: u64,
     webview_label: String,
     header_logical: u32,
     requested_content: Option<f64>,
+    #[cfg(feature = "ztools-multiwebview")]
     parent_identity: Option<usize>,
+    #[cfg(feature = "ztools-multiwebview")]
     visible: bool,
 }
 
+#[cfg(any(test, feature = "ztools-multiwebview"))]
 #[derive(Default)]
 struct RegistrationState {
     next_id: u64,
     active: Option<ActiveRegistration>,
 }
 
+#[cfg(any(test, feature = "ztools-multiwebview"))]
 impl RegistrationState {
+    #[cfg(test)]
     fn reserve(&mut self, webview_label: String, header_logical: u32) -> Result<u64, String> {
         self.reserve_requested(webview_label, header_logical, None)
     }
@@ -104,7 +110,9 @@ impl RegistrationState {
             webview_label,
             header_logical,
             requested_content,
+            #[cfg(feature = "ztools-multiwebview")]
             parent_identity: None,
+            #[cfg(feature = "ztools-multiwebview")]
             visible: false,
         });
         Ok(id)
@@ -167,23 +175,13 @@ fn ensure_registry(
         .ok_or_else(|| "Main child layout registry is unavailable".into())
 }
 
-#[cfg(feature = "ztools-multiwebview")]
+#[cfg(all(feature = "ztools-multiwebview", feature = "legacy-node-smoke"))]
 pub(crate) fn attach_main_child_layout(
     app: &tauri::AppHandle,
     child: &tauri::Webview,
     header_logical: u32,
 ) -> Result<MainChildLayoutLease, String> {
     attach_layout(app, child, header_logical, None)
-}
-
-#[cfg(feature = "ztools-multiwebview")]
-pub(crate) fn attach_settings_child_layout(
-    app: &tauri::AppHandle,
-    child: &tauri::Webview,
-    header_logical: u32,
-    desired: f64,
-) -> Result<MainChildLayoutLease, String> {
-    attach_layout(app, child, header_logical, Some(desired))
 }
 
 #[cfg(feature = "ztools-multiwebview")]
@@ -213,8 +211,6 @@ fn attach_layout(
     header_logical: u32,
     requested: Option<f64>,
 ) -> Result<MainChildLayoutLease, String> {
-    use tauri::Manager;
-
     let parent = child.window();
     if parent.label() != MAIN_WINDOW_LABEL {
         return Err("Main child layout requires a webview parented to the main window".into());

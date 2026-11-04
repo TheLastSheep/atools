@@ -485,6 +485,7 @@ impl Sessions {
         runs.into_iter().collect()
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn counts(&self) -> (usize, usize, usize) {
         let store = self.store.lock();
         (

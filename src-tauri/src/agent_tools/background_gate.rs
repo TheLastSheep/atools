@@ -48,7 +48,7 @@ mod tests {
 
         let (loader_read_tx, loader_read_rx) = oneshot::channel::<()>();
         let loader_gates = gates.clone();
-        let loader = tokio::spawn(async move {
+        let _loader = tokio::spawn(async move {
             let _loader = loader_gates.read(plugin).await;
             let _ = loader_read_tx.send(());
         });

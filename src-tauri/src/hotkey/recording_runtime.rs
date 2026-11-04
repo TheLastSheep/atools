@@ -250,6 +250,7 @@ pub(crate) fn route_event(app: &AppHandle, shortcut: &Shortcut, state: ShortcutS
 }
 /// Main and Pasteboard window actions may hide Main and release keys. Enqueue
 /// them from the plugin callback, then run them after that synchronous stack.
+#[cfg(test)]
 pub(super) fn enqueue_pressed(state: ShortcutState, consumed: bool, enqueue: impl FnOnce()) {
     if state == ShortcutState::Pressed && !consumed {
         enqueue();

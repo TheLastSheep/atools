@@ -1,4 +1,4 @@
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 /// Applies a renderer tray mutation and reads back this app's native tray state.
 ///

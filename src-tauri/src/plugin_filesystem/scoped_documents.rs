@@ -1,3 +1,4 @@
+#![cfg_attr(not(test), allow(dead_code))]
 use std::{fmt, io};
 
 const MAX_DOCUMENT_BYTES: u64 = 512 * 1024;

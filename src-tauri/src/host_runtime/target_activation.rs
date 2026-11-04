@@ -141,7 +141,6 @@ pub(super) fn restore_target(
 
 #[cfg(target_os = "macos")]
 fn live_target() -> Result<ForegroundTarget, String> {
-    use objc2::AnyThread;
     use objc2_app_kit::NSWorkspace;
     let app = NSWorkspace::sharedWorkspace()
         .frontmostApplication()

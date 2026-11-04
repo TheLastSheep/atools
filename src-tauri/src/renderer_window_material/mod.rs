@@ -10,6 +10,7 @@ mod tests;
 use std::path::Path;
 
 use policy::{Ownership, ThemePreference};
+#[cfg(feature = "legacy-node-smoke")]
 use serde_json::Value;
 use tauri::{AppHandle, Manager, Theme};
 
@@ -21,7 +22,7 @@ const ORIGINAL_FRONTEND_DIST: &str = "../packages/ztools-renderer/dist";
 
 #[derive(Default)]
 pub(crate) struct RendererWindowMaterial {
-    pub(super) ownership: parking_lot::Mutex<Ownership>,
+    ownership: parking_lot::Mutex<Ownership>,
 }
 
 /// Installs the manager in all launch modes. Native appearance is claimed only
@@ -64,28 +65,7 @@ pub(crate) fn install_original_fixture(
     Ok(())
 }
 
-pub(crate) async fn acquire_settings(app: &AppHandle) -> Result<MaterialLease, String> {
-    ensure_manager(app)?;
-    #[cfg(target_os = "macos")]
-    {
-        return macos::acquire_settings(app).await;
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        let state = app
-            .try_state::<RendererWindowMaterial>()
-            .ok_or_else(|| "Native window material manager is unavailable".to_owned())?;
-        let mut ownership = state.ownership.lock();
-        let lease_id = ownership.reserve_lease_id()?;
-        ownership.add_settings_lease(lease_id)?;
-        Ok(MaterialLease {
-            app: app.clone(),
-            lease_id,
-            active: true,
-        })
-    }
-}
-
+#[cfg(feature = "ztools-multiwebview")]
 pub(crate) fn acquire_settings_on_window_main(
     app: &AppHandle,
     window: &tauri::Window,
@@ -112,6 +92,7 @@ pub(crate) fn acquire_settings_on_window_main(
     }
 }
 
+#[cfg(feature = "legacy-node-smoke")]
 pub(crate) async fn observe(app: &AppHandle) -> Result<Value, String> {
     #[cfg(target_os = "macos")]
     {
@@ -154,6 +135,7 @@ pub(crate) fn on_window_destroyed(app: &AppHandle, label: &str) {
     }
 }
 
+#[cfg(feature = "ztools-multiwebview")]
 pub(crate) struct MaterialLease {
     app: AppHandle,
     #[cfg(target_os = "macos")]
@@ -162,6 +144,7 @@ pub(crate) struct MaterialLease {
     active: bool,
 }
 
+#[cfg(feature = "ztools-multiwebview")]
 #[derive(Clone)]
 pub(crate) struct MaterialReleaseToken {
     app: AppHandle,
@@ -170,6 +153,7 @@ pub(crate) struct MaterialReleaseToken {
     lease_id: u64,
 }
 
+#[cfg(feature = "ztools-multiwebview")]
 impl MaterialLease {
     pub(crate) fn release_token(&self) -> MaterialReleaseToken {
         MaterialReleaseToken {
@@ -179,33 +163,9 @@ impl MaterialLease {
             lease_id: self.lease_id,
         }
     }
-
-    pub(crate) async fn release(mut self) -> Result<(), String> {
-        #[cfg(target_os = "macos")]
-        {
-            let result =
-                macos::release_settings(self.app.clone(), self.window.clone(), self.lease_id).await;
-            if result.is_ok() {
-                self.active = false;
-            }
-            return result;
-        }
-        #[cfg(not(target_os = "macos"))]
-        {
-            if let Some(state) = self.app.try_state::<RendererWindowMaterial>() {
-                state.ownership.lock().remove_settings_lease(self.lease_id);
-            }
-            self.active = false;
-            Ok(())
-        }
-    }
-
-    #[cfg(target_os = "macos")]
-    pub(super) fn disarm(&mut self) {
-        self.active = false;
-    }
 }
 
+#[cfg(feature = "ztools-multiwebview")]
 impl MaterialReleaseToken {
     /// Retries release of this exact Settings lease. The token does not own or
     /// implicitly release the lease, so callers can retain it after errors.
@@ -225,6 +185,7 @@ impl MaterialReleaseToken {
     }
 }
 
+#[cfg(feature = "ztools-multiwebview")]
 impl Drop for MaterialLease {
     fn drop(&mut self) {
         if !self.active {

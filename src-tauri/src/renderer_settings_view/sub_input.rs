@@ -9,7 +9,7 @@ mod state;
 #[path = "sub_input/tests.rs"]
 mod tests;
 
-pub(crate) use state::{SubInputBuffer, SubInputDiagnostics};
+pub(crate) use state::SubInputBuffer;
 
 use serde_json::Value;
 use tauri::{AppHandle, Wry};

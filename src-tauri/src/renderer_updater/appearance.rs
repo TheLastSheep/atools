@@ -33,6 +33,7 @@ pub(super) enum Material {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
+#[allow(dead_code)]
 pub(super) enum Platform {
     Darwin,
     Win32,
@@ -40,6 +41,7 @@ pub(super) enum Platform {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[allow(dead_code)]
 pub(super) enum NativeMaterial {
     #[serde(rename = "none")]
     None,

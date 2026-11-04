@@ -20,8 +20,8 @@ use super::{
     accounting::{RuntimeAccounting, RuntimeActivityGuard},
     session::SessionView,
     validation::{
-        ensure_still_active, exact_object, inactive_session, invalid_payload,
-        require_empty_payload, string_field, BridgeError,
+        ensure_still_active, exact_object, invalid_payload, require_empty_payload, string_field,
+        BridgeError,
     },
 };
 use buffers::{DataKind, PageData, MAX_COMMAND_BYTES, MAX_PAGE_BYTES};

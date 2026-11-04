@@ -1,26 +1,33 @@
-use std::{ptr::NonNull, time::Duration};
+#[cfg(any(feature = "ztools-multiwebview", feature = "legacy-node-smoke"))]
+use std::time::Duration;
+use std::ptr::NonNull;
 
 use objc2::{rc::Retained, MainThreadMarker};
-use objc2_app_kit::{
-    NSAppearanceCustomization, NSAppearanceNameAqua, NSAppearanceNameDarkAqua, NSView,
-    NSVisualEffectView, NSWindow,
-};
+#[cfg(feature = "legacy-node-smoke")]
+use objc2_app_kit::{NSAppearanceCustomization, NSAppearanceNameAqua, NSAppearanceNameDarkAqua};
+use objc2_app_kit::{NSView, NSVisualEffectView, NSWindow};
+#[cfg(feature = "legacy-node-smoke")]
 use objc2_foundation::NSArray;
+#[cfg(feature = "legacy-node-smoke")]
 use serde_json::{json, Value};
 use tauri::{AppHandle, Manager, Window};
+#[cfg(any(feature = "ztools-multiwebview", feature = "legacy-node-smoke"))]
 use tokio::sync::oneshot;
 use window_vibrancy::{
     apply_vibrancy, clear_vibrancy, NSVisualEffectMaterial as VibrancyMaterial,
     NSVisualEffectState as VibrancyState,
 };
 
-use super::{policy::Ownership, MaterialLease, RendererWindowMaterial};
+#[cfg(feature = "ztools-multiwebview")]
+use super::MaterialLease;
+use super::{policy::Ownership, RendererWindowMaterial};
 
 const VIEW_TAG: isize = 91_376_254;
 const EXPECTED_MATERIAL: isize = 15;
 const EXPECTED_BLENDING: isize = 0;
 const EXPECTED_STATE: isize = 0;
 const MAX_NATIVE_VIEWS: usize = 2048;
+#[cfg(any(feature = "ztools-multiwebview", feature = "legacy-node-smoke"))]
 const MAIN_THREAD_TIMEOUT: Duration = Duration::from_secs(2);
 
 #[derive(Clone, Copy)]
@@ -33,6 +40,7 @@ struct EffectViewFacts {
 struct NativeFacts {
     effect_count: u64,
     effect_view: Option<EffectViewFacts>,
+    #[cfg(feature = "legacy-node-smoke")]
     effective_appearance: &'static str,
 }
 
@@ -49,38 +57,7 @@ pub(super) fn claim_main_owner(
     Ok(())
 }
 
-pub(super) async fn acquire_settings(app: &AppHandle) -> Result<MaterialLease, String> {
-    if MainThreadMarker::new().is_some() {
-        return acquire_settings_on_main(app);
-    }
-    let task_app = app.clone();
-    let (sender, receiver) = oneshot::channel();
-    app.run_on_main_thread(move || {
-        if sender.is_closed() {
-            return;
-        }
-        let result = acquire_settings_on_main(&task_app);
-        if let Err(returned) = sender.send(result) {
-            if let Ok(mut lease) = returned {
-                let release = release_settings_on_main(&lease.app, &lease.window, lease.lease_id);
-                if release.is_ok() {
-                    lease.disarm();
-                }
-            }
-        }
-    })
-    .map_err(|_| "Main-thread material acquire could not be scheduled".to_owned())?;
-    tokio::time::timeout(MAIN_THREAD_TIMEOUT, receiver)
-        .await
-        .map_err(|_| "Main-thread material acquire timed out".to_owned())?
-        .map_err(|_| "Main-thread material acquire stopped before replying".to_owned())?
-}
-
-fn acquire_settings_on_main(app: &AppHandle) -> Result<MaterialLease, String> {
-    let window = main_window(app)?;
-    acquire_settings_for_window_on_main(app, &window)
-}
-
+#[cfg(feature = "ztools-multiwebview")]
 pub(super) fn acquire_settings_for_window_on_main(
     app: &AppHandle,
     window: &Window,
@@ -101,6 +78,7 @@ pub(super) fn acquire_settings_for_window_on_main(
     })
 }
 
+#[cfg(feature = "ztools-multiwebview")]
 pub(super) async fn release_settings(
     app: AppHandle,
     window: Window,
@@ -113,6 +91,7 @@ pub(super) async fn release_settings(
     .await
 }
 
+#[cfg(feature = "ztools-multiwebview")]
 pub(super) fn enqueue_release(app: AppHandle, window: Window, lease_id: u64) {
     if MainThreadMarker::new().is_some() {
         let _ = release_settings_on_main(&app, &window, lease_id);
@@ -129,6 +108,7 @@ pub(super) fn enqueue_release(app: AppHandle, window: Window, lease_id: u64) {
     }
 }
 
+#[cfg(feature = "ztools-multiwebview")]
 fn mark_release_unscheduled(app: &AppHandle, lease_id: u64) {
     if let Some(state) = app.try_state::<RendererWindowMaterial>() {
         let mut ownership = state.ownership.lock();
@@ -139,6 +119,7 @@ fn mark_release_unscheduled(app: &AppHandle, lease_id: u64) {
     }
 }
 
+#[cfg(feature = "ztools-multiwebview")]
 fn release_settings_on_main(app: &AppHandle, window: &Window, lease_id: u64) -> Result<(), String> {
     require_main_thread()?;
     let Some(state) = app.try_state::<RendererWindowMaterial>() else {
@@ -155,11 +136,13 @@ fn release_settings_on_main(app: &AppHandle, window: &Window, lease_id: u64) -> 
     clear_owned_effect_from_window(window, &mut ownership)
 }
 
+#[cfg(feature = "legacy-node-smoke")]
 pub(super) async fn observe(app: &AppHandle) -> Result<Value, String> {
     let task_app = app.clone();
     on_main_thread(app, move || observe_on_main(&task_app)).await
 }
 
+#[cfg(feature = "legacy-node-smoke")]
 fn observe_on_main(app: &AppHandle) -> Result<Value, String> {
     require_main_thread()?;
     let state = app.try_state::<RendererWindowMaterial>();
@@ -219,6 +202,7 @@ pub(super) fn on_window_destroyed(app: &AppHandle) {
     }
 }
 
+#[cfg(any(feature = "ztools-multiwebview", feature = "legacy-node-smoke"))]
 async fn on_main_thread<T, F>(app: &AppHandle, action: F) -> Result<T, String>
 where
     T: Send + 'static,
@@ -365,6 +349,7 @@ fn inspect_window(window: &Window) -> Result<NativeFacts, String> {
     Ok(NativeFacts {
         effect_count,
         effect_view,
+        #[cfg(feature = "legacy-node-smoke")]
         effective_appearance: effective_appearance(native),
     })
 }
@@ -410,6 +395,7 @@ fn inspect_view_tree(root: &NSView) -> Result<(u64, Option<EffectViewFacts>), St
     ))
 }
 
+#[cfg(feature = "legacy-node-smoke")]
 fn effective_appearance(window: &NSWindow) -> &'static str {
     let appearance = window.effectiveAppearance();
     // SAFETY: AppKit exports these immutable appearance-name NSStrings for the

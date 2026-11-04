@@ -19,6 +19,4 @@ mod scoped_documents;
 #[cfg(all(test, unix))]
 mod scoped_documents_tests;
 
-pub(crate) use scoped_documents::{
-    DocumentAccess, DocumentBytesFailure, DocumentMetadata, ScopedDocumentError, ScopedDocumentRoot,
-};
+pub(crate) use scoped_documents::{DocumentAccess, DocumentBytesFailure, ScopedDocumentRoot};

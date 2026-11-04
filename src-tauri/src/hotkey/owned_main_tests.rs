@@ -1,9 +1,9 @@
 use crate::hotkey::main_binding::{MainBinding, parse_main_binding};
-use std::{collections::HashSet, str::FromStr};
+use std::collections::HashSet;
 
 use super::{
-    parse_main_hotkey, validate_main_hotkey_label, OwnedMainHotkeyRegistry, RegisterFailure,
-    Shortcut, ShortcutPort, HOTKEY_OUTCOME_UNKNOWN, HOTKEY_REJECTED, RECOVERY_FAILED,
+    validate_main_hotkey_label, OwnedMainHotkeyRegistry, RegisterFailure, ShortcutPort,
+    HOTKEY_OUTCOME_UNKNOWN, HOTKEY_REJECTED, RECOVERY_FAILED,
 };
 
 #[derive(Default)]

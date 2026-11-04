@@ -7,6 +7,7 @@ pub(super) const ADAPTER_VERSION: &str = "macos-sbpl-v4-vite-backend-fd2048";
 
 /// This profile establishes neither an aggregate resource cap nor prevention of
 /// every POSIX_SPAWN_SETSID/SETPGROUP escape. Receipts must preserve that limit.
+#[cfg(test)]
 pub(super) fn render(
     stage: &Path,
     dependencies: &Path,
@@ -16,6 +17,7 @@ pub(super) fn render(
     render_with_test_esbuild(stage, dependencies, node, esbuild, None)
 }
 
+#[cfg(test)]
 pub(super) fn render_with_test_esbuild(
     stage: &Path,
     dependencies: &Path,

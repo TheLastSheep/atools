@@ -20,8 +20,7 @@ use super::super::{
 };
 use super::{
     buffers::{
-        AliasWriteReservation, CommandDataBuffers, DataKind, MAX_ALIAS_BYTES, MAX_ALIAS_RAW_BYTES,
-        MAX_STAGED_BYTES,
+        CommandDataBuffers, DataKind, MAX_ALIAS_BYTES, MAX_ALIAS_RAW_BYTES, MAX_STAGED_BYTES,
     },
     check_reply, encode_page,
 };

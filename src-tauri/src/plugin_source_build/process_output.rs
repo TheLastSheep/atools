@@ -3,10 +3,10 @@ use super::staging;
 use atools_core::PluginManifest;
 use atools_plugin::{
     package_resolution::{resolve_plugin_package, PackageReadiness},
-    source_build::{
-        ManifestIdentity, ManifestPathField, ManifestSelection, SourceBuildPlan, ViteBuildBackend,
-    },
+    source_build::{ManifestIdentity, ManifestPathField, ManifestSelection, SourceBuildPlan},
 };
+#[cfg(test)]
+use atools_plugin::source_build::ViteBuildBackend;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::path::{Component, Path};

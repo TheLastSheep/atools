@@ -88,6 +88,7 @@ impl UpdateCommandError {
 pub trait UpdateBackend: Send + Sync {
     async fn check(&self) -> Result<Option<UpdateMetadata>, UpdateCommandError>;
 
+    #[allow(dead_code)]
     async fn install(
         &self,
         metadata: &UpdateMetadata,

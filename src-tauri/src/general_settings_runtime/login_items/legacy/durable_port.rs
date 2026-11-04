@@ -6,7 +6,7 @@ use super::super::migration::{Choice, LegacyPort, Phase};
 use super::durable_journal;
 #[cfg(test)]
 use super::{CommitFailpoint, JournalPublicationFailpoint};
-use super::{DurableLegacy, BACKUP_C, MAX_CONFIGURATION_BYTES};
+use super::DurableLegacy;
 
 impl LegacyPort for DurableLegacy {
     fn prepare(&mut self, choice: Choice, before: ServiceStatus) -> Result<(), &'static str> {

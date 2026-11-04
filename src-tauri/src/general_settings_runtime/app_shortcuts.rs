@@ -99,6 +99,7 @@ fn with_registry<T>(
     coordinator.inner().with_app_shortcuts(operation)?
 }
 
+#[cfg(feature = "legacy-node-smoke")]
 pub(crate) fn register_app_shortcut(
     app: &AppHandle,
     shortcut: &str,

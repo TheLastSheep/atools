@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use atools_core::db::Database;
 use atools_core::task_run::{TaskRun, TaskRunStatus};
 use serde_json::{json, Value};

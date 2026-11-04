@@ -48,7 +48,6 @@ pub(crate) struct SettingsViewRuntime {
     inner: Mutex<RuntimeInner>,
     bundle_load_active: AtomicBool,
     accounting: Arc<RuntimeAccounting>,
-    pub(crate) open_gate: AsyncMutex<()>,
 }
 
 impl Default for SettingsViewRuntime {
@@ -65,7 +64,6 @@ impl Default for SettingsViewRuntime {
             }),
             bundle_load_active: AtomicBool::new(false),
             accounting: RuntimeAccounting::shared(),
-            open_gate: AsyncMutex::new(()),
         }
     }
 }
@@ -75,6 +73,7 @@ impl SettingsViewRuntime {
         Arc::clone(&self.accounting)
     }
 
+    #[cfg(any(test, feature = "legacy-node-smoke"))]
     pub(crate) fn cache_bundle(&self, bundle: Arc<SettingsBundle>) -> Result<(), String> {
         let mut inner = self
             .inner
@@ -113,6 +112,7 @@ impl SettingsViewRuntime {
         Ok(bundle)
     }
 
+    #[cfg(test)]
     pub(crate) fn begin_session(
         &self,
         id: String,
@@ -396,6 +396,7 @@ impl SettingsViewRuntime {
         Ok(())
     }
 
+    #[cfg(test)]
     pub(crate) fn take_if(&self, id: &str) -> Option<SessionView> {
         self.take_if_with(id, |_| {})
     }

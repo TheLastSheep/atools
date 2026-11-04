@@ -1,10 +1,7 @@
 //! Source-bound fixed local protocol. A document grant belongs to one native popup only.
 use super::*;
 use std::sync::{atomic::Ordering, Arc};
-use tauri::{
-    http::{Method, Request, Response, StatusCode},
-    Manager,
-};
+use tauri::http::{Method, Request, Response, StatusCode};
 const CSP:&str="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost; frame-src 'none'; object-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'";
 pub(super) fn register(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
     builder

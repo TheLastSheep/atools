@@ -58,6 +58,7 @@ impl Default for Ownership {
 }
 
 impl Ownership {
+    #[cfg(feature = "legacy-node-smoke")]
     pub(super) fn main_owner(&self) -> bool {
         self.main_owner
     }
@@ -74,6 +75,7 @@ impl Ownership {
         self.effect_owned
     }
 
+    #[cfg(any(test, feature = "ztools-multiwebview", feature = "legacy-node-smoke"))]
     pub(super) fn cleanup_pending(&self) -> bool {
         self.cleanup_pending
     }
@@ -86,6 +88,7 @@ impl Ownership {
         }
     }
 
+    #[cfg(any(test, feature = "ztools-multiwebview"))]
     pub(super) fn reserve_lease_id(&mut self) -> Result<u64, String> {
         self.ensure_open()?;
         let id = self
@@ -101,6 +104,7 @@ impl Ownership {
         Ok(())
     }
 
+    #[cfg(any(test, feature = "ztools-multiwebview"))]
     pub(super) fn add_settings_lease(&mut self, lease_id: u64) -> Result<(), String> {
         self.ensure_open()?;
         if lease_id == 0 || !self.settings_leases.insert(lease_id) {
@@ -109,12 +113,9 @@ impl Ownership {
         Ok(())
     }
 
+    #[cfg(any(test, feature = "ztools-multiwebview"))]
     pub(super) fn remove_settings_lease(&mut self, lease_id: u64) -> bool {
         self.settings_leases.remove(&lease_id)
-    }
-
-    pub(super) fn remove_main_owner(&mut self) {
-        self.main_owner = false;
     }
 
     pub(super) fn mark_effect_owned(&mut self) {

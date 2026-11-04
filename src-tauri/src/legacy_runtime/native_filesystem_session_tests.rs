@@ -1,4 +1,4 @@
-use atools_core::{agent::PermissionScope, Database, Plugin};
+use atools_core::{agent::PermissionScope, Database};
 use serde_json::json;
 use std::{fs, sync::atomic::Ordering};
 use tempfile::tempdir;

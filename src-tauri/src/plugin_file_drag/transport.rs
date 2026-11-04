@@ -7,7 +7,7 @@ use super::{
 use async_trait::async_trait;
 use serde_json::{json, Value};
 use std::sync::{
-    atomic::{AtomicBool, AtomicU8, Ordering},
+    atomic::{AtomicBool, AtomicU8},
     Arc,
 };
 use tauri::{AppHandle, Manager};

@@ -1,5 +1,5 @@
 //! Ephemeral dispatch validity, projected only from the owned Main registry.
-use super::{double_tap::Modifier, main_binding::MainBinding};
+use super::main_binding::MainBinding;
 use parking_lot::Mutex;
 use std::sync::{
     atomic::{AtomicBool, AtomicU64, Ordering},
@@ -178,9 +178,6 @@ pub(crate) fn quiesce(app: &AppHandle) {
 }
 pub(super) fn is_closed(app: &AppHandle) -> bool {
     runtime(app).map_or(true, |runtime| runtime.closed.load(Ordering::Acquire))
-}
-pub(super) fn double_binding(modifier: Modifier) -> MainBinding {
-    MainBinding::DoubleTap(modifier)
 }
 
 #[cfg(test)]

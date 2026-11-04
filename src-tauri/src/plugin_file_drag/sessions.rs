@@ -1,8 +1,8 @@
 //! Bounded, owner-bound file-drag sessions and one-shot requests.
 use super::types::{
     credential, same_token, Binding, Intent, Invocation, Owner, Session,
-    INVOCATION_CANCELLED_BEFORE_START, INVOCATION_FINISHED, INVOCATION_PENDING, INVOCATION_STARTED,
-    INVOCATION_STARTING, MAX_INVOCATIONS, MAX_PENDING_INTENTS, MAX_SESSIONS, SESSION_TTL,
+    INVOCATION_CANCELLED_BEFORE_START, INVOCATION_FINISHED, MAX_INVOCATIONS, MAX_PENDING_INTENTS,
+    MAX_SESSIONS, SESSION_TTL,
 };
 use crate::{plugin_loopback::BridgeServer, plugin_page_runtime::DocumentBinding};
 use parking_lot::Mutex;
@@ -45,7 +45,7 @@ impl Default for Sessions {
     }
 }
 
-pub(super) struct Preparation {
+pub(crate) struct Preparation {
     pub id: String,
     pub owner: Owner,
     runtime: std::sync::Weak<Sessions>,
@@ -396,6 +396,7 @@ impl Sessions {
         invocation
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn remove_session(&self, id: &str) -> Option<Arc<Session>> {
         let mut state = self.store.lock();
         if let Some(timer) = state.session_timers.remove(id) {

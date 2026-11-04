@@ -398,6 +398,7 @@ impl OpenClaims {
             .is_some_and(|slot| &slot.key == key && (slot.constructing || slot.active_stages != 0))
     }
 
+    #[cfg(test)]
     pub(crate) fn constructor_running(&self, key: &SessionKey) -> bool {
         self.slot
             .as_ref()

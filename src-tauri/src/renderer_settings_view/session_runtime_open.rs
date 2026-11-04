@@ -56,6 +56,7 @@ impl SettingsViewRuntime {
         Ok(result)
     }
 
+    #[cfg(test)]
     pub(crate) fn finished_main(&self) -> Option<MainKey> {
         self.inner.lock().ok()?.open_claims.finished_main()
     }
@@ -114,6 +115,7 @@ impl SettingsViewRuntime {
             .is_ok_and(|inner| inner.open_claims.is_live(id))
     }
 
+    #[cfg(test)]
     pub(crate) fn join_or_start(
         &self,
         id: ClaimId,
@@ -281,6 +283,7 @@ impl SettingsViewRuntime {
         ticket
     }
 
+    #[cfg(test)]
     pub(crate) fn finish_open_constructor(&self, key: &SessionKey) -> Option<ClosingTicket> {
         self.inner.lock().ok()?.open_claims.finish_constructor(key)
     }

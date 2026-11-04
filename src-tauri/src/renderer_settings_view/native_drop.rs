@@ -253,6 +253,7 @@ fn receive_drop(
             },
         )
         .await;
+        #[cfg_attr(not(feature = "legacy-node-smoke"), allow(unused_variables))]
         let result_notice_enqueued = send_notice(
             &app,
             &runtime,

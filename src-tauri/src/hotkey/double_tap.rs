@@ -47,6 +47,7 @@ pub(crate) struct DoubleTapDetector {
 }
 
 impl DoubleTapDetector {
+    #[cfg(test)]
     pub(crate) fn new() -> Self {
         Self::default()
     }

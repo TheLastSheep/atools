@@ -47,6 +47,7 @@ pub(super) async fn close_document(app: &AppHandle, id: &str) {
         rt.idle().await;
     }
 }
+#[cfg_attr(not(test), allow(dead_code))]
 pub(super) async fn close_window(app: &AppHandle, label: &str) {
     if let (Ok(rt), Some(state)) = (
         super::manager(app),

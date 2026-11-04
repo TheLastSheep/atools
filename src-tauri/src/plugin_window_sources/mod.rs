@@ -18,9 +18,6 @@ use std::sync::{
 };
 use tauri::{AppHandle, Manager};
 
-pub(crate) use commands::{
-    bind_plugin_window_source, close_plugin_window_source, prepare_plugin_window_document,
-};
 pub(crate) use documents::WindowDocument;
 use registry::Registry;
 pub(crate) use renderer::{
@@ -43,6 +40,7 @@ pub(crate) struct SourceBinding {
 }
 
 impl SourceBinding {
+    #[cfg_attr(not(test), allow(dead_code))]
     fn new(
         owner: plugin_asset_protocol::Owner,
         resource_session_id: String,

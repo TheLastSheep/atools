@@ -60,7 +60,7 @@ pub(super) fn resume(
             {
                 return Err(RECOVERY_FAILED);
             }
-            let mut adapter = adapter(
+            let adapter = adapter(
                 source,
                 expected_executable,
                 source_directory,

@@ -14,7 +14,6 @@ mod confirmation_lifecycle;
 mod manual_request;
 #[path = "presentation.rs"]
 mod presentation;
-pub(crate) use manual_request::ManualRequest;
 pub(crate) use presentation::PresentationLease;
 struct CoordinatorSnapshot {
     operation: UpdateOperation,
@@ -77,6 +76,7 @@ impl UpdateCoordinator {
             *n = Some(notify)
         }
     }
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn operation_busy(&self) -> bool {
         self.operation_gate.try_lock().is_err()
             || self

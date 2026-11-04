@@ -35,6 +35,7 @@ impl Signals {
     pub(super) fn held(&self) -> bool {
         self.dispatch.load(Ordering::Acquire) & HELD != 0
     }
+    #[cfg(test)]
     pub(super) fn cancelled(&self) -> bool {
         self.dispatch.load(Ordering::Acquire) & CANCELLED != 0
     }

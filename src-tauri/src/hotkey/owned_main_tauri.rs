@@ -2,8 +2,10 @@ use crate::hotkey::main_binding::{parse_main_binding, MainBinding};
 use tauri::{AppHandle, Manager};
 use tauri_plugin_global_shortcut::GlobalShortcut;
 
+#[cfg(feature = "legacy-node-smoke")]
+use super::OwnedMainHotkeySnapshot;
 use super::{
-    parser::parse_main_hotkey, OwnedMainHotkeyRegistry, OwnedMainHotkeySnapshot,
+    parser::parse_main_hotkey, OwnedMainHotkeyRegistry,
     OwnedMainHotkeyStateSnapshot, RegisterFailure, ShortcutPort, HOTKEY_OUTCOME_UNKNOWN,
     HOTKEY_REJECTED,
 };
@@ -171,6 +173,7 @@ pub(crate) fn setup_owned_main_hotkey(app: &AppHandle, label: &str) -> Result<()
     })
 }
 
+#[cfg(feature = "legacy-node-smoke")]
 pub(crate) fn read_owned_main_hotkey(app: &AppHandle) -> Result<OwnedMainHotkeySnapshot, String> {
     with_registry(app, |registry| registry.read(&TauriShortcutPort { app }))
 }
@@ -239,6 +242,8 @@ fn ensure_main_hotkey_available(app: &AppHandle, label: &str) -> Result<(), Stri
     Ok(())
 }
 
+#[cfg(feature = "legacy-node-smoke")]
+#[allow(dead_code)]
 pub(crate) fn restore_owned_main_hotkey(
     app: &AppHandle,
     snapshot: &OwnedMainHotkeySnapshot,

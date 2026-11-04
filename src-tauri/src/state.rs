@@ -75,6 +75,7 @@ pub struct AppState {
 impl AppState {
     /// Construct state for an already populated plugin metadata inventory.
     /// Production startup must use `new_pending_builtin_inventory` instead.
+    #[cfg(test)]
     pub fn new(
         config: AppConfig,
         db: Arc<Database>,
@@ -84,6 +85,7 @@ impl AppState {
         Self::new_prepopulated_inventory(config, db, release_smoke, pasteboard_runtime)
     }
 
+    #[cfg(any(test, feature = "legacy-node-smoke"))]
     pub fn new_prepopulated_inventory(
         config: AppConfig,
         db: Arc<Database>,

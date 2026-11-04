@@ -23,7 +23,6 @@ impl AiProviderKind {
 }
 
 pub struct AiProviderConfig {
-    provider: AiProviderKind,
     base_url: Url,
     default_model: Option<String>,
     api_key: Zeroizing<String>,
@@ -72,7 +71,6 @@ impl AiProviderConfig {
             .unwrap_or(0.2);
         base_url.set_fragment(None);
         Ok(Self {
-            provider,
             base_url,
             default_model,
             api_key: Zeroizing::new(api_key),
@@ -81,9 +79,6 @@ impl AiProviderConfig {
         })
     }
 
-    pub fn provider(&self) -> AiProviderKind {
-        self.provider
-    }
     pub fn default_model(&self) -> Option<&str> {
         self.default_model.as_deref()
     }
@@ -118,6 +113,7 @@ impl AiProviderConfig {
         }
     }
 
+    #[cfg(test)]
     pub fn models_url(&self) -> Result<Url, AiServiceError> {
         self.endpoint(&["models"])
     }

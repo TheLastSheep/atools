@@ -1,4 +1,4 @@
-use tauri::{AppHandle, Emitter, EventTarget, Manager};
+use tauri::{AppHandle, Emitter, EventTarget};
 
 pub(crate) const EVENT_NAME: &str = "atools://renderer-plugins-changed";
 const MAIN_WEBVIEW_LABEL: &str = "main";

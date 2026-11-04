@@ -58,6 +58,7 @@ pub(super) fn parse(action: &str, args: &[Value]) -> Result<Option<CapabilityAct
 }
 
 fn validate_platform(action: &Result<CapabilityAction, String>) -> Result<(), String> {
+    #[cfg_attr(not(target_os = "linux"), allow(unused_variables))]
     let action = match action {
         Ok(action) => action,
         Err(error) => return Err(error.clone()),

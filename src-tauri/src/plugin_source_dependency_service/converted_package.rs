@@ -4,6 +4,7 @@ use crate::plugin_source_build::staging::Directory;
 use std::{ffi::OsStr, io::Read, os::unix::fs::MetadataExt, path::Path};
 
 const HANDOFF_FILE: &str = "converted-ui-handoff-v1.json";
+#[cfg(any(test, feature = "source-dependency-smoke"))]
 const SOURCE_EVIDENCE_FILE: &str = "converted-source-evidence-v1.json";
 const HANDOFF_LIMIT: u64 = 64 * 1024;
 const PACKAGE_MANIFEST_LIMIT: u64 = 256 * 1024;
@@ -14,6 +15,7 @@ pub(in crate::plugin_source_build) fn read_converted_handoff(
     read_pinned_handoff(root, HANDOFF_FILE)
 }
 
+#[cfg(any(test, feature = "source-dependency-smoke"))]
 pub(in crate::plugin_source_build) fn read_converted_source_evidence(
     root: &Path,
 ) -> Result<Vec<u8>, String> {

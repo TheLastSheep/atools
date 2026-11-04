@@ -7,9 +7,7 @@ use atools_plugin::source_build::{
     LockedDependencyPlanV1, OwnedDependencyRootHandle,
 };
 use serde::{Deserialize, Serialize};
-use std::{
-    ffi::OsStr, os::unix::fs::MetadataExt, path::Path, sync::atomic::AtomicBool, time::Instant,
-};
+use std::{ffi::OsStr, path::Path, sync::atomic::AtomicBool, time::Instant};
 
 const HOST_RECEIPT: &str = ".atools-host-receipt-v1.json";
 const WORKER_MANIFEST: &str = ".atools-dependency-set-v1.json";

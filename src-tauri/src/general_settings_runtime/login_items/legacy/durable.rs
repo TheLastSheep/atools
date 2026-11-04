@@ -2,8 +2,10 @@
 use std::path::{Path, PathBuf};
 
 use super::super::{RECOVERY_FAILED, UNAVAILABLE};
-use super::configuration::{self, FileIdentity, ValidatedConfiguration};
-use super::durable_io::{validate_executable, validate_source_path, Directory, Lock, SOURCE_NAME};
+use super::configuration::{self, ValidatedConfiguration};
+#[cfg(test)]
+use super::durable_io::SOURCE_NAME;
+use super::durable_io::{validate_executable, validate_source_path, Directory, Lock};
 use super::journal::{Journal, JournalPhase};
 
 #[path = "durable_journal.rs"]

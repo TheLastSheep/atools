@@ -13,9 +13,9 @@ mod system_effects;
 mod transaction;
 
 pub(crate) use app_shortcut_registry::OwnedAppShortcutSnapshot;
-pub(crate) use app_shortcuts::{
-    register_app_shortcut, replace_app_shortcuts, restore_app_shortcuts,
-};
+#[cfg(feature = "legacy-node-smoke")]
+pub(crate) use app_shortcuts::register_app_shortcut;
+pub(crate) use app_shortcuts::{replace_app_shortcuts, restore_app_shortcuts};
 pub(crate) use commands::{read_general_settings, run_renderer_patch};
 pub(crate) use coordinator::{GeneralSettingsCoordinator, HotkeyOperationLease};
 

@@ -9,7 +9,7 @@ use tokio::sync::{watch, Mutex as AsyncMutex, Semaphore};
 use super::{
     bundle::SettingsBundle,
     command_data::CommandDataBuffers,
-    phase::{SessionPhase, SessionSignal},
+    phase::SessionSignal,
     preferences::SettingsPreferences,
     sub_input::SubInputBuffer,
 };

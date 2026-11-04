@@ -33,7 +33,7 @@ pub(super) fn credential() -> String {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub(super) struct Owner {
+pub(crate) struct Owner {
     pub window: String,
     pub plugin: String,
     pub instance: String,
@@ -59,13 +59,14 @@ impl Owner {
         })
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn key(&self) -> String {
         format!("window:{}:{}", self.window, self.instance)
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(super) struct Binding {
+pub(crate) struct Binding {
     pub path: String,
     pub version: String,
     pub revision: Option<String>,
@@ -93,16 +94,17 @@ impl Binding {
 }
 
 #[derive(Clone)]
-pub(super) struct Intent {
+pub(crate) struct Intent {
     pub owner: Owner,
     pub document: Option<DocumentBinding>,
     pub binding: Binding,
+    #[allow(dead_code)]
     pub created: Instant,
     pub cancelled: Arc<AtomicBool>,
     pub run: Arc<Mutex<Option<String>>>,
 }
 
-pub(super) struct Session {
+pub(crate) struct Session {
     pub id: String,
     pub token: String,
     pub owner: Owner,
@@ -110,6 +112,7 @@ pub(super) struct Session {
     pub binding: Binding,
     pub tool: String,
     pub once_authorization: Option<super::authorization::OnceAuthorization>,
+    #[allow(dead_code)]
     pub created: Instant,
     pub expires_at: Instant,
     pub active: AtomicBool,
@@ -130,7 +133,7 @@ impl Session {
     }
 }
 
-pub(super) struct Invocation {
+pub(crate) struct Invocation {
     pub id: String,
     pub session: String,
     pub owner: Owner,

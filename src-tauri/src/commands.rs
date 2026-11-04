@@ -3997,9 +3997,13 @@ fn trimmed_http_url(value: &str) -> Option<String> {
 
 const PLUGIN_MARKET_MAX_ARCHIVE_BYTES: usize = 50 * 1024 * 1024;
 const PLUGIN_MARKET_DOWNLOAD_MAX_ATTEMPTS: u8 = 3;
+#[cfg(test)]
 const PLUGIN_MARKET_MAX_ZIP_ENTRIES: usize = 4096;
+#[cfg(test)]
 const PLUGIN_MARKET_MAX_UNCOMPRESSED_BYTES: u64 = 64 * 1024 * 1024;
+#[cfg(test)]
 const PLUGIN_MARKET_MAX_SINGLE_ENTRY_BYTES: u64 = 32 * 1024 * 1024;
+#[cfg(test)]
 const PLUGIN_MARKET_MAX_PATH_DEPTH: usize = 32;
 
 #[cfg(test)]
@@ -4724,6 +4728,7 @@ pub(crate) fn plugin_market_staging_dir(
         .join(format!("download-{}-{nanos}", std::process::id()))
 }
 
+#[cfg(test)]
 pub(crate) fn extract_plugin_market_zip(
     archive_bytes: &[u8],
     staging_dir: &std::path::Path,
@@ -4829,6 +4834,7 @@ pub(crate) fn extract_plugin_market_zip(
     Ok(())
 }
 
+#[cfg(test)]
 fn validate_plugin_market_zip_entry(
     entry: &zip::read::ZipFile<'_>,
     index: usize,
@@ -5255,6 +5261,7 @@ pub async fn get_setting(
 }
 
 #[tauri::command]
+#[allow(dead_code)]
 pub fn set_setting(
     state: tauri::State<AppState>,
     key: String,
@@ -6410,6 +6417,7 @@ fn devtools_window_label(window_label: &str) -> &'static str {
     }
 }
 
+#[cfg(test)]
 #[derive(Debug, PartialEq, Eq)]
 enum HotkeyUpdatePlan<'a> {
     ExplicitPrevious {
@@ -6421,6 +6429,7 @@ enum HotkeyUpdatePlan<'a> {
     },
 }
 
+#[cfg(test)]
 fn hotkey_update_plan<'a>(requested: &'a str, previous: Option<&'a str>) -> HotkeyUpdatePlan<'a> {
     match previous {
         Some(previous) => HotkeyUpdatePlan::ExplicitPrevious {
@@ -6429,23 +6438,6 @@ fn hotkey_update_plan<'a>(requested: &'a str, previous: Option<&'a str>) -> Hotk
         },
         None => HotkeyUpdatePlan::ConfiguredPrevious { requested },
     }
-}
-
-pub fn update_global_hotkey(
-    app: AppHandle,
-    shortcut: String,
-    previous_shortcut: Option<String>,
-) -> Result<(), String> {
-    let result = match hotkey_update_plan(&shortcut, previous_shortcut.as_deref()) {
-        HotkeyUpdatePlan::ExplicitPrevious {
-            previous,
-            requested,
-        } => crate::hotkey::update_hotkey_from(&app, previous, requested),
-        HotkeyUpdatePlan::ConfiguredPrevious { requested } => {
-            crate::hotkey::update_hotkey(&app, requested)
-        }
-    };
-    result.map_err(|error| error.to_string())
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -6460,16 +6452,6 @@ pub struct SyncAppShortcutPayload {
 
 pub fn set_tray_icon_visible(app: AppHandle, visible: bool) -> Result<(), String> {
     crate::tray::set_visible(&app, visible)
-}
-
-pub fn set_launch_at_login(enabled: bool) -> Result<(), String> {
-    crate::general_settings_runtime::login_items::read_apply_production(None, Some(enabled))
-        .map(|_| ())
-}
-
-#[cfg(target_os = "macos")]
-pub(crate) fn launch_agent_path() -> Result<std::path::PathBuf, String> {
-    crate::general_settings_runtime::login_items::legacy_path()
 }
 
 pub(crate) fn launch_agent_plist(executable_path: &str) -> String {
@@ -11843,6 +11825,7 @@ fn reject_symlink_path(path: &std::path::Path, label: &str) -> Result<(), String
     Ok(())
 }
 
+#[cfg(test)]
 fn is_node_modules_bin_entry(path: &std::path::Path) -> bool {
     let components = path
         .components()

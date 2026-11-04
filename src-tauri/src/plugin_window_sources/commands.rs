@@ -10,9 +10,10 @@ use crate::{
     state::AppState,
 };
 use serde_json::{json, Value};
-use tauri::{AppHandle, Manager, State, WebviewWindow};
+use tauri::{AppHandle, State, WebviewWindow};
 
 #[tauri::command]
+#[allow(dead_code)]
 pub(crate) fn bind_plugin_window_source(
     app: AppHandle,
     window: WebviewWindow,
@@ -53,6 +54,7 @@ pub(crate) fn bind_plugin_window_source(
 }
 
 #[tauri::command]
+#[allow(dead_code)]
 pub(crate) fn close_plugin_window_source(
     app: AppHandle,
     window: WebviewWindow,

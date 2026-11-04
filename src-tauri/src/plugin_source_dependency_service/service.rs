@@ -31,6 +31,7 @@ const OP_DEADLINE_MS: u64 = 120_000;
 /// using Tauri's app-owned cache directory.
 pub(super) struct IsolatedCacheRoot(PathBuf);
 
+#[cfg(feature = "source-dependency-smoke")]
 impl IsolatedCacheRoot {
     pub(super) fn new(path: PathBuf) -> Result<Self, String> {
         let metadata =

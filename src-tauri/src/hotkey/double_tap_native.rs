@@ -1,6 +1,9 @@
 //! Native listener ownership, separate from the authoritative Main binding registry.
+#[cfg(not(target_os = "macos"))]
 use super::{double_tap::Modifier, main_dispatch::Token};
+#[cfg(not(target_os = "macos"))]
 use std::sync::Arc;
+#[cfg(not(target_os = "macos"))]
 use tauri::AppHandle;
 
 pub(super) enum CreateFailure {
@@ -9,6 +12,7 @@ pub(super) enum CreateFailure {
 }
 
 pub(super) const PERMISSION_REQUIRED: &str = "SETTINGS_HOTKEY_LISTEN_PERMISSION_REQUIRED";
+#[cfg(any(test, not(target_os = "macos")))]
 pub(super) const UNSUPPORTED: &str = "SETTINGS_HOTKEY_DOUBLE_TAP_UNSUPPORTED";
 #[cfg(target_os = "macos")]
 #[path = "double_tap_macos.rs"]

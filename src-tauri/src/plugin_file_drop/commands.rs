@@ -261,7 +261,7 @@ pub(crate) async fn execute(
         &raw,
     )?;
     {
-        let mut store = runtime.store.lock();
+        let store = runtime.store.lock();
         let current = store
             .requests
             .get(&request.id)

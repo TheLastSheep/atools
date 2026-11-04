@@ -1,5 +1,5 @@
 //! Menu actions are focused; a WindowRequest already names Main and must never raise it.
-use super::{policy, Runtime};
+use super::Runtime;
 use std::{sync::atomic::Ordering, time::Instant};
 use tauri::{AppHandle, Manager};
 #[derive(Clone)]

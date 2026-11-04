@@ -197,6 +197,7 @@ fn window_owner(label: &str, instance: &str) -> Result<String, String> {
     Ok(format!("window:{label}:{id}"))
 }
 
+#[cfg(test)]
 pub fn install_manager(app: &AppHandle) {
     install_manager_with_node_runtime_selector(
         app,

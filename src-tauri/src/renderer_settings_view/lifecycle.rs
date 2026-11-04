@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde_json::{json, Value};
@@ -6,158 +6,20 @@ use tauri::{
     webview::{PageLoadEvent, PageLoadPayload},
     AppHandle, Emitter, EventTarget, Manager, Webview, WebviewBuilder, WebviewUrl, Wry,
 };
-use tokio::time::{timeout_at, Instant};
+use tokio::time::Instant;
 
 use super::{
-    bundle::{BundleAsset, SettingsBundle},
+    bundle::SettingsBundle,
     cleanup,
     identity::{is_expected_origin, is_expected_settings_url},
-    native_appearance,
     phase::SessionPhase,
-    preferences::SettingsPreferences,
     presentation::{self, FocusPhase},
     session::{SessionView, SettingsViewRuntime},
-    SETTINGS_EVENT,
 };
 
-const OPEN_TIMEOUT: Duration = Duration::from_secs(6);
 const SETTINGS_HASH: &str = "#/generalSetting";
 /// Matches the original renderer's `WINDOW_INITIAL_HEIGHT` header height.
 const SETTINGS_HEADER_LOGICAL: u32 = 58;
-
-pub(crate) struct OpenOutcome {
-    pub(crate) result: Result<Value, String>,
-    pub(crate) dispose_if_unobserved: Option<String>,
-}
-
-pub(crate) async fn open(app: AppHandle<Wry>, db: Arc<atools_core::Database>) -> OpenOutcome {
-    let _main_drop_opening = crate::renderer_main_drop::settings_start(&app);
-    let deadline = Instant::now() + OPEN_TIMEOUT;
-    match open_inner(&app, db, deadline).await {
-        Ok((result, dispose_if_unobserved)) => OpenOutcome {
-            result: Ok(result),
-            dispose_if_unobserved,
-        },
-        Err(error) => OpenOutcome {
-            result: Err(error),
-            dispose_if_unobserved: None,
-        },
-    }
-}
-
-async fn open_inner(
-    app: &AppHandle<Wry>,
-    db: Arc<atools_core::Database>,
-    deadline: Instant,
-) -> Result<(Value, Option<String>), String> {
-    let runtime = super::runtime(app)?;
-    let open_gate = tokio::time::timeout_at(deadline, runtime.open_gate.lock())
-        .await
-        .map_err(|_| "Settings view open timed out".to_owned())?;
-
-    if let Some(session) = runtime.current()? {
-        if session.signal().phase == SessionPhase::Closing {
-            return Err("Settings view is closing; retry after it returns to search".into());
-        }
-        if session.is_revoked() {
-            cleanup::close_session(app, &session.id, "failed").await?;
-            return Err("Settings view document was revoked; reopen the settings view".into());
-        }
-        focus_session(app, &session)?;
-        if session.signal().phase == SessionPhase::Opening {
-            wait_until_open(&session, deadline).await?;
-        }
-        return Ok((super::event_payload::build_open_receipt(&session.id), None));
-    }
-
-    let bundle = load_bundle(app, &runtime, deadline).await?;
-    let accounting = runtime.accounting();
-    timeout_at(deadline, accounting.wait_for_writes_to_finish())
-        .await
-        .map_err(|_| "Settings view waited too long for a prior settings write".to_owned())?;
-    let preferences = timeout_at(deadline, SettingsPreferences::load(app, Arc::clone(&db)))
-        .await
-        .map_err(|_| "Settings view preferences timed out".to_owned())??;
-    let preferences = Arc::new(preferences);
-    let native = timeout_at(deadline, native_appearance::bootstrap(app, &preferences))
-        .await
-        .map_err(|_| "Settings view native appearance bootstrap timed out".to_owned())??;
-    let (platform, native_runtime) = split_native_runtime(native)?;
-    let id = uuid::Uuid::new_v4().simple().to_string();
-    let session = runtime.begin_session(
-        id,
-        Arc::clone(&bundle),
-        preferences,
-        native_runtime,
-        platform,
-    )?;
-
-    let result = prepare_new_session(app, &runtime, &bundle, &session, deadline, open_gate).await;
-    match result {
-        Ok(result) => Ok((result, Some(session.id))),
-        Err(error) => {
-            let _ = cleanup::close_session(app, &session.id, "failed").await;
-            Err(error)
-        }
-    }
-}
-
-async fn prepare_new_session(
-    app: &AppHandle<Wry>,
-    runtime: &SettingsViewRuntime,
-    bundle: &Arc<SettingsBundle>,
-    session: &SessionView,
-    deadline: Instant,
-    open_gate: tokio::sync::MutexGuard<'_, ()>,
-) -> Result<Value, String> {
-    timeout_at(
-        deadline,
-        super::session_material::acquire_for_session(app, runtime, &session.id),
-    )
-    .await
-    .map_err(|_| "Settings window material acquisition timed out".to_owned())??;
-    let plugin = plugin_dto(bundle)?;
-    emit_phase(app, session, "placeholder", None)?;
-
-    let desired =
-        runtime.stage_height(session, session.preferences.default_content_height().await?)?;
-    crate::window::resize_settings_content(app, desired)?;
-    super::height::confirm_viewport(app, deadline).await?;
-
-    let parent =
-        crate::window::main_window(app).map_err(|_| "Main native window is unavailable")?;
-    let child = create_child(app, session, desired, &parent)?;
-    let lease = match crate::window::attach_settings_child_layout(
-        app,
-        &child,
-        SETTINGS_HEADER_LOGICAL,
-        desired,
-    ) {
-        Ok(lease) => lease,
-        Err(_) => {
-            let _ = child.close();
-            return Err("Settings view child layout could not be attached".into());
-        }
-    };
-    if runtime.install_layout_lease(&session.id, lease).is_err() {
-        let _ = child.close();
-        return Err("Settings view session ended during child creation".into());
-    }
-
-    runtime.mark_opened_with(&session.id, |current| {
-        emit_phase(app, current, "opened", Some(plugin.clone()))
-    })?;
-    focus_session(app, session)?;
-
-    // Let duplicate open requests focus this session while its bounded
-    // readiness handshake proceeds.
-    drop(open_gate);
-    wait_until_ready(session, deadline).await?;
-    runtime.mark_open_with(&session.id, |current| {
-        emit_phase(app, current, "loaded", None)
-    })?;
-    Ok(super::event_payload::build_open_receipt(&session.id))
-}
 
 pub(super) fn create_child(
     app: &AppHandle<Wry>,
@@ -312,41 +174,6 @@ pub(crate) fn emit_phase(
         .map_err(|_| "Main renderer is unavailable for settings lifecycle".to_owned())?;
     app.emit_to(EventTarget::webview("main"), super::SETTINGS_EVENT, payload)
         .map_err(|_| "Main renderer did not accept settings lifecycle".to_owned())
-}
-
-fn focus_session(app: &AppHandle<Wry>, session: &SessionView) -> Result<(), String> {
-    if !presentation::allow_focus(app, FocusPhase::SessionFocus) {
-        return Ok(());
-    }
-    let main =
-        crate::window::main_webview(app).map_err(|_| "Main renderer is unavailable".to_owned())?;
-    crate::window::focus_main_native_window(app)
-        .map_err(|_| "Main native window could not be focused".to_owned())?;
-    main.set_focus()
-        .map_err(|_| "Main renderer could not be focused".to_owned())?;
-    if let Some(child) = app.get_webview(&session.label) {
-        child
-            .set_focus()
-            .map_err(|_| "Settings view could not be focused".to_owned())?;
-    }
-    Ok(())
-}
-
-async fn wait_until_open(session: &SessionView, deadline: Instant) -> Result<(), String> {
-    let mut signal = session.subscribe();
-    loop {
-        let current = signal.borrow().clone();
-        if current.phase == SessionPhase::Open {
-            return Ok(());
-        }
-        if current.phase == SessionPhase::Closing || session.is_revoked() {
-            return Err("Settings view session closed while opening".into());
-        }
-        tokio::time::timeout_at(deadline, signal.changed())
-            .await
-            .map_err(|_| "Settings view did not become ready before its deadline".to_owned())?
-            .map_err(|_| "Settings view readiness channel closed".to_owned())?;
-    }
 }
 
 pub(super) async fn wait_until_ready(

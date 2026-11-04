@@ -43,6 +43,7 @@ define_class!(
     // NSDraggingSource callbacks are restricted to the AppKit main thread.
     unsafe impl NSDraggingSource for FileDragSource {
         #[unsafe(method(draggingSession:sourceOperationMaskForDraggingContext:))]
+        #[allow(non_snake_case)]
         fn draggingSession_sourceOperationMaskForDraggingContext(
             &self,
             _session: &NSDraggingSession,
@@ -53,6 +54,7 @@ define_class!(
         }
 
         #[unsafe(method(draggingSession:endedAtPoint:operation:))]
+        #[allow(non_snake_case)]
         fn draggingSession_endedAtPoint_operation(
             &self,
             _session: &NSDraggingSession,

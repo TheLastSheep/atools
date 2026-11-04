@@ -20,6 +20,7 @@ pub(super) fn enqueue<G: Send + 'static, E>(
     }))
 }
 
+#[cfg(test)]
 pub(super) fn dispatch<G: Send + 'static, E>(
     resources: Arc<Resources>,
     lease: Lease,

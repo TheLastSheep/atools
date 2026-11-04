@@ -1,7 +1,11 @@
 //! Bounded, host-owned diagnostics for failed plugin data TaskRuns.
-use serde_json::{json, Value};
+#[cfg(any(test, feature = "legacy-node-smoke"))]
+use serde_json::json;
+use serde_json::Value;
 
+#[cfg(any(test, feature = "legacy-node-smoke"))]
 const FAILURE_MARKER: &str = " [failureCode=";
+#[cfg(any(test, feature = "legacy-node-smoke"))]
 const CODES: &[&str] = &[
     "DATA_NOT_FOUND",
     "DATA_CONFLICT",
@@ -54,6 +58,7 @@ fn write_result_name(value: &Value) -> Option<&str> {
 }
 
 /// Project only finite method and failure codes into the native smoke receipt.
+#[cfg(any(test, feature = "legacy-node-smoke"))]
 pub(crate) fn task_run_audit_fields(
     capability_id: &str,
     status: &str,
@@ -79,6 +84,7 @@ pub(crate) fn task_run_audit_fields(
     Value::Object(fields)
 }
 
+#[cfg(any(test, feature = "legacy-node-smoke"))]
 fn failure_code_from_summary(summary: &str) -> Option<&'static str> {
     let code = summary.rsplit_once(FAILURE_MARKER)?.1.strip_suffix(']')?;
     CODES.iter().copied().find(|candidate| *candidate == code)

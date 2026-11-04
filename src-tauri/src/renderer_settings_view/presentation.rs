@@ -1,5 +1,6 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
+#[cfg(feature = "legacy-node-smoke")]
 use serde_json::{json, Value};
 use tauri::{AppHandle, Manager};
 
@@ -54,6 +55,7 @@ impl HiddenSmokePolicy {
         true
     }
 
+    #[cfg(any(test, feature = "legacy-node-smoke"))]
     fn suppressed_focus_requests(&self) -> u64 {
         self.suppressed_focus_requests.load(Ordering::Relaxed)
     }
@@ -138,6 +140,7 @@ pub(crate) fn allow_focus(app: &AppHandle, phase: FocusPhase) -> bool {
     allow_focus_with_policy(app.try_state::<HiddenSmokePolicy>().as_deref(), phase)
 }
 
+#[cfg(feature = "legacy-node-smoke")]
 pub(crate) fn snapshot(app: &AppHandle) -> Value {
     let policy = app.try_state::<HiddenSmokePolicy>();
     json!({
@@ -146,6 +149,7 @@ pub(crate) fn snapshot(app: &AppHandle) -> Value {
     })
 }
 
+#[cfg(any(feature = "legacy-node-smoke", test))]
 fn settings_input_identifier(run_id: &str) -> Option<String> {
     let uuid = uuid::Uuid::parse_str(run_id).ok()?;
     if uuid.simple().to_string() != run_id {

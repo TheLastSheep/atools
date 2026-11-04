@@ -11,7 +11,7 @@ mod smoke_diagnostics;
 mod store;
 mod transform;
 mod worker;
-#[cfg(any(test, feature = "legacy-node-smoke"))]
+#[cfg(feature = "legacy-node-smoke")]
 pub(crate) use smoke_diagnostics::NativeImageSmokeSnapshot;
 
 #[cfg(test)]
@@ -23,7 +23,7 @@ use worker::{CancellationToken, WorkerGate};
 
 pub(crate) use codec::SourceFormat;
 pub(crate) use store::{NativeImageSession, OpenReservation};
-pub(crate) use transform::{EncodeRequest, EncodedImage, OutputFormat, ResizeQuality, ResizeStep};
+pub(crate) use transform::{EncodeRequest, EncodedImage, OutputFormat, ResizeStep};
 pub(crate) use worker::CancellationToken as NativeImageCancellation;
 pub(crate) use worker::WorkerPermit;
 
