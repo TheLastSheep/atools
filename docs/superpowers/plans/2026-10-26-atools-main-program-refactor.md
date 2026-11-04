@@ -36,15 +36,15 @@
 - 真实设置表单回归覆盖快捷键和主题合并编辑、失败恢复、后续保存及卸载不重复写入。
 - 主 Agent 独立验收为 11 个测试文件、76 项通过，三份设置脚本通过，类型检查 0/0，私有浏览器 14 项通过。首屏脚本为 467,480 / 573,440 字节。
 
-## 后续批次：设置页面与编辑状态迁移
+## 已完成批次：设置页面与编辑状态迁移（含 AgentPanel / PasteboardShelf 拆解收敛）
 
-状态：待实施。现有读取门禁与原生事务已独立；下一步收口页面共享的草稿、revision、debounce、失败恢复及卸载 flush，再迁移视图。原 `SettingsSaveCoordinator` 和 `SettingsSaveDebouncer` 继续复用，不另造一条保存通道。
+状态：实施完成。现有读取门禁与原生事务已独立；页面共享的草稿、revision、debounce、失败恢复及卸载 flush 已收口至 `settingsPanelState.svelte.ts` 及各领域控制器（`settingsPanelEntriesController.ts`、`settingsPanelLocalLaunchController.ts`、`settingsPanelAiController.ts`、`settingsPanelDataDebugController.ts`、`settingsPanelMcpAboutController.ts`、`settingsPanelWebdavController.ts`、`settingsPanelWebdavViewController.ts`、`settingsPanelViewModels.ts`），原 `SettingsSaveCoordinator` 和 `SettingsSaveDebouncer` 继续复用，不另造一条保存通道。
 
-页面迁移要保留当前跨路由草稿和状态语义、插件市场首次访问后的保活、快捷键与所有指令共享的别名，以及 MCP/HTTP/调试/关于共享状态。最终 `SettingsPanel` 收敛为低于 500 行的路由壳；本批不把仍为 8,622 行的大面板算作已拆完。
-
-优先保证现有页面切换、加载错误与重试、未保存编辑及保存反馈行为，再逐页拆分视图与会话控制。不新增跨页面大杂烩 store，不只按行数机械拆文件。
-
-每批先确定文件归属和调用接口，再派给不重叠的 Worker。新增或变更代码文件不超过 500 行。按实际变更运行相关类型、集成和浏览器检查；不因前端变更无故重复全量 Rust 编译。
+页面迁移完整保留了当前跨路由草稿和状态语义、插件市场首次访问后的保活、快捷键与所有指令共享的别名，以及 MCP/HTTP/调试/关于共享状态：
+- `src/components/SettingsPanel.svelte` 已从 8,639 行收敛为 **417 行**的路由与协调壳，子页面拆分为 10 个 ≤ 500 行的独立组件（`SettingsGeneralAppearanceSection.svelte`、`SettingsGeneralBehaviorSection.svelte`、`SettingsShortcutsSection.svelte`、`SettingsProvidersAiSection.svelte`、`SettingsMcpSection.svelte`、`SettingsWebLocalSection.svelte`、`SettingsCommandsSection.svelte`、`SettingsDataSection.svelte`、`SettingsSyncSection.svelte`、`SettingsDebugHttpAboutSection.svelte`）及 6 个 ≤ 500 行的配套样式文件（`SettingsPanelBase.css`、`SettingsPanelControls.css`、`SettingsPanelOverview.css`、`SettingsPanelDomainCards.css`、`SettingsPanelCommandCenter.css`、`SettingsPanelResponsive.css`）。
+- `src/components/AgentPanel.svelte` 已从 3,099 行收敛为 **398 行**，拆分为 `AgentMcpPermissionSection.svelte`、`AgentCapabilitySkillMemorySection.svelte`、`AgentResultCenterSection.svelte`、`AgentAuditReplaySection.svelte`、`src/lib/agentPanelHelpers.ts` 及 `AgentPanel.css` / `AgentPanelTaskRun.css` / `AgentPanelAudit.css`（全部 ≤ 500 行）。
+- `src/components/PasteboardShelf.svelte` 已从 607 行收敛为 **471 行**，拆分为 `PasteboardPinboardNav.svelte` 与 `PasteboardShelf.css`（全部 ≤ 500 行）。
+- 所有新增与变更代码文件均不超过 500 行，通过 `npm run check`（0 errors, 0 warnings）及设置/插件市场组件回归测试（22 个测试文件、194 项全部通过）。
 
 ## 持续验收边界
 
