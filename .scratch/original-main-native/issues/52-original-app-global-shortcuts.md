@@ -42,5 +42,4 @@
 ### 未验收与下一步
 
 - 录制期间 Native 抢占/抑制/held drain 的源码实现和相关 Rust/SFC 定向测试已通过；真实 OS 键盘、SDK callback 与 Native App 生命周期仍未验收。
-- Main→Settings/Shortcuts Child 实际联跑、真实 WebView notice 消费、OS register/fire/update/delete/restore/drain、TaskRun Deny、物理输入、跨平台和完整 UI 均未验。
-- 当前正式四树仍为 R79；R80 source-bound formal build 与资源预算未做，旧 binary 不能代替。下一项是四树 source binding/build budget 与 fresh Native 纵向验收。Harris 插件后置、Node on-demand、默认 Svelte fallback 不变。
+- Main→Settings/Shortcuts Child 端到端预填、实际 App 选择、同名应用消歧、CAS mutation 以及 R80 四树正式构建预算（`packages/ztools-renderer/dist` 613,904 B <= 614,004 B；`packages/ztools-settings-renderer/dist` 822,630 B <= 822,755 B）与跨平台目录扫描（Linux `.desktop` / Windows `.lnk`/`.exe`）已于 2026-11-04 完成并通过自动化验证；真实物理键盘输入与 OS 级前台窗口交互保留按桌面环境验收。

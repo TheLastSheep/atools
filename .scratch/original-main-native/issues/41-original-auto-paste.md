@@ -10,4 +10,4 @@
 - [x] 原Settings bridge保存/确认测试仅发一次配置patch，错误/过期会话拒绝；模拟RPC不记为真实Native提交。
 - [x] 原Main浏览器消费者验证off/时限/过期/手动paste与启动早到关闭通知RED→GREEN。
 - [x] 相关类型、回归、正式构建及原资源预算通过，原版模板/样式及默认入口不变。
-- [ ] 原General控件→Native提交→Main真实focus的一次完整运行，general剪贴板、可见/物理输入及跨平台仍待验。
+- [ ] 原General控件→Native提交→Main真实focus的一次完整运行，general剪贴板、可见/物理输入及跨平台仍待验（注：2026-11-04 已在 `src-tauri/src/pasteboard_native_current_context.rs` 与 `src-tauri/src/host_runtime/clipboard_paste.rs` 补齐 Linux `wl-paste`/`xclip`/`xsel` + `wtype`/`xdotool` 与 Windows PowerShell `Get-Clipboard` + `SendWait("^v")` 跨平台剪贴板读取、变更计数跟踪 `ClipboardContentChangeTracker` 及自动粘贴规划单测）。

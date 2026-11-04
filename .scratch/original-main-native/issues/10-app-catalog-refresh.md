@@ -23,3 +23,6 @@ R21更新：预算及新构建绑定已收敛，当前source与正式dist一致�
 `output/renderer-catalog-native-2026-10-27/run-61da068fbc8e49a786d5d95da7c25dd4/catalog-native.json` 记录实际隐藏 Tauri 运行中的目录事件到原 Vue 列表更新：标题从初始1项→新增2项→删除后1项；原页面 `appListCalls` 为 1→2→3→3→3，adapter catalog events 为 0→1→2→2→2，独立 main-target witness 为 0→1→2→2→3。Native catalog 数量为 1/2/1/1/2。各阶段 main 均 hidden/unfocused、focus-gained/child/layout 为0，store非持久；删除路径拒绝且 TaskRun/history 前后均为0。dispose 后 observer 能看到一次事件，但 adapter/read 调用数不再增加。独立审查见 `output/renderer-catalog-2026-10-27/independent-review.md`。
 
 该运行只支持本次隐藏 fixture 下的 FSEvents→source失效→main事件→原 Vue getApps/DOM 列表链路。Issue 10 保持 `in-progress`：可见页面、物理焦点/窗口与错误占位等验收仍未完成；R20 预算失败和恢复历史保留不变。
+
+### 2026-11-04 跨平台应用目录扫描补充
+`src-tauri/src/launcher_app_catalog_source.rs`、`src-tauri/src/launcher_app_catalog.rs` 与 `src-tauri/src/launcher_app_catalog_tests.rs` 已补齐 Linux `.desktop`（含 `Name`、`Name[zh_CN]`、`GenericName` 别名提取及 `NoDisplay`/`Hidden` 过滤）与 Windows `.lnk`/`.exe`（自动跳过卸载程序）扫描及默认目录根（`linux_default_roots_from_env`、`windows_default_roots_from_env`），定向单测通过。
