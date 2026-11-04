@@ -1,4 +1,6 @@
-use super::contract::{AiContent, AiDelta, AiErrorCode, AiModel, AiPart, AiRequest, AiServiceError};
+use super::contract::{
+    AiContent, AiDelta, AiErrorCode, AiModel, AiPart, AiRequest, AiServiceError,
+};
 
 pub const AI_LIMITS: AiLimits = AiLimits {
     messages: 64,
@@ -47,11 +49,20 @@ pub fn validate_request(request: &AiRequest) -> Result<RequestBudget, AiServiceE
     if request.messages.is_empty() || request.messages.len() > AI_LIMITS.messages {
         return Err(AiServiceError::new(AiErrorCode::InvalidRequest));
     }
-    if request.model.as_deref().is_some_and(|model| !valid_model_id(model)) {
+    if request
+        .model
+        .as_deref()
+        .is_some_and(|model| !valid_model_id(model))
+    {
         return Err(AiServiceError::new(AiErrorCode::InvalidRequest));
     }
 
-    let mut budget = RequestBudget { message_count: request.messages.len(), text_bytes: 0, image_count: 0, image_bytes: 0 };
+    let mut budget = RequestBudget {
+        message_count: request.messages.len(),
+        text_bytes: 0,
+        image_count: 0,
+        image_bytes: 0,
+    };
     for message in &request.messages {
         if let Some(reasoning) = &message.reasoning_content {
             if message.role != super::contract::AiRole::Assistant {
@@ -100,18 +111,32 @@ fn add_text(budget: &mut RequestBudget, text: &str) -> Result<(), AiServiceError
 }
 
 fn image_data_uri_size(value: &str) -> Result<usize, AiServiceError> {
-    let (metadata, payload) = value.split_once(',')
+    let (metadata, payload) = value
+        .split_once(',')
         .ok_or_else(|| AiServiceError::new(AiErrorCode::UnsupportedContent))?;
-    if !matches!(metadata, "data:image/png;base64" | "data:image/jpeg;base64" | "data:image/webp;base64") {
+    if !matches!(
+        metadata,
+        "data:image/png;base64" | "data:image/jpeg;base64" | "data:image/webp;base64"
+    ) {
         return Err(AiServiceError::new(AiErrorCode::UnsupportedContent));
     }
     if payload.is_empty() || payload.len() % 4 != 0 {
         return Err(AiServiceError::new(AiErrorCode::UnsupportedContent));
     }
     let bytes = payload.as_bytes();
-    let padding = if bytes.ends_with(b"==") { 2 } else if bytes.ends_with(b"=") { 1 } else { 0 };
-    if bytes[..bytes.len() - padding].iter().any(|byte| !byte.is_ascii_alphanumeric() && *byte != b'+' && *byte != b'/')
-        || bytes[bytes.len() - padding..].iter().any(|byte| *byte != b'=')
+    let padding = if bytes.ends_with(b"==") {
+        2
+    } else if bytes.ends_with(b"=") {
+        1
+    } else {
+        0
+    };
+    if bytes[..bytes.len() - padding]
+        .iter()
+        .any(|byte| !byte.is_ascii_alphanumeric() && *byte != b'+' && *byte != b'/')
+        || bytes[bytes.len() - padding..]
+            .iter()
+            .any(|byte| *byte != b'=')
     {
         return Err(AiServiceError::new(AiErrorCode::UnsupportedContent));
     }
@@ -137,18 +162,29 @@ fn base64_value(byte: u8) -> Option<u8> {
 }
 
 pub fn valid_model_id(model: &str) -> bool {
-    !model.is_empty() && model.len() <= AI_LIMITS.model_id_bytes
+    !model.is_empty()
+        && model.len() <= AI_LIMITS.model_id_bytes
         && !model.chars().any(char::is_control)
 }
 
 pub fn validate_delta(delta: &AiDelta) -> Result<(), AiServiceError> {
-    if delta.content.as_ref().is_some_and(|value| value.len() > AI_LIMITS.delta_field_bytes)
-        || delta.reasoning_content.as_ref().is_some_and(|value| value.len() > AI_LIMITS.delta_field_bytes)
+    if delta
+        .content
+        .as_ref()
+        .is_some_and(|value| value.len() > AI_LIMITS.delta_field_bytes)
+        || delta
+            .reasoning_content
+            .as_ref()
+            .is_some_and(|value| value.len() > AI_LIMITS.delta_field_bytes)
     {
         return Err(AiServiceError::new(AiErrorCode::PayloadTooLarge));
     }
     if delta.content.as_deref().unwrap_or_default().is_empty()
-        && delta.reasoning_content.as_deref().unwrap_or_default().is_empty()
+        && delta
+            .reasoning_content
+            .as_deref()
+            .unwrap_or_default()
+            .is_empty()
     {
         return Err(AiServiceError::new(AiErrorCode::MalformedResponse));
     }
@@ -165,7 +201,9 @@ pub fn split_delta(delta: AiDelta) -> Result<Vec<AiDelta>, AiServiceError> {
     let content = escaped_chunks(delta.content, ESCAPED_FIELD_BUDGET);
     let reasoning = escaped_chunks(delta.reasoning_content, ESCAPED_FIELD_BUDGET);
     let count = content.len().max(reasoning.len());
-    if count == 0 { return Err(AiServiceError::new(AiErrorCode::MalformedResponse)); }
+    if count == 0 {
+        return Err(AiServiceError::new(AiErrorCode::MalformedResponse));
+    }
     let mut output = Vec::with_capacity(count);
     for index in 0..count {
         let fragment = AiDelta {
@@ -179,7 +217,9 @@ pub fn split_delta(delta: AiDelta) -> Result<Vec<AiDelta>, AiServiceError> {
 }
 
 fn escaped_chunks(value: Option<String>, max_escaped_bytes: usize) -> Vec<String> {
-    let Some(value) = value.filter(|value| !value.is_empty()) else { return Vec::new(); };
+    let Some(value) = value.filter(|value| !value.is_empty()) else {
+        return Vec::new();
+    };
     let mut chunks = Vec::new();
     let mut current = String::new();
     let mut escaped_bytes = 0usize;
@@ -192,7 +232,9 @@ fn escaped_chunks(value: Option<String>, max_escaped_bytes: usize) -> Vec<String
         current.push(character);
         escaped_bytes += size;
     }
-    if !current.is_empty() { chunks.push(current); }
+    if !current.is_empty() {
+        chunks.push(current);
+    }
     chunks
 }
 
@@ -210,9 +252,13 @@ pub fn validate_model_directory(models: &[AiModel]) -> Result<(), AiServiceError
     }
     let mut seen = std::collections::HashSet::with_capacity(models.len());
     for model in models {
-        if !valid_model_id(&model.id) || model.value.is_empty() || model.label.is_empty()
-            || model.value.len() > AI_LIMITS.model_id_bytes || model.label.len() > AI_LIMITS.model_id_bytes
-            || model.value.chars().any(char::is_control) || model.label.chars().any(char::is_control)
+        if !valid_model_id(&model.id)
+            || model.value.is_empty()
+            || model.label.is_empty()
+            || model.value.len() > AI_LIMITS.model_id_bytes
+            || model.label.len() > AI_LIMITS.model_id_bytes
+            || model.value.chars().any(char::is_control)
+            || model.label.chars().any(char::is_control)
             || !seen.insert(model.id.as_str())
         {
             return Err(AiServiceError::new(AiErrorCode::MalformedResponse));

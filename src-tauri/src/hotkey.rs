@@ -7,20 +7,20 @@ mod double_tap_native;
 pub(crate) mod main_binding;
 pub(crate) mod main_dispatch;
 mod owned_main;
-mod paste_stack;
 mod paste_shelf_owner;
-mod shutdown_owners;
+mod paste_stack;
 pub(crate) mod recording;
 pub(crate) mod recording_runtime;
-#[cfg(feature = "legacy-node-smoke")]
-#[allow(unused_imports)]
-pub(crate) use owned_main::{read_owned_main_hotkey, restore_owned_main_hotkey};
+mod shutdown_owners;
 pub(crate) use owned_main::{
     apply_owned_main_hotkey, mark_startup_attempted, read_owned_main_hotkey_state,
     release_owned_main_hotkey, restore_owned_main_hotkey_state, set_owned_main_hotkey,
     setup_owned_main_hotkey, validate_main_hotkey_label, OwnedMainHotkeyRegistry,
     OwnedMainHotkeyStateSnapshot,
 };
+#[cfg(feature = "legacy-node-smoke")]
+#[allow(unused_imports)]
+pub(crate) use owned_main::{read_owned_main_hotkey, restore_owned_main_hotkey};
 pub(crate) use paste_stack::{
     activate as activate_paste_stack_shortcut, deactivate as deactivate_paste_stack_shortcut,
 };
@@ -146,7 +146,8 @@ fn register_pasteboard_hotkey_unlocked(app: &AppHandle, shortcut: &str) -> Resul
 
 /// The caller holds the OS operation lease and has permanently closed the App gate.
 pub(crate) fn shutdown_recording_owners(app: &AppHandle) -> Result<(), String> {
-    let c = app.try_state::<crate::general_settings_runtime::GeneralSettingsCoordinator>()
+    let c = app
+        .try_state::<crate::general_settings_runtime::GeneralSettingsCoordinator>()
         .ok_or("General settings coordinator is unavailable")?;
     c.with_shutdown_registries(|features, main, stack, recording| {
         shutdown_owners::run(

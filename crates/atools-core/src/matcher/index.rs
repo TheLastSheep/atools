@@ -233,7 +233,7 @@ impl FeatureSearchIndex {
                 };
 
                 if let Some((score, match_type)) = matched {
-                    if best.map_or(true, |(best_score, _)| score > best_score) {
+                    if best.is_none_or(|(best_score, _)| score > best_score) {
                         best = Some((score, match_type));
                         if score == SCORE_EXACT {
                             break;
@@ -394,6 +394,6 @@ mod media_regex;
 mod media_query_diagnostics;
 
 #[cfg(all(test, target_os = "macos"))]
-pub(super) use media_query_diagnostics::{Reading, capture};
+pub(super) use media_query_diagnostics::{capture, Reading};
 
 pub(crate) use media_content::file_regex_literal_source;

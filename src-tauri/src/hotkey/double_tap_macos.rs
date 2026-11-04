@@ -194,9 +194,12 @@ extern "C" fn callback(_: Raw, kind: u32, event: Raw, context: Raw) -> Raw {
             groups |= 1 << index;
         }
     }
-    let Ok(gate) = crate::app_global_shortcuts::recording::gate(&monitor.app) else { return event; };
-    if kind == 12 && super::super::double_tap_input::physical_modifier(key as u16)
-        .is_some_and(|physical| physical.modifier == monitor.modifier)
+    let Ok(gate) = crate::app_global_shortcuts::recording::gate(&monitor.app) else {
+        return event;
+    };
+    if kind == 12
+        && super::super::double_tap_input::physical_modifier(key as u16)
+            .is_some_and(|physical| physical.modifier == monitor.modifier)
     {
         if let Some(receipt) = monitor.token.receipt.lock().as_ref() {
             receipt.edge(groups & (1 << monitor.modifier as u8) != 0);
@@ -207,11 +210,18 @@ extern "C" fn callback(_: Raw, kind: u32, event: Raw, context: Raw) -> Raw {
         return event;
     }
     let recording_epoch = gate.epoch();
-    if gate.busy() || monitor.recording_epoch.swap(recording_epoch, Ordering::AcqRel) != recording_epoch {
+    if gate.busy()
+        || monitor
+            .recording_epoch
+            .swap(recording_epoch, Ordering::AcqRel)
+            != recording_epoch
+    {
         rebaseline(monitor);
         return event;
     }
-    if monitor.pending.load(Ordering::Acquire) { return event; }
+    if monitor.pending.load(Ordering::Acquire) {
+        return event;
+    }
     let Some(mut input) = monitor.input.try_lock() else {
         rebaseline(monitor);
         return event;
@@ -283,7 +293,11 @@ fn create_inner(
             paused: AtomicBool::new(false),
             pending: AtomicBool::new(true),
             epoch: AtomicU64::new(u64::MAX),
-            recording_epoch: AtomicU64::new(crate::app_global_shortcuts::recording::gate(&handle).map_err(Clean)?.epoch()),
+            recording_epoch: AtomicU64::new(
+                crate::app_global_shortcuts::recording::gate(&handle)
+                    .map_err(Clean)?
+                    .epoch(),
+            ),
             tap: AtomicUsize::new(0),
         });
         let context = Box::into_raw(Box::new(monitor.clone())) as Raw;

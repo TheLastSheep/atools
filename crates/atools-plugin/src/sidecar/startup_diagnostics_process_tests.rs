@@ -197,11 +197,7 @@ async fn closed_child_stdin_reports_initialize_write_failure_and_reaped_cleanup(
     assert!(!trace.has_phase(StartupPhase::InitializeRequestWritten));
     assert!(trace.initialize_write_failed());
     assert_eq!(
-        classify_initialize_startup_failure(
-            &result.unwrap_err(),
-            &trace,
-            process.startup_status(),
-        ),
+        classify_initialize_startup_failure(&result.unwrap_err(), &trace, process.startup_status(),),
         super::startup_diagnostics::StartupFailureKind::InitializeWrite
     );
     assert_eq!(snapshot.cleanup_completed, Some(true));
@@ -237,24 +233,26 @@ async fn exited_child_before_initialize_is_crashed_without_a_write_failure_marke
         .await
         .unwrap();
     let trace = Arc::new(StartupTrace::new());
-    let process = SidecarProcess::spawn_with_command_and_diagnostics(
-        spec,
-        command,
-        Some(trace.clone()),
-    )
-    .await;
+    let process =
+        SidecarProcess::spawn_with_command_and_diagnostics(spec, command, Some(trace.clone()))
+            .await;
 
     match process {
-        Err(crate::sidecar::SidecarError::Startup { failure, diagnostic }) => {
+        Err(crate::sidecar::SidecarError::Startup {
+            failure,
+            diagnostic,
+        }) => {
             assert_eq!(failure, StartupFailureKind::StartupCrashed);
             assert!(diagnostic
                 .snapshot
                 .events
                 .iter()
                 .any(|event| event.phase == StartupPhase::SidecarRunning));
-            assert!(!diagnostic.snapshot.events.iter().any(|event| {
-                event.phase == StartupPhase::InitializeRequestWritten
-            }));
+            assert!(!diagnostic
+                .snapshot
+                .events
+                .iter()
+                .any(|event| { event.phase == StartupPhase::InitializeRequestWritten }));
         }
         Err(error) => panic!("unexpected startup error: {error}"),
         Ok(process) => {
@@ -272,11 +270,7 @@ async fn exited_child_before_initialize_is_crashed_without_a_write_failure_marke
             assert!(!trace.initialize_write_failed());
             assert!(!trace.has_phase(StartupPhase::InitializeRequestWritten));
             assert_eq!(
-                classify_initialize_startup_failure(
-                    &error,
-                    &trace,
-                    process.startup_status(),
-                ),
+                classify_initialize_startup_failure(&error, &trace, process.startup_status(),),
                 StartupFailureKind::StartupCrashed
             );
         }

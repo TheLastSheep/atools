@@ -56,7 +56,7 @@ fn accepts_only_linear_revision_extensions_and_identical_retries() {
     let first_seq = store.push_changes("alice", "device", &[first], 2).unwrap();
     let second = change_with_parent("2-b", "1-a", false, serde_json::json!({"text":"second"}));
     let second_seq = store
-        .push_changes("alice", "device", &[second.clone()], 2)
+        .push_changes("alice", "device", std::slice::from_ref(&second), 2)
         .unwrap();
     assert!(second_seq > first_seq);
     assert_eq!(

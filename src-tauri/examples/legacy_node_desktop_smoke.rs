@@ -1,7 +1,7 @@
-#[path = "support/native_fixture_restoration.rs"]
-mod native_fixture_restoration;
 #[path = "support/native_fixture_launchservices.rs"]
 mod native_fixture_launchservices;
+#[path = "support/native_fixture_restoration.rs"]
+mod native_fixture_restoration;
 
 fn main() {
     atools_lib::run_source_build_bootstrap_if_requested();

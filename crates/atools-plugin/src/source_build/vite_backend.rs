@@ -84,8 +84,10 @@ fn resolve_vite_backend_for_target(
         (Some(_), None) => resolve_vite_esbuild(root, dependency_root, vite_cli, project, lock)
             .map(|binary| ViteBuildBackend::Esbuild { binary })
             .map_err(map_esbuild_backend_error),
-        (None, Some(spec)) => resolve_rolldown(root, dependency_root, project, lock, &vite, spec, target)
-            .map(|binding| ViteBuildBackend::Rolldown { binding }),
+        (None, Some(spec)) => {
+            resolve_rolldown(root, dependency_root, project, lock, &vite, spec, target)
+                .map(|binding| ViteBuildBackend::Rolldown { binding })
+        }
         (None, None) => Err(ResolveBackendError::Missing),
     }
 }
@@ -99,10 +101,12 @@ fn resolve_rolldown(
     vite_spec: &str,
     target: &BuildTargetV1,
 ) -> Result<PathBuf, ResolveBackendError> {
-    let project_vite = direct_project_spec(project, "vite").ok_or(ResolveBackendError::LockMismatch)?;
+    let project_vite =
+        direct_project_spec(project, "vite").ok_or(ResolveBackendError::LockMismatch)?;
     let vite_lock = lock_entry(lock, Path::new("node_modules/vite")).map_err(map_esbuild_error)?;
     let vite_version = string(vite, "version").ok_or(ResolveBackendError::LockMismatch)?;
-    verify_installed_version("vite", vite_version, vite_lock, project_vite).map_err(map_esbuild_error)?;
+    verify_installed_version("vite", vite_version, vite_lock, project_vite)
+        .map_err(map_esbuild_error)?;
     if dependency_spec(vite_lock, "rolldown") != Some(vite_spec) {
         return Err(ResolveBackendError::LockMismatch);
     }
@@ -126,8 +130,8 @@ fn resolve_rolldown(
         .map_err(map_esbuild_error)?;
 
     let binding_name = format!("@rolldown/binding-{}-{}", target.os, target.cpu);
-    let binding_spec = optional_dependency(&rolldown, &binding_name)?
-        .ok_or(ResolveBackendError::Missing)?;
+    let binding_spec =
+        optional_dependency(&rolldown, &binding_name)?.ok_or(ResolveBackendError::Missing)?;
     if optional_dependency(rolldown_lock, &binding_name)? != Some(binding_spec) {
         return Err(ResolveBackendError::LockMismatch);
     }
@@ -151,14 +155,18 @@ fn resolve_rolldown(
     validate_platform(&binding, &target)?;
     validate_platform(binding_lock, &target)?;
     if binding_lock.get("optional").and_then(Value::as_bool) != Some(true)
-        || binding.get("exports").is_some_and(|exports| !exports.is_null())
+        || binding
+            .get("exports")
+            .is_some_and(|exports| !exports.is_null())
     {
         return Err(ResolveBackendError::LockMismatch);
     }
     let main = string(&binding, "main").ok_or(ResolveBackendError::LockMismatch)?;
     let main_path = Path::new(main);
     if main_path.components().count() != 1
-        || main_path.components().any(|part| !matches!(part, std::path::Component::Normal(_)))
+        || main_path
+            .components()
+            .any(|part| !matches!(part, std::path::Component::Normal(_)))
         || !main.ends_with(".node")
         || main.chars().any(char::is_control)
     {
@@ -227,9 +235,10 @@ fn optional_dependency<'a>(
 
 fn validate_platform(package: &Value, target: &BuildTargetV1) -> Result<(), ResolveBackendError> {
     let exact = |key: &str, expected: &str| {
-        package.get(key).and_then(Value::as_array).is_some_and(|values| {
-            values.len() == 1 && values[0].as_str() == Some(expected)
-        })
+        package
+            .get(key)
+            .and_then(Value::as_array)
+            .is_some_and(|values| values.len() == 1 && values[0].as_str() == Some(expected))
     };
     if exact("os", &target.os) && exact("cpu", &target.cpu) {
         Ok(())

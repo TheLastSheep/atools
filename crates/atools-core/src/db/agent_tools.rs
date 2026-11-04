@@ -170,7 +170,6 @@ impl Database {
             .collect::<std::result::Result<Vec<_>, _>>()?;
         Ok(grants)
     }
-
 }
 fn agent_tool_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ToolDefinition> {
     let input_schema: String = row.get(2)?;
@@ -206,4 +205,3 @@ fn agent_tool_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ToolDefiniti
         plugin_id: row.get(8)?,
     })
 }
-

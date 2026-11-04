@@ -31,19 +31,33 @@ fn cached(path: &str) -> CachedNode {
 
 #[test]
 fn explicit_override_precedes_provider_and_invalid_override_never_falls_back() {
-    let provider = ResultProvider { calls: AtomicUsize::new(0), fail: false };
+    let provider = ResultProvider {
+        calls: AtomicUsize::new(0),
+        fail: false,
+    };
     let cancel = AtomicBool::new(false);
     let fallback_calls = AtomicUsize::new(0);
     let explicit = select_with_compressed_provider(
-        Ok(Some(PathBuf::from("/explicit/node"))), Some(&provider), &cancel,
-        || { fallback_calls.fetch_add(1, Ordering::SeqCst); Ok(PathBuf::from("/path/node")) },
-    ).unwrap();
+        Ok(Some(PathBuf::from("/explicit/node"))),
+        Some(&provider),
+        &cancel,
+        || {
+            fallback_calls.fetch_add(1, Ordering::SeqCst);
+            Ok(PathBuf::from("/path/node"))
+        },
+    )
+    .unwrap();
     assert_eq!(explicit, PathBuf::from("/explicit/node"));
     assert_eq!(provider.calls.load(Ordering::SeqCst), 0);
 
     let invalid = select_with_compressed_provider(
-        Err(SidecarError::Spawn("invalid explicit override".into())), Some(&provider), &cancel,
-        || { fallback_calls.fetch_add(1, Ordering::SeqCst); Ok(PathBuf::from("/path/node")) },
+        Err(SidecarError::Spawn("invalid explicit override".into())),
+        Some(&provider),
+        &cancel,
+        || {
+            fallback_calls.fetch_add(1, Ordering::SeqCst);
+            Ok(PathBuf::from("/path/node"))
+        },
     );
     assert!(matches!(invalid, Err(SidecarError::Spawn(_))));
     assert_eq!(provider.calls.load(Ordering::SeqCst), 0);
@@ -52,21 +66,26 @@ fn explicit_override_precedes_provider_and_invalid_override_never_falls_back() {
 
 #[test]
 fn configured_provider_failure_is_terminal_but_absent_provider_uses_legacy_fallback() {
-    let provider = ResultProvider { calls: AtomicUsize::new(0), fail: true };
+    let provider = ResultProvider {
+        calls: AtomicUsize::new(0),
+        fail: true,
+    };
     let cancel = AtomicBool::new(false);
     let fallback_calls = AtomicUsize::new(0);
-    let invalid_payload = select_with_compressed_provider(
-        Ok(None), Some(&provider), &cancel,
-        || { fallback_calls.fetch_add(1, Ordering::SeqCst); Ok(PathBuf::from("/path/node")) },
-    );
+    let invalid_payload =
+        select_with_compressed_provider(Ok(None), Some(&provider), &cancel, || {
+            fallback_calls.fetch_add(1, Ordering::SeqCst);
+            Ok(PathBuf::from("/path/node"))
+        });
     assert!(matches!(invalid_payload, Err(SidecarError::Spawn(_))));
     assert_eq!(provider.calls.load(Ordering::SeqCst), 1);
     assert_eq!(fallback_calls.load(Ordering::SeqCst), 0);
 
-    let fallback = select_with_compressed_provider(
-        Ok(None), None, &cancel,
-        || { fallback_calls.fetch_add(1, Ordering::SeqCst); Ok(PathBuf::from("/path/node")) },
-    ).unwrap();
+    let fallback = select_with_compressed_provider(Ok(None), None, &cancel, || {
+        fallback_calls.fetch_add(1, Ordering::SeqCst);
+        Ok(PathBuf::from("/path/node"))
+    })
+    .unwrap();
     assert_eq!(fallback, PathBuf::from("/path/node"));
     assert_eq!(fallback_calls.load(Ordering::SeqCst), 1);
 }
@@ -93,7 +112,10 @@ fn cancellation_after_worker_completion_discards_a_successful_result() {
         .ensure_node(&cancelled)
         .map(|node| node.path)
         .map_err(|_| SidecarError::Spawn("test provider failed".into()));
-    assert!(matches!(finish_selection(result, &cancelled), Err(SidecarError::Cancelled)));
+    assert!(matches!(
+        finish_selection(result, &cancelled),
+        Err(SidecarError::Cancelled)
+    ));
 }
 
 #[cfg(target_os = "macos")]
@@ -104,11 +126,10 @@ async fn async_selector_discards_provider_success_when_cancelled_before_join() {
         return;
     }
     let calls = Arc::new(AtomicUsize::new(0));
-    let selector = NodeRuntimeSelector::with_compressed_provider(Arc::new(
-        CancelThenSuccessProvider {
+    let selector =
+        NodeRuntimeSelector::with_compressed_provider(Arc::new(CancelThenSuccessProvider {
             calls: Arc::clone(&calls),
-        },
-    ));
+        }));
     let result = selector
         .resolve_node_binary_with_cancellation(Arc::new(AtomicBool::new(false)))
         .await;
@@ -122,8 +143,8 @@ fn configured_compressed_provider_fails_closed_off_macos_after_explicit_override
     let unsupported = reject_unsupported_compressed_provider(Ok(None));
     assert!(matches!(unsupported, Err(SidecarError::Spawn(_))));
 
-    let explicit = reject_unsupported_compressed_provider(Ok(Some(PathBuf::from("/explicit/node"))))
-        .unwrap();
+    let explicit =
+        reject_unsupported_compressed_provider(Ok(Some(PathBuf::from("/explicit/node")))).unwrap();
     assert_eq!(explicit, PathBuf::from("/explicit/node"));
 
     let invalid = reject_unsupported_compressed_provider(Err(SidecarError::Spawn(
@@ -142,8 +163,8 @@ impl CompressedNodeRuntimeProvider for PanicProvider {
 
 #[tokio::test]
 async fn zero_startup_budget_times_out_before_sidecar_spawn() {
-    use atools_core::{PluginRuntimeKind, PluginRuntimeTransport};
     use super::super::{SidecarLaunchSpec, SidecarProcess};
+    use atools_core::{PluginRuntimeKind, PluginRuntimeTransport};
     use std::collections::BTreeMap;
 
     let spec = SidecarLaunchSpec {
@@ -206,11 +227,18 @@ async fn blocking_selection_does_not_block_async_heartbeat() {
     });
     let resolution = tokio::spawn(async move { selector.resolve_node_binary().await });
     tokio::time::timeout(Duration::from_secs(2), entered_rx.recv())
-        .await.expect("blocking provider should start without blocking the runtime")
+        .await
+        .expect("blocking provider should start without blocking the runtime")
         .expect("provider signal");
-    assert!(ticks.load(Ordering::Relaxed) > 0, "async heartbeat ran while provider was blocked");
+    assert!(
+        ticks.load(Ordering::Relaxed) > 0,
+        "async heartbeat ran while provider was blocked"
+    );
     released.store(true, Ordering::Release);
-    assert_eq!(resolution.await.unwrap().unwrap(), PathBuf::from("/cache/node"));
+    assert_eq!(
+        resolution.await.unwrap().unwrap(),
+        PathBuf::from("/cache/node")
+    );
     heartbeat.abort();
 }
 
@@ -244,18 +272,27 @@ async fn dropping_resolution_signals_worker_and_worker_reaches_terminal_state() 
     let cancelled = Arc::new(AtomicBool::new(false));
     let worker_cancelled = Arc::clone(&cancelled);
     let task = tokio::spawn(async move {
-        selector.resolve_node_binary_with_cancellation(worker_cancelled).await
+        selector
+            .resolve_node_binary_with_cancellation(worker_cancelled)
+            .await
     });
     tokio::task::spawn_blocking(move || entered_rx.recv_timeout(Duration::from_secs(2)))
-        .await.unwrap().expect("provider should begin");
+        .await
+        .unwrap()
+        .expect("provider should begin");
     task.abort();
     let _ = task.await;
-    assert!(cancelled.load(Ordering::Acquire), "future drop signals cooperative cancellation");
+    assert!(
+        cancelled.load(Ordering::Acquire),
+        "future drop signals cooperative cancellation"
+    );
     tokio::time::timeout(Duration::from_secs(2), async {
         while !finished.load(Ordering::Acquire) {
             tokio::time::sleep(Duration::from_millis(1)).await;
         }
-    }).await.expect("blocking worker reaches terminal state after observing cancellation");
+    })
+    .await
+    .expect("blocking worker reaches terminal state after observing cancellation");
     assert!(finished.load(Ordering::Acquire));
 }
 
@@ -268,16 +305,22 @@ async fn selection_timeout_signals_worker_and_waits_for_terminal_observation() {
         entered: entered_tx,
         finished: Arc::clone(&finished),
     }));
-    let entered = tokio::task::spawn_blocking(move || entered_rx.recv_timeout(Duration::from_secs(2)));
+    let entered =
+        tokio::task::spawn_blocking(move || entered_rx.recv_timeout(Duration::from_secs(2)));
     let timeout = tokio::time::timeout(Duration::from_millis(10), selector.resolve_node_binary());
     let (timed_out, entered) = tokio::join!(timeout, entered);
     assert!(entered.unwrap().is_ok(), "the blocking provider started");
-    assert!(timed_out.is_err(), "the provider remains pending until cancellation");
+    assert!(
+        timed_out.is_err(),
+        "the provider remains pending until cancellation"
+    );
     tokio::time::timeout(Duration::from_secs(2), async {
         while !finished.load(Ordering::Acquire) {
             tokio::time::sleep(Duration::from_millis(1)).await;
         }
-    }).await.expect("timed-out worker reaches terminal state after observing cancellation");
+    })
+    .await
+    .expect("timed-out worker reaches terminal state after observing cancellation");
     assert!(finished.load(Ordering::Acquire));
 }
 
@@ -300,10 +343,7 @@ async fn configured_runtime_preparation_is_separate_from_process_startup_budget(
     }
     let selector = NodeRuntimeSelector::with_compressed_provider(Arc::new(BriefProvider));
     let selected = selector
-        .resolve_node_binary_for_startup(
-            Arc::new(AtomicBool::new(false)),
-            Duration::from_millis(1),
-        )
+        .resolve_node_binary_for_startup(Arc::new(AtomicBool::new(false)), Duration::from_millis(1))
         .await
         .expect("compressed runtime preparation uses its own bounded phase");
     assert_eq!(selected, PathBuf::from("/cache/node"));
@@ -321,13 +361,20 @@ async fn operation_cancellation_reaches_and_joins_runtime_preparation() {
     let cancelled = Arc::new(AtomicBool::new(false));
     let task_cancelled = Arc::clone(&cancelled);
     let task = tokio::spawn(async move {
-        selector.resolve_node_binary_for_startup(task_cancelled, Duration::from_millis(1_500)).await
+        selector
+            .resolve_node_binary_for_startup(task_cancelled, Duration::from_millis(1_500))
+            .await
     });
     tokio::task::spawn_blocking(move || entered_rx.recv_timeout(Duration::from_secs(2)))
-        .await.unwrap().expect("provider started");
+        .await
+        .unwrap()
+        .expect("provider started");
     cancelled.store(true, Ordering::Release);
     assert!(matches!(task.await.unwrap(), Err(SidecarError::Cancelled)));
-    assert!(finished.load(Ordering::Acquire), "operation waits for cooperative worker completion");
+    assert!(
+        finished.load(Ordering::Acquire),
+        "operation waits for cooperative worker completion"
+    );
 }
 
 #[cfg(target_os = "macos")]
@@ -341,12 +388,24 @@ async fn bounded_selection_timeout_cancels_worker_and_observes_terminal_state() 
     }));
     let cancelled = Arc::new(AtomicBool::new(false));
     let worker_cancelled = Arc::clone(&cancelled);
-    let entered = tokio::task::spawn_blocking(move || entered_rx.recv_timeout(Duration::from_secs(2)));
+    let entered =
+        tokio::task::spawn_blocking(move || entered_rx.recv_timeout(Duration::from_secs(2)));
     let resolution = tokio::spawn(async move {
-        selector.resolve_node_binary_with_budget(worker_cancelled, Some(Duration::from_millis(10))).await
+        selector
+            .resolve_node_binary_with_budget(worker_cancelled, Some(Duration::from_millis(10)))
+            .await
     });
     assert!(entered.await.unwrap().is_ok(), "provider started");
-    assert!(matches!(resolution.await.unwrap(), Err(SidecarError::Timeout(10))));
-    assert!(cancelled.load(Ordering::Acquire), "timeout signals cooperative cancellation");
-    assert!(finished.load(Ordering::Acquire), "timeout is not returned until blocking cleanup is terminal");
+    assert!(matches!(
+        resolution.await.unwrap(),
+        Err(SidecarError::Timeout(10))
+    ));
+    assert!(
+        cancelled.load(Ordering::Acquire),
+        "timeout signals cooperative cancellation"
+    );
+    assert!(
+        finished.load(Ordering::Acquire),
+        "timeout is not returned until blocking cleanup is terminal"
+    );
 }

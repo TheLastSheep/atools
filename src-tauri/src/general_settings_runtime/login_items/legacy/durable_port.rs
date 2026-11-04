@@ -4,9 +4,9 @@ use super::super::super::RECOVERY_FAILED;
 use super::super::journal::{Journal, JournalPhase};
 use super::super::migration::{Choice, LegacyPort, Phase};
 use super::durable_journal;
+use super::DurableLegacy;
 #[cfg(test)]
 use super::{CommitFailpoint, JournalPublicationFailpoint};
-use super::DurableLegacy;
 
 impl LegacyPort for DurableLegacy {
     fn prepare(&mut self, choice: Choice, before: ServiceStatus) -> Result<(), &'static str> {

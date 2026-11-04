@@ -24,14 +24,14 @@ pub(crate) use state::OwnedMainHotkeyStateSnapshot;
 
 #[path = "owned_main_tauri.rs"]
 mod tauri_adapter;
-pub(super) use tauri_adapter::{owned_registry_uses_shortcut, shutdown_locked};
-#[cfg(feature = "legacy-node-smoke")]
-pub(crate) use tauri_adapter::{read_owned_main_hotkey, restore_owned_main_hotkey};
 pub(crate) use tauri_adapter::{
     apply_owned_main_hotkey, mark_startup_attempted, read_owned_main_hotkey_state,
     release_owned_main_hotkey, restore_owned_main_hotkey_state, set_owned_main_hotkey,
     set_owned_main_hotkey_from, setup_owned_main_hotkey,
 };
+pub(super) use tauri_adapter::{owned_registry_uses_shortcut, shutdown_locked};
+#[cfg(feature = "legacy-node-smoke")]
+pub(crate) use tauri_adapter::{read_owned_main_hotkey, restore_owned_main_hotkey};
 
 #[derive(Clone, Debug)]
 pub(crate) struct OwnedMainHotkeySnapshot {

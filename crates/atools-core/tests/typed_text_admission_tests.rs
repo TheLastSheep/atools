@@ -41,7 +41,7 @@ fn dynamic_add_and_replace_reject_before_commit_and_keep_last_good_snapshot() {
     ));
     assert_eq!(original.search_checked("safe").unwrap().len(), 1);
     let valid = json!({"code":"poison","cmds":[{"type":"regex","match":"/^public$/"}]});
-    db.plugin_dynamic_features_set("p", &[valid.clone()])
+    db.plugin_dynamic_features_set("p", std::slice::from_ref(&valid))
         .unwrap();
     let before = db.feature_catalog_snapshot().unwrap();
     budget(db.plugin_dynamic_features_set("p", &[huge()]));

@@ -22,19 +22,47 @@ const DEPTH_LIMIT: usize = 32;
 const IO_CHUNK: usize = 64 * 1024;
 const WALK_LIMIT: Duration = Duration::from_secs(120);
 const HOST_RECEIPT: &str = ".atools-host-receipt-v1.json";
-#[cfg(any(test, feature = "legacy-node-smoke", feature = "source-dependency-smoke"))]
+#[cfg(any(
+    test,
+    feature = "legacy-node-smoke",
+    feature = "source-dependency-smoke"
+))]
 const PACKAGE_FILE_LIMIT: u64 = 64;
-#[cfg(any(test, feature = "legacy-node-smoke", feature = "source-dependency-smoke"))]
+#[cfg(any(
+    test,
+    feature = "legacy-node-smoke",
+    feature = "source-dependency-smoke"
+))]
 const PACKAGE_DIRECTORY_LIMIT: u64 = 64;
-#[cfg(any(test, feature = "legacy-node-smoke", feature = "source-dependency-smoke"))]
+#[cfg(any(
+    test,
+    feature = "legacy-node-smoke",
+    feature = "source-dependency-smoke"
+))]
 const PACKAGE_ENTRY_LIMIT: u64 = 128;
-#[cfg(any(test, feature = "legacy-node-smoke", feature = "source-dependency-smoke"))]
+#[cfg(any(
+    test,
+    feature = "legacy-node-smoke",
+    feature = "source-dependency-smoke"
+))]
 const PACKAGE_FILE_BYTES_LIMIT: u64 = 8 * 1024 * 1024;
-#[cfg(any(test, feature = "legacy-node-smoke", feature = "source-dependency-smoke"))]
+#[cfg(any(
+    test,
+    feature = "legacy-node-smoke",
+    feature = "source-dependency-smoke"
+))]
 const PACKAGE_TREE_BYTES_LIMIT: u64 = 32 * 1024 * 1024;
-#[cfg(any(test, feature = "legacy-node-smoke", feature = "source-dependency-smoke"))]
+#[cfg(any(
+    test,
+    feature = "legacy-node-smoke",
+    feature = "source-dependency-smoke"
+))]
 const PACKAGE_PATH_BYTES_LIMIT: u64 = 2048 * PACKAGE_ENTRY_LIMIT;
-#[cfg(any(test, feature = "legacy-node-smoke", feature = "source-dependency-smoke"))]
+#[cfg(any(
+    test,
+    feature = "legacy-node-smoke",
+    feature = "source-dependency-smoke"
+))]
 const PACKAGE_DEPTH_LIMIT: usize = 16;
 
 #[derive(Clone, Copy)]
@@ -61,7 +89,11 @@ const DEPENDENCY_LIMITS: Limits = Limits {
     depth: DEPTH_LIMIT,
     ignore_host_receipt: true,
 };
-#[cfg(any(test, feature = "legacy-node-smoke", feature = "source-dependency-smoke"))]
+#[cfg(any(
+    test,
+    feature = "legacy-node-smoke",
+    feature = "source-dependency-smoke"
+))]
 const PACKAGE_LIMITS: Limits = Limits {
     file_bytes: PACKAGE_FILE_BYTES_LIMIT,
     tree_bytes: PACKAGE_TREE_BYTES_LIMIT,
@@ -87,7 +119,11 @@ pub(super) fn calculate(root: &Directory, cancelled: &AtomicBool) -> Result<Tree
     calculate_since(root, cancelled, Instant::now())
 }
 
-#[cfg(any(test, feature = "legacy-node-smoke", feature = "source-dependency-smoke"))]
+#[cfg(any(
+    test,
+    feature = "legacy-node-smoke",
+    feature = "source-dependency-smoke"
+))]
 pub(super) fn calculate_package(root: &Directory) -> Result<TreeInventory, String> {
     calculate_with_limits(
         root,

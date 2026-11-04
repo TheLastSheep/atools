@@ -21,10 +21,8 @@ const READINESS_DIAGNOSTIC_CODES: &[&str] = &[
     "source_preload_entry",
     "source_script_entry",
 ];
-const PACKAGE_SELECTION_DIAGNOSTIC_CODES: &[&str] = &[
-    "incomplete_published_package",
-    "selected_published_package",
-];
+const PACKAGE_SELECTION_DIAGNOSTIC_CODES: &[&str] =
+    &["incomplete_published_package", "selected_published_package"];
 
 #[derive(Debug, PartialEq, Eq)]
 pub(super) struct AggregateRecordCounts {
@@ -76,7 +74,9 @@ pub(super) fn aggregate_record_counts(records: &[Value]) -> Result<AggregateReco
         if codes.len() > MAX_DIAGNOSTIC_CODES_PER_PLUGIN {
             bail!("readiness diagnostic code count exceeds its bound");
         }
-        if matches!(state, "no_direct_manifest" | "incompatible_snapshot_entry") && !codes.is_empty() {
+        if matches!(state, "no_direct_manifest" | "incompatible_snapshot_entry")
+            && !codes.is_empty()
+        {
             bail!("unclassified record has readiness diagnostic codes");
         }
         let mut previous: Option<&str> = None;
@@ -102,7 +102,10 @@ pub(super) fn aggregate_record_counts(records: &[Value]) -> Result<AggregateReco
 
 #[cfg(test)]
 mod tests {
-    use super::{aggregate_record_counts, readiness_diagnostic_codes, PackageDiagnostic, Value, MAX_DIAGNOSTIC_CODES_PER_PLUGIN};
+    use super::{
+        aggregate_record_counts, readiness_diagnostic_codes, PackageDiagnostic, Value,
+        MAX_DIAGNOSTIC_CODES_PER_PLUGIN,
+    };
     use serde_json::json;
 
     #[test]
@@ -129,8 +132,14 @@ mod tests {
         assert_eq!(counts.readiness_counts.get("ready"), Some(&1));
         assert_eq!(counts.readiness_counts.get("requires_build"), Some(&2));
         assert_eq!(counts.readiness_counts.get("unknown"), Some(&1));
-        assert_eq!(counts.readiness_diagnostic_counts.get("missing_main"), Some(&2));
-        assert_eq!(counts.readiness_diagnostic_counts.get("missing_script"), Some(&1));
+        assert_eq!(
+            counts.readiness_diagnostic_counts.get("missing_main"),
+            Some(&2)
+        );
+        assert_eq!(
+            counts.readiness_diagnostic_counts.get("missing_script"),
+            Some(&1)
+        );
     }
 
     #[test]
@@ -142,15 +151,26 @@ mod tests {
             "readinessDiagnosticCodes":["/private/plugin/path"]
         })];
         let error = aggregate_record_counts(&records).expect_err("arbitrary data is not a code");
-        assert!(error.to_string().contains("readiness diagnostic code is unsupported"));
+        assert!(error
+            .to_string()
+            .contains("readiness diagnostic code is unsupported"));
         assert!(!error.to_string().contains("/private/plugin/path"));
     }
 
     #[test]
     fn diagnostic_projection_is_bounded_and_never_returns_message_text() {
-        let diagnostic = PackageDiagnostic { code: "missing_main".into(), message: "/private/plugin/path/index.html".into() };
-        assert_eq!(readiness_diagnostic_codes(std::slice::from_ref(&diagnostic)).unwrap(), vec!["missing_main".to_owned()]);
-        assert!(readiness_diagnostic_codes(&vec![diagnostic; MAX_DIAGNOSTIC_CODES_PER_PLUGIN + 1]).is_err());
+        let diagnostic = PackageDiagnostic {
+            code: "missing_main".into(),
+            message: "/private/plugin/path/index.html".into(),
+        };
+        assert_eq!(
+            readiness_diagnostic_codes(std::slice::from_ref(&diagnostic)).unwrap(),
+            vec!["missing_main".to_owned()]
+        );
+        assert!(
+            readiness_diagnostic_codes(&vec![diagnostic; MAX_DIAGNOSTIC_CODES_PER_PLUGIN + 1])
+                .is_err()
+        );
     }
 
     #[test]
@@ -185,4 +205,3 @@ pub(super) fn readiness_diagnostic_codes(diagnostics: &[PackageDiagnostic]) -> R
     codes.sort();
     Ok(codes)
 }
-

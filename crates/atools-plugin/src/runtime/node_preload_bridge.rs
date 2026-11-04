@@ -129,5 +129,4 @@ impl JsRuntime {
 
         serde_json::from_str(&result_str).context("Failed to parse function result as JSON")
     }
-
 }

@@ -214,8 +214,7 @@ fn native_ids_are_nonce_scoped_and_selections_are_single_use() {
         "Pin",
         None,
     )];
-    let (rows, session) =
-        prepare_menu_items(&items, "0123456789abcdef0123456789abcdef").unwrap();
+    let (rows, session) = prepare_menu_items(&items, "0123456789abcdef0123456789abcdef").unwrap();
     let PreparedMenuRow::Item { native_id, .. } = &rows[0] else {
         panic!("expected action row");
     };
@@ -256,8 +255,7 @@ fn disabled_event_id_cannot_dispatch_a_different_action() {
         ),
         action("unpin-app:{\"path\":\"/tmp/app\"}", "Unpin", None),
     ];
-    let (rows, session) =
-        prepare_menu_items(&items, "0123456789abcdef0123456789abcdef").unwrap();
+    let (rows, session) = prepare_menu_items(&items, "0123456789abcdef0123456789abcdef").unwrap();
     let PreparedMenuRow::Item {
         native_id: disabled_id,
         ..
@@ -348,8 +346,7 @@ fn app_shortcut_menu_caller_accepts_bounded_escaped_identity_beyond_old_id_cap()
         }],
     })];
     validate_menu_items(&items).unwrap();
-    let (rows, session) =
-        prepare_menu_items(&items, "0123456789abcdef0123456789abcdef").unwrap();
+    let (rows, session) = prepare_menu_items(&items, "0123456789abcdef0123456789abcdef").unwrap();
     let PreparedMenuRow::More { items, .. } = &rows[0] else {
         panic!("More missing")
     };

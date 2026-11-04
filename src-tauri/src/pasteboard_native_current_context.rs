@@ -1,11 +1,11 @@
 //! Current-context-only pasteboard read, with limits applied before Rust copies payload bytes.
+use crate::pasteboard_runtime::{
+    NativePasteboardRepresentation, NativePasteboardSnapshot, CURRENT_CONTEXT_MAX_TEXT_BYTES,
+};
 #[cfg(target_os = "macos")]
 use crate::pasteboard_runtime::{
     CURRENT_CONTEXT_MAX_FILES, CURRENT_CONTEXT_MAX_IMAGE_INPUT_BYTES,
     CURRENT_CONTEXT_MAX_PATH_BYTES, CURRENT_CONTEXT_MAX_RESPONSE_BYTES,
-};
-use crate::pasteboard_runtime::{
-    NativePasteboardRepresentation, NativePasteboardSnapshot, CURRENT_CONTEXT_MAX_TEXT_BYTES,
 };
 use std::hash::{Hash, Hasher};
 #[cfg(not(target_os = "macos"))]
@@ -108,8 +108,7 @@ fn read_platform_clipboard_text() -> Result<Option<String>, String> {
                 if output.stdout.len() > CURRENT_CONTEXT_MAX_TEXT_BYTES {
                     return Err(BUDGET.into());
                 }
-                let text =
-                    String::from_utf8(output.stdout).map_err(|_| UNAVAILABLE.to_string())?;
+                let text = String::from_utf8(output.stdout).map_err(|_| UNAVAILABLE.to_string())?;
                 return Ok(Some(text));
             }
         }

@@ -7,10 +7,6 @@ use crate::error::AToolsError;
 use serde_json::{json, Value};
 use tempfile::TempDir;
 
-fn open_database(directory: &TempDir, name: &str) -> Database {
-    Database::open(&directory.path().join(name)).unwrap()
-}
-
 fn record(path: &str, name: &str, kind: &str) -> Value {
     json!({ "path": path, "name": name, "type": kind })
 }

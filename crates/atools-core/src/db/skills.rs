@@ -91,7 +91,6 @@ impl Database {
         let page_size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))?;
         Ok(page_count.max(0) as u64 * page_size.max(0) as u64)
     }
-
 }
 fn skill_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SkillDefinition> {
     let definition: String = row.get(0)?;
@@ -103,4 +102,3 @@ fn skill_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SkillDefinition> 
     skill.updated_at = row.get(3)?;
     Ok(skill)
 }
-

@@ -212,7 +212,10 @@ fn set_main_theme(app: &AppHandle, theme: &str) -> Result<(), String> {
             let _ = window.set_theme(tauri_theme);
         }
     }
-    let _ = app.emit("atools://theme-changed", serde_json::json!({ "theme": theme }));
+    let _ = app.emit(
+        "atools://theme-changed",
+        serde_json::json!({ "theme": theme }),
+    );
     Ok(())
 }
 

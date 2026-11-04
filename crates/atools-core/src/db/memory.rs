@@ -199,7 +199,6 @@ impl Database {
             &self.list_memory_items(true, 5000)?,
         )?)
     }
-
 }
 pub(super) fn ensure_memory_scope_columns(conn: &Connection) -> Result<()> {
     let existing = {
@@ -304,4 +303,3 @@ fn memory_approval_from_str(value: &str) -> MemoryApproval {
         _ => MemoryApproval::Explicit,
     }
 }
-

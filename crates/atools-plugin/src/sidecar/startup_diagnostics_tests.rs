@@ -222,4 +222,3 @@ fn startup_failure_classification_uses_write_attempt_and_terminal_evidence() {
         StartupFailureKind::InitializeWrite
     );
 }
-

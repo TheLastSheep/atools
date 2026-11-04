@@ -180,7 +180,13 @@ fn test_search_all_empty_query() {
 
 #[test]
 fn generic_low_level_regex_api_keeps_raw_and_extended_flags_outside_typed_contexts() {
-    assert!(super::compile_ztools_regex("^raw$").unwrap().is_match("raw"));
-    assert!(super::compile_ztools_regex("/a.b/s").unwrap().is_match("a\nb"));
-    assert!(super::compile_ztools_regex("/a b/x").unwrap().is_match("ab"));
+    assert!(super::compile_ztools_regex("^raw$")
+        .unwrap()
+        .is_match("raw"));
+    assert!(super::compile_ztools_regex("/a.b/s")
+        .unwrap()
+        .is_match("a\nb"));
+    assert!(super::compile_ztools_regex("/a b/x")
+        .unwrap()
+        .is_match("ab"));
 }

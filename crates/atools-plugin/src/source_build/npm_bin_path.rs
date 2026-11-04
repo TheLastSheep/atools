@@ -79,7 +79,7 @@ fn has_windows_drive_prefix(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{Value, json};
+    use serde_json::{json, Value};
     use std::fs;
 
     fn toolchain_fixture() -> (tempfile::TempDir, Value, Value) {

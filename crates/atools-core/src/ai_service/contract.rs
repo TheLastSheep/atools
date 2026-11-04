@@ -117,11 +117,17 @@ pub struct AiServiceError {
 
 impl AiServiceError {
     pub const fn new(code: AiErrorCode) -> Self {
-        Self { code, http_status: None }
+        Self {
+            code,
+            http_status: None,
+        }
     }
 
     pub const fn http_status(status: u16) -> Self {
-        Self { code: AiErrorCode::HttpStatus, http_status: Some(status) }
+        Self {
+            code: AiErrorCode::HttpStatus,
+            http_status: Some(status),
+        }
     }
 }
 

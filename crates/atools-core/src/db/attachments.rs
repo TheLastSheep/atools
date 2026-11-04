@@ -60,5 +60,4 @@ impl Database {
         )?;
         Ok(rows > 0)
     }
-
 }

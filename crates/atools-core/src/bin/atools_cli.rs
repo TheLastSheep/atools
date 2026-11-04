@@ -37,9 +37,15 @@ fn main() {
         "search" => {
             let query = args.get(1).map(String::as_str).unwrap_or("");
             let db = open_db();
-            let matches = match db.feature_catalog_snapshot().and_then(|catalog|catalog.search_checked(query)) {
+            let matches = match db
+                .feature_catalog_snapshot()
+                .and_then(|catalog| catalog.search_checked(query))
+            {
                 Ok(matches) => matches,
-                Err(error) => { eprintln!("{error}"); std::process::exit(1); }
+                Err(error) => {
+                    eprintln!("{error}");
+                    std::process::exit(1);
+                }
             };
             let output: Vec<_> = matches
                 .into_iter()

@@ -14,10 +14,15 @@ impl Database {
         let mut conn = self.conn.lock();
         let tx = conn.transaction()?;
         Self::replace_features(&tx, plugin_id, features)?;
-        let enabled:bool=tx.query_row("SELECT EXISTS(SELECT 1 FROM plugins WHERE id=?1 AND enabled=1)",[plugin_id],|row|row.get(0))?;
+        let enabled: bool = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM plugins WHERE id=?1 AND enabled=1)",
+            [plugin_id],
+            |row| row.get(0),
+        )?;
         let bank = if enabled {
             Some(feature_catalog::validate_mutation(
-                &tx, &self.feature_catalog.lock(),
+                &tx,
+                &self.feature_catalog.lock(),
             )?)
         } else {
             None
@@ -143,5 +148,4 @@ impl Database {
 
         Ok(feature)
     }
-
 }

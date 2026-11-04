@@ -12,7 +12,7 @@ fn patch(entries: &[(&str, Value)]) -> BTreeMap<String, Value> {
 
 #[test]
 fn tray_default_is_visible_and_patch_accepts_only_a_boolean() {
-    assert!(DEFAULT_SHOW_TRAY_ICON);
+    const { assert!(DEFAULT_SHOW_TRAY_ICON) };
     let db = Database::in_memory().unwrap();
     let initial = r#"{"theme":"system","showTrayIcon":true,"unknown":7}"#;
     db.set_setting(SETTINGS_KEY, initial).unwrap();

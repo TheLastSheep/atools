@@ -77,11 +77,7 @@ pub(crate) fn close_owner(app: &AppHandle, owner: &Owner) {
     lifecycle::close_owner(app, owner);
 }
 
-fn claim_selection(
-    runtime: &Runtime,
-    id: &str,
-    window: &str,
-) -> Result<Selection, String> {
+fn claim_selection(runtime: &Runtime, id: &str, window: &str) -> Result<Selection, String> {
     let mut store = runtime.store.lock();
     let selection = store
         .selections

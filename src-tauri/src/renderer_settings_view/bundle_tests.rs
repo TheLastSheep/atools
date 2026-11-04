@@ -52,7 +52,9 @@ fn runtime_resource_budget_matches_the_authoritative_settings_build_policy() {
     );
     assert_eq!(
         manifest["build"]["budgetMilestone"],
-        ResourceBudgetPolicy::APP_GLOBAL_SHORTCUTS.milestone.unwrap()
+        ResourceBudgetPolicy::APP_GLOBAL_SHORTCUTS
+            .milestone
+            .unwrap()
     );
 }
 

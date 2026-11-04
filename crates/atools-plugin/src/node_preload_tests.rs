@@ -22,17 +22,11 @@ impl AsyncWrite for PendingWriter {
         Poll::Pending
     }
 
-    fn poll_flush(
-        self: Pin<&mut Self>,
-        _context: &mut Context<'_>,
-    ) -> Poll<io::Result<()>> {
+    fn poll_flush(self: Pin<&mut Self>, _context: &mut Context<'_>) -> Poll<io::Result<()>> {
         Poll::Ready(Ok(()))
     }
 
-    fn poll_shutdown(
-        self: Pin<&mut Self>,
-        _context: &mut Context<'_>,
-    ) -> Poll<io::Result<()>> {
+    fn poll_shutdown(self: Pin<&mut Self>, _context: &mut Context<'_>) -> Poll<io::Result<()>> {
         Poll::Ready(Ok(()))
     }
 }
@@ -59,8 +53,14 @@ async fn stalled_preload_input_is_bounded_by_the_shared_operation_deadline() {
         .expect_err("a backpressured writer must not outlive the operation deadline");
 
     assert!(format!("{error:#}").contains("timed out after 15s while sending request"));
-    assert!(started.load(Ordering::Acquire), "the writer was actually polled");
-    assert!(dropped.load(Ordering::Acquire), "timeout drops the owned stdin writer");
+    assert!(
+        started.load(Ordering::Acquire),
+        "the writer was actually polled"
+    );
+    assert!(
+        dropped.load(Ordering::Acquire),
+        "timeout drops the owned stdin writer"
+    );
     assert!(began.elapsed() < Duration::from_secs(1));
 }
 
@@ -87,17 +87,11 @@ impl AsyncWrite for FailingWriter {
         }
     }
 
-    fn poll_flush(
-        self: Pin<&mut Self>,
-        _context: &mut Context<'_>,
-    ) -> Poll<io::Result<()>> {
+    fn poll_flush(self: Pin<&mut Self>, _context: &mut Context<'_>) -> Poll<io::Result<()>> {
         Poll::Ready(Ok(()))
     }
 
-    fn poll_shutdown(
-        self: Pin<&mut Self>,
-        _context: &mut Context<'_>,
-    ) -> Poll<io::Result<()>> {
+    fn poll_shutdown(self: Pin<&mut Self>, _context: &mut Context<'_>) -> Poll<io::Result<()>> {
         match self.0 {
             FailurePoint::Write => Poll::Ready(Ok(())),
             FailurePoint::Shutdown => Poll::Ready(Err(io::Error::new(
@@ -116,12 +110,9 @@ async fn preload_input_write_and_shutdown_failures_keep_context() {
         .expect_err("write errors must propagate");
     assert!(format!("{write_error:#}").contains("Failed writing NodePreloadBridge request"));
 
-    let shutdown_error = write_preload_input(
-        FailingWriter(FailurePoint::Shutdown),
-        b"payload",
-        deadline,
-    )
-    .await
-    .expect_err("shutdown errors must propagate");
+    let shutdown_error =
+        write_preload_input(FailingWriter(FailurePoint::Shutdown), b"payload", deadline)
+            .await
+            .expect_err("shutdown errors must propagate");
     assert!(format!("{shutdown_error:#}").contains("Failed closing NodePreloadBridge stdin"));
 }

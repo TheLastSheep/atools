@@ -1,3 +1,5 @@
+#![allow(dead_code, clippy::cloned_ref_to_slice_refs)]
+
 use atools_core::{Database, Feature, Plugin};
 use serde_json::{json, Value};
 use std::sync::Arc;

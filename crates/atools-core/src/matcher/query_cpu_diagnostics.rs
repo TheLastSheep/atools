@@ -1,10 +1,10 @@
 //! Opt-in paired wall/thread-CPU diagnostics for exact large text and media queries.
 use super::{
+    index::{capture, Reading},
     FeatureSearchIndex, MediaFile,
-    index::{Reading, capture},
 };
-use crate::{Database, Plugin, models::FeatureEntry};
-use serde_json::{Value, json};
+use crate::{models::FeatureEntry, Database, Plugin};
+use serde_json::{json, Value};
 
 const SAMPLES: usize = 4;
 

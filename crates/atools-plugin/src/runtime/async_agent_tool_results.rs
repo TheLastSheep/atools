@@ -160,4 +160,3 @@ fn read_async_agent_tool_result_state(
         Ok(state_json)
     })
 }
-

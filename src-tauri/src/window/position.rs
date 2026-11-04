@@ -59,7 +59,10 @@ fn position_main_window_with_policy(
             if positions_guard.is_empty() {
                 if let Some(state) = app.try_state::<crate::state::AppState>() {
                     if let Ok(Some(json)) = state.db.get_setting("atools:window_positions") {
-                        if let Ok(deserialized) = serde_json::from_str::<std::collections::HashMap<String, (i32, i32)>>(&json) {
+                        if let Ok(deserialized) = serde_json::from_str::<
+                            std::collections::HashMap<String, (i32, i32)>,
+                        >(&json)
+                        {
                             for (k, (x, y)) in deserialized {
                                 positions_guard.insert(k, PhysicalPosition::new(x, y));
                             }

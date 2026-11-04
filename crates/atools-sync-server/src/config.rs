@@ -56,7 +56,7 @@ impl Config {
     /// opening or migrating some other store.
     pub fn from_env() -> Result<Self, ConfigError> {
         let driver = env::var("DB_DRIVER").unwrap_or_default();
-        if !driver.is_empty() && driver.to_ascii_lowercase() != "sqlite" {
+        if !driver.is_empty() && !driver.eq_ignore_ascii_case("sqlite") {
             return Err(ConfigError::UnsupportedDatabase);
         }
         let data_dir = env::var_os("DATA_DIR")

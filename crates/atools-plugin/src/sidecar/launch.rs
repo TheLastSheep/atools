@@ -38,7 +38,11 @@ impl SidecarLaunchSpec {
         cancelled: Arc<AtomicBool>,
     ) -> Result<Command, SidecarError> {
         let node_binary = if self.runtime == PluginRuntimeKind::Node {
-            Some(selector.resolve_node_binary_for_startup(cancelled, self.startup_timeout).await?)
+            Some(
+                selector
+                    .resolve_node_binary_for_startup(cancelled, self.startup_timeout)
+                    .await?,
+            )
         } else {
             None
         };

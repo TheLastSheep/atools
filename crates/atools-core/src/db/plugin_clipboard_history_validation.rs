@@ -97,7 +97,7 @@ fn validate_image_payload(
     validate_absolute_path(path, PLUGIN_CLIPBOARD_HISTORY_PATH_BYTES_MAX)?;
     if object.contains_key("byteSize") {
         let byte_size = object.get("byteSize").and_then(Value::as_u64);
-        if !byte_size.is_some_and(|size| size <= 9_007_199_254_740_991) {
+        if byte_size.is_none_or(|size| size > 9_007_199_254_740_991) {
             return Err(AToolsError::Config(
                 "Clipboard image byteSize must be a safe non-negative integer".into(),
             ));

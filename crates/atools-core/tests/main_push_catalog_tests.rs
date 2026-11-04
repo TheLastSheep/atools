@@ -46,7 +46,10 @@ fn dynamic_query_keeps_original_regex_type_when_display_name_matches_better() {
         "cmds": [{"type": "regex", "match": "/^[0-9]+$/"}]
     }]));
     let snapshot = db.feature_catalog_snapshot().unwrap();
-    assert_eq!(snapshot.search_checked("12").unwrap()[0].match_type, "exact");
+    assert_eq!(
+        snapshot.search_checked("12").unwrap()[0].match_type,
+        "exact"
+    );
     let matches = snapshot.search_commands_checked("12").unwrap();
     assert_eq!(matches[0].match_type, "regex");
     assert_eq!(matches[0].plugin_id, "main-push-provider");

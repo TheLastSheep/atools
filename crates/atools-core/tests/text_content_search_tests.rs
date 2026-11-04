@@ -181,7 +181,10 @@ fn ordinary_and_fixed_text_share_bounds_but_apply_distinct_sticky_policies() {
             assert_eq!(ordinary, expected, "shared bounds: {query:?}");
         }
     }
-    assert!(snapshot.search("ax").iter().any(|m|m.feature_code=="sticky"));
+    assert!(snapshot
+        .search("ax")
+        .iter()
+        .any(|m| m.feature_code == "sticky"));
     assert!(!snapshot
         .search_text_content("ax")
         .unwrap()

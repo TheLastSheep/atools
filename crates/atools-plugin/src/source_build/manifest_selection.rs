@@ -67,7 +67,6 @@ pub struct ManifestSelectionInfo {
     manifest_differences: Vec<&'static str>,
 }
 
-
 impl ManifestSelectionInfo {
     #[cfg(test)]
     #[allow(dead_code)]
@@ -83,7 +82,10 @@ impl ManifestSelectionInfo {
             manifest_selection: None,
             manifest_sha256: None,
             manifest_identity: None,
-            manifest_candidates: vec![missing(ManifestSelection::Root), missing(ManifestSelection::Public)],
+            manifest_candidates: vec![
+                missing(ManifestSelection::Root),
+                missing(ManifestSelection::Public),
+            ],
             manifest_differences: Vec::new(),
         }
     }
@@ -126,8 +128,15 @@ pub(super) fn scan(root: &Path, requested: Option<ManifestSelection>) -> Manifes
         .map(|(relative, selection)| read_candidate(root, relative, *selection))
         .collect::<Vec<_>>();
     let selected_index = requested
-        .map(|selection| match selection { ManifestSelection::Root => 0, ManifestSelection::Public => 1 })
-        .or_else(|| reads.iter().position(|candidate| candidate.summary.status != CandidateStatus::Missing));
+        .map(|selection| match selection {
+            ManifestSelection::Root => 0,
+            ManifestSelection::Public => 1,
+        })
+        .or_else(|| {
+            reads
+                .iter()
+                .position(|candidate| candidate.summary.status != CandidateStatus::Missing)
+        });
     let selected = selected_index.map(|index| {
         let candidate = &mut reads[index];
         SelectedManifest {
@@ -150,12 +159,24 @@ pub(super) fn scan(root: &Path, requested: Option<ManifestSelection>) -> Manifes
         let left = reads[0].summary.identity.as_ref().expect("valid identity");
         let right = reads[1].summary.identity.as_ref().expect("valid identity");
         let mut fields = Vec::new();
-        if left.id != right.id { fields.push("id"); }
-        if left.version != right.version { fields.push("version"); }
-        if left.main != right.main { fields.push("main"); }
-        if left.preload != right.preload { fields.push("preload"); }
-        if left.runtime != right.runtime { fields.push("runtime"); }
-        if left.feature_codes != right.feature_codes { fields.push("featureCodes"); }
+        if left.id != right.id {
+            fields.push("id");
+        }
+        if left.version != right.version {
+            fields.push("version");
+        }
+        if left.main != right.main {
+            fields.push("main");
+        }
+        if left.preload != right.preload {
+            fields.push("preload");
+        }
+        if left.runtime != right.runtime {
+            fields.push("runtime");
+        }
+        if left.feature_codes != right.feature_codes {
+            fields.push("featureCodes");
+        }
         fields
     } else {
         Vec::new()
@@ -164,7 +185,10 @@ pub(super) fn scan(root: &Path, requested: Option<ManifestSelection>) -> Manifes
         manifest_selection: selected_info.map(|value| value.selection),
         manifest_sha256: selected_info.and_then(|value| value.sha256.clone()),
         manifest_identity: selected_info.and_then(|value| value.identity.clone()),
-        manifest_candidates: reads.into_iter().map(|candidate| candidate.summary).collect(),
+        manifest_candidates: reads
+            .into_iter()
+            .map(|candidate| candidate.summary)
+            .collect(),
         manifest_differences: differences,
     };
     if canonical_json_len(&info).is_none_or(|length| length > MAX_INSPECTION_METADATA_JSON_BYTES) {
@@ -192,28 +216,87 @@ fn read_candidate(root: &Path, relative: &str, selection: ManifestSelection) -> 
         crate::package_resolution::MAX_MANIFEST_BYTES,
     ) {
         Ok(Some(bytes)) => bytes,
-        Ok(None) => return candidate(selection, CandidateStatus::Missing, None, None, None, Some("manifest_missing")),
-        Err(_) => return candidate(selection, CandidateStatus::Invalid, None, None, None, Some("manifest_invalid")),
+        Ok(None) => {
+            return candidate(
+                selection,
+                CandidateStatus::Missing,
+                None,
+                None,
+                None,
+                Some("manifest_missing"),
+            )
+        }
+        Err(_) => {
+            return candidate(
+                selection,
+                CandidateStatus::Invalid,
+                None,
+                None,
+                None,
+                Some("manifest_invalid"),
+            )
+        }
     };
     let raw = match serde_json::from_slice::<Value>(&bytes) {
         Ok(value) => value,
-        Err(_) => return candidate(selection, CandidateStatus::Invalid, None, None, None, Some("manifest_invalid")),
+        Err(_) => {
+            return candidate(
+                selection,
+                CandidateStatus::Invalid,
+                None,
+                None,
+                None,
+                Some("manifest_invalid"),
+            )
+        }
     };
     let parsed = match serde_json::from_value::<PluginManifest>(raw.clone()) {
         Ok(manifest) if manifest.validate_runtime_contract().is_ok() => manifest,
-        _ => return candidate(selection, CandidateStatus::Invalid, None, None, None, Some("manifest_invalid")),
+        _ => {
+            return candidate(
+                selection,
+                CandidateStatus::Invalid,
+                None,
+                None,
+                None,
+                Some("manifest_invalid"),
+            )
+        }
     };
     if crate::source_build::policy::stable_installation_id(&parsed.name).is_none() {
-        let mut candidate = candidate(selection, CandidateStatus::Invalid, None, None, None, Some("manifest_invalid"));
+        let mut candidate = candidate(
+            selection,
+            CandidateStatus::Invalid,
+            None,
+            None,
+            None,
+            Some("manifest_invalid"),
+        );
         candidate.invalid_plugin_id = true;
         return candidate;
     }
     let identity = match identity(&parsed) {
         Some(identity) => identity,
-        None => return candidate(selection, CandidateStatus::Invalid, None, None, None, Some("manifest_invalid")),
+        None => {
+            return candidate(
+                selection,
+                CandidateStatus::Invalid,
+                None,
+                None,
+                None,
+                Some("manifest_invalid"),
+            )
+        }
     };
     let digest = format!("{:x}", Sha256::digest(&bytes));
-    candidate(selection, CandidateStatus::Valid, Some(digest), Some(identity), Some((raw, parsed)), None)
+    candidate(
+        selection,
+        CandidateStatus::Valid,
+        Some(digest),
+        Some(identity),
+        Some((raw, parsed)),
+        None,
+    )
 }
 
 fn candidate(
@@ -224,11 +307,15 @@ fn candidate(
     contents: Option<(Value, PluginManifest)>,
     code: Option<&'static str>,
 ) -> CandidateRead {
-    let (raw, parsed) = contents.map_or((None, None), |(raw, parsed)| {
-        (Some(raw), Some(parsed))
-    });
+    let (raw, parsed) = contents.map_or((None, None), |(raw, parsed)| (Some(raw), Some(parsed)));
     CandidateRead {
-        summary: ManifestCandidate { selection, status, manifest_sha256, identity, code },
+        summary: ManifestCandidate {
+            selection,
+            status,
+            manifest_sha256,
+            identity,
+            code,
+        },
         raw,
         parsed,
         invalid_plugin_id: false,
@@ -242,34 +329,48 @@ pub(super) fn identity(manifest: &PluginManifest) -> Option<ManifestIdentity> {
 impl ManifestIdentity {
     #[doc(hidden)]
     pub fn from_plugin_manifest(manifest: &PluginManifest) -> Option<Self> {
-    let id = crate::source_build::policy::stable_installation_id(&manifest.name)?;
-    let version = bounded(&manifest.version, MAX_VERSION_BYTES)?;
-    let main = bounded(manifest.main.as_deref()?, MAX_ENTRY_BYTES)?;
-    let preload = match manifest.preload.as_deref() {
-        Some(value) => Some(bounded(value, MAX_ENTRY_BYTES)?),
-        None => None,
-    };
-    let runtime = match manifest.effective_runtime_kind() {
-        PluginRuntimeKind::Web => "web",
-        PluginRuntimeKind::Node => "node",
-        PluginRuntimeKind::Rust | PluginRuntimeKind::Wasm => return None,
-    };
-    if id.len() > MAX_ID_BYTES || manifest.features.len() > MAX_FEATURE_CODES {
-        return None;
-    }
-    let feature_codes = manifest.features.iter().map(|feature| {
-        let code = feature.code.as_str();
-        if code.trim().is_empty() || code.len() > MAX_FEATURE_CODE_BYTES || code.chars().any(char::is_control) {
-            None
-        } else {
-            Some(code.to_owned())
+        let id = crate::source_build::policy::stable_installation_id(&manifest.name)?;
+        let version = bounded(&manifest.version, MAX_VERSION_BYTES)?;
+        let main = bounded(manifest.main.as_deref()?, MAX_ENTRY_BYTES)?;
+        let preload = match manifest.preload.as_deref() {
+            Some(value) => Some(bounded(value, MAX_ENTRY_BYTES)?),
+            None => None,
+        };
+        let runtime = match manifest.effective_runtime_kind() {
+            PluginRuntimeKind::Web => "web",
+            PluginRuntimeKind::Node => "node",
+            PluginRuntimeKind::Rust | PluginRuntimeKind::Wasm => return None,
+        };
+        if id.len() > MAX_ID_BYTES || manifest.features.len() > MAX_FEATURE_CODES {
+            return None;
         }
-    }).collect::<Option<Vec<_>>>()?;
-    let identity = ManifestIdentity { id, version, main, preload, runtime: runtime.into(), feature_codes };
-    if canonical_json_len(&identity)? > MAX_IDENTITY_JSON_BYTES {
-        return None;
-    }
-    Some(identity)
+        let feature_codes = manifest
+            .features
+            .iter()
+            .map(|feature| {
+                let code = feature.code.as_str();
+                if code.trim().is_empty()
+                    || code.len() > MAX_FEATURE_CODE_BYTES
+                    || code.chars().any(char::is_control)
+                {
+                    None
+                } else {
+                    Some(code.to_owned())
+                }
+            })
+            .collect::<Option<Vec<_>>>()?;
+        let identity = ManifestIdentity {
+            id,
+            version,
+            main,
+            preload,
+            runtime: runtime.into(),
+            feature_codes,
+        };
+        if canonical_json_len(&identity)? > MAX_IDENTITY_JSON_BYTES {
+            return None;
+        }
+        Some(identity)
     }
 }
 
@@ -301,4 +402,3 @@ fn bounded(value: &str, max_bytes: usize) -> Option<String> {
     (!value.trim().is_empty() && value.len() <= max_bytes && !value.chars().any(char::is_control))
         .then(|| value.to_owned())
 }
-

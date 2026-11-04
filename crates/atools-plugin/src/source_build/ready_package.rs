@@ -77,58 +77,121 @@ mod tests {
 
     fn ready_root() -> tempfile::TempDir {
         let root = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
-        write_manifest(root.path(), "plugin.json", &json!({
-            "name":"ready-a", "version":"1.0.0", "main":"index.html"
-        }));
-        std::fs::write(root.path().join("index.html"), "<html><body>ready</body></html>").unwrap();
+        write_manifest(
+            root.path(),
+            "plugin.json",
+            &json!({
+                "name":"ready-a", "version":"1.0.0", "main":"index.html"
+            }),
+        );
+        std::fs::write(
+            root.path().join("index.html"),
+            "<html><body>ready</body></html>",
+        )
+        .unwrap();
         root
     }
 
     #[test]
     fn default_root_and_matching_explicit_public_keep_ready_identity() {
         let root = ready_root();
-        write_manifest(root.path(), "public/plugin.json", &json!({
-            "name":"public-b", "version":"2.0.0", "main":"public.html"
-        }));
+        write_manifest(
+            root.path(),
+            "public/plugin.json",
+            &json!({
+                "name":"public-b", "version":"2.0.0", "main":"public.html"
+            }),
+        );
 
         let default = crate::source_build::inspect_source_build(root.path()).unwrap();
         assert_eq!(default.status, SourceBuildStatus::AlreadyReady);
         assert_eq!(default.plugin_id.as_deref(), Some("ready-a"));
         assert_eq!(default.version.as_deref(), Some("1.0.0"));
-        assert_eq!(default.manifest_selection.manifest_selection, Some(ManifestSelection::Root));
-        assert_eq!(default.manifest_selection.manifest_identity.as_ref().unwrap().id, "ready-a");
+        assert_eq!(
+            default.manifest_selection.manifest_selection,
+            Some(ManifestSelection::Root)
+        );
+        assert_eq!(
+            default
+                .manifest_selection
+                .manifest_identity
+                .as_ref()
+                .unwrap()
+                .id,
+            "ready-a"
+        );
         let default_json = serde_json::to_value(&default).unwrap();
-        assert_eq!(default_json["manifestCandidates"].as_array().unwrap().len(), 2);
-        assert_eq!(default_json["manifestDifferences"], json!(["id", "version", "main"]));
+        assert_eq!(
+            default_json["manifestCandidates"].as_array().unwrap().len(),
+            2
+        );
+        assert_eq!(
+            default_json["manifestDifferences"],
+            json!(["id", "version", "main"])
+        );
 
-        write_manifest(root.path(), "public/plugin.json", &json!({
-            "name":"ready-a", "version":"1.0.0", "main":"index.html"
-        }));
+        write_manifest(
+            root.path(),
+            "public/plugin.json",
+            &json!({
+                "name":"ready-a", "version":"1.0.0", "main":"index.html"
+            }),
+        );
         let explicit = crate::source_build::inspect_source_build_with_manifest_selection(
-            root.path(), Some(ManifestSelection::Public),
-        ).unwrap();
+            root.path(),
+            Some(ManifestSelection::Public),
+        )
+        .unwrap();
         assert_eq!(explicit.status, SourceBuildStatus::AlreadyReady);
         assert_eq!(explicit.plugin_id.as_deref(), Some("ready-a"));
         assert_eq!(explicit.version.as_deref(), Some("1.0.0"));
-        assert_eq!(explicit.manifest_selection.manifest_selection, Some(ManifestSelection::Public));
-        assert_eq!(explicit.manifest_selection.manifest_identity.as_ref().unwrap().id, "ready-a");
+        assert_eq!(
+            explicit.manifest_selection.manifest_selection,
+            Some(ManifestSelection::Public)
+        );
+        assert_eq!(
+            explicit
+                .manifest_selection
+                .manifest_identity
+                .as_ref()
+                .unwrap()
+                .id,
+            "ready-a"
+        );
     }
 
     #[test]
     fn explicit_public_different_from_ready_root_does_not_fall_back_to_ready_root() {
         let root = ready_root();
-        write_manifest(root.path(), "public/plugin.json", &json!({
-            "name":"public-b", "version":"2.0.0", "main":"public.html"
-        }));
+        write_manifest(
+            root.path(),
+            "public/plugin.json",
+            &json!({
+                "name":"public-b", "version":"2.0.0", "main":"public.html"
+            }),
+        );
 
         let explicit = crate::source_build::inspect_source_build_with_manifest_selection(
-            root.path(), Some(ManifestSelection::Public),
-        ).unwrap();
+            root.path(),
+            Some(ManifestSelection::Public),
+        )
+        .unwrap();
         assert_eq!(explicit.status, SourceBuildStatus::Blocked);
         assert_eq!(explicit.plugin_id.as_deref(), Some("public-b"));
         assert_eq!(explicit.version.as_deref(), Some("2.0.0"));
-        assert_eq!(explicit.manifest_selection.manifest_selection, Some(ManifestSelection::Public));
-        assert_eq!(explicit.manifest_selection.manifest_identity.as_ref().unwrap().id, "public-b");
+        assert_eq!(
+            explicit.manifest_selection.manifest_selection,
+            Some(ManifestSelection::Public)
+        );
+        assert_eq!(
+            explicit
+                .manifest_selection
+                .manifest_identity
+                .as_ref()
+                .unwrap()
+                .id,
+            "public-b"
+        );
         assert!(!explicit.blockers.is_empty());
     }
 
@@ -139,12 +202,17 @@ mod tests {
         std::fs::write(root.path().join("public/plugin.json"), b"not-json").unwrap();
 
         let explicit = crate::source_build::inspect_source_build_with_manifest_selection(
-            root.path(), Some(ManifestSelection::Public),
-        ).unwrap();
+            root.path(),
+            Some(ManifestSelection::Public),
+        )
+        .unwrap();
         assert_eq!(explicit.status, SourceBuildStatus::Blocked);
         assert_eq!(explicit.plugin_id, None);
         assert_eq!(explicit.version, None);
-        assert_eq!(explicit.manifest_selection.manifest_selection, Some(ManifestSelection::Public));
+        assert_eq!(
+            explicit.manifest_selection.manifest_selection,
+            Some(ManifestSelection::Public)
+        );
         assert_eq!(explicit.manifest_selection.manifest_identity, None);
     }
 
@@ -156,9 +224,17 @@ mod tests {
         let scan = manifest_selection::scan(root.path(), None);
         let resolved: PluginManifest = serde_json::from_value(json!({
             "name":"ready-a", "version":"1.0.0", "main":"index.html"
-        })).unwrap();
+        }))
+        .unwrap();
         let mut info = scan.info;
-        let result = inspect_ready_package(root.path(), &resolved, None, scan.selected.as_ref(), &mut info).unwrap();
+        let result = inspect_ready_package(
+            root.path(),
+            &resolved,
+            None,
+            scan.selected.as_ref(),
+            &mut info,
+        )
+        .unwrap();
         assert_eq!(result.status, SourceBuildStatus::AlreadyReady);
         assert_eq!(result.plugin_id.as_deref(), Some("ready-a"));
         assert_eq!(result.version.as_deref(), Some("1.0.0"));
@@ -166,6 +242,9 @@ mod tests {
         assert_eq!(result.manifest_selection.manifest_sha256, None);
         assert_eq!(result.manifest_selection.manifest_identity, None);
         let serialized = serde_json::to_value(result).unwrap();
-        assert_eq!(serialized["manifestCandidates"].as_array().unwrap().len(), 2);
+        assert_eq!(
+            serialized["manifestCandidates"].as_array().unwrap().len(),
+            2
+        );
     }
 }

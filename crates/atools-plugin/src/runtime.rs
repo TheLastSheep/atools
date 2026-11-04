@@ -111,7 +111,10 @@ impl JsRuntime {
     /// 1. An IPC dispatcher thread hosting a tokio runtime and `handler`.
     /// 2. A QuickJS worker thread hosting the JS runtime and per-plugin contexts.
     pub fn new(handler: Arc<dyn IpcHandler>) -> Result<Self> {
-        Self::new_with_node_runtime_selector(handler, crate::sidecar::NodeRuntimeSelector::default())
+        Self::new_with_node_runtime_selector(
+            handler,
+            crate::sidecar::NodeRuntimeSelector::default(),
+        )
     }
 
     /// Create a runtime with a host-provided selector for Node preload bridges.

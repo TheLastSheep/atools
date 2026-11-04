@@ -50,8 +50,8 @@ use plan::inspect_plan;
 pub use plan::{
     prepare_source_build, prepare_source_build_with_manifest_selection, SourceBuildPlan,
 };
-pub use vite_backend::ViteBuildBackend;
 pub use script_plan::BuildStep;
+pub use vite_backend::ViteBuildBackend;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
@@ -217,7 +217,11 @@ impl SourceBuildInspection {
         plan: Option<SourceBuildPlan>,
     ) -> Self {
         Self::from_parts_with_manifest(
-            status, plugin_id, version, blockers, plan,
+            status,
+            plugin_id,
+            version,
+            blockers,
+            plan,
             manifest_selection::ManifestSelectionInfo::empty(),
         )
     }
@@ -230,8 +234,18 @@ impl SourceBuildInspection {
         plan: Option<SourceBuildPlan>,
         manifest_selection: ManifestSelectionInfo,
     ) -> Self {
-        let build_steps = plan.as_ref().map(|plan| summarize_build_steps(&plan.build_steps));
-        Self { manifest_selection, status, plugin_id, version, blockers, build_steps, plan }
+        let build_steps = plan
+            .as_ref()
+            .map(|plan| summarize_build_steps(&plan.build_steps));
+        Self {
+            manifest_selection,
+            status,
+            plugin_id,
+            version,
+            blockers,
+            build_steps,
+            plan,
+        }
     }
 
     pub(crate) fn take_plan(self) -> Option<SourceBuildPlan> {

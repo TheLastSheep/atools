@@ -436,7 +436,10 @@ mod native {
         if let Ok(out) = std::process::Command::new(cmd.0).args(cmd.1).output() {
             if let Ok(pid) = String::from_utf8_lossy(&out.stdout).trim().parse::<i32>() {
                 if out.status.success() {
-                    return Ok(ForegroundTarget { pid, bundle_id: None });
+                    return Ok(ForegroundTarget {
+                        pid,
+                        bundle_id: None,
+                    });
                 }
             }
         }
@@ -467,7 +470,10 @@ mod native {
             .args(&args)
             .status()
             .map_err(|_| "Keyboard input command failed to start".to_string())?;
-        status.success().then_some(()).ok_or_else(|| "Keyboard input command failed".into())
+        status
+            .success()
+            .then_some(())
+            .ok_or_else(|| "Keyboard input command failed".into())
     }
 }
 

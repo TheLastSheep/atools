@@ -59,16 +59,29 @@ pub struct ObserverReport {
 impl ObserverReport {
     pub fn failed(config: &LaunchConfig, error: String) -> Self {
         Self {
-            schema_version: 1, mode: "launchservices-private-fixture", run_id: config.run_id.clone(),
-            case_id: config.case_id.clone(), observer_pid: std::process::id(), target_pid: None,
-            target_bundle_url: None, target_bundle_id: None, target_executable_url: None,
+            schema_version: 1,
+            mode: "launchservices-private-fixture",
+            run_id: config.run_id.clone(),
+            case_id: config.case_id.clone(),
+            observer_pid: std::process::id(),
+            target_pid: None,
+            target_bundle_url: None,
+            target_bundle_id: None,
+            target_executable_url: None,
             target_process_identity: None,
-            launch_date_present: false, launch_date_in_window: false, launch_callback_received: false,
-            target_terminated: false, target_os_exit_code: None,
+            launch_date_present: false,
+            launch_date_in_window: false,
+            launch_callback_received: false,
+            target_terminated: false,
+            target_os_exit_code: None,
             target_os_exit_code_source: "NSRunningApplication does not expose process exit status",
-            termination_identity_rechecked: false, log_bytes: 0, log_encoded_bytes: 0,
-            log_frame_count: 0, log_overflow: false,
-            log_route_complete: false, error: Some(error),
+            termination_identity_rechecked: false,
+            log_bytes: 0,
+            log_encoded_bytes: 0,
+            log_frame_count: 0,
+            log_overflow: false,
+            log_route_complete: false,
+            error: Some(error),
         }
     }
 }
@@ -76,21 +89,36 @@ impl ObserverReport {
 pub fn write_report(path: &Path, report: &ObserverReport) -> Result<(), String> {
     let parent = path.parent().ok_or("observer report has no parent")?;
     validate_private_directory(parent)?;
-    if path.exists() { return Err("observer report path already exists".into()); }
+    if path.exists() {
+        return Err("observer report path already exists".into());
+    }
     let bytes = serde_json::to_vec_pretty(report).map_err(|error| error.to_string())?;
-    if bytes.len() > 64 * 1024 { return Err("observer report exceeds fixed size budget".into()); }
-    let mut file = OpenOptions::new().write(true).create_new(true).mode(0o600).open(path)
+    if bytes.len() > 64 * 1024 {
+        return Err("observer report exceeds fixed size budget".into());
+    }
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .open(path)
         .map_err(|error| format!("create observer report: {error}"))?;
-    file.write_all(&bytes).map_err(|error| format!("write observer report: {error}"))?;
-    file.write_all(b"\n").map_err(|error| format!("finish observer report: {error}"))?;
-    file.sync_all().map_err(|error| format!("sync observer report: {error}"))?;
+    file.write_all(&bytes)
+        .map_err(|error| format!("write observer report: {error}"))?;
+    file.write_all(b"\n")
+        .map_err(|error| format!("finish observer report: {error}"))?;
+    file.sync_all()
+        .map_err(|error| format!("sync observer report: {error}"))?;
     Ok(())
 }
 
 pub fn validate_private_directory(path: &Path) -> Result<(), String> {
-    let metadata = fs::symlink_metadata(path).map_err(|error| format!("inspect private directory: {error}"))?;
-    if metadata.file_type().is_symlink() || !metadata.is_dir() || metadata.uid() != unsafe { libc::getuid() }
-        || metadata.mode() & 0o077 != 0 {
+    let metadata = fs::symlink_metadata(path)
+        .map_err(|error| format!("inspect private directory: {error}"))?;
+    if metadata.file_type().is_symlink()
+        || !metadata.is_dir()
+        || metadata.uid() != unsafe { libc::getuid() }
+        || metadata.mode() & 0o077 != 0
+    {
         return Err("control directory must be an owned, non-symlink mode-0700 directory".into());
     }
     Ok(())

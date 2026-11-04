@@ -135,9 +135,9 @@ impl Scheduler {
             interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
             loop {
                 tokio::select! {
-                    changed=rx.changed()=>{if changed.is_err(){return} break},
-                    _=interval.tick()=>{launch(desired.generation);},
-                    _=self.finished.notified(),if pending=>{pending=!launch(desired.generation);},
+                    changed = rx.changed() => { if changed.is_err() { return; } break; },
+                    _ = interval.tick() => { launch(desired.generation); },
+                    _ = self.finished.notified(), if pending => { pending = !launch(desired.generation); },
                 }
             }
         }

@@ -225,6 +225,8 @@ fn pinyin_initial_from_char(c: char) -> char {
     c
 }
 
+pub(crate) use index::file_regex_literal_source;
+
 #[cfg(test)]
 mod pinyin_tests {
     use super::*;
@@ -244,5 +246,3 @@ mod pinyin_tests {
         assert_eq!(pinyin_initial_from_char('剪'), 'j');
     }
 }
-
-pub(crate) use index::file_regex_literal_source;

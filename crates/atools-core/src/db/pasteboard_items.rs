@@ -1,8 +1,8 @@
+use super::pasteboard_support::json_column;
 use super::Database;
 use crate::error::{AToolsError, Result};
 use crate::pasteboard::{PasteboardItem, PasteboardItemKind};
 use rusqlite::params;
-use super::pasteboard_support::json_column;
 
 impl Database {
     // ---- Native Paste clipboard runtime ----
@@ -132,7 +132,6 @@ impl Database {
         let conn = self.conn.lock();
         Ok(conn.execute("DELETE FROM pasteboard_items WHERE id = ?1", params![id])? > 0)
     }
-
 }
 fn validate_pasteboard_item(item: &PasteboardItem) -> Result<()> {
     if item.id.trim().is_empty()
@@ -195,4 +194,3 @@ fn pasteboard_item_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Pastebo
         field_clocks,
     })
 }
-

@@ -28,10 +28,10 @@ use atools_core::{
     agent::{PermissionDecision, ToolDefinition},
     Database,
 };
-pub(crate) use privacy::bind_run;
-pub(crate) use privacy::validate_private_request;
 #[cfg(feature = "legacy-node-smoke")]
 pub(crate) use failure_category::task_run_audit_fields;
+pub(crate) use privacy::bind_run;
+pub(crate) use privacy::validate_private_request;
 use serde_json::{json, Value};
 pub(crate) use sessions::Sessions;
 use std::sync::{atomic::Ordering, Arc};

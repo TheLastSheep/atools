@@ -99,8 +99,12 @@ pub(crate) fn deactivate(app: &AppHandle) -> tauri::Result<()> {
 
 pub(super) fn shutdown_locked(app: &AppHandle, owned: &mut bool) -> Result<(), String> {
     if *owned {
-        app.global_shortcut().unregister(PASTE_STACK_SHORTCUT).map_err(|_| "Paste Stack unregister failed")?;
-        if is_registered(app)? { return Err("Paste Stack unregister readback failed".into()); }
+        app.global_shortcut()
+            .unregister(PASTE_STACK_SHORTCUT)
+            .map_err(|_| "Paste Stack unregister failed")?;
+        if is_registered(app)? {
+            return Err("Paste Stack unregister readback failed".into());
+        }
         *owned = false;
     }
     Ok(())
@@ -136,19 +140,27 @@ fn is_registered(app: &AppHandle) -> Result<bool, String> {
         .ok_or_else(|| "Global shortcut manager is unavailable".into())
 }
 
-fn register(app: &AppHandle) -> Result<std::sync::Arc<crate::app_global_shortcuts::recording_gate::Receipt>, String> {
+fn register(
+    app: &AppHandle,
+) -> Result<std::sync::Arc<crate::app_global_shortcuts::recording_gate::Receipt>, String> {
     let handle = app.clone();
     let gate = crate::app_global_shortcuts::recording::gate(app)?;
     let receipt = gate.receipt(None)?;
     let callback_receipt = receipt.clone();
     app.global_shortcut()
         .on_shortcut(PASTE_STACK_SHORTCUT, move |_app, _shortcut, event| {
-            let Some(epoch) = callback_receipt.edge(event.state == ShortcutState::Pressed) else { return; };
+            let Some(epoch) = callback_receipt.edge(event.state == ShortcutState::Pressed) else {
+                return;
+            };
             let handle = handle.clone();
             let receipt = std::sync::Arc::downgrade(&callback_receipt);
             tauri::async_runtime::spawn(async move {
-                let Some(receipt) = receipt.upgrade() else { return; };
-                let Some(_permit) = receipt.admit(epoch) else { return; };
+                let Some(receipt) = receipt.upgrade() else {
+                    return;
+                };
+                let Some(_permit) = receipt.admit(epoch) else {
+                    return;
+                };
                 drop(receipt);
                 if let Err(error) = deactivate(&handle) {
                     tracing::warn!(%error, "Failed to suspend Paste Stack shortcut");

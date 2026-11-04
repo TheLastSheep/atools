@@ -64,7 +64,11 @@ impl ShortcutPort for TauriShortcutPort<'_> {
                 });
             })
             .map_err(|error| error.to_string())?;
-        crate::app_global_shortcuts::feature_dispatch::publish_registration(self.app, shortcut.id(), &receipt)?;
+        crate::app_global_shortcuts::feature_dispatch::publish_registration(
+            self.app,
+            shortcut.id(),
+            &receipt,
+        )?;
         if !manager.inner().is_registered(shortcut) {
             return Err("App shortcut registration readback failed".into());
         }
@@ -77,14 +81,24 @@ impl ShortcutPort for TauriShortcutPort<'_> {
             .app
             .try_state::<GlobalShortcut<tauri::Wry>>()
             .ok_or_else(|| "Global shortcut plugin is unavailable".to_owned())?;
-        manager.inner().unregister(shortcut).map_err(|error| error.to_string())?;
-        if manager.inner().is_registered(shortcut) { return Err("App shortcut unregister readback failed".into()); }
+        manager
+            .inner()
+            .unregister(shortcut)
+            .map_err(|error| error.to_string())?;
+        if manager.inner().is_registered(shortcut) {
+            return Err("App shortcut unregister readback failed".into());
+        }
         crate::app_global_shortcuts::feature_dispatch::retire_registration(self.app, shortcut.id())
     }
 }
 
-pub(crate) fn shutdown_locked(app: &AppHandle, registry: &mut OwnedAppShortcutRegistry) -> Result<(), String> {
-    registry.replace_all(&mut TauriShortcutPort { app }, Default::default()).map(|_| ())
+pub(crate) fn shutdown_locked(
+    app: &AppHandle,
+    registry: &mut OwnedAppShortcutRegistry,
+) -> Result<(), String> {
+    registry
+        .replace_all(&mut TauriShortcutPort { app }, Default::default())
+        .map(|_| ())
 }
 
 fn with_registry<T>(

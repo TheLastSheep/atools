@@ -104,7 +104,11 @@ fn stale_prepare_or_commit_conflicts_without_overwriting_the_new_snapshot() {
 #[test]
 fn r74_close_shortcut_patch_is_a_strict_nested_boolean() {
     assert!(validate_renderer_general_settings_patch(&patch(json!({"closePlugin":false}))).is_ok());
-    for value in [json!({"closePlugin":"false"}),json!({"closePlugin":null}),json!({"closePlugin":true,"killPlugin":true})] {
+    for value in [
+        json!({"closePlugin":"false"}),
+        json!({"closePlugin":null}),
+        json!({"closePlugin":true,"killPlugin":true}),
+    ] {
         assert!(validate_renderer_general_settings_patch(&patch(value)).is_err());
     }
 }
@@ -114,7 +118,11 @@ fn r74_close_mutation_preserves_raw_fields_and_stale_cas_never_overwrites() {
     let raw = r#"{"opaque":90071992547409931234567,"builtinAppShortcutsEnabled":{"search":false,"esc":true,"closePlugin":true,"killPlugin":false,"unknown":1.000000000000000111}}"#;
     let cases = [
         (json!({"closePlugin":false}), false, true),
-        (json!({"search":true,"esc":false,"closePlugin":false}), true, false),
+        (
+            json!({"search":true,"esc":false,"closePlugin":false}),
+            true,
+            false,
+        ),
     ];
 
     for (patch_value, expected_search, expected_esc) in cases {

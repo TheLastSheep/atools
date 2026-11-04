@@ -1,3 +1,5 @@
+#![allow(dead_code, clippy::format_in_format_args)]
+
 use atools_core::{matcher::MediaFile, Database, Plugin};
 use serde_json::json;
 use std::time::{Duration, Instant};

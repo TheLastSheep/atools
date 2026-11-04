@@ -10,15 +10,15 @@ use std::sync::atomic::AtomicBool;
 use thiserror::Error;
 
 #[cfg(target_os = "macos")]
-mod metadata;
-#[cfg(target_os = "macos")]
-mod macos;
+mod gzip;
 #[cfg(target_os = "macos")]
 mod lock;
 #[cfg(target_os = "macos")]
-mod unix;
+mod macos;
 #[cfg(target_os = "macos")]
-mod gzip;
+mod metadata;
+#[cfg(target_os = "macos")]
+mod unix;
 
 #[cfg(all(test, target_os = "macos"))]
 #[path = "node_runtime_cache_tests.rs"]

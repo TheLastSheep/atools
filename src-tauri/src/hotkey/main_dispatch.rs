@@ -111,7 +111,9 @@ pub(super) fn retire(app: &AppHandle, binding: MainBinding) -> Result<(), String
     let runtime = runtime(app)?;
     let entries = runtime.entries.lock();
     if let Some(entry) = entries.iter().find(|entry| entry.binding == binding) {
-        if let Some(receipt) = entry.token.receipt.lock().as_ref() { receipt.retire(); }
+        if let Some(receipt) = entry.token.receipt.lock().as_ref() {
+            receipt.retire();
+        }
     }
     Ok(())
 }
@@ -137,30 +139,51 @@ pub(super) fn publish(app: &AppHandle, owner: Option<(MainBinding, u64)>) {
         entry.token.publish(generation);
     }
 }
-pub(super) fn enqueue(app: &AppHandle, token: &Arc<Token>, receipt: Weak<crate::app_global_shortcuts::recording_gate::Receipt>, epoch: u64) {
+pub(super) fn enqueue(
+    app: &AppHandle,
+    token: &Arc<Token>,
+    receipt: Weak<crate::app_global_shortcuts::recording_gate::Receipt>,
+    epoch: u64,
+) {
     enqueue_action(app, token, receipt, false, epoch);
 }
 pub(super) fn enqueue_double(app: &AppHandle, token: &Arc<Token>, epoch: u64) {
     let receipt = token.receipt.lock().as_ref().map(Arc::downgrade);
-    if let Some(receipt) = receipt { enqueue_action(app, token, receipt, true, epoch); }
+    if let Some(receipt) = receipt {
+        enqueue_action(app, token, receipt, true, epoch);
+    }
 }
-fn enqueue_action(app: &AppHandle, token: &Arc<Token>, receipt: Weak<crate::app_global_shortcuts::recording_gate::Receipt>, double: bool, epoch: u64) {
+fn enqueue_action(
+    app: &AppHandle,
+    token: &Arc<Token>,
+    receipt: Weak<crate::app_global_shortcuts::recording_gate::Receipt>,
+    double: bool,
+    epoch: u64,
+) {
     let stamp = token.epoch.load(Ordering::Acquire);
-    if !token.valid(stamp) { return; }
+    if !token.valid(stamp) {
+        return;
+    }
     let app = app.clone();
     let token = token.clone();
     tauri::async_runtime::spawn(async move {
         let target = app.clone();
         let _ = app.run_on_main_thread(move || {
             if token.valid(stamp) && !is_closed(&target) {
-                let Some(receipt) = receipt.upgrade() else { return; };
-                let Some(_permit) = receipt.admit(epoch) else { return; };
+                let Some(receipt) = receipt.upgrade() else {
+                    return;
+                };
+                let Some(_permit) = receipt.admit(epoch) else {
+                    return;
+                };
                 drop(receipt);
                 if let Err(error) = if double {
                     super::toggle_main_window_from_double_tap(&target)
                 } else {
                     super::toggle_main_window(&target)
-                } { tracing::error!(%error, "Main shortcut action failed"); }
+                } {
+                    tracing::error!(%error, "Main shortcut action failed");
+                }
             }
         });
     });

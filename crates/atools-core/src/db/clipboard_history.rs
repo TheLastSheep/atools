@@ -37,10 +37,14 @@ impl Database {
         page_size: usize,
     ) -> Result<ClipboardHistoryPage> {
         if query.len() > CLIPBOARD_HISTORY_QUERY_BYTES_MAX {
-            return Err(AToolsError::Config("Clipboard history query exceeds 256 bytes".into()));
+            return Err(AToolsError::Config(
+                "Clipboard history query exceeds 256 bytes".into(),
+            ));
         }
         if page == 0 || page_size == 0 || page_size > CLIPBOARD_HISTORY_PAGE_SIZE_MAX {
-            return Err(AToolsError::Config("Invalid clipboard history page bounds".into()));
+            return Err(AToolsError::Config(
+                "Invalid clipboard history page bounds".into(),
+            ));
         }
         let offset = page
             .checked_sub(1)
@@ -65,25 +69,29 @@ impl Database {
                LIMIT ?3 OFFSET ?4"#,
         )?;
         let mut bounded_items = stmt
-            .query_map(params![query, pattern, page_size as i64, offset as i64], |row| {
-                Ok((
-                    ClipboardHistoryPageItem {
-                        id: row.get(0)?,
-                        r#type: "text".to_string(),
-                        timestamp: row.get(1)?,
-                        preview: String::new(),
-                        content: String::new(),
-                    },
-                    row.get::<_, i64>(2)?,
-                ))
-            })?
+            .query_map(
+                params![query, pattern, page_size as i64, offset as i64],
+                |row| {
+                    Ok((
+                        ClipboardHistoryPageItem {
+                            id: row.get(0)?,
+                            r#type: "text".to_string(),
+                            timestamp: row.get(1)?,
+                            preview: String::new(),
+                            content: String::new(),
+                        },
+                        row.get::<_, i64>(2)?,
+                    ))
+                },
+            )?
             .collect::<std::result::Result<Vec<_>, _>>()?;
         drop(stmt);
 
         let mut aggregate_content_bytes = 0usize;
         for (_, row_bytes) in &bounded_items {
-            let row_bytes = usize::try_from(*row_bytes)
-                .map_err(|_| AToolsError::Config("Invalid clipboard history content size".into()))?;
+            let row_bytes = usize::try_from(*row_bytes).map_err(|_| {
+                AToolsError::Config("Invalid clipboard history content size".into())
+            })?;
             if row_bytes > CLIPBOARD_HISTORY_TEXT_BYTES_MAX {
                 return Err(AToolsError::Config(
                     "Clipboard history content exceeds 256 KiB".into(),
@@ -97,14 +105,15 @@ impl Database {
                 })?;
         }
 
-        let mut content_stmt = tx.prepare_cached(
-            "SELECT text FROM clipboard_history WHERE id = ?1",
-        )?;
+        let mut content_stmt =
+            tx.prepare_cached("SELECT text FROM clipboard_history WHERE id = ?1")?;
         for (item, expected_bytes) in &mut bounded_items {
             item.content = content_stmt.query_row(params![&item.id], |row| row.get(0))?;
-            if item.content.len() != usize::try_from(*expected_bytes).map_err(|_| {
-                AToolsError::Config("Invalid clipboard history content size".into())
-            })? {
+            if item.content.len()
+                != usize::try_from(*expected_bytes).map_err(|_| {
+                    AToolsError::Config("Invalid clipboard history content size".into())
+                })?
+            {
                 return Err(AToolsError::Config(
                     "Clipboard history content changed during page read".into(),
                 ));
@@ -120,7 +129,12 @@ impl Database {
         tx.commit()?;
         let total = usize::try_from(total)
             .map_err(|_| AToolsError::Config("Invalid clipboard history count".into()))?;
-        Ok(ClipboardHistoryPage { items, total, page, page_size })
+        Ok(ClipboardHistoryPage {
+            items,
+            total,
+            page,
+            page_size,
+        })
     }
 
     pub fn clipboard_history_text(&self, id: &str) -> Result<Option<ClipboardHistoryEntry>> {
@@ -139,7 +153,9 @@ impl Database {
             return Ok(None);
         };
         if bytes < 0 || bytes as usize > CLIPBOARD_HISTORY_TEXT_BYTES_MAX {
-            return Err(AToolsError::Config("Clipboard history content exceeds 256 KiB".into()));
+            return Err(AToolsError::Config(
+                "Clipboard history content exceeds 256 KiB".into(),
+            ));
         }
         let mut stmt = tx.prepare_cached(
             "SELECT id, text, first_copied_at, last_copied_at, used_count FROM clipboard_history WHERE id = ?1",
@@ -187,6 +203,7 @@ impl Database {
 
     /// Mirrors one accepted native text capture into the legacy plugin history.
     /// The per-device marker makes retries idempotent without storing clipboard text.
+    #[allow(clippy::too_many_arguments)]
     pub fn record_clipboard_capture_projection(
         &self,
         text: &str,
@@ -202,8 +219,14 @@ impl Database {
                 "Clipboard projection text is empty or exceeds the history limit".into(),
             ));
         }
-        if device_id.is_empty() || capture_epoch_id.is_empty() || change_count < 0 || snapshot_fingerprint.len() != 64 {
-            return Err(AToolsError::Config("Invalid clipboard capture identity".into()));
+        if device_id.is_empty()
+            || capture_epoch_id.is_empty()
+            || change_count < 0
+            || snapshot_fingerprint.len() != 64
+        {
+            return Err(AToolsError::Config(
+                "Invalid clipboard capture identity".into(),
+            ));
         }
         let marker_key = format!("pasteboard.clipboard_projection.{device_id}");
         let marker_value = format!("{capture_epoch_id}:{change_count}:{snapshot_fingerprint}");
@@ -311,18 +334,27 @@ impl Database {
             "entries": entries,
         }))?)
     }
-
 }
 
 fn validate_clipboard_history_id(id: &str) -> Result<()> {
     let valid = id.strip_prefix("clip-").is_some_and(|hash| {
-        hash.len() == 16 && hash.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        hash.len() == 16
+            && hash
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
     });
-    if valid { Ok(()) } else { Err(AToolsError::Config("Invalid clipboard history id".into())) }
+    if valid {
+        Ok(())
+    } else {
+        Err(AToolsError::Config("Invalid clipboard history id".into()))
+    }
 }
 
 fn escape_like_pattern(value: &str) -> String {
-    value.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_")
+    value
+        .replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_")
 }
 
 fn clipboard_history_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ClipboardHistoryEntry> {

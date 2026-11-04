@@ -290,8 +290,16 @@ pub(super) fn handler() -> impl Fn(tauri::ipc::Invoke<Wry>) -> bool + Send + Syn
     ];
 
     move |invoke: tauri::ipc::Invoke<Wry>| {
-        if invoke.message.webview().label().starts_with("renderer-updater-") && invoke.message.command()!="renderer_updater_window" {
-            invoke.resolver.reject(serde_json::json!({"code":"forbidden_window","message":"更新窗口无权调用此命令"}));
+        if invoke
+            .message
+            .webview()
+            .label()
+            .starts_with("renderer-updater-")
+            && invoke.message.command() != "renderer_updater_window"
+        {
+            invoke.resolver.reject(
+                serde_json::json!({"code":"forbidden_window","message":"更新窗口无权调用此命令"}),
+            );
             return true;
         }
         #[cfg(feature = "ztools-multiwebview")]

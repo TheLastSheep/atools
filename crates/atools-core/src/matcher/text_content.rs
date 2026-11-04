@@ -35,7 +35,7 @@ impl FeatureSearchIndex {
                     _ => None,
                 };
                 if let Some((score, kind)) = matched {
-                    if best.map_or(true, |(previous, _)| score > previous) {
+                    if best.is_none_or(|(previous, _)| score > previous) {
                         best = Some((score, kind));
                     }
                 }

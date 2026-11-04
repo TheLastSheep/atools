@@ -62,4 +62,3 @@ pub(super) fn ipc_dispatcher_main(
 
     debug!("IPC dispatcher thread shutting down");
 }
-

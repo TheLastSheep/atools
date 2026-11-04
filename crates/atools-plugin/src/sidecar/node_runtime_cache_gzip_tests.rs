@@ -13,7 +13,9 @@ fn gzip(bytes: &[u8]) -> Vec<u8> {
     encoder.write_all(bytes).unwrap();
     encoder.finish().unwrap()
 }
-fn sha(bytes: &[u8]) -> String { format!("{:x}", Sha256::digest(bytes)) }
+fn sha(bytes: &[u8]) -> String {
+    format!("{:x}", Sha256::digest(bytes))
+}
 
 struct CancelOnSecondRead<R> {
     inner: R,
@@ -27,7 +29,8 @@ impl<R: Read> Read for CancelOnSecondRead<R> {
     fn read(&mut self, output: &mut [u8]) -> std::io::Result<usize> {
         let read_number = self.reads.fetch_add(1, Ordering::AcqRel) + 1;
         if read_number == 2 {
-            self.checks_at_cancel.store(self.checks.load(Ordering::Acquire), Ordering::Release);
+            self.checks_at_cancel
+                .store(self.checks.load(Ordering::Acquire), Ordering::Release);
             self.cancelled.store(true, Ordering::Release);
         }
         self.inner.read(output)
@@ -50,13 +53,24 @@ impl Write for CancelAfterFirstWrite<'_> {
         Ok(bytes.len())
     }
 
-    fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
 }
 
 fn run(input: &[u8], expected: &[u8], limit: u64) -> Result<Vec<u8>, Error> {
     let mut output = Vec::new();
-    unpack(Cursor::new(input), &mut output, limit, expected.len() as u64, &sha(expected),
-        input.len() as u64, input.len() as u64, &sha(input), || false)?;
+    unpack(
+        Cursor::new(input),
+        &mut output,
+        limit,
+        expected.len() as u64,
+        &sha(expected),
+        input.len() as u64,
+        input.len() as u64,
+        &sha(input),
+        || false,
+    )?;
     Ok(output)
 }
 
@@ -80,9 +94,22 @@ fn retries_one_ordinary_interrupted_read_and_completes_gzip() {
     let expected = b"ordinary interrupted read is not cancellation".repeat(2048);
     let compressed = gzip(&expected);
     let mut output = Vec::new();
-    let input = InterruptedOnce { inner: Cursor::new(&compressed), interrupted: false };
-    unpack(input, &mut output, expected.len() as u64, expected.len() as u64, &sha(&expected),
-        compressed.len() as u64, compressed.len() as u64, &sha(&compressed), || false).unwrap();
+    let input = InterruptedOnce {
+        inner: Cursor::new(&compressed),
+        interrupted: false,
+    };
+    unpack(
+        input,
+        &mut output,
+        expected.len() as u64,
+        expected.len() as u64,
+        &sha(&expected),
+        compressed.len() as u64,
+        compressed.len() as u64,
+        &sha(&compressed),
+        || false,
+    )
+    .unwrap();
     assert_eq!(output, expected);
 }
 
@@ -98,11 +125,14 @@ fn rejects_truncation_crc_corruption_trailing_bytes_and_multimember() {
     let bytes = vec![0x33; 80_000];
     let one = gzip(&bytes);
     assert!(run(&one[..one.len() - 4], &bytes, 100_000).is_err());
-    let mut bad_crc = one.clone(); *bad_crc.last_mut().unwrap() ^= 1;
+    let mut bad_crc = one.clone();
+    *bad_crc.last_mut().unwrap() ^= 1;
     assert!(run(&bad_crc, &bytes, 100_000).is_err());
-    let mut trailing = one.clone(); trailing.extend_from_slice(b"extra");
+    let mut trailing = one.clone();
+    trailing.extend_from_slice(b"extra");
     assert!(run(&trailing, &bytes, 100_000).is_err());
-    let mut second_member = one.clone(); second_member.extend_from_slice(&gzip(b"second"));
+    let mut second_member = one.clone();
+    second_member.extend_from_slice(&gzip(b"second"));
     assert!(run(&second_member, &bytes, 100_000).is_err());
 }
 
@@ -110,28 +140,47 @@ fn rejects_truncation_crc_corruption_trailing_bytes_and_multimember() {
 fn enforces_output_limit_and_checks_cancellation_between_chunks() {
     let bytes = vec![0x41; 180_000];
     let compressed = gzip(&bytes);
-    assert!(matches!(run(&compressed, &bytes, 120_000), Err(Error::LimitExceeded)));
+    assert!(matches!(
+        run(&compressed, &bytes, 120_000),
+        Err(Error::LimitExceeded)
+    ));
     let cancelled = AtomicBool::new(false);
     let mut output = Vec::new();
-    let mut writer = CancelAfterFirstWrite { output: &mut output, cancelled: &cancelled, wrote: false };
-    let result = unpack(Cursor::new(&compressed), &mut writer, 200_000, bytes.len() as u64,
-        &sha(&bytes), compressed.len() as u64, compressed.len() as u64, &sha(&compressed), || {
-            cancelled.load(Ordering::Acquire)
-        });
+    let mut writer = CancelAfterFirstWrite {
+        output: &mut output,
+        cancelled: &cancelled,
+        wrote: false,
+    };
+    let result = unpack(
+        Cursor::new(&compressed),
+        &mut writer,
+        200_000,
+        bytes.len() as u64,
+        &sha(&bytes),
+        compressed.len() as u64,
+        compressed.len() as u64,
+        &sha(&compressed),
+        || cancelled.load(Ordering::Acquire),
+    );
     assert!(matches!(result, Err(Error::Cancelled)));
-    assert!(cancelled.load(Ordering::Acquire), "cancellation follows an actual output write");
+    assert!(
+        cancelled.load(Ordering::Acquire),
+        "cancellation follows an actual output write"
+    );
     assert!(!output.is_empty() && output.len() < bytes.len());
 }
 
 #[test]
 fn cancellation_during_compressed_input_refill_is_terminal() {
     let mut state = 0x9e37_79b9u32;
-    let bytes: Vec<u8> = (0..384 * 1024).map(|_| {
-        state ^= state << 13;
-        state ^= state >> 17;
-        state ^= state << 5;
-        (state >> 24) as u8
-    }).collect();
+    let bytes: Vec<u8> = (0..384 * 1024)
+        .map(|_| {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            (state >> 24) as u8
+        })
+        .collect();
     let compressed = gzip(&bytes);
     assert!(compressed.len() > super::super::metadata::STREAM_BYTES * 2);
     let cancelled = Arc::new(AtomicBool::new(false));
@@ -146,18 +195,34 @@ fn cancellation_during_compressed_input_refill_is_terminal() {
         checks_at_cancel: Arc::clone(&checks_at_cancel),
         cancelled: Arc::clone(&cancelled),
     };
-    let result = unpack(input, &mut output, bytes.len() as u64, bytes.len() as u64, &sha(&bytes),
-        compressed.len() as u64, compressed.len() as u64, &sha(&compressed), {
+    let result = unpack(
+        input,
+        &mut output,
+        bytes.len() as u64,
+        bytes.len() as u64,
+        &sha(&bytes),
+        compressed.len() as u64,
+        compressed.len() as u64,
+        &sha(&compressed),
+        {
             let cancelled = Arc::clone(&cancelled);
             let checks = Arc::clone(&checks);
             move || {
                 checks.fetch_add(1, Ordering::Relaxed);
                 cancelled.load(Ordering::Acquire)
             }
-        });
+        },
+    );
     assert!(matches!(result, Err(Error::Cancelled)));
     assert!(cancelled.load(Ordering::Acquire));
-    assert_eq!(reads.load(Ordering::Acquire), 2, "cancellation is raised by a real compressed-input refill");
-    assert!(checks_at_cancel.load(Ordering::Acquire) >= 4, "the first outer check happened before the second input read");
+    assert_eq!(
+        reads.load(Ordering::Acquire),
+        2,
+        "cancellation is raised by a real compressed-input refill"
+    );
+    assert!(
+        checks_at_cancel.load(Ordering::Acquire) >= 4,
+        "the first outer check happened before the second input read"
+    );
     assert!(!output.is_empty() && output.len() < bytes.len());
 }

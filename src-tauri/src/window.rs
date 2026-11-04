@@ -38,14 +38,14 @@ pub(crate) use activation::state::ForegroundSnapshot as MainWindowSnapshot;
 pub(crate) use auto_back::{
     cancel_auto_back_on_show, main_window_hidden, stop_auto_back, AutoBackController,
 };
-#[cfg(feature = "ztools-multiwebview")]
-pub(crate) use main_child_layout::handle_main_child_layout_event;
 #[cfg(all(feature = "ztools-multiwebview", feature = "legacy-node-smoke"))]
 pub(crate) use main_child_layout::attach_main_child_layout;
 #[cfg(feature = "ztools-multiwebview")]
+pub(crate) use main_child_layout::handle_main_child_layout_event;
+#[cfg(feature = "ztools-multiwebview")]
 pub(crate) use main_child_layout::{
-    attach_settings_child_layout_on_window, main_child_is_visible,
-    main_child_layout_active_count, MainChildLayoutLease,
+    attach_settings_child_layout_on_window, main_child_is_visible, main_child_layout_active_count,
+    MainChildLayoutLease,
 };
 pub(crate) use main_roles::{main_webview, main_window};
 pub(crate) use position::position_main_window_for_foreground;

@@ -246,7 +246,9 @@ pub(super) fn call_function_impl(
         Ok(result_json)
     })?;
 
-    if let Some(result_id) = super::async_agent_tool_results::async_agent_tool_result_id(&result_json) {
+    if let Some(result_id) =
+        super::async_agent_tool_results::async_agent_tool_result_id(&result_json)
+    {
         super::async_agent_tool_results::wait_for_async_agent_tool_result(
             runtime,
             contexts,
@@ -261,4 +263,3 @@ pub(super) fn call_function_impl(
         Ok(result_json)
     }
 }
-

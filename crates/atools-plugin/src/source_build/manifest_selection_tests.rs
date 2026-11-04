@@ -26,20 +26,41 @@ fn discovery_keeps_fixed_order_and_explicit_choice_never_falls_back() {
     write_manifest(root.path(), "public/plugin.json", &manifest);
 
     let default = scan(root.path(), None);
-    assert_eq!(default.info.manifest_selection, Some(ManifestSelection::Root));
+    assert_eq!(
+        default.info.manifest_selection,
+        Some(ManifestSelection::Root)
+    );
     assert_eq!(default.info.manifest_candidates.len(), 2);
-    assert_eq!(default.info.manifest_candidates[0].selection, ManifestSelection::Root);
-    assert_eq!(default.info.manifest_candidates[1].selection, ManifestSelection::Public);
+    assert_eq!(
+        default.info.manifest_candidates[0].selection,
+        ManifestSelection::Root
+    );
+    assert_eq!(
+        default.info.manifest_candidates[1].selection,
+        ManifestSelection::Public
+    );
     assert!(default.info.manifest_differences.is_empty());
 
     let public = scan(root.path(), Some(ManifestSelection::Public));
-    assert_eq!(public.info.manifest_selection, Some(ManifestSelection::Public));
-    assert_eq!(public.selected.unwrap().relative_path, Path::new("public/plugin.json"));
+    assert_eq!(
+        public.info.manifest_selection,
+        Some(ManifestSelection::Public)
+    );
+    assert_eq!(
+        public.selected.unwrap().relative_path,
+        Path::new("public/plugin.json")
+    );
 
     std::fs::remove_file(root.path().join("public/plugin.json")).unwrap();
     let no_fallback = scan(root.path(), Some(ManifestSelection::Public));
-    assert_eq!(no_fallback.info.manifest_selection, Some(ManifestSelection::Public));
-    assert_eq!(no_fallback.info.manifest_candidates[1].status, CandidateStatus::Missing);
+    assert_eq!(
+        no_fallback.info.manifest_selection,
+        Some(ManifestSelection::Public)
+    );
+    assert_eq!(
+        no_fallback.info.manifest_candidates[1].status,
+        CandidateStatus::Missing
+    );
     assert!(!no_fallback.selected.unwrap().valid);
 }
 
@@ -51,8 +72,14 @@ fn explicit_invalid_root_is_reported_without_selecting_valid_public_manifest() {
 
     let scan = scan(root.path(), Some(ManifestSelection::Root));
     assert_eq!(scan.info.manifest_selection, Some(ManifestSelection::Root));
-    assert_eq!(scan.info.manifest_candidates[0].status, CandidateStatus::Invalid);
-    assert_eq!(scan.info.manifest_candidates[1].status, CandidateStatus::Valid);
+    assert_eq!(
+        scan.info.manifest_candidates[0].status,
+        CandidateStatus::Invalid
+    );
+    assert_eq!(
+        scan.info.manifest_candidates[1].status,
+        CandidateStatus::Valid
+    );
     assert!(!scan.selected.unwrap().valid);
 }
 
@@ -83,7 +110,14 @@ fn comparison_reports_only_differing_fields_in_contract_order() {
     let scan = scan(root.path(), None);
     assert_eq!(
         scan.info.manifest_differences,
-        vec!["id", "version", "main", "preload", "runtime", "featureCodes"]
+        vec![
+            "id",
+            "version",
+            "main",
+            "preload",
+            "runtime",
+            "featureCodes"
+        ]
     );
 }
 
@@ -92,12 +126,20 @@ fn identity_field_byte_limits_are_utf8_bytes_and_feature_count_is_bounded() {
     let (root, mut manifest) = fixture();
     manifest["version"] = json!("界".repeat(86));
     write_manifest(root.path(), "plugin.json", &manifest);
-    assert_eq!(scan(root.path(), None).info.manifest_candidates[0].status, CandidateStatus::Invalid);
+    assert_eq!(
+        scan(root.path(), None).info.manifest_candidates[0].status,
+        CandidateStatus::Invalid
+    );
 
     manifest["version"] = json!("1.2.3");
-    manifest["features"] = json!((0..1001).map(|index| json!({"code":format!("f{index}")})).collect::<Vec<_>>());
+    manifest["features"] = json!((0..1001)
+        .map(|index| json!({"code":format!("f{index}")}))
+        .collect::<Vec<_>>());
     write_manifest(root.path(), "plugin.json", &manifest);
-    assert_eq!(scan(root.path(), None).info.manifest_candidates[0].status, CandidateStatus::Invalid);
+    assert_eq!(
+        scan(root.path(), None).info.manifest_candidates[0].status,
+        CandidateStatus::Invalid
+    );
 }
 
 #[test]
@@ -105,11 +147,17 @@ fn feature_controls_and_identity_utf8_overflow_invalidate_whole_candidate() {
     let (root, mut manifest) = fixture();
     manifest["features"][0]["code"] = json!("bad\ncode");
     write_manifest(root.path(), "plugin.json", &manifest);
-    assert_eq!(scan(root.path(), None).info.manifest_candidates[0].status, CandidateStatus::Invalid);
+    assert_eq!(
+        scan(root.path(), None).info.manifest_candidates[0].status,
+        CandidateStatus::Invalid
+    );
 
     manifest["features"][0]["code"] = json!("界".repeat(86));
     write_manifest(root.path(), "plugin.json", &manifest);
-    assert_eq!(scan(root.path(), None).info.manifest_candidates[0].status, CandidateStatus::Invalid);
+    assert_eq!(
+        scan(root.path(), None).info.manifest_candidates[0].status,
+        CandidateStatus::Invalid
+    );
 }
 
 #[test]
@@ -152,6 +200,9 @@ fn other_manifest_identity_failures_do_not_become_plugin_id_diagnostics() {
     write_manifest(root.path(), "plugin.json", &manifest);
 
     let scan = scan(root.path(), None);
-    assert_eq!(scan.info.manifest_candidates[0].code, Some("manifest_invalid"));
+    assert_eq!(
+        scan.info.manifest_candidates[0].code,
+        Some("manifest_invalid")
+    );
     assert!(!scan.selected.unwrap().invalid_plugin_id);
 }

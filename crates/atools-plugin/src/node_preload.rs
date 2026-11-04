@@ -14,13 +14,13 @@ use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
 
+use crate::sidecar::NodeRuntimeSelector;
 use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tokio::process::Command;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
-use crate::sidecar::NodeRuntimeSelector;
+use tokio::process::Command;
 
 const NODE_PRELOAD_HARNESS_JS: &str = include_str!("node_preload_harness.js");
 
@@ -45,7 +45,9 @@ pub struct NodePreloadBridge {
 impl NodePreloadBridge {
     pub fn new(plugin_dir: PathBuf, preload_rel: String) -> Self {
         Self::new_with_node_runtime_selector(
-            plugin_dir, preload_rel, NodeRuntimeSelector::default(),
+            plugin_dir,
+            preload_rel,
+            NodeRuntimeSelector::default(),
         )
     }
 
@@ -55,7 +57,11 @@ impl NodePreloadBridge {
         preload_rel: String,
         node_runtime_selector: NodeRuntimeSelector,
     ) -> Self {
-        Self { plugin_dir, preload_rel, node_runtime_selector }
+        Self {
+            plugin_dir,
+            preload_rel,
+            node_runtime_selector,
+        }
     }
 
     pub fn plugin_dir(&self) -> &Path {

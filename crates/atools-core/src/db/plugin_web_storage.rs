@@ -234,7 +234,7 @@ impl Database {
             transaction
                 .commit()
                 .map_err(|_| PluginWebStorageError::StorageUnavailable)?;
-            return Ok(change(Some(key), old_value, Some(value), false)?);
+            return change(Some(key), old_value, Some(value), false);
         }
 
         let (count, key_bytes, total_bytes) = usage(&transaction, plugin_id)?;
@@ -266,7 +266,7 @@ impl Database {
         transaction
             .commit()
             .map_err(|_| PluginWebStorageError::StorageUnavailable)?;
-        Ok(change(Some(key), old_value, Some(value), true)?)
+        change(Some(key), old_value, Some(value), true)
     }
 
     pub fn plugin_web_storage_remove(
@@ -357,7 +357,7 @@ fn base64_len(bytes: usize) -> usize {
 }
 
 fn decode_units(bytes: &[u8]) -> Result<Vec<u16>, PluginWebStorageError> {
-    if bytes.len() % 2 != 0 {
+    if !bytes.len().is_multiple_of(2) {
         return Err(PluginWebStorageError::StorageUnavailable);
     }
     Ok(bytes

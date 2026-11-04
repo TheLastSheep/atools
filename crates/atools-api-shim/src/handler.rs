@@ -109,8 +109,9 @@ impl ApiHandler {
             "storage.remove" => self.storage_remove(plugin_id, args).await,
 
             // Features
-            "features.set" | "features.remove" | "features.get" =>
-                dynamic_features::execute(&self.db, plugin_id, method, args),
+            "features.set" | "features.remove" | "features.get" => {
+                dynamic_features::execute(&self.db, plugin_id, method, args)
+            }
             "settings.redirectHotKey" => unsupported_native(method),
             "settings.redirectAiModels" => unsupported_native(method),
 

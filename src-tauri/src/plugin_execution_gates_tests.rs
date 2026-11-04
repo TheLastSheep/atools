@@ -81,13 +81,14 @@ async fn cleanup_preserves_a_live_lock_and_prunes_unused_registry_entries() {
     assert!(gates.locks.lock().len() > super::WEAK_REGISTRY_CLEANUP_THRESHOLD);
 
     drop(gates.read("trigger-cleanup").await);
-    let locks = gates.locks.lock();
-    assert!(locks.len() <= 2);
-    assert!(locks
-        .get("still-active")
-        .and_then(std::sync::Weak::upgrade)
-        .is_some());
-    drop(locks);
+    {
+        let locks = gates.locks.lock();
+        assert!(locks.len() <= 2);
+        assert!(locks
+            .get("still-active")
+            .and_then(std::sync::Weak::upgrade)
+            .is_some());
+    }
 
     let mut writer = Box::pin(gates.write("still-active"));
     assert!(poll_once(writer.as_mut()).is_pending());

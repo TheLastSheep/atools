@@ -177,7 +177,9 @@ fn eligible_plan_is_path_bearing_but_inspection_json_is_not() {
     assert_eq!(plan.manifest_relative, std::path::Path::new("plugin.json"));
     assert_eq!(plan.plugin_id, "sample-plugin");
     assert!(plan.vite_cli.starts_with(&plan.dependency_root));
-    let super::ViteBuildBackend::Esbuild { binary } = &plan.vite_backend else { panic!("expected legacy esbuild backend") };
+    let super::ViteBuildBackend::Esbuild { binary } = &plan.vite_backend else {
+        panic!("expected legacy esbuild backend")
+    };
     assert!(binary.starts_with(&plan.dependency_root));
     assert!(plan.test_esbuild_binary.is_none());
     assert_eq!(plan.build_steps.len(), 1);
@@ -188,7 +190,9 @@ fn eligible_plan_is_path_bearing_but_inspection_json_is_not() {
 fn selects_vites_nested_esbuild_and_ignores_newer_unrelated_root_copy() {
     let temp = project();
     let plan = prepare_source_build(temp.path()).unwrap();
-    let super::ViteBuildBackend::Esbuild { binary } = &plan.vite_backend else { panic!("expected legacy esbuild backend") };
+    let super::ViteBuildBackend::Esbuild { binary } = &plan.vite_backend else {
+        panic!("expected legacy esbuild backend")
+    };
     let dependency_root = temp.path().join("node_modules").canonicalize().unwrap();
     let vite_cli = temp
         .path()
@@ -200,7 +204,9 @@ fn selects_vites_nested_esbuild_and_ignores_newer_unrelated_root_copy() {
         temp.path().join(esbuild_relative()).canonicalize().unwrap()
     );
     assert_eq!(
-        super::resolve_build_esbuild_binary(temp.path(), &dependency_root, &vite_cli).unwrap().as_path(),
+        super::resolve_build_esbuild_binary(temp.path(), &dependency_root, &vite_cli)
+            .unwrap()
+            .as_path(),
         binary.as_path()
     );
     assert!(binary.ends_with(format!(
@@ -274,7 +280,10 @@ fn resolves_hoisted_esbuild_using_vites_declared_range_and_lock_location() {
 
     let plan = prepare_source_build(temp.path()).unwrap();
     assert_eq!(
-        match &plan.vite_backend { super::ViteBuildBackend::Esbuild { binary } => binary.clone(), _ => panic!("expected esbuild") },
+        match &plan.vite_backend {
+            super::ViteBuildBackend::Esbuild { binary } => binary.clone(),
+            _ => panic!("expected esbuild"),
+        },
         temp.path()
             .join(format!(
                 "node_modules/@esbuild/{}/bin/{}",

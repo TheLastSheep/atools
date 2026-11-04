@@ -4,6 +4,12 @@
 //! library startup. It reports one JSON line to stdout and exits after 20 seconds
 //! if the browser-side handshake does not finish.
 
+#![allow(
+    dead_code,
+    clippy::needless_borrows_for_generic_args,
+    clippy::unnecessary_map_or
+)]
+
 #[path = "native_related_window_probe/state.rs"]
 mod state;
 

@@ -173,4 +173,3 @@ pub(super) fn drain_one_callback(contexts: &mut HashMap<String, Context>, cb: Ip
         Ok(())
     });
 }
-

@@ -156,7 +156,10 @@ fn assert_product_node_override() -> PathBuf {
     let configured = configured
         .canonicalize()
         .expect("canonical ATOOLS_NODE_BINARY override");
-    assert_eq!(configured, expected, "probe must use the bundled product Node binary");
+    assert_eq!(
+        configured, expected,
+        "probe must use the bundled product Node binary"
+    );
     expected
 }
 
@@ -169,10 +172,12 @@ fn run_nonce() -> String {
 }
 
 fn write_report(report: &mut ProbeReport) -> PathBuf {
-    let output = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../output/detached-helper-repro");
+    let output =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../output/detached-helper-repro");
     fs::create_dir_all(&output).expect("create dedicated detached-helper repro output directory");
-    let output = output.canonicalize().expect("canonical detached-helper repro output directory");
+    let output = output
+        .canonicalize()
+        .expect("canonical detached-helper repro output directory");
     let path = output.join(format!("{}.json", report.run_nonce));
     report.report_path = Some(path.display().to_string());
     fs::write(
@@ -193,8 +198,11 @@ async fn production_session_close_should_reap_detached_product_node_helper() {
     let entry = plugin_dir.join("preload.cjs");
     let module_path = plugin_dir.join("detached-helper.cjs");
     let marker_path = plugin_dir.join("helper-marker.json");
-    fs::write(&entry, "throw new Error('preload remains in UI fixture');\n")
-        .expect("write inert preload anchor");
+    fs::write(
+        &entry,
+        "throw new Error('preload remains in UI fixture');\n",
+    )
+    .expect("write inert preload anchor");
     fs::write(&module_path, FIXTURE_MODULE).expect("write fixed detached-helper fixture module");
 
     let mut report = ProbeReport {
@@ -224,7 +232,13 @@ async fn production_session_close_should_reap_detached_product_node_helper() {
         report_path: None,
     };
 
-    let session = match LegacyNodeSession::start("detached-helper-probe", plugin_dir, Path::new("preload.cjs")).await {
+    let session = match LegacyNodeSession::start(
+        "detached-helper-probe",
+        plugin_dir,
+        Path::new("preload.cjs"),
+    )
+    .await
+    {
         Ok(session) => session,
         Err(error) => {
             report.error = Some(format!("production sidecar start failed: {error}"));
@@ -239,7 +253,10 @@ async fn production_session_close_should_reap_detached_product_node_helper() {
             .await
             .map_err(|error| format!("require fixture module: {error}"))?;
         let method = session
-            .request("get", json!({ "handleId": module["handleId"], "property": "spawnDetached" }))
+            .request(
+                "get",
+                json!({ "handleId": module["handleId"], "property": "spawnDetached" }),
+            )
             .await
             .map_err(|error| format!("get spawnDetached: {error}"))?;
         session
@@ -274,7 +291,9 @@ async fn production_session_close_should_reap_detached_product_node_helper() {
                         report.error = Some(format!("sidecar Node binary did not match explicit product binary: {actual_binary}"));
                     }
                     if values[4]["value"].as_str() != Some(nonce.as_str()) {
-                        report.error = Some("spawn response nonce did not match the fixed probe token".to_string());
+                        report.error = Some(
+                            "spawn response nonce did not match the fixed probe token".to_string(),
+                        );
                     }
                 }
                 _ => report.error = Some(format!("unexpected spawnDetached response: {result}")),
@@ -299,7 +318,9 @@ async fn production_session_close_should_reap_detached_product_node_helper() {
                 || marker_group_token != marker_pid.map(|pid| pid.to_string()).as_deref()
                 || marker_nonce != Some(nonce.as_str())
             {
-                report.error = Some(format!("helper marker identity did not match spawn result: {marker}"));
+                report.error = Some(format!(
+                    "helper marker identity did not match spawn result: {marker}"
+                ));
             }
         }
         Err(error) => {
@@ -333,18 +354,45 @@ async fn production_session_close_should_reap_detached_product_node_helper() {
 
     let report_path = write_report(&mut report);
     eprintln!("detached-helper-probe report={}", report_path.display());
-    eprintln!("detached-helper-probe state={}", serde_json::to_string(&report).expect("serialize report"));
+    eprintln!(
+        "detached-helper-probe state={}",
+        serde_json::to_string(&report).expect("serialize report")
+    );
 
-    assert!(report.error.is_none(), "production Node helper identity checks failed: {:?}", report.error);
-    assert_eq!(report.node_version.as_deref(), Some("22.23.3"), "probe must execute the pinned product Node runtime");
-    assert_eq!(report.sidecar_close_result, "ok", "production sidecar close must complete");
-    assert_eq!(report.sidecar_status_after_close.as_deref(), Some("Stopped"), "recorded root sidecar must be Stopped");
     assert!(
-        report.sidecar_after_close.as_ref().is_some_and(process_is_gone),
+        report.error.is_none(),
+        "production Node helper identity checks failed: {:?}",
+        report.error
+    );
+    assert_eq!(
+        report.node_version.as_deref(),
+        Some("22.23.3"),
+        "probe must execute the pinned product Node runtime"
+    );
+    assert_eq!(
+        report.sidecar_close_result, "ok",
+        "production sidecar close must complete"
+    );
+    assert_eq!(
+        report.sidecar_status_after_close.as_deref(),
+        Some("Stopped"),
+        "recorded root sidecar must be Stopped"
+    );
+    assert!(
+        report
+            .sidecar_after_close
+            .as_ref()
+            .is_some_and(process_is_gone),
         "production close must reap the sidecar root before evaluating detached helper cleanup"
     );
-    assert_eq!(report.helper_group_before_close, report.helper_pid, "detached helper must own a separate process group");
-    assert!(report.helper_eventual_exit_observed, "helper's bounded self-exit must be observed before test completion");
+    assert_eq!(
+        report.helper_group_before_close, report.helper_pid,
+        "detached helper must own a separate process group"
+    );
+    assert!(
+        report.helper_eventual_exit_observed,
+        "helper's bounded self-exit must be observed before test completion"
+    );
     assert!(
         report.helper_immediately_after_close.as_ref().is_some_and(process_is_gone),
         "production close left its detached helper alive; bounded self-exit was confirmed and cleanup completed; report: {}",

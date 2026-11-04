@@ -1,6 +1,8 @@
 use super::Database;
 use crate::error::{AToolsError, Result};
-use crate::pasteboard::{PasteboardBlob, PasteboardPinboard, PasteboardPruneResult, PasteboardTombstone};
+use crate::pasteboard::{
+    PasteboardBlob, PasteboardPinboard, PasteboardPruneResult, PasteboardTombstone,
+};
 use rusqlite::{params, Connection};
 
 impl Database {
@@ -316,7 +318,6 @@ impl Database {
             remaining_attachment_bytes,
         })
     }
-
 }
 fn pasteboard_pinboard_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<PasteboardPinboard> {
     Ok(PasteboardPinboard {
@@ -388,4 +389,3 @@ fn pasteboard_attachment_bytes_with_connection(conn: &Connection) -> rusqlite::R
     )?;
     Ok(bytes.max(0) as u64)
 }
-

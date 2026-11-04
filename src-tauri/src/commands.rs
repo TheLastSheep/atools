@@ -2781,7 +2781,9 @@ pub async fn load_local_app_icons(
         .map_err(|error| error.to_string())?
 }
 
-pub use crate::app_global_shortcuts::feature_dispatch::{activate_feature, __cmd__activate_feature, __tauri_command_name_activate_feature};
+pub use crate::app_global_shortcuts::feature_dispatch::{
+    __cmd__activate_feature, __tauri_command_name_activate_feature, activate_feature,
+};
 
 pub(crate) fn activate_feature_inner(
     db: &Database,

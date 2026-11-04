@@ -2,10 +2,10 @@
 //! claims and deferred work are permitted on that stack.
 #[path = "recording_shutdown.rs"]
 mod shutdown;
-use shutdown::shutdown_recording;
-pub(super) use shutdown::shutdown_locked;
 use super::recording::{self, Ack, Notice, Outcome, Port, Registry, Target};
 use crate::general_settings_runtime::GeneralSettingsCoordinator;
+pub(super) use shutdown::shutdown_locked;
+use shutdown::shutdown_recording;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use tauri::{AppHandle, Manager};
@@ -168,7 +168,9 @@ fn end_recording(
     reason: &'static str,
     force: bool,
 ) -> Result<Option<Notice>, String> {
-    if force { return shutdown_recording(registry, signals, port, false); }
+    if force {
+        return shutdown_recording(registry, signals, port, false);
+    }
     signals.disarm();
     if !signals.clear_if_idle(false) {
         registry.defer_cancel(reason);

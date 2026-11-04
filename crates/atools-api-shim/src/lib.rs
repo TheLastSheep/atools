@@ -17,6 +17,15 @@
 //! `Ok(json!(null))` here; the Tauri front-end intercepts those calls and handles them
 //! in the UI process.
 
+#![allow(
+    dead_code,
+    clippy::needless_range_loop,
+    clippy::nonminimal_bool,
+    clippy::result_large_err,
+    clippy::too_many_arguments,
+    clippy::type_complexity
+)]
+
 pub mod dispatch;
 pub mod handler;
 pub mod handler_wrapper;

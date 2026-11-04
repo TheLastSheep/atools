@@ -5,9 +5,8 @@ use tauri_plugin_global_shortcut::GlobalShortcut;
 #[cfg(feature = "legacy-node-smoke")]
 use super::OwnedMainHotkeySnapshot;
 use super::{
-    parser::parse_main_hotkey, OwnedMainHotkeyRegistry,
-    OwnedMainHotkeyStateSnapshot, RegisterFailure, ShortcutPort, HOTKEY_OUTCOME_UNKNOWN,
-    HOTKEY_REJECTED,
+    parser::parse_main_hotkey, OwnedMainHotkeyRegistry, OwnedMainHotkeyStateSnapshot,
+    RegisterFailure, ShortcutPort, HOTKEY_OUTCOME_UNKNOWN, HOTKEY_REJECTED,
 };
 
 struct TauriShortcutPort<'a> {
@@ -69,14 +68,16 @@ impl ShortcutPort for TauriShortcutPort<'_> {
             .map_err(RegisterFailure::Unavailable)?;
         match binding {
             MainBinding::DoubleTap(modifier) => {
-                let gate = crate::app_global_shortcuts::recording::gate(self.app).map_err(RegisterFailure::Unavailable)?;
+                let gate = crate::app_global_shortcuts::recording::gate(self.app)
+                    .map_err(RegisterFailure::Unavailable)?;
                 let receipt = gate.receipt(None).map_err(RegisterFailure::Unavailable)?;
                 *token.receipt.lock() = Some(receipt.clone());
                 match crate::hotkey::double_tap_native::create(self.app, modifier, token) {
                     Ok(lease) => {
                         receipt.publish();
-                        crate::hotkey::main_dispatch::attach(self.app, binding, lease).map_err(RegisterFailure::Unavailable)
-                    },
+                        crate::hotkey::main_dispatch::attach(self.app, binding, lease)
+                            .map_err(RegisterFailure::Unavailable)
+                    }
                     Err(crate::hotkey::double_tap_native::CreateFailure::Owned(lease)) => {
                         receipt.publish();
                         crate::hotkey::main_dispatch::attach(self.app, binding, lease)
@@ -99,7 +100,9 @@ impl ShortcutPort for TauriShortcutPort<'_> {
                     .map_err(RegisterFailure::Unavailable)?;
                 let capture = (shortcut == crate::hotkey::recording_runtime::KEY.parse().unwrap())
                     .then(|| crate::hotkey::recording_runtime::KEY.to_owned());
-                let receipt = gate.receipt(capture).map_err(RegisterFailure::Unavailable)?;
+                let receipt = gate
+                    .receipt(capture)
+                    .map_err(RegisterFailure::Unavailable)?;
                 let callback_receipt = receipt.clone();
                 *token.receipt.lock() = Some(receipt.clone());
                 let result = self
@@ -107,7 +110,9 @@ impl ShortcutPort for TauriShortcutPort<'_> {
                     .map_err(RegisterFailure::Unavailable)?
                     .inner()
                     .on_shortcut(shortcut, move |_app, key, event| {
-                        let epoch = callback_receipt.edge(event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed);
+                        let epoch = callback_receipt.edge(
+                            event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed,
+                        );
                         let consumed = crate::hotkey::recording_runtime::route_event(
                             &handle,
                             key,
@@ -115,7 +120,12 @@ impl ShortcutPort for TauriShortcutPort<'_> {
                         );
                         if !consumed {
                             if let Some(epoch) = epoch {
-                                crate::hotkey::main_dispatch::enqueue(&handle, &token, std::sync::Arc::downgrade(&callback_receipt), epoch);
+                                crate::hotkey::main_dispatch::enqueue(
+                                    &handle,
+                                    &token,
+                                    std::sync::Arc::downgrade(&callback_receipt),
+                                    epoch,
+                                );
                             }
                         }
                     })
@@ -133,12 +143,14 @@ impl ShortcutPort for TauriShortcutPort<'_> {
         match binding {
             MainBinding::Accelerator(shortcut) => {
                 let manager = self.manager()?;
-                manager.inner().unregister(shortcut)
+                manager
+                    .inner()
+                    .unregister(shortcut)
                     .map_err(|_| "Owned main hotkey could not be released".to_owned())?;
                 if manager.inner().is_registered(shortcut) {
                     return Err("Owned main hotkey unregister readback failed".into());
                 }
-            },
+            }
             MainBinding::DoubleTap(_) => {
                 if let Some(lease) = crate::hotkey::main_dispatch::native(self.app, binding)? {
                     crate::hotkey::double_tap_native::release(self.app, lease)?;
@@ -293,7 +305,9 @@ fn with_mutating_registry<T>(
         .try_state::<crate::general_settings_runtime::GeneralSettingsCoordinator>()
         .ok_or_else(|| "General settings coordinator is unavailable".to_owned())?;
     coordinator.with_recording_registries(|registry, recording| {
-        if coordinator.app_recording.busy() { return Err(HOTKEY_REJECTED.into()); }
+        if coordinator.app_recording.busy() {
+            return Err(HOTKEY_REJECTED.into());
+        }
         crate::hotkey::main_dispatch::publish(app, None);
         let result = crate::hotkey::recording_runtime::cancel_locked(app, recording)
             .map_err(classify_recording_mutation_error)
@@ -303,8 +317,10 @@ fn with_mutating_registry<T>(
     })?
 }
 
-
-pub(in crate::hotkey) fn shutdown_locked(app: &AppHandle, registry: &mut OwnedMainHotkeyRegistry) -> Result<(), String> {
+pub(in crate::hotkey) fn shutdown_locked(
+    app: &AppHandle,
+    registry: &mut OwnedMainHotkeyRegistry,
+) -> Result<(), String> {
     registry.release(&mut TauriShortcutPort { app })
 }
 

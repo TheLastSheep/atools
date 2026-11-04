@@ -18,7 +18,9 @@ pub(super) struct CacheLock {
 
 impl Drop for CacheLock {
     fn drop(&mut self) {
-        unsafe { libc::flock(std::os::fd::AsRawFd::as_raw_fd(&self.file), libc::LOCK_UN); }
+        unsafe {
+            libc::flock(std::os::fd::AsRawFd::as_raw_fd(&self.file), libc::LOCK_UN);
+        }
     }
 }
 
@@ -26,16 +28,30 @@ pub(super) fn acquire(directory: &Directory, cancelled: &AtomicBool) -> Result<C
     let process = PROCESS_LOCK.get_or_init(|| Mutex::new(()));
     let process_guard = loop {
         check_cancel(cancelled)?;
-        if let Some(guard) = process.try_lock() { break guard; }
+        if let Some(guard) = process.try_lock() {
+            break guard;
+        }
         thread::sleep(Duration::from_millis(20));
     };
     let file = directory.create_lock_file(".cache.lock")?;
     loop {
         check_cancel(cancelled)?;
-        let result = unsafe { libc::flock(std::os::fd::AsRawFd::as_raw_fd(&file), libc::LOCK_EX | libc::LOCK_NB) };
-        if result == 0 { return Ok(CacheLock { _process: process_guard, file }); }
+        let result = unsafe {
+            libc::flock(
+                std::os::fd::AsRawFd::as_raw_fd(&file),
+                libc::LOCK_EX | libc::LOCK_NB,
+            )
+        };
+        if result == 0 {
+            return Ok(CacheLock {
+                _process: process_guard,
+                file,
+            });
+        }
         let error = std::io::Error::last_os_error();
-        if error.raw_os_error() != Some(libc::EWOULDBLOCK) { return Err(error.into()); }
+        if error.raw_os_error() != Some(libc::EWOULDBLOCK) {
+            return Err(error.into());
+        }
         thread::sleep(Duration::from_millis(20));
     }
 }

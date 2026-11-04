@@ -277,7 +277,13 @@ async fn capture_projects_exact_unicode_text_and_native_timestamp_to_legacy_hist
     backend.snapshots.lock().push_back(captured.clone());
 
     let outcome = runtime.capture_once().await.unwrap();
-    assert!(matches!(outcome, CaptureOutcome::Captured { change_count: 41, .. }));
+    assert!(matches!(
+        outcome,
+        CaptureOutcome::Captured {
+            change_count: 41,
+            ..
+        }
+    ));
     assert!(outcome.legacy_text_projected());
     assert_eq!(runtime.status().last_change_count, 41);
     let page = db.clipboard_history_page("", 1, 10).unwrap();
@@ -285,7 +291,10 @@ async fn capture_projects_exact_unicode_text_and_native_timestamp_to_legacy_hist
     assert_eq!(page.items[0].content, content);
     assert_eq!(page.items[0].timestamp, copied_at);
     let marker = db
-        .get_setting(&format!("pasteboard.clipboard_projection.{}", runtime.device_id()))
+        .get_setting(&format!(
+            "pasteboard.clipboard_projection.{}",
+            runtime.device_id()
+        ))
         .unwrap()
         .unwrap();
     assert!(!marker.contains(content));
@@ -344,6 +353,11 @@ async fn rich_and_unbounded_text_captures_do_not_project_preview_or_partial_cont
         assert!(matches!(outcome, CaptureOutcome::Captured { .. }));
         assert!(!outcome.legacy_text_projected());
     }
-    assert_eq!(db.search_pasteboard_items("", None, &[], 20, 0).unwrap().len(), 5);
+    assert_eq!(
+        db.search_pasteboard_items("", None, &[], 20, 0)
+            .unwrap()
+            .len(),
+        5
+    );
     assert_eq!(db.clipboard_history_page("", 1, 1000).unwrap().total, 0);
 }

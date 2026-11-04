@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::path::{Component, Path};
 #[cfg(test)]
 use std::path::PathBuf;
+use std::path::{Component, Path};
 use std::sync::Arc;
 
 use serde_json::Value;

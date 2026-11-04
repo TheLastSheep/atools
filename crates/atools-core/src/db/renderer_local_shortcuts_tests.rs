@@ -393,15 +393,15 @@ fn malformed_null_depth_node_and_revision_values_are_rejected_without_cleanup() 
     }
 
     let deep = format!(
-        r#"[{{"id":"deep","name":"Deep","path":"/deep","type":"file","addedAt":1,"meta":{}}}]"#,
-        format!("{}0{}", "[".repeat(8), "]".repeat(8))
+        r#"[{{"id":"deep","name":"Deep","path":"/deep","type":"file","addedAt":1,"meta":{}0{}}}]"#,
+        "[".repeat(8),
+        "]".repeat(8)
     );
     db.set_setting(RENDERER_LOCAL_SHORTCUTS_KEY, &deep).unwrap();
     assert!(db.read_renderer_local_shortcuts().is_err());
     assert_eq!(raw_shortcuts(&db).as_deref(), Some(deep.as_str()));
 
-    let at_limit_values = std::iter::repeat("0")
-        .take(32_760)
+    let at_limit_values = std::iter::repeat_n("0", 32_760)
         .collect::<Vec<_>>()
         .join(",");
     let at_limit = format!(
@@ -412,8 +412,7 @@ fn malformed_null_depth_node_and_revision_values_are_rejected_without_cleanup() 
         .unwrap();
     assert_eq!(db.read_renderer_local_shortcuts().unwrap().len(), 1);
 
-    let values = std::iter::repeat("0")
-        .take(32_767)
+    let values = std::iter::repeat_n("0", 32_767)
         .collect::<Vec<_>>()
         .join(",");
     let many_nodes = format!(

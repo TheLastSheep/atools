@@ -194,14 +194,10 @@ pub(super) fn select_source_policy(manifest: &Value) -> Result<ResourceBudgetPol
         Some(Value::String(milestone)) if milestone == DEFAULT_HEIGHT_BUDGET_MILESTONE => {
             ResourceBudgetPolicy::DEFAULT_HEIGHT
         }
-        Some(Value::String(milestone))
-            if milestone == ABOUT_UPDATE_BUDGET_MILESTONE =>
-        {
+        Some(Value::String(milestone)) if milestone == ABOUT_UPDATE_BUDGET_MILESTONE => {
             ResourceBudgetPolicy::ABOUT_UPDATE
         }
-        Some(Value::String(milestone))
-            if milestone == APP_GLOBAL_SHORTCUTS_BUDGET_MILESTONE =>
-        {
+        Some(Value::String(milestone)) if milestone == APP_GLOBAL_SHORTCUTS_BUDGET_MILESTONE => {
             ResourceBudgetPolicy::APP_GLOBAL_SHORTCUTS
         }
         _ => return Err("Bundle source manifest milestone is unknown"),

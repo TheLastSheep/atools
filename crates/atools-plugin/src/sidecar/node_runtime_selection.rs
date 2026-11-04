@@ -49,9 +49,7 @@ impl NodeRuntimeSelector {
     }
 
     /// Configure strict use of the host-owned app payload after explicit override.
-    pub fn with_compressed_provider(
-        provider: Arc<dyn CompressedNodeRuntimeProvider>,
-    ) -> Self {
+    pub fn with_compressed_provider(provider: Arc<dyn CompressedNodeRuntimeProvider>) -> Self {
         Self {
             compressed: Some(provider),
         }
@@ -77,7 +75,8 @@ impl NodeRuntimeSelector {
         } else {
             process_startup_budget
         };
-        self.resolve_node_binary_with_budget(cancelled, Some(selection_budget)).await
+        self.resolve_node_binary_with_budget(cancelled, Some(selection_budget))
+            .await
     }
 
     /// Resolve while observing an operation-owned cancellation flag.
@@ -89,7 +88,8 @@ impl NodeRuntimeSelector {
             .compressed
             .as_ref()
             .map(|_| NODE_RUNTIME_PREPARATION_BUDGET);
-        self.resolve_node_binary_with_budget(cancelled, budget).await
+        self.resolve_node_binary_with_budget(cancelled, budget)
+            .await
     }
 
     async fn resolve_node_binary_with_budget(
@@ -110,15 +110,23 @@ impl NodeRuntimeSelector {
         let mut guard = CancelOnDrop::new(cancelled.clone());
         let selector = self.clone();
         let worker_cancelled = Arc::clone(&cancelled);
-        let mut worker = tokio::task::spawn_blocking(move || selector.resolve_blocking(&worker_cancelled));
+        let mut worker =
+            tokio::task::spawn_blocking(move || selector.resolve_blocking(&worker_cancelled));
         let joined = match budget {
             Some(budget) => match tokio::time::timeout(budget, &mut worker).await {
                 Ok(joined) => joined,
                 Err(_) => {
                     cancelled.store(true, Ordering::Release);
-                    let _worker_result = worker.await.map_err(|_| SidecarError::Spawn("Node runtime selection worker failed during cancellation cleanup".into()))?;
+                    let _worker_result = worker.await.map_err(|_| {
+                        SidecarError::Spawn(
+                            "Node runtime selection worker failed during cancellation cleanup"
+                                .into(),
+                        )
+                    })?;
                     guard.disarm();
-                    return Err(SidecarError::Timeout(budget.as_millis().min(u64::MAX as u128) as u64));
+                    return Err(SidecarError::Timeout(
+                        budget.as_millis().min(u64::MAX as u128) as u64,
+                    ));
                 }
             },
             None => worker.await,
@@ -128,7 +136,9 @@ impl NodeRuntimeSelector {
         if let Some(budget) = budget {
             if started.elapsed() >= budget {
                 guard.disarm();
-                return Err(SidecarError::Timeout(budget.as_millis().min(u64::MAX as u128) as u64));
+                return Err(SidecarError::Timeout(
+                    budget.as_millis().min(u64::MAX as u128) as u64,
+                ));
             }
         }
         guard.disarm();
@@ -207,9 +217,7 @@ fn select_with_compressed_provider(
                 if matches!(error, NodeRuntimeCacheError::Cancelled) {
                     SidecarError::Cancelled
                 } else {
-                    SidecarError::Spawn(
-                        "Bundled Node runtime is invalid or unavailable".into(),
-                    )
+                    SidecarError::Spawn("Bundled Node runtime is invalid or unavailable".into())
                 }
             });
     }

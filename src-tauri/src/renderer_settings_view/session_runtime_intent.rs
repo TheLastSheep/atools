@@ -1,6 +1,6 @@
 //! Pending intent and native binding mutations share the open-claim mutex.
-use crate::renderer_settings_view as settings;
 use super::{RuntimeInner, SettingsViewRuntime};
+use crate::renderer_settings_view as settings;
 use settings::{
     intent_protocol::{IntentAck, PendingIntent},
     main_authority::{same_webview, same_window, MainBinding},

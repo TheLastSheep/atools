@@ -308,10 +308,16 @@ fn metadata_and_index_limits_reject_writes_without_invalidating_a_working_catalo
     let p = plugin("p", json!([]));
     db.save_plugin(&p).unwrap();
     let huge = "x".repeat(3 * 1024 * 1024);
-    let before=db.feature_catalog_snapshot().unwrap();
-    assert!(db.index_features("p", &features(json!([{"code":"big","cmds":[huge]}])))
-        .unwrap_err().to_string().contains("index"));
-    assert!(Arc::ptr_eq(&before,&db.feature_catalog_snapshot().unwrap()));
+    let before = db.feature_catalog_snapshot().unwrap();
+    assert!(db
+        .index_features("p", &features(json!([{"code":"big","cmds":[huge]}])))
+        .unwrap_err()
+        .to_string()
+        .contains("index"));
+    assert!(Arc::ptr_eq(
+        &before,
+        &db.feature_catalog_snapshot().unwrap()
+    ));
     db.index_features(
         "p",
         &features(json!([{"code":"ok","explain":"可用","cmds":["ok"]}])),
@@ -320,9 +326,16 @@ fn metadata_and_index_limits_reject_writes_without_invalidating_a_working_catalo
     assert_eq!(db.feature_catalog_snapshot().unwrap().entries().len(), 1);
     let mut large = p;
     large.manifest.description = Some("x".repeat(17 * 1024 * 1024));
-    let before=db.feature_catalog_snapshot().unwrap();
-    assert!(db.save_plugin(&large).unwrap_err().to_string().contains("metadata"));
-    assert!(Arc::ptr_eq(&before,&db.feature_catalog_snapshot().unwrap()));
+    let before = db.feature_catalog_snapshot().unwrap();
+    assert!(db
+        .save_plugin(&large)
+        .unwrap_err()
+        .to_string()
+        .contains("metadata"));
+    assert!(Arc::ptr_eq(
+        &before,
+        &db.feature_catalog_snapshot().unwrap()
+    ));
 }
 
 #[test]
@@ -333,10 +346,16 @@ fn feature_count_limit_reports_an_error_instead_of_silently_omitting_entries() {
     let declared = (0..20_001)
         .map(|i| json!({"code":format!("f{i}")}))
         .collect::<Vec<_>>();
-    let before=db.feature_catalog_snapshot().unwrap();
-    assert!(db.index_features("p", &features(Value::Array(declared)))
-        .unwrap_err().to_string().contains("20000"));
-    assert!(Arc::ptr_eq(&before,&db.feature_catalog_snapshot().unwrap()));
+    let before = db.feature_catalog_snapshot().unwrap();
+    assert!(db
+        .index_features("p", &features(Value::Array(declared)))
+        .unwrap_err()
+        .to_string()
+        .contains("20000"));
+    assert!(Arc::ptr_eq(
+        &before,
+        &db.feature_catalog_snapshot().unwrap()
+    ));
     assert!(db.all_features().unwrap().is_empty());
 }
 

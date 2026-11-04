@@ -99,15 +99,19 @@ pub(super) fn validate(
     target: NodeTarget,
     policy: &RuntimeSignaturePolicy,
 ) -> Result<ValidatedPayload, Error> {
-    if metadata_bytes.len() > MAX_METADATA_BYTES || !valid_team(&policy.expected_team_id)
-        || !valid_hash(&policy.approved_entitlements_sha256) {
+    if metadata_bytes.len() > MAX_METADATA_BYTES
+        || !valid_team(&policy.expected_team_id)
+        || !valid_hash(&policy.approved_entitlements_sha256)
+    {
         return Err(Error::InvalidMetadata);
     }
-    let metadata: PayloadMetadata = serde_json::from_slice(metadata_bytes).map_err(|_| Error::InvalidMetadata)?;
+    let metadata: PayloadMetadata =
+        serde_json::from_slice(metadata_bytes).map_err(|_| Error::InvalidMetadata)?;
     let canonical = serde_json::to_vec_pretty(&metadata).map_err(|_| Error::InvalidMetadata)?;
     if canonical.len() + 1 != metadata_bytes.len()
         || metadata_bytes[..canonical.len()] != canonical
-        || metadata_bytes[canonical.len()] != b'\n' {
+        || metadata_bytes[canonical.len()] != b'\n'
+    {
         return Err(Error::InvalidMetadata);
     }
     let pin: RuntimePin = serde_json::from_slice(pin_bytes).map_err(|_| Error::InvalidMetadata)?;
@@ -117,9 +121,19 @@ pub(super) fn validate(
         NodeTarget::X86_64AppleDarwin => &pin.targets.x64,
     };
     let target_name = target.as_str();
-    let expected_url = format!("https://nodejs.org/dist/{}/{}", pin.version, selected.archive);
-    let expected_archive = format!("node-{}-darwin-{}.tar.gz", pin.version,
-        if target == NodeTarget::Aarch64AppleDarwin { "arm64" } else { "x64" });
+    let expected_url = format!(
+        "https://nodejs.org/dist/{}/{}",
+        pin.version, selected.archive
+    );
+    let expected_archive = format!(
+        "node-{}-darwin-{}.tar.gz",
+        pin.version,
+        if target == NodeTarget::Aarch64AppleDarwin {
+            "arm64"
+        } else {
+            "x64"
+        }
+    );
     if selected.archive != expected_archive
         || !valid_release(&pin.version)
         || pin.release_line != "22 LTS"
@@ -142,12 +156,14 @@ pub(super) fn validate(
         || metadata.publisher_team_id != policy.expected_team_id
         || metadata.entitlements_sha256 != policy.approved_entitlements_sha256
         || !valid_hash(&metadata.signed_binary_sha256)
-        || !(MIN_SIGNED_BINARY_BYTES..=MAX_SIGNED_BINARY_BYTES).contains(&metadata.signed_binary_bytes)
+        || !(MIN_SIGNED_BINARY_BYTES..=MAX_SIGNED_BINARY_BYTES)
+            .contains(&metadata.signed_binary_bytes)
         || metadata.compressed.format != "gzip"
         || metadata.compressed.level != 6
         || metadata.compressed.file != format!("node-{target_name}.gz")
         || !valid_hash(&metadata.compressed.sha256)
-        || !(1..=MAX_COMPRESSED_BYTES).contains(&metadata.compressed.bytes) {
+        || !(1..=MAX_COMPRESSED_BYTES).contains(&metadata.compressed.bytes)
+    {
         return Err(Error::InvalidMetadata);
     }
     Ok(ValidatedPayload {
@@ -170,15 +186,23 @@ pub(super) fn sha256(bytes: &[u8]) -> String {
 }
 
 pub(super) fn valid_hash(value: &str) -> bool {
-    value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
 }
 
 fn valid_team(value: &str) -> bool {
-    value.len() == 10 && value.bytes().all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit())
+    value.len() == 10
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit())
 }
 
 fn valid_release(value: &str) -> bool {
-    let Some(version) = value.strip_prefix('v') else { return false };
+    let Some(version) = value.strip_prefix('v') else {
+        return false;
+    };
     let mut parts = version.split('.');
     matches!((parts.next(), parts.next(), parts.next(), parts.next()),
         (Some(a), Some(b), Some(c), None) if [a,b,c].iter().all(|part| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit())))

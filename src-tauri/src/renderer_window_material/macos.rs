@@ -1,6 +1,6 @@
+use std::ptr::NonNull;
 #[cfg(any(feature = "ztools-multiwebview", feature = "legacy-node-smoke"))]
 use std::time::Duration;
-use std::ptr::NonNull;
 
 use objc2::{rc::Retained, MainThreadMarker};
 #[cfg(feature = "legacy-node-smoke")]

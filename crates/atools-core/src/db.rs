@@ -36,8 +36,8 @@ mod plugin_dynamic_features_contract;
 mod plugin_dynamic_features_index;
 mod plugin_web_storage;
 mod plugins;
-mod renderer_app_state;
 mod renderer_app_global_shortcuts;
+mod renderer_app_state;
 mod renderer_command_aliases;
 mod renderer_command_catalog;
 mod renderer_disabled_commands;
@@ -73,8 +73,8 @@ pub use plugin_web_storage::{
 pub use renderer_app_global_shortcuts::{
     AppGlobalShortcutBinding, AppGlobalShortcutMutation, AppGlobalShortcutSnapshot,
     AppGlobalShortcutWrite, AppGlobalShortcutWritePlan, APP_GLOBAL_SHORTCUTS_KEY,
-    APP_GLOBAL_SHORTCUT_TARGETS_KEY, APP_GLOBAL_SHORTCUT_REVISION_KEY,
     APP_GLOBAL_SHORTCUT_CONFLICT, APP_GLOBAL_SHORTCUT_GUARD_REJECTED,
+    APP_GLOBAL_SHORTCUT_REVISION_KEY, APP_GLOBAL_SHORTCUT_TARGETS_KEY,
 };
 pub use renderer_app_state::{
     RendererAppIdentity, RendererAppStateMutation, RendererAppStateSnapshot, RendererDirectSubtype,

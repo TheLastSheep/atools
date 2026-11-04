@@ -1,5 +1,5 @@
-use std::io::{BufRead, BufReader, Read, Write};
 use std::cell::RefCell;
+use std::io::{BufRead, BufReader, Read, Write};
 use std::rc::Rc;
 
 use flate2::bufread::GzDecoder;
@@ -45,10 +45,14 @@ impl<R: Read, C: FnMut() -> bool> Read for DigestReader<R, C> {
         if (self.cancelled.borrow_mut())() {
             return Err(std::io::Error::new(std::io::ErrorKind::Other, "cancelled"));
         }
-        self.bytes = self.bytes.checked_add(count as u64)
-            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidData, "input byte overflow"))?;
+        self.bytes = self.bytes.checked_add(count as u64).ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::InvalidData, "input byte overflow")
+        })?;
         if self.bytes > self.limit {
-            return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "input limit exceeded"));
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "input limit exceeded",
+            ));
         }
         self.digest.update(&output[..count]);
         Ok(count)
@@ -74,13 +78,21 @@ where
     C: FnMut() -> bool,
 {
     let cancelled = Rc::new(RefCell::new(cancelled));
-    let digest_input = DigestReader { inner: input, digest: Sha256::new(), bytes: 0, limit: input_limit, cancelled: Rc::clone(&cancelled) };
+    let digest_input = DigestReader {
+        inner: input,
+        digest: Sha256::new(),
+        bytes: 0,
+        limit: input_limit,
+        cancelled: Rc::clone(&cancelled),
+    };
     let mut decoder = GzDecoder::new(BufReader::with_capacity(STREAM_BYTES, digest_input));
     let mut digest = Sha256::new();
     let mut total = 0u64;
     let mut chunk = vec![0u8; STREAM_BYTES];
     loop {
-        if (cancelled.borrow_mut())() { return Err(Error::Cancelled); }
+        if (cancelled.borrow_mut())() {
+            return Err(Error::Cancelled);
+        }
         let count = decoder.read(&mut chunk).map_err(|error| {
             if error.kind() == std::io::ErrorKind::Interrupted || (cancelled.borrow_mut())() {
                 Error::Cancelled
@@ -88,29 +100,51 @@ where
                 Error::InvalidPayload
             }
         })?;
-        if count == 0 { break; }
-        total = total.checked_add(count as u64).ok_or(Error::LimitExceeded)?;
-        if total > output_limit || total > expected_bytes { return Err(Error::LimitExceeded); }
+        if count == 0 {
+            break;
+        }
+        total = total
+            .checked_add(count as u64)
+            .ok_or(Error::LimitExceeded)?;
+        if total > output_limit || total > expected_bytes {
+            return Err(Error::LimitExceeded);
+        }
         output.write_all(&chunk[..count])?;
         digest.update(&chunk[..count]);
     }
     let mut buffered = decoder.into_inner();
-    if (cancelled.borrow_mut())() { return Err(Error::Cancelled); }
-    let has_trailing = !buffered.fill_buf().map_err(|error| {
-        if error.kind() == std::io::ErrorKind::Interrupted || (cancelled.borrow_mut())() {
-            Error::Cancelled
-        } else {
-            Error::InvalidPayload
-        }
-    })?.is_empty();
-    if (cancelled.borrow_mut())() { return Err(Error::Cancelled); }
-    if has_trailing { return Err(Error::InvalidPayload); }
+    if (cancelled.borrow_mut())() {
+        return Err(Error::Cancelled);
+    }
+    let has_trailing = !buffered
+        .fill_buf()
+        .map_err(|error| {
+            if error.kind() == std::io::ErrorKind::Interrupted || (cancelled.borrow_mut())() {
+                Error::Cancelled
+            } else {
+                Error::InvalidPayload
+            }
+        })?
+        .is_empty();
+    if (cancelled.borrow_mut())() {
+        return Err(Error::Cancelled);
+    }
+    if has_trailing {
+        return Err(Error::InvalidPayload);
+    }
     let input_digest = buffered.into_inner();
     let compressed_sha256 = format!("{:x}", input_digest.digest.finalize());
     if input_digest.bytes != expected_input_bytes || compressed_sha256 != expected_input_sha256 {
         return Err(Error::InvalidPayload);
     }
     let sha256 = format!("{:x}", digest.finalize());
-    if total != expected_bytes || sha256 != expected_sha256 { return Err(Error::InvalidPayload); }
-    Ok(Unpacked { sha256, bytes: total, compressed_sha256, compressed_bytes: input_digest.bytes })
+    if total != expected_bytes || sha256 != expected_sha256 {
+        return Err(Error::InvalidPayload);
+    }
+    Ok(Unpacked {
+        sha256,
+        bytes: total,
+        compressed_sha256,
+        compressed_bytes: input_digest.bytes,
+    })
 }

@@ -309,7 +309,12 @@ impl StartupTrace {
     pub(crate) fn child_termination_observed(&self) -> bool {
         self.state
             .lock()
-            .map(|state| matches!(state.last_try_wait, StartupTryWait::Exited(_) | StartupTryWait::Failed))
+            .map(|state| {
+                matches!(
+                    state.last_try_wait,
+                    StartupTryWait::Exited(_) | StartupTryWait::Failed
+                )
+            })
             .unwrap_or(false)
     }
 

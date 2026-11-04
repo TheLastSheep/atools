@@ -113,7 +113,9 @@ pub(super) fn setup(app: &AppHandle) -> Result<(), String> {
         return Err("manual-ui owner invalid at setup".into());
     }
     // Standard native app Quit keeps the ordinary exit/teardown path available.
-    if crate::renderer_close_shortcut::is_original(app) {return crate::renderer_close_shortcut::setup(app);}
+    if crate::renderer_close_shortcut::is_original(app) {
+        return crate::renderer_close_shortcut::setup(app);
+    }
     let menu = tauri::menu::Menu::default(app).map_err(|e| e.to_string())?;
     app.set_menu(menu).map_err(|e| e.to_string())?;
     Ok(())

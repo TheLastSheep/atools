@@ -1,6 +1,9 @@
 use super::Database;
 use crate::error::Result;
-use crate::task_run::{Artifact, ResultAction, TaskIssue, TaskRun, TaskRunInitiator, TaskRunInitiatorType, TaskRunStatus, TaskValidation};
+use crate::task_run::{
+    Artifact, ResultAction, TaskIssue, TaskRun, TaskRunInitiator, TaskRunInitiatorType,
+    TaskRunStatus, TaskValidation,
+};
 use rusqlite::params;
 use serde_json::{self, Value};
 
@@ -81,7 +84,6 @@ impl Database {
             .collect::<std::result::Result<Vec<_>, _>>()?;
         Ok(runs)
     }
-
 }
 fn task_run_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TaskRun> {
     let initiator_type: String = row.get(2)?;
@@ -140,4 +142,3 @@ fn task_run_initiator_type_from_str(value: &str) -> TaskRunInitiatorType {
         _ => TaskRunInitiatorType::Agent,
     }
 }
-

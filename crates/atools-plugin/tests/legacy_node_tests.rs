@@ -1,3 +1,9 @@
+#![allow(
+    dead_code,
+    clippy::cloned_ref_to_slice_refs,
+    clippy::needless_range_loop
+)]
+
 use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, Instant};

@@ -388,10 +388,17 @@ fn active_feature_is_tracked_while_occupied_and_cleared_on_close() {
     let generation = runtime.begin_reuse();
     let request_id = uuid::Uuid::new_v4().to_string();
     let intent = runtime.reserve_open_intent(&request_id).unwrap();
-    let item = PendingPluginAction::new(action(json!(null), None), "1".into(), None, request_id.clone());
+    let item = PendingPluginAction::new(
+        action(json!(null), None),
+        "1".into(),
+        None,
+        request_id.clone(),
+    );
     let handoff_id = item.id.clone();
     assert_eq!(runtime.active_feature(), None);
-    runtime.stage_pending(item, generation, &intent, None).unwrap();
+    runtime
+        .stage_pending(item, generation, &intent, None)
+        .unwrap();
     runtime.mark_ready(&handoff_id, generation).unwrap();
     assert!(runtime.is_occupied());
     assert_eq!(

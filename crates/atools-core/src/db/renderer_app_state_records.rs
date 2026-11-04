@@ -77,10 +77,7 @@ fn read_usage_count(value: &Value) -> Result<u64> {
     Ok(count)
 }
 
-pub(super) fn reorder_app_pins(
-    pins: &mut Vec<Value>,
-    apps: &[RendererAppIdentity],
-) -> Result<bool> {
+pub(super) fn reorder_app_pins(pins: &mut [Value], apps: &[RendererAppIdentity]) -> Result<bool> {
     let mut requested = Vec::with_capacity(apps.len());
     let mut seen = BTreeSet::new();
     for app in apps {
@@ -184,9 +181,7 @@ pub(super) fn is_direct_record(value: &Value) -> bool {
 }
 
 fn direct_subtype(value: &Value) -> Option<RendererDirectSubtype> {
-    let Some(object) = value.as_object() else {
-        return None;
-    };
+    let object = value.as_object()?;
     match object.get("type").and_then(Value::as_str) {
         Some("app") => Some(RendererDirectSubtype::App),
         Some("direct") => match object.get("subType").and_then(Value::as_str) {

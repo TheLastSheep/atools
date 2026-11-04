@@ -1,4 +1,4 @@
-use crate::hotkey::main_binding::{MainBinding, parse_main_binding};
+use crate::hotkey::main_binding::{parse_main_binding, MainBinding};
 use std::collections::HashSet;
 
 use super::{
@@ -292,7 +292,14 @@ fn release_never_unregisters_foreign_shortcuts() {
     assert_eq!(port.operations.len(), 1);
 }
 
-trait BindingTestId { fn id(self) -> u32; }
+trait BindingTestId {
+    fn id(self) -> u32;
+}
 impl BindingTestId for MainBinding {
-    fn id(self) -> u32 { match self { MainBinding::Accelerator(key) => key.id(), MainBinding::DoubleTap(modifier) => 0xffff_ff00 + modifier as u32 } }
+    fn id(self) -> u32 {
+        match self {
+            MainBinding::Accelerator(key) => key.id(),
+            MainBinding::DoubleTap(modifier) => 0xffff_ff00 + modifier as u32,
+        }
+    }
 }

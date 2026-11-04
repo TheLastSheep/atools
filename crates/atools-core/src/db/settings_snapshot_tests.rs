@@ -35,7 +35,7 @@ fn bounded_batch_rejects_total_budget_overflow_without_returning_values() {
 #[test]
 fn settings_general_has_its_lower_sql_side_value_limit() {
     let db = Database::in_memory().unwrap();
-    let oversized = format!("{}", "x".repeat(GENERAL_SETTINGS_MAX_BYTES + 1));
+    let oversized = "x".repeat(GENERAL_SETTINGS_MAX_BYTES + 1);
     db.set_setting("settings-general", &oversized).unwrap();
 
     let error = db

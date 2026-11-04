@@ -23,7 +23,10 @@ use std::path::PathBuf;
 #[cfg(target_os = "macos")]
 pub fn run_if_requested() -> Result<bool, String> {
     let args: Vec<String> = std::env::args().collect();
-    if !args.iter().any(|arg| arg == "--atools-native-launchservices-observer") {
+    if !args
+        .iter()
+        .any(|arg| arg == "--atools-native-launchservices-observer")
+    {
         return Ok(false);
     }
     let config = guard::read_observer_config(&args)?;
@@ -33,15 +36,21 @@ pub fn run_if_requested() -> Result<bool, String> {
     match result {
         Ok(report) => {
             protocol::write_report(&config.observer_report_path, &report)?;
-            println!("AToolsNativeLaunchServicesResult {}", serde_json::to_string(&report)
-                .map_err(|error| format!("serialize observer report: {error}"))?);
+            println!(
+                "AToolsNativeLaunchServicesResult {}",
+                serde_json::to_string(&report)
+                    .map_err(|error| format!("serialize observer report: {error}"))?
+            );
             Ok(true)
         }
         Err(error) => {
             let report = protocol::ObserverReport::failed(&config, error);
             protocol::write_report(&config.observer_report_path, &report)?;
-            println!("AToolsNativeLaunchServicesResult {}", serde_json::to_string(&report)
-                .map_err(|error| format!("serialize observer report: {error}"))?);
+            println!(
+                "AToolsNativeLaunchServicesResult {}",
+                serde_json::to_string(&report)
+                    .map_err(|error| format!("serialize observer report: {error}"))?
+            );
             Ok(true)
         }
     }
@@ -52,17 +61,25 @@ pub fn run_if_requested() -> Result<bool, String> {
 pub fn route_target_stdio_if_requested() -> Result<(), String> {
     let args: Vec<String> = std::env::args().collect();
     let path = std::env::var_os("ATOOLS_NATIVE_STDIO_FIFO");
-    if !guard::launchservices_route_required(&args, path.is_some())? { return Ok(()); }
+    if !guard::launchservices_route_required(&args, path.is_some())? {
+        return Ok(());
+    }
     let Some((case_id, run_id)) = guard::active_input_identity(&args)? else {
-        return Err("private stdio routing requires the explicit native editor fixture flags".into());
+        return Err(
+            "private stdio routing requires the explicit native editor fixture flags".into(),
+        );
     };
     // The run-bound FIFO is a one-use LaunchServices permit: a late target
     // cannot enter Tauri when the observer has removed it or stopped reading.
     let path = path.ok_or("LaunchServices fixture permit is missing")?;
-    let bundle_id = objc2_foundation::NSBundle::mainBundle().bundleIdentifier()
-        .map(|value| value.to_string()).ok_or("fixture main bundle identifier unavailable")?;
+    let bundle_id = objc2_foundation::NSBundle::mainBundle()
+        .bundleIdentifier()
+        .map(|value| value.to_string())
+        .ok_or("fixture main bundle identifier unavailable")?;
     let expected = format!("dev.atools.fixture.dialog.{}", run_id.replace('-', ""));
-    if bundle_id != expected || !matches!(case_id.as_str(), "local-plain-text" | "local-json-editor") {
+    if bundle_id != expected
+        || !matches!(case_id.as_str(), "local-plain-text" | "local-json-editor")
+    {
         return Err("private stdio route bundle/case identity mismatch".into());
     }
     stdio::route_process_stdio(&PathBuf::from(path), &run_id)?;

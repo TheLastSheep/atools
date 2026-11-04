@@ -1,14 +1,14 @@
 use std::path::{Path, PathBuf};
 
-use super::vite_backend::{resolve_vite_backend, ResolveBackendError, ViteBuildBackend};
 use super::manifest_output::{plan_public_root_rewrite, ManifestOutputRewritePlan};
 use super::manifest_selection::{self, ManifestIdentity, ManifestSelection};
-use super::ready_package::inspect_ready_package;
 use super::metadata::{canonical_directory, read_json};
 use super::policy::{stable_installation_id, string, vite_declaration};
+use super::ready_package::inspect_ready_package;
 use super::script_plan::{compile_scripts, BuildStep};
 use super::trusted_dependency_root::TrustedDependencyRoot;
 use super::tsx_esbuild_resolver::{resolve_tsx_esbuild, TsxResolveError};
+use super::vite_backend::{resolve_vite_backend, ResolveBackendError, ViteBuildBackend};
 use super::walk::{find_native_sources, WalkError};
 use super::{SourceBuildBlocker, SourceBuildInspection, SourceBuildStatus};
 use crate::package_resolution::{resolve_plugin_package, PackageReadiness};
@@ -55,7 +55,10 @@ pub(super) fn prepare_with_dependency_root(
         .ok_or_else(|| "Source project is not eligible for a local Vite build".to_owned())
 }
 
-pub(super) fn inspect_plan(root: &Path, selection: Option<ManifestSelection>) -> Result<SourceBuildInspection, String> {
+pub(super) fn inspect_plan(
+    root: &Path,
+    selection: Option<ManifestSelection>,
+) -> Result<SourceBuildInspection, String> {
     inspect_plan_inner(root, None, selection)
 }
 
@@ -97,12 +100,20 @@ fn inspect_plan_inner(
     let mut blockers = Vec::new();
     let mut manifest_output_rewrite = None;
     let Some(selected_manifest) = manifest_scan.selected else {
-        push(&mut blockers, "manifest_missing", "A root or public plugin manifest is required");
+        push(
+            &mut blockers,
+            "manifest_missing",
+            "A root or public plugin manifest is required",
+        );
         return Ok(blocked(None, None, blockers, manifest_info));
     };
     let manifest_relative = selected_manifest.relative_path.clone();
     let manifest_json = selected_manifest.raw.clone();
-    let identity = if selected_manifest.valid { selected_manifest.parsed.clone() } else { None };
+    let identity = if selected_manifest.valid {
+        selected_manifest.parsed.clone()
+    } else {
+        None
+    };
     if !selected_manifest.valid {
         if selected_manifest.invalid_plugin_id {
             push(
@@ -408,8 +419,14 @@ fn inspect_plan_inner(
     }
     let manifest = identity.expect("identity is required for an eligible source");
     let stable_id = stable_installation_id(&manifest.name).expect("stable ID was validated");
-    let selected_sha256 = selected_manifest.sha256.clone().expect("eligible manifest has a hash");
-    let selected_identity = selected_manifest.identity.clone().expect("eligible manifest has an identity");
+    let selected_sha256 = selected_manifest
+        .sha256
+        .clone()
+        .expect("eligible manifest has a hash");
+    let selected_identity = selected_manifest
+        .identity
+        .clone()
+        .expect("eligible manifest has an identity");
     Ok(SourceBuildInspection::from_parts_with_manifest(
         SourceBuildStatus::Eligible,
         Some(stable_id.clone()),
@@ -447,6 +464,11 @@ fn blocked(
     manifest_info: super::manifest_selection::ManifestSelectionInfo,
 ) -> SourceBuildInspection {
     SourceBuildInspection::from_parts_with_manifest(
-        SourceBuildStatus::Blocked, plugin_id, version, blockers, None, manifest_info,
+        SourceBuildStatus::Blocked,
+        plugin_id,
+        version,
+        blockers,
+        None,
+        manifest_info,
     )
 }

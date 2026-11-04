@@ -1,6 +1,6 @@
 //! Bounded typed text programs plus exact length predicates; never query-time compilation.
-use super::typed_text_pattern::{expression, EffectivePattern, TextContext};
 use super::typed_text_metrics::TextMetrics;
+use super::typed_text_pattern::{expression, EffectivePattern, TextContext};
 use crate::{Cmd, FeatureEntry};
 use regex_automata::{meta, nfa::thompson::WhichCaptures, Input, MatchKind, PatternID, PatternSet};
 use std::{

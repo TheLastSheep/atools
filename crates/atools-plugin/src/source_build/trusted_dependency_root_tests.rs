@@ -81,7 +81,9 @@ fn inspects_and_prepares_all_build_tools_from_external_home_but_config_from_sour
         .unwrap();
     assert_eq!(plan.dependency_root, modules);
     assert!(plan.vite_cli.starts_with(&modules));
-    let super::ViteBuildBackend::Esbuild { binary } = &plan.vite_backend else { panic!("expected legacy esbuild backend") };
+    let super::ViteBuildBackend::Esbuild { binary } = &plan.vite_backend else {
+        panic!("expected legacy esbuild backend")
+    };
     assert!(binary.starts_with(&modules));
     let tsx_esbuild = plan
         .test_esbuild_binary

@@ -459,7 +459,10 @@ fn shutdown_preserves_held_temporary_on_failed_unregister() {
 fn shutdown_borrowed_held_waits_for_confirmed_main_withdrawal() {
     let signals = Signals::default();
     let mut registry = Registry::default();
-    let mut port = Dispatcher { registered: true, ..Default::default() };
+    let mut port = Dispatcher {
+        registered: true,
+        ..Default::default()
+    };
     signals.arm(target(), 1).unwrap();
     registry.start(target(), 1, true, &mut port).unwrap();
     port.event(&signals, ShortcutState::Pressed);
