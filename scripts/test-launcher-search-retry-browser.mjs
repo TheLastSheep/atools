@@ -59,7 +59,7 @@ const requiredPins = {
   "src/lib/searchBehavior.ts": "4ad3487a46679d0c505657c31bfeaab285d34cb53ca70722316a3534beff5679",
   "src/lib/settings.ts": "32fb27786f9d81bac5860dbaf199fc93eb3a41bcf6b324fcee31b84555fe918c",
   "tests/components/launcherReturnContextFixture.ts": "bbd2176ca391cd836cf88f34929310be16d9fee5002668d3e185cbd6729b88a7",
-  "src/components/SettingsPanel.svelte": "33c5ae163225cbb866561e85e1bb6fc9bc3bf45f87bce3a346d093685b87492f",
+  "src/components/SettingsPanel.svelte": "3a9c13246310658a96e5b357d4511771b69e1bc2a70b00bd85cf68c35f3d5053",
   "src/components/ResultTypeIcon.svelte": "0019a6660f89094d240898f5161c9f47ea9ff21a31b9ac200ff1fe9df1e53a68",
   "src/lib/resultPresentation.ts": "a962591b1df32123058bfd7ed05ef0abc64fc8919ded989f2489cf16b09acd4e",
   "src/lib/resultListViewport.ts": "4f3db53874b3a61006cc9a413da2b2a14db910b2b17472e9b1c6de913d4cc2a7",

@@ -358,7 +358,14 @@ try {
   assert.equal(overview.errorRows[0].detail, "Permission confirmation required");
   assert.equal(mod.auditDataOverview([]).totalLabel, "暂无审计记录");
 
-  const agentPanel = await readFile(new URL("../src/components/AgentPanel.svelte", import.meta.url), "utf8");
+  const agentPanel = (
+    await Promise.all([
+      readFile(new URL("../src/components/AgentPanel.svelte", import.meta.url), "utf8"),
+      readFile(new URL("../src/components/AgentAuditReplaySection.svelte", import.meta.url), "utf8"),
+      readFile(new URL("../src/lib/agentPanelHelpers.ts", import.meta.url), "utf8"),
+      readFile(new URL("../src/components/AgentPanelAudit.css", import.meta.url), "utf8"),
+    ])
+  ).join("\n");
   assert.ok(agentPanel.includes('placeholder="工具、客户端、路径、错误、参数"'), "Agent audit search should explain searchable fields");
   assert.ok(agentPanel.includes("没有匹配的审计记录"), "Agent audit list should render an empty result state");
   assert.ok(agentPanel.includes("{auditSummaryText} · 已加载 {audits.length} / {auditTotal} 条"), "Agent audit list should render filter summary and loaded count");

@@ -232,9 +232,12 @@ function sourceContainsPanicHook(root) {
 }
 
 function settingsPanelContainsCrashLogUi(root) {
-  const path = join(root, "src", "components", "SettingsPanel.svelte");
-  if (!existsSync(path)) return false;
-  const source = readFileSync(path, "utf8");
+  const paths = [
+    join(root, "src", "components", "SettingsPanel.svelte"),
+    join(root, "src", "lib", "settingsPanelDataDebugController.ts"),
+  ];
+  if (!paths.every((path) => existsSync(path))) return false;
+  const source = paths.map((path) => readFileSync(path, "utf8")).join("\n");
   return [
     "list_crash_logs",
     "export_crash_log",

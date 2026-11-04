@@ -1,0 +1,432 @@
+@media (max-width: 1000px) {
+  .settings-sidebar {
+    width: 184px;
+    padding: 12px 8px 14px;
+  }
+
+  .menu-item {
+    min-height: 48px;
+    gap: 10px;
+    margin-bottom: 6px;
+    padding-inline: 10px;
+    font-size: 13px;
+  }
+
+  .menu-icon {
+    width: 18px;
+    height: 18px;
+    flex-basis: 18px;
+  }
+
+  .content-panel {
+    padding: 20px 20px 24px 18px;
+  }
+
+  .setting-group {
+    margin-bottom: 28px;
+  }
+
+  .setting-group h3 {
+    margin-bottom: 14px;
+    font-size: 15px;
+  }
+
+  .setting-item {
+    min-height: 76px;
+    gap: 14px;
+    padding: 16px 0;
+  }
+
+  .setting-label {
+    gap: 5px;
+  }
+
+  .setting-label span {
+    font-size: 14px;
+  }
+
+  .setting-label small {
+    font-size: 12px;
+  }
+
+  .settings-sidebar::-webkit-scrollbar,
+  .content-panel::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .hotkey-input,
+  .select-control,
+  .text-input,
+  .number-input {
+    height: 40px;
+    max-width: 100%;
+    border-radius: 7px;
+    font-size: 14px;
+  }
+
+  .hotkey-input {
+    width: 178px;
+  }
+
+  .text-input {
+    width: 220px;
+  }
+
+  .text-input.wide {
+    width: 236px;
+  }
+
+  .select-control {
+    min-width: 150px;
+    padding: 0 38px 0 14px;
+  }
+
+  .select-control.compact,
+  .number-input {
+    min-width: 104px;
+    width: 104px;
+  }
+
+  .range-control {
+    width: 214px;
+  }
+
+  .icon-button,
+  .plain-button {
+    min-height: 36px;
+    border-radius: 7px;
+    font-size: 13px;
+  }
+
+  .icon-button {
+    width: 38px;
+  }
+
+  .plain-button {
+    padding: 0 12px;
+  }
+
+  .toggle {
+    width: 52px;
+    height: 30px;
+    flex: 0 0 52px;
+  }
+
+  .toggle span::before {
+    top: 3px;
+    left: 3px;
+    width: 22px;
+    height: 22px;
+  }
+
+  .toggle input:checked + span::before {
+    transform: translateX(22px);
+  }
+
+  .shortcut-tab-bar,
+  .general-overview-grid,
+  .http-overview-grid,
+  .about-overview-grid,
+  .shortcut-summary-grid,
+  .web-quick-overview-grid,
+  .local-launch-overview-grid,
+  .ai-overview-grid,
+  .webdav-overview-grid,
+  .debug-overview-grid,
+  .data-overview-grid,
+  .mcp-governance-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .shortcut-card-row,
+  .alias-shortcut-row {
+    grid-template-columns: minmax(92px, 120px) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .shortcut-card-row > .meta-pill,
+  .alias-shortcut-row > .row-actions {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .mcp-scope-policy-row,
+  .mcp-request-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .mcp-scope-policy-row > .row-actions,
+  .mcp-request-row > .row-actions {
+    justify-content: flex-start;
+  }
+
+  .alias-row {
+    grid-template-columns: 42px minmax(0, 1fr);
+  }
+
+  .data-row {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .overview-columns {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .command-center-summary-grid,
+  .command-center-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .command-source-list {
+    padding-right: 0;
+    padding-bottom: 10px;
+    border-right: 0;
+    border-bottom: 1px solid var(--settings-divider);
+  }
+
+  .command-filter-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .command-target-row {
+    grid-template-columns: 42px minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .command-target-row > .row-actions {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .overview-row-meta {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .alias-row .plain-button {
+    grid-column: 2;
+    justify-self: end;
+  }
+
+  .alias-fields {
+    grid-template-columns: minmax(92px, 1fr);
+  }
+
+  .web-template-input {
+    grid-column: 1 / -1;
+  }
+
+  .audit-error-meta {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .settings-panel {
+    color: #f3f4f6;
+    background: rgba(48, 49, 51, 0.92);
+    --settings-primary: var(--accent);
+    --settings-primary-soft: var(--accent-subtle);
+    --settings-hover: color-mix(in srgb, var(--accent) 18%, rgba(255, 255, 255, 0.06));
+    --settings-divider: rgba(255, 255, 255, 0.1);
+    --settings-control: rgba(255, 255, 255, 0.04);
+    --settings-control-border: rgba(255, 255, 255, 0.1);
+    --settings-text-secondary: #bfc0c3;
+  }
+
+  .content-panel {
+    background: rgba(48, 49, 51, 0.92);
+  }
+
+  .menu-item,
+  .setting-label span,
+  .shortcut-row span,
+  .shortcut-tab,
+  .shortcut-summary-card strong,
+  .shortcut-key-display,
+  .debug-row span,
+  .mono-value,
+  .debug-row code,
+  .hotkey-input,
+  .select-control,
+  .text-input,
+  .number-input,
+  .icon-button,
+  .plain-button {
+    color: #f3f4f6;
+  }
+
+  .debug-value small {
+    color: var(--settings-text-secondary);
+  }
+
+  .diagnostic-row.warning .debug-value code {
+    color: #f59e0b;
+  }
+
+  .diagnostic-row.error .debug-value code {
+    color: #f87171;
+  }
+
+  .select-control {
+    background:
+      linear-gradient(45deg, transparent 50%, #bfc0c3 50%) calc(100% - 29px) 29px / 9px 9px no-repeat,
+      linear-gradient(135deg, #bfc0c3 50%, transparent 50%) calc(100% - 22px) 29px / 9px 9px no-repeat,
+      var(--settings-control);
+  }
+
+  .toggle span::before {
+    background: #d8dbe2;
+  }
+
+  .color-dot.active {
+    border-color: #f3f4f6;
+  }
+}
+
+:root[data-atools-theme="light"] .settings-panel {
+  color: #333333;
+  background: rgba(244, 244, 244, 0.72);
+  --settings-primary: var(--accent);
+  --settings-primary-soft: var(--accent-subtle);
+  --settings-hover: color-mix(in srgb, var(--accent) 12%, white);
+  --settings-divider: rgba(0, 0, 0, 0.1);
+  --settings-control: rgba(0, 0, 0, 0.035);
+  --settings-control-border: rgba(0, 0, 0, 0.1);
+  --settings-text-secondary: #616161;
+}
+
+:root[data-atools-theme="light"] .content-panel {
+  background: rgba(244, 244, 244, 0.72);
+}
+
+:root[data-atools-theme="light"] .menu-item,
+:root[data-atools-theme="light"] .setting-label span,
+:root[data-atools-theme="light"] .shortcut-row span,
+:root[data-atools-theme="light"] .shortcut-tab,
+:root[data-atools-theme="light"] .shortcut-summary-card strong,
+:root[data-atools-theme="light"] .shortcut-key-display,
+:root[data-atools-theme="light"] .debug-row span,
+:root[data-atools-theme="light"] .mono-value,
+:root[data-atools-theme="light"] .debug-row code,
+:root[data-atools-theme="light"] .hotkey-input,
+:root[data-atools-theme="light"] .select-control,
+:root[data-atools-theme="light"] .text-input,
+:root[data-atools-theme="light"] .number-input,
+:root[data-atools-theme="light"] .icon-button,
+:root[data-atools-theme="light"] .plain-button {
+  color: #333333;
+}
+
+:root[data-atools-theme="light"] .debug-value small {
+  color: var(--settings-text-secondary);
+}
+
+:root[data-atools-theme="light"] .diagnostic-row.warning .debug-value code {
+  color: #b45309;
+}
+
+:root[data-atools-theme="light"] .diagnostic-row.error .debug-value code {
+  color: #dc2626;
+}
+
+:root[data-atools-theme="light"] .select-control {
+  background:
+    linear-gradient(45deg, transparent 50%, #616161 50%) calc(100% - 29px) 29px / 9px 9px no-repeat,
+    linear-gradient(135deg, #616161 50%, transparent 50%) calc(100% - 22px) 29px / 9px 9px no-repeat,
+    var(--settings-control);
+}
+
+:root[data-atools-theme="light"] .toggle span::before {
+  background: #333333;
+}
+
+:root[data-atools-theme="light"] .hotkey-input.recording {
+  color: var(--settings-primary);
+}
+
+:root[data-atools-theme="dark"] .settings-panel {
+  color: #f3f4f6;
+  background: rgba(48, 49, 51, 0.92);
+  --settings-primary: var(--accent);
+  --settings-primary-soft: var(--accent-subtle);
+  --settings-hover: color-mix(in srgb, var(--accent) 18%, rgba(255, 255, 255, 0.06));
+  --settings-divider: rgba(255, 255, 255, 0.1);
+  --settings-control: rgba(255, 255, 255, 0.04);
+  --settings-control-border: rgba(255, 255, 255, 0.1);
+  --settings-text-secondary: #bfc0c3;
+}
+
+:root[data-atools-theme="dark"] .content-panel {
+  background: rgba(48, 49, 51, 0.92);
+}
+
+:root[data-atools-theme="dark"] .settings-sidebar,
+:root[data-atools-theme="dark"] .content-panel {
+  scrollbar-color: rgba(255, 255, 255, 0.24) transparent;
+}
+
+:root[data-atools-theme="dark"] .settings-sidebar::-webkit-scrollbar-thumb,
+:root[data-atools-theme="dark"] .content-panel::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.24);
+}
+
+:root[data-atools-theme="dark"] .settings-sidebar::-webkit-scrollbar-thumb:hover,
+:root[data-atools-theme="dark"] .content-panel::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.38);
+}
+
+:root[data-atools-theme="dark"] .menu-item,
+:root[data-atools-theme="dark"] .setting-label span,
+:root[data-atools-theme="dark"] .shortcut-row span,
+:root[data-atools-theme="dark"] .shortcut-tab,
+:root[data-atools-theme="dark"] .shortcut-summary-card strong,
+:root[data-atools-theme="dark"] .shortcut-key-display,
+:root[data-atools-theme="dark"] .debug-row span,
+:root[data-atools-theme="dark"] .mono-value,
+:root[data-atools-theme="dark"] .debug-row code,
+:root[data-atools-theme="dark"] .hotkey-input,
+:root[data-atools-theme="dark"] .select-control,
+:root[data-atools-theme="dark"] .text-input,
+:root[data-atools-theme="dark"] .number-input,
+:root[data-atools-theme="dark"] .icon-button,
+:root[data-atools-theme="dark"] .plain-button {
+  color: #f3f4f6;
+}
+
+:root[data-atools-theme="dark"] .debug-value small {
+  color: var(--settings-text-secondary);
+}
+
+:root[data-atools-theme="dark"] .diagnostic-row.warning .debug-value code {
+  color: #f59e0b;
+}
+
+:root[data-atools-theme="dark"] .diagnostic-row.error .debug-value code {
+  color: #f87171;
+}
+
+:root[data-atools-theme="dark"] .select-control {
+  background:
+    linear-gradient(45deg, transparent 50%, #bfc0c3 50%) calc(100% - 29px) 29px / 9px 9px no-repeat,
+    linear-gradient(135deg, #bfc0c3 50%, transparent 50%) calc(100% - 22px) 29px / 9px 9px no-repeat,
+    var(--settings-control);
+}
+
+:root[data-atools-theme="dark"] .toggle span::before {
+  background: #d8dbe2;
+}
+
+:root[data-atools-theme="dark"] .color-dot.active {
+  border-color: #f3f4f6;
+}
+
+:root[data-atools-theme="dark"] .hotkey-input.recording {
+  color: var(--settings-primary);
+}

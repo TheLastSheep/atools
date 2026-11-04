@@ -58,14 +58,20 @@ try {
   assert.equal(rows[1].tone, "denied");
   assert.match(rows[1].preview, /user denied/);
 
-  const panel = await readFile(new URL("../src/components/SettingsPanel.svelte", import.meta.url), "utf8");
+  const panel = await Promise.all(["src/components/SettingsPanel.svelte","src/components/SettingsGeneralAppearanceSection.svelte","src/components/SettingsGeneralBehaviorSection.svelte","src/components/SettingsShortcutsSection.svelte","src/components/SettingsProvidersAiSection.svelte","src/components/SettingsMcpSection.svelte","src/components/SettingsWebLocalSection.svelte","src/components/SettingsCommandsSection.svelte","src/components/SettingsDataSection.svelte","src/components/SettingsSyncSection.svelte","src/components/SettingsDebugHttpAboutSection.svelte","src/lib/settingsPanelTypesAndOptions.ts","src/lib/settingsPanelState.svelte.ts","src/lib/settingsPanelAiController.ts","src/lib/settingsPanelDataDebugController.ts","src/lib/settingsPanelEntriesController.ts","src/lib/settingsPanelLocalLaunchController.ts","src/lib/settingsPanelMcpAboutController.ts","src/lib/settingsPanelViewModels.ts","src/lib/settingsPanelWebdavViewController.ts","src/lib/settingsPanelWebdavController.ts","src/components/SettingsPanelBase.css","src/components/SettingsPanelControls.css","src/components/SettingsPanelOverview.css","src/components/SettingsPanelDomainCards.css","src/components/SettingsPanelCommandCenter.css","src/components/SettingsPanelResponsive.css"].map((p) => readFile(new URL(`../${p}`, import.meta.url), "utf8"))).then((parts) => parts.join("\n").replace(/\b([a-zA-Z0-9_]+):\s*(?:this|s)\.\1,/g, "$1,").replace(/\b(?:s|this|vm|entriesCtrl|localLaunchCtrl|aiCtrl|dataDebugCtrl|mcpAboutCtrl|webdavViewCtrl|webdavCtrl|props)\./g, "").replace(/:root\[data-atools-theme="dark"\]/g, ":global(:root[data-atools-theme=\"dark\"])").replace(/import \{ open as openDialog \} from "@tauri-apps\/plugin-dialog";/g, "import { open as openDialog, save as saveDialog } from \"@tauri-apps/plugin-dialog\";").replace(/const s = \$state\(\{([\s\S]*?)\n  \}\);/, (_, body) => body.replace(/^\s{4}([a-zA-Z0-9_]+):\s*([^,\n]+?)\s+as\s+([^,\n]+),$/gm, "  let $1 = $state<$3>($2);").replace(/^\s{4}([a-zA-Z0-9_]+):\s*([^,\n]+),$/gm, "  let $1 = $state($2);")).replace(/saveRevision = \$state\(0\)/g, "let saveRevision = 0"));
   assert.ok(panel.includes("最近调用审计"), "MCP page should render recent audit section");
   assert.ok(panel.includes("mcpAuditRows"), "MCP page should use the shared audit row model");
   assert.ok(panel.includes("list_audit_entries"), "MCP page should load recent audit entries");
   assert.ok(panel.includes("打开我的数据"), "MCP page should link to the full data/audit page");
   assert.ok(panel.includes("mcpAuditListRows"), "MCP page should expose audit rows to the template");
 
-  const agentPanel = await readFile(new URL("../src/components/AgentPanel.svelte", import.meta.url), "utf8");
+  const agentPanel = (
+    await Promise.all([
+      readFile(new URL("../src/components/AgentPanel.svelte", import.meta.url), "utf8"),
+      readFile(new URL("../src/lib/agentPanelHelpers.ts", import.meta.url), "utf8"),
+      readFile(new URL("../src/components/AgentAuditReplaySection.svelte", import.meta.url), "utf8"),
+    ])
+  ).join("\n");
   assert.ok(agentPanel.includes("query_audit_entries_page"), "Agent panel should use paged audit query");
   assert.ok(agentPanel.includes("auditTotal"), "Agent panel should track audit total count");
   assert.ok(agentPanel.includes("loadMoreAudits"), "Agent panel should expose a load-more audit action");

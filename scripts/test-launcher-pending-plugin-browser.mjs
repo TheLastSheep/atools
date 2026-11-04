@@ -32,7 +32,7 @@ const requiredPins = {
   "src/components/PluginPanelBody.svelte": "343bb2ce57e0d228b93ca4d709ee629d3f7828877fe52310ce4b9957824e46d9",
   "src/components/SearchBar.svelte": "7de2d502a51eb975013eb6380399244e9c0fe77c2a848ca9bf071a8d610e712f",
   "src/components/ShellFrame.svelte": "c8e1ef2af650cf5f8bb47c049080de3eb1c05e470d249c49243ab5b6063a1516",
-  "src/components/SettingsPanel.svelte": "33c5ae163225cbb866561e85e1bb6fc9bc3bf45f87bce3a346d093685b87492f",
+  "src/components/SettingsPanel.svelte": "3a9c13246310658a96e5b357d4511771b69e1bc2a70b00bd85cf68c35f3d5053",
   "src/styles/global.css": "3082e82287f79eddc0a0d3fd822464ece8b2f86b2dc2b7e3131ede7099963fd2",
   "tests/components/launcherReturnContextFixture.ts": "bbd2176ca391cd836cf88f34929310be16d9fee5002668d3e185cbd6729b88a7",
 };

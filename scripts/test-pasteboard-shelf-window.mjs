@@ -6,7 +6,10 @@ const [windowSource, appLib, app, shelf, dialog] = await Promise.all([
   readFile(new URL("src-tauri/src/pasteboard_window.rs", root), "utf8"),
   readFile(new URL("src-tauri/src/lib.rs", root), "utf8"),
   readFile(new URL("src/App.svelte", root), "utf8"),
-  readFile(new URL("src/components/PasteboardShelf.svelte", root), "utf8"),
+  Promise.all([
+    readFile(new URL("src/components/PasteboardShelf.svelte", root), "utf8"),
+    readFile(new URL("src/components/PasteboardPinboardNav.svelte", root), "utf8"),
+  ]).then((parts) => parts.join("\n")),
   readFile(new URL("src/components/PasteboardDialog.svelte", root), "utf8"),
 ]);
 

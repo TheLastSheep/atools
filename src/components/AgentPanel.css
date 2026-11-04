@@ -1,0 +1,306 @@
+.agent-panel {
+  padding: 18px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-primary);
+  max-height: 560px;
+  overflow: auto;
+}
+.agent-panel.results-only > .agent-section:not(.result-center-section),
+.agent-panel.results-only > .agent-grid {
+  display: none;
+}
+.agent-panel.results-only .result-center-section {
+  margin-top: 16px;
+}
+.agent-panel .agent-header,
+.agent-panel .section-title,
+.agent-panel .agent-grid,
+.agent-panel .tool-row,
+.agent-panel .pending-row,
+.agent-panel .grant-row,
+.agent-panel .template-row,
+.agent-panel .audit-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.agent-panel .agent-header h2,
+.agent-panel .agent-section h3 {
+  margin: 0;
+  color: var(--text-primary);
+}
+.agent-panel .agent-header h2 {
+  font-size: 18px;
+}
+.agent-panel .agent-header p,
+.agent-panel .section-title p,
+.agent-panel .tool-row p,
+.agent-panel .scope-policy-row p,
+.agent-panel .pending-row p,
+.agent-panel .grant-row p,
+.agent-panel .task-run-row p,
+.agent-panel .empty {
+  margin: 4px 0 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+.agent-panel .icon-button,
+.agent-panel .section-title button,
+.agent-panel .row-actions button,
+.agent-panel .grant-row button {
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.agent-panel .icon-button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+}
+.agent-panel button:disabled,
+.agent-panel input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.agent-panel .agent-grid {
+  align-items: stretch;
+  margin: 16px 0;
+}
+.agent-panel .agent-section {
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+  margin-top: 14px;
+}
+.agent-panel .agent-grid .agent-section {
+  flex: 1;
+  margin: 0;
+}
+.agent-panel dl {
+  margin: 10px 0 0;
+}
+.agent-panel dl div {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+.agent-panel dt {
+  color: var(--text-tertiary);
+}
+.agent-panel dd {
+  margin: 0;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+.agent-panel .token,
+.agent-panel .audit-json {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.agent-panel .mcp-state {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  font-size: 11px;
+  font-weight: 750;
+}
+.agent-panel .mcp-state.ready {
+  color: #12805c;
+  background: rgba(18, 128, 92, 0.1);
+}
+.agent-panel .mcp-state.warning {
+  color: #9f6a00;
+  background: rgba(217, 154, 0, 0.12);
+}
+.agent-panel .mcp-state.offline {
+  color: var(--text-tertiary);
+}
+.agent-panel .security-hint {
+  margin-top: 8px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+.agent-panel select {
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+.agent-panel .tool-list,
+.agent-panel .scope-policy-list,
+.agent-panel .pending-list,
+.agent-panel .grant-list,
+.agent-panel .audit-list,
+.agent-panel .template-list {
+  margin-top: 10px;
+}
+.agent-panel .tool-row,
+.agent-panel .scope-policy-row,
+.agent-panel .pending-row,
+.agent-panel .grant-row,
+.agent-panel .audit-row,
+.agent-panel .template-row {
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+.agent-panel .pending-row,
+.agent-panel .grant-row,
+.agent-panel .template-row {
+  align-items: flex-start;
+}
+.agent-panel .scope-policy-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.agent-panel .scope-policy-row.blocked {
+  margin-inline: -8px;
+  padding-inline: 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--danger) 8%, var(--bg-secondary));
+}
+.agent-panel .pending-row > div:first-child,
+.agent-panel .grant-row > div:first-child,
+.agent-panel .template-row > div:first-child,
+.agent-panel .scope-policy-row > div:first-child,
+.agent-panel .tool-row > div:first-child {
+  min-width: 0;
+}
+.agent-panel .install-plan {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 1.35;
+}
+.agent-panel .install-plan span {
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+.agent-panel .install-plan code {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+}
+.agent-panel .install-plan ol {
+  margin: 0;
+  padding-left: 16px;
+}
+.agent-panel .install-plan li + li {
+  margin-top: 2px;
+}
+.agent-panel .install-plan small {
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+.agent-panel .write-state {
+  border: 1px solid color-mix(in srgb, var(--warning) 34%, var(--border));
+  border-radius: 999px;
+  padding: 2px 7px;
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 8%, var(--bg-secondary));
+  white-space: nowrap;
+}
+.agent-panel .scope-policy-row code {
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.agent-panel .scope-policy-control {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+.agent-panel .scope-policy-control select {
+  width: auto;
+  min-width: 86px;
+  margin: 0;
+}
+.agent-panel .risk-tag {
+  border: 1px solid color-mix(in srgb, var(--danger) 32%, var(--border));
+  border-radius: 999px;
+  padding: 2px 7px;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, var(--bg-secondary));
+  font-size: 11px;
+  white-space: nowrap;
+}
+.agent-panel .row-actions,
+.agent-panel .tool-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.agent-panel .row-actions {
+  flex-shrink: 0;
+}
+.agent-panel .toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.agent-panel .tool-row span,
+.agent-panel .template-row span,
+.agent-panel .audit-meta time {
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+.agent-panel .template-row .install-plan span {
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+.agent-panel .template-row .write-state {
+  color: var(--warning);
+}
+.agent-panel .error {
+  margin-top: 12px;
+  color: var(--danger);
+  font-size: 12px;
+}
+@media (max-width: 760px) {
+  .agent-panel .memory-editor,
+  .agent-panel .memory-row,
+  .agent-panel .skill-meta-grid,
+  .agent-panel .capability-list,
+  .agent-panel .capability-meta {
+    grid-template-columns: 1fr;
+  }
+  .agent-panel .memory-row > .row-actions {
+    grid-column: 1;
+    grid-row: auto;
+    justify-content: flex-start;
+  }
+  .agent-panel .capability-row-head,
+  .agent-panel .skill-row-head,
+  .agent-panel .scope-policy-row {
+    flex-direction: column;
+  }
+  .agent-panel .scope-policy-control {
+    width: 100%;
+    justify-content: space-between;
+  }
+}

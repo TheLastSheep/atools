@@ -9,7 +9,10 @@ const [manifestText, preload, commands, appLib, pluginPanel, shelf, dialog, nati
   readFile(new URL("src-tauri/src/commands.rs", root), "utf8"),
   readFile(new URL("src-tauri/src/lib.rs", root), "utf8"),
   readFile(new URL("src/components/PluginPanel.svelte", root), "utf8"),
-  readFile(new URL("src/components/PasteboardShelf.svelte", root), "utf8"),
+  Promise.all([
+    readFile(new URL("src/components/PasteboardShelf.svelte", root), "utf8"),
+    readFile(new URL("src/components/PasteboardPinboardNav.svelte", root), "utf8"),
+  ]).then((parts) => parts.join("\n")),
   readFile(new URL("src/components/PasteboardDialog.svelte", root), "utf8"),
   readFile(new URL("src-tauri/src/pasteboard_runtime.rs", root), "utf8"),
   readFile(new URL("src-tauri/src/pasteboard_native.rs", root), "utf8"),

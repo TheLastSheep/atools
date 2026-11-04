@@ -5,7 +5,13 @@ import { pathToFileURL } from "node:url";
 import { transformWithEsbuild } from "vite";
 
 const root = new URL("../", import.meta.url);
-const panel = await readFile(new URL("src/components/AgentPanel.svelte", root), "utf8");
+const panel = (
+  await Promise.all([
+    readFile(new URL("src/components/AgentPanel.svelte", root), "utf8"),
+    readFile(new URL("src/components/AgentMcpPermissionSection.svelte", root), "utf8"),
+    readFile(new URL("src/lib/agentPanelHelpers.ts", root), "utf8"),
+  ])
+).join("\n");
 const smokeChecklist = await readFile(new URL("docs/macos-smoke-checklist.md", root), "utf8");
 const outDir = await mkdtemp(join(root.pathname, ".tmp-agent-panel-mcp-config-"));
 const outFile = join(outDir, "mcpClientConfig.mjs");

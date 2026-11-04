@@ -1,0 +1,468 @@
+.web-quick-mode-switch {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--settings-control-border);
+  border-radius: 9px;
+  background: var(--settings-control);
+}
+
+.web-quick-mode-switch button {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 7px;
+  color: var(--settings-text-secondary);
+  background: transparent;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.web-quick-mode-switch button.active {
+  color: var(--settings-primary);
+  background: var(--settings-primary-soft);
+}
+
+.web-quick-editor-fields {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.8fr) minmax(84px, 0.45fr);
+  gap: 10px;
+}
+
+.web-quick-editor-fields label {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.web-quick-editor-fields label:last-child {
+  grid-column: 1 / -1;
+}
+
+.web-quick-editor-fields span,
+.web-quick-preview-box span {
+  color: #333333;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.web-quick-editor-fields .text-input {
+  width: 100%;
+}
+
+.web-quick-preview-box {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.web-quick-preview-box code {
+  min-width: 0;
+  width: 100%;
+  display: block;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: 10px 12px;
+  border: 1px solid var(--settings-control-border);
+  border-radius: 7px;
+  color: var(--settings-text-secondary);
+  background: var(--settings-control);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+}
+
+.alias-fields .text-input,
+.alias-fields .select-control,
+.local-launch-fields .text-input,
+.local-launch-fields .select-control {
+  width: 100%;
+  min-width: 0;
+}
+
+.keyword-input {
+  text-align: center;
+  font-weight: 700;
+}
+
+.shortcut-row span,
+.debug-row span {
+  color: #333333;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.shortcut-row small {
+  color: var(--settings-text-secondary);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.meta-pill {
+  min-width: 88px;
+  display: inline-flex;
+  justify-content: center;
+  padding: 5px 10px;
+  border: 1px solid var(--settings-control-border);
+  border-radius: 999px;
+  color: var(--settings-text-secondary);
+  background: rgba(255, 255, 255, 0.4);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.about-panel {
+  padding-top: 20px;
+}
+
+.about-title-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.about-title-row h3 {
+  margin: 0;
+}
+
+.about-title-row small {
+  display: block;
+  margin-top: 3px;
+  color: var(--settings-text-secondary);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.about-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0 0;
+}
+
+.about-overview-card {
+  min-width: 0;
+  min-height: 118px;
+  padding: 14px;
+  border: 1px solid var(--settings-control-border);
+  border-radius: 8px;
+  background: var(--settings-control);
+}
+
+.about-overview-card.ready {
+  border-color: color-mix(in srgb, #16a34a 35%, var(--settings-control-border));
+  background: color-mix(in srgb, #16a34a 6%, var(--settings-control));
+}
+
+.about-overview-card.desktop {
+  background: color-mix(in srgb, var(--settings-control) 78%, #e5e7eb);
+}
+
+.about-overview-card.private {
+  border-color: color-mix(in srgb, var(--settings-primary) 34%, var(--settings-control-border));
+  background: color-mix(in srgb, var(--settings-primary) 7%, var(--settings-control));
+}
+
+.about-overview-card span,
+.about-overview-card small {
+  display: block;
+  overflow: hidden;
+  color: var(--settings-text-secondary);
+  font-size: 12px;
+  line-height: 1.38;
+  text-overflow: ellipsis;
+}
+
+.about-overview-card strong {
+  display: block;
+  margin: 6px 0;
+  overflow-wrap: anywhere;
+  color: currentColor;
+  font-size: 21px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.about-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.about-card {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--settings-control-border);
+  border-radius: 8px;
+  background: var(--settings-control);
+}
+
+.about-card span,
+.about-card small {
+  display: block;
+  overflow: hidden;
+  color: var(--settings-text-secondary);
+  font-size: 12px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+}
+
+.about-card strong {
+  display: block;
+  margin: 4px 0;
+  overflow: hidden;
+  color: #333333;
+  font-size: 15px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.data-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.data-overview-card {
+  min-width: 0;
+  min-height: 124px;
+  padding: 14px;
+  border: 1px solid var(--settings-control-border);
+  border-radius: 8px;
+  background: var(--settings-control);
+}
+
+.data-overview-card.private {
+  border-color: color-mix(in srgb, var(--settings-primary) 34%, var(--settings-control-border));
+  background: color-mix(in srgb, var(--settings-primary) 7%, var(--settings-control));
+}
+
+.data-overview-card.desktop {
+  background: color-mix(in srgb, var(--settings-control) 78%, #e5e7eb);
+}
+
+.data-overview-card span,
+.data-overview-card small {
+  display: block;
+  overflow: hidden;
+  color: var(--settings-text-secondary);
+  font-size: 12px;
+  line-height: 1.38;
+  text-overflow: ellipsis;
+}
+
+.data-overview-card strong {
+  display: block;
+  margin: 6px 0;
+  overflow-wrap: anywhere;
+  color: #333333;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.ai-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.ai-overview-card {
+  min-width: 0;
+  min-height: 118px;
+  padding: 14px;
+  border: 1px solid var(--settings-control-border);
+  border-radius: 8px;
+  background: var(--settings-control);
+}
+
+.ai-overview-card.ready {
+  border-color: color-mix(in srgb, #16a34a 35%, var(--settings-control-border));
+  background: color-mix(in srgb, #16a34a 6%, var(--settings-control));
+}
+
+.ai-overview-card.warning {
+  border-color: color-mix(in srgb, #f59e0b 38%, var(--settings-control-border));
+  background: color-mix(in srgb, #f59e0b 7%, var(--settings-control));
+}
+
+.ai-overview-card.disabled,
+.ai-overview-card.desktop {
+  background: color-mix(in srgb, var(--settings-control) 78%, #e5e7eb);
+}
+
+.ai-overview-card.private {
+  border-color: color-mix(in srgb, var(--settings-primary) 34%, var(--settings-control-border));
+  background: color-mix(in srgb, var(--settings-primary) 7%, var(--settings-control));
+}
+
+.ai-overview-card span,
+.ai-overview-card small {
+  display: block;
+  overflow: hidden;
+  color: var(--settings-text-secondary);
+  font-size: 12px;
+  line-height: 1.38;
+  text-overflow: ellipsis;
+}
+
+.ai-overview-card strong {
+  display: block;
+  margin: 6px 0;
+  overflow-wrap: anywhere;
+  color: #333333;
+  font-size: 21px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.webdav-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.webdav-overview-card {
+  min-width: 0;
+  min-height: 118px;
+  padding: 14px;
+  border: 1px solid var(--settings-control-border);
+  border-radius: 8px;
+  background: var(--settings-control);
+}
+
+.webdav-overview-card.ready {
+  border-color: color-mix(in srgb, #16a34a 35%, var(--settings-control-border));
+  background: color-mix(in srgb, #16a34a 6%, var(--settings-control));
+}
+
+.webdav-overview-card.warning {
+  border-color: color-mix(in srgb, #f59e0b 38%, var(--settings-control-border));
+  background: color-mix(in srgb, #f59e0b 7%, var(--settings-control));
+}
+
+.webdav-overview-card.desktop {
+  background: color-mix(in srgb, var(--settings-control) 78%, #e5e7eb);
+}
+
+.webdav-overview-card.private {
+  border-color: color-mix(in srgb, var(--settings-primary) 34%, var(--settings-control-border));
+  background: color-mix(in srgb, var(--settings-primary) 7%, var(--settings-control));
+}
+
+.webdav-overview-card span,
+.webdav-overview-card small {
+  display: block;
+  overflow: hidden;
+  color: var(--settings-text-secondary);
+  font-size: 12px;
+  line-height: 1.38;
+  text-overflow: ellipsis;
+}
+
+.webdav-overview-card strong {
+  display: block;
+  margin: 6px 0;
+  overflow-wrap: anywhere;
+  color: #333333;
+  font-size: 21px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.debug-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.debug-overview-card {
+  min-width: 0;
+  min-height: 118px;
+  padding: 14px;
+  border: 1px solid var(--settings-control-border);
+  border-radius: 8px;
+  background: var(--settings-control);
+}
+
+.debug-overview-card.ready {
+  border-color: color-mix(in srgb, #16a34a 35%, var(--settings-control-border));
+  background: color-mix(in srgb, #16a34a 6%, var(--settings-control));
+}
+
+.debug-overview-card.warning {
+  border-color: color-mix(in srgb, #f59e0b 38%, var(--settings-control-border));
+  background: color-mix(in srgb, #f59e0b 7%, var(--settings-control));
+}
+
+.debug-overview-card.error {
+  border-color: color-mix(in srgb, #ef4444 38%, var(--settings-control-border));
+  background: color-mix(in srgb, #ef4444 7%, var(--settings-control));
+}
+
+.debug-overview-card.desktop {
+  background: color-mix(in srgb, var(--settings-control) 78%, #e5e7eb);
+}
+
+.debug-overview-card span,
+.debug-overview-card small {
+  display: block;
+  overflow: hidden;
+  color: var(--settings-text-secondary);
+  font-size: 12px;
+  line-height: 1.38;
+  text-overflow: ellipsis;
+}
+
+.debug-overview-card strong {
+  display: block;
+  margin: 6px 0;
+  overflow-wrap: anywhere;
+  color: currentColor;
+  font-size: 21px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.mcp-governance-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.mcp-governance-card {
+  min-width: 0;
+  min-height: 118px;
+  padding: 14px;
+  border: 1px solid var(--settings-control-border);
+  border-radius: 8px;
+  background: var(--settings-control);
+}
+
+.mcp-governance-card.ready {
+  border-color: color-mix(in srgb, #16a34a 35%, var(--settings-control-border));
+  background: color-mix(in srgb, #16a34a 6%, var(--settings-control));
+}
+
+.mcp-governance-card.warning {
+  border-color: color-mix(in srgb, #f59e0b 38%, var(--settings-control-border));
+  background: color-mix(in srgb, #f59e0b 7%, var(--settings-control));
+}
+
+.mcp-governance-card.danger {
+  border-color: color-mix(in srgb, #ef4444 38%, var(--settings-control-border));
+  background: color-mix(in srgb, #ef4444 7%, var(--settings-control));
+}

@@ -56,7 +56,13 @@ try {
     "header", "header", "remove", "add", "context",
   ]);
 
-  const panel = await readFile(new URL("src/components/AgentPanel.svelte", root), "utf8");
+  const panel = (
+    await Promise.all([
+      readFile(new URL("src/components/AgentPanel.svelte", root), "utf8"),
+      readFile(new URL("src/components/AgentResultCenterSection.svelte", root), "utf8"),
+      readFile(new URL("src/lib/agentPanelHelpers.ts", root), "utf8"),
+    ])
+  ).join("\n");
   for (const token of ["artifactRenderKind", "artifactTable", "artifactMarkdownBlocks", "artifactDiffLines", "artifactPreviewSource", "openArtifact", "revealArtifact"]) {
     assert.ok(panel.includes(token), `AgentPanel should use ${token}`);
   }

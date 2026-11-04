@@ -9,7 +9,11 @@ const [core, commands, mcp, tauri, desktopSmoke, types, panel, packageSource] = 
   readFile(new URL("src-tauri/src/lib.rs", root), "utf8"),
   readFile(new URL("src-tauri/src/desktop_smoke.rs", root), "utf8"),
   readFile(new URL("src/lib/types.ts", root), "utf8"),
-  readFile(new URL("src/components/AgentPanel.svelte", root), "utf8"),
+  Promise.all([
+    readFile(new URL("src/components/AgentPanel.svelte", root), "utf8"),
+    readFile(new URL("src/components/AgentCapabilitySkillMemorySection.svelte", root), "utf8"),
+    readFile(new URL("src/lib/agentPanelHelpers.ts", root), "utf8"),
+  ]).then((parts) => parts.join("\n")),
   readFile(new URL("package.json", root), "utf8"),
 ]);
 const packageJson = JSON.parse(packageSource);

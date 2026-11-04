@@ -75,7 +75,13 @@ try {
   assert.equal(storage.has(mod.AUDIT_FILTER_VIEWS_STORAGE_KEY), true);
   assert.deepEqual(mod.loadAuditFilterViews(), updated);
 
-  const agentPanel = await readFile(new URL("../src/components/AgentPanel.svelte", import.meta.url), "utf8");
+  const agentPanel = (
+    await Promise.all([
+      readFile(new URL("../src/components/AgentPanel.svelte", import.meta.url), "utf8"),
+      readFile(new URL("../src/components/AgentAuditReplaySection.svelte", import.meta.url), "utf8"),
+      readFile(new URL("../src/lib/agentPanelHelpers.ts", import.meta.url), "utf8"),
+    ])
+  ).join("\n");
   assert.ok(agentPanel.includes("loadAuditFilterViews"), "Agent panel should load saved audit filter views");
   assert.ok(agentPanel.includes("saveCurrentAuditFilterView"), "Agent panel should save the current audit filter view");
   assert.ok(agentPanel.includes("applyAuditFilterView"), "Agent panel should apply a saved audit filter view");

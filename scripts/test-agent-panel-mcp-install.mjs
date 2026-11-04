@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const root = new URL("../", import.meta.url);
-const panel = await readFile(new URL("src/components/AgentPanel.svelte", root), "utf8");
+const panel = (
+  await Promise.all([
+    readFile(new URL("src/components/AgentPanel.svelte", root), "utf8"),
+    readFile(new URL("src/components/AgentMcpPermissionSection.svelte", root), "utf8"),
+    readFile(new URL("src/lib/agentPanelHelpers.ts", root), "utf8"),
+  ])
+).join("\n");
 const commands = await readFile(new URL("src-tauri/src/commands.rs", root), "utf8");
 const smokeChecklist = await readFile(new URL("docs/macos-smoke-checklist.md", root), "utf8");
 
