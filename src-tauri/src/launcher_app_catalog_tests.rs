@@ -111,11 +111,90 @@ fn catalog_command_guard_is_main_window_only() {
     );
 }
 
-#[cfg(not(target_os = "macos"))]
 #[test]
-fn unsupported_platform_is_an_explicit_error() {
+fn desktop_entry_scanning_extracts_localized_aliases_and_filters_hidden_or_non_app() {
+    let temporary = tempfile::tempdir().unwrap();
+    let icon_file = temporary.path().join("code-icon.png");
+    fs::write(&icon_file, b"png").unwrap();
+
+    fs::write(
+        temporary.path().join("code.desktop"),
+        format!(
+            "[Desktop Entry]\nType=Application\nName=Visual Studio Code\nName[zh_CN]=VSCode 编辑器\nGenericName=Text Editor\nIcon={}\nExec=/usr/bin/code\n\n[Desktop Action new-empty-window]\nName=New Empty Window\n",
+            icon_file.display()
+        ),
+    )
+    .unwrap();
+    fs::write(
+        temporary.path().join("hidden.desktop"),
+        "[Desktop Entry]\nType=Application\nName=Hidden Tool\nNoDisplay=true\nExec=/usr/bin/hidden\n",
+    )
+    .unwrap();
+    fs::write(
+        temporary.path().join("link.desktop"),
+        "[Desktop Entry]\nType=Link\nName=Web Link\nURL=https://example.com\n",
+    )
+    .unwrap();
+
+    let apps = scan_roots_with_limits(
+        &[temporary.path().to_path_buf()],
+        MAX_DEPTH,
+        MAX_ENTRIES,
+        MAX_APPS,
+    )
+    .unwrap();
+
+    assert_eq!(apps.len(), 1);
+    assert_eq!(apps[0].name(), "Visual Studio Code");
     assert_eq!(
-        default_roots().unwrap_err(),
-        "Launcher app catalog is unsupported on this platform"
+        apps[0].aliases(),
+        &["VSCode 编辑器".to_string(), "Text Editor".to_string()]
     );
+    assert_eq!(
+        apps[0].icon_url(),
+        Some(icon_file.to_string_lossy().as_ref())
+    );
+}
+
+#[test]
+fn windows_shortcut_and_exe_scanning_skips_uninstallers() {
+    let temporary = tempfile::tempdir().unwrap();
+    let sub = temporary.path().join("Publisher");
+    fs::create_dir_all(&sub).unwrap();
+    fs::write(sub.join("Notepad++.lnk"), b"shortcut").unwrap();
+    fs::write(sub.join("Everything.exe"), b"binary").unwrap();
+    fs::write(sub.join("Uninstall Notepad++.lnk"), b"shortcut").unwrap();
+    fs::write(sub.join("unins000.exe"), b"binary").unwrap();
+
+    let apps = scan_roots_with_limits(
+        &[temporary.path().to_path_buf()],
+        MAX_DEPTH,
+        MAX_ENTRIES,
+        MAX_APPS,
+    )
+    .unwrap();
+
+    assert_eq!(
+        apps.iter().map(|app| app.name()).collect::<Vec<_>>(),
+        ["Everything", "Notepad++"]
+    );
+}
+
+#[test]
+fn linux_and_windows_default_roots_resolve_from_env_paths() {
+    let linux_roots = linux_default_roots_from_env(Some(Path::new("/home/alice")));
+    assert_eq!(linux_roots.len(), 5);
+    assert_eq!(linux_roots[0], Path::new("/usr/share/applications"));
+    assert_eq!(
+        linux_roots[4],
+        Path::new("/home/alice/.local/share/applications")
+    );
+
+    let win_roots = windows_default_roots_from_env(
+        Some(Path::new(r"C:\ProgramData")),
+        Some(Path::new(r"C:\Users\Alice\AppData\Roaming")),
+    );
+    assert_eq!(win_roots.len(), 2);
+    assert!(win_roots[0].ends_with("Programs"));
+    assert!(win_roots[1].ends_with("Programs"));
 }

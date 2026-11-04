@@ -19,6 +19,12 @@ pub(crate) use production_legacy::{
 pub(crate) use resolution_types::{
     valid_legacy_revision, LegacyLoginChoice, LegacyLoginInspection,
 };
+#[allow(unused_imports)]
+use service::{
+    build_windows_reg_query_args, build_windows_reg_set_args, linux_autostart_desktop_path,
+    linux_set_enabled_in, linux_status_in, parse_linux_autostart_enabled,
+    parse_windows_reg_query_output, render_linux_autostart_desktop, WINDOWS_RUN_KEY,
+};
 
 pub(crate) const UNSUPPORTED: &str = "SETTINGS_LAUNCH_AT_LOGIN_UNSUPPORTED";
 pub(crate) const UNAVAILABLE: &str = "SETTINGS_LAUNCH_AT_LOGIN_UNAVAILABLE";
@@ -102,7 +108,16 @@ fn read_apply_locked(
         }
         run_transaction(expected, target)
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(any(target_os = "linux", target_os = "windows"))]
+    {
+        let identifier = app.config().identifier.as_str();
+        if !spec::is_production_identifier(identifier) {
+            return Err(UNAVAILABLE.to_owned());
+        }
+        let mut backend = service::SystemLoginItemsBackend::new(identifier);
+        transaction::read_apply(&mut backend, expected, target).map_err(str::to_owned)
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
     {
         let _ = (app, expected, target);
         Err(UNSUPPORTED.to_owned())
@@ -257,7 +272,8 @@ pub(crate) fn legacy_plist(executable_path: &str) -> String {
 
 #[cfg(target_os = "macos")]
 fn run_transaction(expected: Option<bool>, target: Option<bool>) -> Result<bool, String> {
-    transaction::read_apply(&mut service::MainAppService, expected, target).map_err(str::to_owned)
+    let mut backend = service::SystemLoginItemsBackend::new("com.atools.desktop");
+    transaction::read_apply(&mut backend, expected, target).map_err(str::to_owned)
 }
 
 #[cfg(target_os = "macos")]
@@ -416,5 +432,54 @@ mod tests {
             Err(UNAVAILABLE.to_owned())
         );
         assert!(active.load(std::sync::atomic::Ordering::Acquire));
+    }
+
+    #[test]
+    fn linux_xdg_autostart_round_trip_and_hidden_parsing() {
+        let temp = tempfile::tempdir().unwrap();
+        let exec = std::path::Path::new("/usr/bin/atools");
+        assert_eq!(
+            super::linux_status_in(temp.path(), "com.atools.desktop"),
+            Ok(ServiceStatus::NotRegistered)
+        );
+        super::linux_set_enabled_in(temp.path(), "com.atools.desktop", exec, true).unwrap();
+        assert_eq!(
+            super::linux_status_in(temp.path(), "com.atools.desktop"),
+            Ok(ServiceStatus::Enabled)
+        );
+        let disabled_content =
+            super::render_linux_autostart_desktop("com.atools.desktop", exec, false);
+        assert!(!super::parse_linux_autostart_enabled(&disabled_content));
+        super::linux_set_enabled_in(temp.path(), "com.atools.desktop", exec, false).unwrap();
+        assert_eq!(
+            super::linux_status_in(temp.path(), "com.atools.desktop"),
+            Ok(ServiceStatus::NotRegistered)
+        );
+    }
+
+    #[test]
+    fn windows_registry_command_builder_and_query_parser() {
+        let exec = std::path::Path::new(r"C:\Program Files\ATools\atools.exe");
+        let query = super::build_windows_reg_query_args("com.atools.desktop");
+        assert_eq!(
+            query,
+            vec!["query", super::WINDOWS_RUN_KEY, "/v", "com.atools.desktop"]
+        );
+        let add = super::build_windows_reg_set_args("com.atools.desktop", exec, true);
+        assert_eq!(add[0], "add");
+        assert!(add.iter().any(|arg| arg.contains("atools.exe")));
+        let del = super::build_windows_reg_set_args("com.atools.desktop", exec, false);
+        assert_eq!(del[0], "delete");
+
+        let stdout =
+            "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\r\n    com.atools.desktop    REG_SZ    \"C:\\Program Files\\ATools\\atools.exe\"\r\n";
+        assert_eq!(
+            super::parse_windows_reg_query_output(true, stdout, "com.atools.desktop"),
+            ServiceStatus::Enabled
+        );
+        assert_eq!(
+            super::parse_windows_reg_query_output(false, stdout, "com.atools.desktop"),
+            ServiceStatus::NotRegistered
+        );
     }
 }

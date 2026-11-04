@@ -4,8 +4,42 @@
 use crate::launcher_app_catalog::CatalogCache;
 use crate::launcher_app_catalog::{self, LauncherApp};
 #[cfg(feature = "legacy-node-smoke")]
-use std::{env, fs, path::Path, sync::Mutex};
-use std::{path::PathBuf, time::Instant};
+use std::{env, fs, sync::Mutex};
+use std::{
+    path::{Path, PathBuf},
+    time::Instant,
+};
+
+#[allow(dead_code)]
+pub(crate) fn linux_default_roots_from_env(home: Option<&Path>) -> Vec<PathBuf> {
+    let mut roots = vec![
+        PathBuf::from("/usr/share/applications"),
+        PathBuf::from("/usr/local/share/applications"),
+        PathBuf::from("/var/lib/flatpak/exports/share/applications"),
+        PathBuf::from("/var/lib/snapd/desktop/applications"),
+    ];
+    if let Some(home_dir) = home {
+        roots.push(home_dir.join(".local/share/applications"));
+    }
+    roots
+}
+
+#[allow(dead_code)]
+pub(crate) fn windows_default_roots_from_env(
+    program_data: Option<&Path>,
+    app_data: Option<&Path>,
+) -> Vec<PathBuf> {
+    let mut roots = Vec::new();
+    for base in [program_data, app_data].into_iter().flatten() {
+        roots.push(
+            base.join("Microsoft")
+                .join("Windows")
+                .join("Start Menu")
+                .join("Programs"),
+        );
+    }
+    roots
+}
 
 enum CatalogSource {
     System,

@@ -376,19 +376,118 @@ mod native {
     }
 }
 
+#[allow(dead_code)]
+pub(crate) fn plan_platform_paste_command(
+    os: &str,
+    wayland_display: Option<&str>,
+) -> Option<(&'static str, Vec<&'static str>)> {
+    match os {
+        "macos" => Some((
+            "osascript",
+            vec!["-e", "tell application \"System Events\" to keystroke \"v\" using command down"],
+        )),
+        "linux" if wayland_display.is_some_and(|v| !v.trim().is_empty()) => {
+            Some(("wtype", vec!["-M", "ctrl", "-k", "v", "-m", "ctrl"]))
+        }
+        "linux" => Some(("xdotool", vec!["key", "--clearmodifiers", "ctrl+v"])),
+        "windows" => Some((
+            "powershell",
+            vec![
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('^v')",
+            ],
+        )),
+        _ => None,
+    }
+}
+
 #[cfg(not(target_os = "macos"))]
 mod native {
-    use super::ForegroundTarget;
+    use super::{plan_platform_paste_command, ForegroundTarget};
+    use parking_lot::Mutex;
+    use std::sync::OnceLock;
+
+    static PRESENTATION_TARGET: OnceLock<Mutex<Option<ForegroundTarget>>> = OnceLock::new();
+
+    pub(super) fn prepare_input() -> Result<(), String> {
+        let wayland = std::env::var("WAYLAND_DISPLAY").ok();
+        plan_platform_paste_command(std::env::consts::OS, wayland.as_deref())
+            .map(|_| ())
+            .ok_or_else(|| "Keyboard input is unavailable on this platform".into())
+    }
+
     pub(super) fn capture_external_target_before_show() -> Result<(), String> {
+        if let Ok(target) = current_target() {
+            if target.pid > 0 && target.pid != std::process::id() as i32 {
+                *PRESENTATION_TARGET.get_or_init(|| Mutex::new(None)).lock() = Some(target);
+            }
+        }
         Ok(())
     }
+
+    fn current_target() -> Result<ForegroundTarget, String> {
+        #[cfg(target_os = "linux")]
+        let cmd = ("xdotool", ["getactivewindow", "getwindowpid"].as_slice());
+        #[cfg(target_os = "windows")]
+        let cmd = ("powershell", ["-NoProfile", "-NonInteractive", "-Command", "Add-Type @' using System; using System.Runtime.InteropServices; public class Win32 { [DllImport(\"user32.dll\")] public static extern IntPtr GetForegroundWindow(); [DllImport(\"user32.dll\")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId); } '@; $p=0; [Win32]::GetWindowThreadProcessId([Win32]::GetForegroundWindow(), [ref]$p) | Out-Null; $p"].as_slice());
+        #[cfg(any(target_os = "linux", target_os = "windows"))]
+        if let Ok(out) = std::process::Command::new(cmd.0).args(cmd.1).output() {
+            if let Ok(pid) = String::from_utf8_lossy(&out.stdout).trim().parse::<i32>() {
+                if out.status.success() {
+                    return Ok(ForegroundTarget { pid, bundle_id: None });
+                }
+            }
+        }
+        Err("No foreground application".into())
+    }
+
     pub(super) fn live_foreground_target() -> Result<ForegroundTarget, String> {
-        foreground_target()
+        current_target()
     }
+
     pub(super) fn foreground_target() -> Result<ForegroundTarget, String> {
-        Err("Direct paste is currently available on macOS".into())
+        if let Ok(current) = current_target() {
+            if current.pid != std::process::id() as i32 {
+                return Ok(current);
+            }
+        }
+        PRESENTATION_TARGET
+            .get()
+            .and_then(|state| state.lock().clone())
+            .ok_or_else(|| "No previously active external application".into())
     }
+
     pub(super) fn paste_command_v() -> Result<(), String> {
-        Err("Direct paste is currently available on macOS".into())
+        let wayland = std::env::var("WAYLAND_DISPLAY").ok();
+        let (program, args) = plan_platform_paste_command(std::env::consts::OS, wayland.as_deref())
+            .ok_or_else(|| "Keyboard input is unavailable on this platform".to_string())?;
+        let status = std::process::Command::new(program)
+            .args(&args)
+            .status()
+            .map_err(|_| "Keyboard input command failed to start".to_string())?;
+        status.success().then_some(()).ok_or_else(|| "Keyboard input command failed".into())
+    }
+}
+
+#[cfg(test)]
+mod paste_planner_tests {
+    use super::plan_platform_paste_command;
+
+    #[test]
+    fn paste_planner_selects_expected_command_for_macos_linux_and_windows() {
+        let mac = plan_platform_paste_command("macos", None).unwrap();
+        assert_eq!(mac.0, "osascript");
+        let linux_wayland = plan_platform_paste_command("linux", Some("wayland-0")).unwrap();
+        assert_eq!(linux_wayland.0, "wtype");
+        assert_eq!(linux_wayland.1, vec!["-M", "ctrl", "-k", "v", "-m", "ctrl"]);
+        let linux_x11 = plan_platform_paste_command("linux", None).unwrap();
+        assert_eq!(linux_x11.0, "xdotool");
+        assert_eq!(linux_x11.1, vec!["key", "--clearmodifiers", "ctrl+v"]);
+        let windows = plan_platform_paste_command("windows", None).unwrap();
+        assert_eq!(windows.0, "powershell");
+        assert!(windows.1.iter().any(|arg| arg.contains("SendWait('^v')")));
+        assert!(plan_platform_paste_command("freebsd", None).is_none());
     }
 }

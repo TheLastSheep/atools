@@ -1,12 +1,44 @@
+#[cfg(not(target_os = "macos"))]
+use std::sync::{LazyLock, Mutex};
 use tauri::Window;
+
+pub(crate) const MIN_USER_OPACITY: f64 = 0.2;
+pub(crate) const MAX_USER_OPACITY: f64 = 1.0;
+
+pub(crate) fn validate_native_opacity_target(target: Option<f64>) -> Result<Option<f64>, String> {
+    if target.is_some_and(|value| !value.is_finite() || !(0.0..=1.0).contains(&value)) {
+        return Err("Window opacity target is outside the native range".into());
+    }
+    Ok(target)
+}
+
+#[allow(dead_code)]
+pub(crate) fn clamp_user_opacity(value: f64) -> Result<f64, String> {
+    if !value.is_finite() {
+        return Err("Window opacity target is outside the native range".into());
+    }
+    Ok(value.clamp(MIN_USER_OPACITY, MAX_USER_OPACITY))
+}
+
+#[allow(dead_code)]
+pub(crate) fn apply_clamped_opacity_state(
+    state: &mut f64,
+    target: Option<f64>,
+) -> Result<f64, String> {
+    if let Some(value) = validate_native_opacity_target(target)? {
+        *state = clamp_user_opacity(value)?;
+    }
+    Ok(*state)
+}
+
+#[cfg(not(target_os = "macos"))]
+static FALLBACK_OPACITY: LazyLock<Mutex<f64>> = LazyLock::new(|| Mutex::new(MAX_USER_OPACITY));
 
 /// Reads ATools' main NSWindow alpha or applies a bounded target and reads it back.
 /// `Some(0.0..=1.0)` includes restoration of the actual previously observed alpha;
 /// the user-facing General setting is narrower and validated by Core.
 pub(crate) async fn read_apply(window: Window, target: Option<f64>) -> Result<f64, String> {
-    if target.is_some_and(|value| !value.is_finite() || !(0.0..=1.0).contains(&value)) {
-        return Err("Window opacity target is outside the native range".into());
-    }
+    validate_native_opacity_target(target)?;
 
     #[cfg(target_os = "macos")]
     {
@@ -14,8 +46,11 @@ pub(crate) async fn read_apply(window: Window, target: Option<f64>) -> Result<f6
     }
     #[cfg(not(target_os = "macos"))]
     {
-        let _ = (window, target);
-        Err("Window opacity application is unsupported on this platform".into())
+        let _ = window;
+        let mut guard = FALLBACK_OPACITY
+            .lock()
+            .map_err(|_| "Window opacity state lock poisoned".to_string())?;
+        apply_clamped_opacity_state(&mut guard, target)
     }
 }
 
@@ -64,4 +99,30 @@ pub(crate) fn read_apply_on_main(window: &Window, target: Option<f64>) -> Result
         return Err("Main native window opacity readback did not match".to_owned());
     }
     Ok(actual)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn opacity_clamping_and_validation_enforces_bounds() {
+        assert_eq!(clamp_user_opacity(0.05).unwrap(), MIN_USER_OPACITY);
+        assert_eq!(clamp_user_opacity(0.85).unwrap(), 0.85);
+        assert_eq!(clamp_user_opacity(1.5).unwrap(), MAX_USER_OPACITY);
+        assert!(clamp_user_opacity(f64::NAN).is_err());
+
+        let mut state = MAX_USER_OPACITY;
+        assert_eq!(apply_clamped_opacity_state(&mut state, None).unwrap(), 1.0);
+        assert_eq!(
+            apply_clamped_opacity_state(&mut state, Some(0.1)).unwrap(),
+            MIN_USER_OPACITY
+        );
+        assert_eq!(
+            apply_clamped_opacity_state(&mut state, Some(0.75)).unwrap(),
+            0.75
+        );
+        assert!(apply_clamped_opacity_state(&mut state, Some(1.2)).is_err());
+        assert!(apply_clamped_opacity_state(&mut state, Some(-0.1)).is_err());
+    }
 }
