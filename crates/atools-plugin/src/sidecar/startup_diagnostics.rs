@@ -380,7 +380,7 @@ impl StartupTrace {
         }
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "native-smoke"))]
     pub(crate) fn has_phase(&self, phase: StartupPhase) -> bool {
         self.state
             .lock()

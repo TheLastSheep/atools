@@ -115,6 +115,27 @@ function dispatch(method, params) {
     case 'readPngPath': return encode(readBoundedPngPath(params));
     case 'get': return getProperty(params.handleId, params.property);
     case 'set': return setProperty(params.handleId, params.property, params.value);
+    case 'callMethod': {
+      const property = params.property;
+      if (typeof property !== 'string' || property.length > 1024 || forbiddenProperties.has(property)) fail('ERR_ATOOLS_NODE_PROPERTY_DENIED');
+      const target = record(params.handleId).value;
+      if (!Array.isArray(params.args) || params.args.length > 256) fail('ERR_ATOOLS_NODE_INVALID_CALL');
+      let fn;
+      let owner = target;
+      for (let depth = 0; owner && depth < 16; depth++, owner = Object.getPrototypeOf(owner)) {
+        const descriptor = Object.getOwnPropertyDescriptor(owner, property);
+        if (!descriptor) continue;
+        fn = 'value' in descriptor ? descriptor.value : descriptor.get ? descriptor.get.call(target) : undefined;
+        break;
+      }
+      if (typeof fn !== 'function') fail('ERR_ATOOLS_NODE_INVALID_CALL');
+      const state = context();
+      const args = params.args.map((arg) => decode(arg, state));
+      activeCallDepth++;
+      try {
+        return encode(Reflect.apply(fn, target, args));
+      } finally { activeCallDepth--; }
+    }
     case 'call':
     case 'construct': {
       const target = record(params.handleId);

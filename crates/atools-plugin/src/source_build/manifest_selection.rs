@@ -69,6 +69,8 @@ pub struct ManifestSelectionInfo {
 
 
 impl ManifestSelectionInfo {
+    #[cfg(test)]
+    #[allow(dead_code)]
     pub(super) fn empty() -> Self {
         let missing = |selection| ManifestCandidate {
             selection,

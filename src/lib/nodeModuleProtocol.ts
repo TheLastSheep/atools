@@ -10,7 +10,7 @@ export type EncodedNodeValue =
   | { kind: "object"; properties: Record<string, EncodedNodeValue> }
   | { kind: "fsStats"; properties: Record<string, EncodedNodeValue> }
   | { kind: "fsDirent"; properties: Record<string, EncodedNodeValue>; type: number }
-  | { kind: "handle"; handleId: number; callable: boolean; keys: string[] }
+  | { kind: "handle"; handleId: number; callable: boolean; keys: string[]; callableKeys?: string[] }
   | { kind: "promise"; handleId: number }
   | { kind: "callback"; id: string }
   | { kind: "error"; name: string; message: string; code?: string; stack?: string };

@@ -7,6 +7,7 @@ use std::{
 #[derive(Clone, Debug)]
 pub(super) struct TrustedDependencyRoot {
     pub home: PathBuf,
+    #[cfg(test)]
     pub node_modules: PathBuf,
 }
 
@@ -43,6 +44,7 @@ impl TrustedDependencyRoot {
         }
         Ok(Self {
             home,
+            #[cfg(test)]
             node_modules: canonical,
         })
     }

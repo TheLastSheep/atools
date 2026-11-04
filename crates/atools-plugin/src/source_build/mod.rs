@@ -207,6 +207,8 @@ pub fn resolve_build_esbuild_binary(
 }
 
 impl SourceBuildInspection {
+    #[cfg(test)]
+    #[allow(dead_code)]
     pub(crate) fn from_parts(
         status: SourceBuildStatus,
         plugin_id: Option<String>,

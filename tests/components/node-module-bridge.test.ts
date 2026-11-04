@@ -138,13 +138,34 @@ describe("Node module handles", () => {
     expect(session(transport)("electron")).toBe(electron);
     expect(transport.requestSync).not.toHaveBeenCalled();
   });
+
+  it("batches module method invocations into single-RPC callMethod requests when callableKeys are advertised", () => {
+    let counter = 0;
+    const transport = fakeTransport((method, params) => {
+      if (method === "require") return { kind: "handle", handleId: 1, callable: false, keys: ["increment", "join"], callableKeys: ["increment", "join"] };
+      if (method === "callMethod" && params.handleId === 1 && params.property === "increment") return value(++counter);
+      if (method === "callMethod" && params.handleId === 1 && params.property === "join") return value(params.args.map((arg: any) => arg.value).join("/"));
+      if (method === "set" && params.handleId === 1 && params.property === "increment") { counter = params.value.value; return true; }
+      if (method === "get" && params.handleId === 1 && params.property === "increment") return value(counter);
+      throw new Error(`Unexpected ${method}`);
+    });
+    const helper = session(transport)("fast-helper");
+    expect(helper.increment).toBe(helper.increment);
+    const beforeCalls = transport.requestSync.mock.calls.length;
+    for (let i = 1; i <= 5; i++) expect(helper.increment()).toBe(i);
+    expect(helper.join("a", "b", "c")).toBe("a/b/c");
+    const methodCalls = transport.requestSync.mock.calls.slice(beforeCalls);
+    expect(methodCalls).toHaveLength(6);
+    expect(methodCalls.every(([method]) => method === "callMethod")).toBe(true);
+    expect(Reflect.set(helper, "increment", 42)).toBe(true);
+    expect(helper.increment).toBe(42);
+  });
 });
 
 describe("Node module request payload budgets", () => {
   function setupPayloadCall() {
     const transport = fakeTransport((method) => method === "require" ? handle(1, true) : absent);
-    const remote = session(transport)("payload-fixture");
-    return { remote, transport };
+    return { remote: session(transport)("payload-fixture"), transport };
   }
   function expectBudgetError(run: () => unknown) {
     let caught: unknown;
@@ -152,34 +173,20 @@ describe("Node module request payload budgets", () => {
     expect(caught).toMatchObject({ code: "ERR_ATOOLS_NODE_PAYLOAD" });
   }
 
-  it("rejects oversized typed arrays and 16 MiB buffers before base64 conversion or RPC", () => {
+  it("rejects oversized typed arrays, 16 MiB buffers, combined Unicode payloads and excessive nested depth before RPC", () => {
     const { remote, transport } = setupPayloadCall();
     const baseline = transport.requestSync.mock.calls.length;
     const encode = vi.spyOn(globalThis, "btoa");
     expectBudgetError(() => remote(new Uint8Array(512 * 1024 + 1)));
     expectBudgetError(() => remote(Buffer.alloc(16 * 1024 * 1024)));
-    expect(encode).not.toHaveBeenCalled();
-    expect(transport.requestSync).toHaveBeenCalledTimes(baseline);
-  });
-
-  it("budgets all arguments together, including nested Unicode JSON escaping", () => {
-    const { remote, transport } = setupPayloadCall();
-    const baseline = transport.requestSync.mock.calls.length;
-    const encode = vi.spyOn(globalThis, "btoa");
     expectBudgetError(() => remote(new Uint8Array(400 * 1024), new Uint8Array(400 * 1024)));
     const sharedBinary = new Uint8Array(400 * 1024);
     expectBudgetError(() => remote(sharedBinary, sharedBinary));
     expectBudgetError(() => remote({ nested: { text: "🙂".repeat(120_000) } }, { nested: { text: "🙂".repeat(120_000) } }));
-    expect(encode).not.toHaveBeenCalled();
-    expect(transport.requestSync).toHaveBeenCalledTimes(baseline);
-  });
-
-  it("rejects excessive nested depth before sending", () => {
-    const { remote, transport } = setupPayloadCall();
-    const baseline = transport.requestSync.mock.calls.length;
     let nested: Record<string, unknown> = {};
     for (let index = 0; index < 70; index++) nested = { child: nested };
     expectBudgetError(() => remote(nested));
+    expect(encode).not.toHaveBeenCalled();
     expect(transport.requestSync).toHaveBeenCalledTimes(baseline);
   });
 });

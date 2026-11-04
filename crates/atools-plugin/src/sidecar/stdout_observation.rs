@@ -25,6 +25,12 @@ pub(crate) struct StartupStdoutReadObserver {
     sealed_fast: AtomicBool,
 }
 
+impl Default for StartupStdoutReadObserver {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StartupStdoutReadObserver {
     pub(crate) fn new() -> Self {
         Self {

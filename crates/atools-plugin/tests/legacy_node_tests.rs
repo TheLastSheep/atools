@@ -93,6 +93,20 @@ async fn real_node_builtins_and_relative_modules_keep_state_and_chain_identity()
         call(&session, &get(&session, &helper, "same").await, vec![]).await["handleId"],
         helper["handleId"]
     );
+    assert!(helper["callableKeys"]
+        .as_array()
+        .unwrap()
+        .contains(&json!("increment")));
+    assert_eq!(
+        session
+            .request(
+                "callMethod",
+                json!({ "handleId": helper["handleId"], "property": "increment", "args": [] }),
+            )
+            .await
+            .unwrap(),
+        value(3)
+    );
 
     let crypto = require(&session, "node:crypto").await;
     let hash = call(

@@ -53,7 +53,12 @@ function createNodeModuleRequireRuntime(
   type Pending = { resolve: (value: unknown) => void; reject: (error: Error) => void; callbackIds: string[] };
   type Reference<T extends object> = { deref: () => T | undefined };
   const modules = new Map<string, unknown>();
-  const handles = new Map<number, { reference: Reference<object>; descriptor: NodeHandleDescriptor }>();
+  const handles = new Map<number, {
+    reference: Reference<object>;
+    descriptor: NodeHandleDescriptor;
+    callableKeys: Set<string>;
+    callableMethods: Map<string, Function>;
+  }>();
   const handleDescriptors = new WeakMap<object, NodeHandleDescriptor>();
   const promises = new Map<number, Reference<Promise<unknown>>>();
   const pending = new Map<number, Pending>();
@@ -244,7 +249,7 @@ function createNodeModuleRequireRuntime(
     return promise;
   }
 
-  function invoke(handleId: number, args: unknown[], construct = false): any {
+  function invoke(handleId: number, args: unknown[], construct = false, property?: string): any {
     assertOpen();
     const ids = new Set<string>();
     const previous = collectingCallbacks;
@@ -258,8 +263,11 @@ function createNodeModuleRequireRuntime(
     finally { collectingCallbacks = previous; }
     for (const id of ids) callbacks.get(id)!.references += 1;
     try {
-      const raw = transport.requestSync(construct ? "construct" : "call", { handleId, args: encoded }) as EncodedNodeValue;
-      const cleanup = unsubscribeCallbacks.get(handleId);
+      const raw = transport.requestSync(
+        property !== undefined ? "callMethod" : construct ? "construct" : "call",
+        property !== undefined ? { handleId, property, args: encoded } : { handleId, args: encoded },
+      ) as EncodedNodeValue;
+      const cleanup = property === undefined ? unsubscribeCallbacks.get(handleId) : undefined;
       if (cleanup) { unsubscribeCallbacks.delete(handleId); forgetCallbacks(cleanup); }
       drainSyncCallbacks();
       const result = codec.decode(raw);
@@ -269,8 +277,8 @@ function createNodeModuleRequireRuntime(
         else forgetCallbacks(ids);
       }
       else if (typeof result === "function" && ids.size) {
-        const handle = handleDescriptors.get(result)!;
-        unsubscribeCallbacks.set(handle.handleId, [...(unsubscribeCallbacks.get(handle.handleId) ?? []), ...ids]);
+        const handle = handleDescriptors.get(result);
+        if (handle) unsubscribeCallbacks.set(handle.handleId, [...(unsubscribeCallbacks.get(handle.handleId) ?? []), ...ids]);
       }
       schedulePoll(true);
       return result;
@@ -295,6 +303,11 @@ function createNodeModuleRequireRuntime(
     }
     const result = transport.requestSync("set", { handleId, property, value: encoded });
     if (typeof result !== "boolean") throw bridgeError("Invalid Node property assignment response");
+    if (result) {
+      const entry = handles.get(handleId);
+      entry?.callableKeys.delete(property);
+      entry?.callableMethods.delete(property);
+    }
     return result;
   }
 
@@ -305,6 +318,8 @@ function createNodeModuleRequireRuntime(
       // A re-encoded object's current bounded keys replace the old snapshot;
       // merging every historical name leaks memory on long-lived mutable objects.
       existing.descriptor.keys = descriptor.keys;
+      existing.descriptor.callableKeys = descriptor.callableKeys;
+      existing.callableKeys = new Set(descriptor.callableKeys ?? []);
       return existingProxy;
     }
     const target = descriptor.callable ? function remoteNodeHandle() {}.bind(null) : Object.create(null);
@@ -316,6 +331,15 @@ function createNodeModuleRequireRuntime(
         assertOpen();
         if (["__proto__", "prototype", "constructor"].includes(property)) {
           throw bridgeError(`Blocked remote property: ${property}`, "ERR_ATOOLS_NODE_PROPERTY");
+        }
+        const entry = handles.get(descriptor.handleId);
+        if (entry?.callableKeys.has(property)) {
+          let method = entry.callableMethods.get(property);
+          if (!method) {
+            method = (...args: unknown[]) => invoke(descriptor.handleId, args, false, property);
+            entry.callableMethods.set(property, method);
+          }
+          return method;
         }
         return codec.decode(transport.requestSync("get", { handleId: descriptor.handleId, property }) as EncodedNodeValue);
       },
@@ -330,7 +354,12 @@ function createNodeModuleRequireRuntime(
       defineProperty() { throw bridgeError("Remote property descriptor changes are unsupported", "ERR_ATOOLS_NODE_PROPERTY"); },
       deleteProperty() { throw bridgeError("Remote property deletion is unsupported", "ERR_ATOOLS_NODE_PROPERTY"); },
     });
-    handles.set(descriptor.handleId, { reference: reference(proxy, descriptor.handleId), descriptor });
+    handles.set(descriptor.handleId, {
+      reference: reference(proxy, descriptor.handleId),
+      descriptor,
+      callableKeys: new Set(descriptor.callableKeys ?? []),
+      callableMethods: new Map(),
+    });
     handleDescriptors.set(proxy, descriptor);
     return proxy;
   }

@@ -384,6 +384,7 @@ impl LegacyNodeSession {
                 | "get"
                 | "set"
                 | "call"
+                | "callMethod"
                 | "construct"
                 | "poll"
                 | "pollPromise"

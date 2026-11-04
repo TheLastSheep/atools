@@ -86,6 +86,7 @@ use tauri::{AppHandle, Manager};
 const METHODS: &[&str] = &[
     "require",
     "call",
+    "callMethod",
     "get",
     "set",
     "construct",

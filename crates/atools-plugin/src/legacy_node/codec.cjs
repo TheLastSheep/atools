@@ -145,7 +145,23 @@ function encode(value, state = context(), depth = 0, receiver) {
   const keys = Object.getOwnPropertyNames(value).filter((key) => !forbiddenProperties.has(key));
   if (keys.length > MAX_NODES) fail('ERR_ATOOLS_NODE_VALUE_BUDGET');
   for (const key of keys) budget(state, key, depth + 1);
-  return { kind: 'handle', handleId, callable: typeof value === 'function', keys };
+  const callableKeys = keys.filter((key) => {
+    if (key === 'open' || key === 'read') return false;
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    return Boolean(
+      descriptor
+      && 'value' in descriptor
+      && typeof descriptor.value === 'function'
+      && !(descriptor.value.prototype && Object.getOwnPropertyNames(descriptor.value.prototype).length > 1)
+    );
+  });
+  return {
+    kind: 'handle',
+    handleId,
+    callable: typeof value === 'function',
+    keys,
+    ...(callableKeys.length ? { callableKeys } : {}),
+  };
 }
 function binary(kind, bytes, state, name) {
   if (bytes.byteLength > MAX_BYTES * 0.7) fail('ERR_ATOOLS_NODE_VALUE_BUDGET');
