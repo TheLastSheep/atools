@@ -28,6 +28,7 @@ import { createPluginClipboardCopyApi } from "./pluginClipboardCopyApi";
 import { createClipboardHistoryCodec } from "./pluginUtoolsBridgeSource/clipboard-history";
 import { pluginPanelFileDropReceiverFactorySource } from "./pluginPanelFileDropReceiver";
 import { pluginAiBridgeScript } from "./pluginAiBridge";
+import { pluginApiStandinProbeScript } from "./pluginApiStandinProbe";
 import { pluginFileDragBridgeScript, type PluginFileDragConfig } from "./pluginFileDragBridge";
 import { createPluginNativeWindowDomControls } from "./pluginNativeWindowDomControls";
 import { createPluginNativeWindowDragRegions } from "./pluginNativeWindowDragRegions";
@@ -130,7 +131,8 @@ export function createPluginBridgeDocument(options: PluginBridgeDocumentOptions)
     + (options.display ? pluginDisplayBridgeScript(options.display) : "")
     + (options.secretStorage ? pluginSecretStorageBridgeScript(options.secretStorage) : "")
     + pluginElectronAdapterScript(options.nativeThemeSource === "light" || options.nativeThemeSource === "dark" ? options.nativeThemeSource : "system")
-    + pluginAiBridgeScript(action.plugin_id);
+    + pluginAiBridgeScript(action.plugin_id)
+    + pluginApiStandinProbeScript();
 }
 
 export function injectPluginBridgeHtml(html: string, injection: string): string {
