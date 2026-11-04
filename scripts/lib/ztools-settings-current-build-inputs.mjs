@@ -31,7 +31,7 @@ export function assertCurrentSettingsBuildInputs(manifest, provenance, packageFi
   }
   const expected = [
     [MAIN, BEFORE, '5ed64fde74e3fe2bebb2f0bcafc7eefac88d341d6672aa1affed424dbcbbba75', [ID, 'settings-app-shortcuts-intent-route']],
-    ['internal-plugins/setting/src/components/common/ShortcutEditor/ShortcutEditor.vue', 'c7cd5aeb5715ca59852e8c1725ff8170da6083bf26d276c439d0c7da1dd381e1', 'a943bc9e5389471c8570eb8e57097461ecc8a3f98d18e3a69439cc599db5dbbf', ['app-shortcut-editor-identity']],
+    ['internal-plugins/setting/src/components/common/ShortcutEditor/ShortcutEditor.vue', 'c7cd5aeb5715ca59852e8c1725ff8170da6083bf26d276c439d0c7da1dd381e1', 'c97a872a52b49a7d97ff05b93999b1df35d7751fccd676ea4a9b17c9c00e2b94', ['app-shortcut-editor-identity']],
     ['internal-plugins/setting/src/views/ShortcutsSetting/ShortcutsSetting.vue', '746709f7441db1a192693283f0f7b343c8b6fddd23d9dcc28c92a5001c80c078', 'bea522589fce5b7c8017945395024170a34affb7bfc22e1f62296ccfe0b7cfd0', [
       'shortcut-command-id-helper-accepts-all-command-kinds', 'builtin-shortcut-failure-restores-confirmed-projection',
       'builtin-shortcut-only-supported-single-key-intent', 'builtin-shortcut-checkbox-restores-confirmed-state',

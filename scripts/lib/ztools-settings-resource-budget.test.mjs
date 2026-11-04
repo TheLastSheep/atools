@@ -181,3 +181,13 @@ test("R79 uses the measured Settings baseline and preserves old milestones", () 
   }
   assert.throws(() => select(manifest(budget, "original-vue-settings-default-height-2026-11-02")), /differs/);
 });
+
+test("R80 app global shortcuts freezes the 16KiB increment from the measured R79 baseline", () => {
+  const id = "original-vue-app-global-shortcuts-settings-2026-11-02";
+  const budget = { metric: "uncompressed_emitted_resources_bytes", baselineBytes: 806371, maxIncreaseBytes: 16384, maxBytes: 822755 };
+  assert.deepEqual(select(manifest(budget, id)), budget);
+  for (const key of ["baselineBytes", "maxIncreaseBytes", "maxBytes"]) {
+    assert.throws(() => select(manifest({ ...budget, [key]: budget[key] + 1 }, id)), /differs/);
+  }
+  assert.throws(() => select(manifest(budget, "original-vue-about-update-settings-2026-11-02")), /differs/);
+});

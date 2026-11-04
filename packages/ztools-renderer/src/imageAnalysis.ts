@@ -92,29 +92,29 @@ export function analyzeRgbaPixels(
   for (let pixel = 0; pixel < totalPixels; pixel += step) {
     const offset = pixel * 4;
     if (rgba[offset + 3] <= 20) continue;
-    const red = rgba[offset];
-    const green = rgba[offset + 1];
-    const blue = rgba[offset + 2];
-    const distance = Math.sqrt(
-      (red - mainRed) ** 2 + (green - mainGreen) ** 2 + (blue - mainBlue) ** 2,
+    const distance = Math.hypot(
+      rgba[offset] - mainRed,
+      rgba[offset + 1] - mainGreen,
+      rgba[offset + 2] - mainBlue,
     );
     if (distance < COLOR_DISTANCE_THRESHOLD) similarPixels += 1;
   }
 
-  const transparencyRatio = (totalSampled - opaquePixels) / totalSampled;
-  const similarityRatio = similarPixels / opaquePixels;
-  if (!(similarityRatio > 0.85 && transparencyRatio > 0.1 && opaquePixels > 20)) {
+  if (
+    similarPixels / opaquePixels <= 0.85 ||
+    (totalSampled - opaquePixels) / totalSampled <= 0.1 ||
+    opaquePixels <= 20
+  ) {
     return { ...NEUTRAL_RESULT };
   }
 
-  const luminance = (0.299 * mainRed + 0.587 * mainGreen + 0.114 * mainBlue) / 255;
   const hex = [mainRed, mainGreen, mainBlue]
     .map((channel) => channel.toString(16).padStart(2, "0"))
     .join("");
   return {
     isSimpleIcon: true,
     mainColor: `#${hex}`,
-    isDark: luminance < 0.5,
+    isDark: (0.299 * mainRed + 0.587 * mainGreen + 0.114 * mainBlue) / 255 < 0.5,
     needsAdaptation: true,
   };
 }

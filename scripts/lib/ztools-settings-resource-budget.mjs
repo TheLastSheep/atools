@@ -69,6 +69,11 @@ const ABOUT_UPDATE_RESOURCE_BUDGET = Object.freeze({
   metric: "uncompressed_emitted_resources_bytes", baselineBytes: 803857, maxIncreaseBytes: 8192, maxBytes: 812049,
 });
 
+const APP_GLOBAL_SHORTCUTS_RESOURCE_BUDGET_MILESTONE = "original-vue-app-global-shortcuts-settings-2026-11-02";
+const APP_GLOBAL_SHORTCUTS_RESOURCE_BUDGET = Object.freeze({
+  metric: "uncompressed_emitted_resources_bytes", baselineBytes: 806371, maxIncreaseBytes: 16384, maxBytes: 822755,
+});
+
 export function frozenSettingsResourceBudget(manifest, pinnedSourceCommit) {
   const build = manifest?.build;
   if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)
@@ -102,6 +107,8 @@ export function frozenSettingsResourceBudget(manifest, pinnedSourceCommit) {
     expected = DEFAULT_HEIGHT_RESOURCE_BUDGET;
   } else if (build.budgetMilestone === ABOUT_UPDATE_RESOURCE_BUDGET_MILESTONE) {
     expected = ABOUT_UPDATE_RESOURCE_BUDGET;
+  } else if (build.budgetMilestone === APP_GLOBAL_SHORTCUTS_RESOURCE_BUDGET_MILESTONE) {
+    expected = APP_GLOBAL_SHORTCUTS_RESOURCE_BUDGET;
   } else {
     throw new Error("Settings source manifest uses an unknown resource budget milestone");
   }

@@ -96,43 +96,26 @@ export function createRendererContextMenu(options: RendererContextMenuOptions): 
     const separator = id.indexOf(":");
     if (separator <= 0) return false;
     const action = id.slice(0, separator);
-    if (
-      action !== "pin-app" &&
-      action !== "unpin-app" &&
-      action !== "remove-from-history" &&
-      action !== "reveal-in-finder" &&
-      action !== "add-global-shortcut"
-    ) {
-      return false;
-    }
+    const validStr = (v: unknown, max: number): v is string =>
+      typeof v === "string" && !!v && !v.includes("\0") && utf8ByteLength(v) <= max;
 
     try {
       const payload: unknown = JSON.parse(id.slice(separator + 1));
       if (action === "add-global-shortcut") {
-        if (!payload || typeof payload !== "object" || Array.isArray(payload) ||
-          Object.keys(payload).sort().join(",") !== "name,path,subType") return false;
-        const app = payload as Record<string, unknown>;
-        return app.subType === "app" && typeof app.path === "string" && !!app.path && !app.path.includes("\0") &&
-          typeof app.name === "string" && !!app.name && !app.name.includes("\0") &&
-          utf8ByteLength(app.path) <= 16 * 1024 && utf8ByteLength(app.name) <= 4 * 1024;
+        const app = payload && typeof payload === "object" && !Array.isArray(payload) &&
+          Object.keys(payload).sort().join(",") === "name,path,subType" ? (payload as Record<string, unknown>) : null;
+        return !!app && app.subType === "app" && validStr(app.path, 16 * 1024) && validStr(app.name, 4 * 1024);
       }
-      if (action === "pin-app") {
-        const identity = normalizeAppCommand(payload);
-        if (identity.path.includes("\0")) return false;
-        return true;
-      }
+      if (action === "pin-app") return !normalizeAppCommand(payload).path.includes("\0");
       if (action === "unpin-app" || action === "remove-from-history") {
         const record = selectedDataRecord(payload, ["path", "featureCode", "name", "subType"]);
-        if (!hasSupportedSubType(record)) return false;
-        const identity = normalizeRemovalIdentity(record.path, record.featureCode, record.name);
-        if (identity.path.includes("\0")) return false;
-        return true;
+        return hasSupportedSubType(record) && !normalizeRemovalIdentity(record.path, record.featureCode, record.name).path.includes("\0");
       }
-      const record = selectedDataRecord(payload, ["path", "subType"]);
-      if (!hasSupportedSubType(record)) return false;
-      const identity = normalizeRemovalIdentity(record.path);
-      if (identity.path.includes("\0")) return false;
-      return true;
+      if (action === "reveal-in-finder") {
+        const record = selectedDataRecord(payload, ["path", "subType"]);
+        return hasSupportedSubType(record) && !normalizeRemovalIdentity(record.path).path.includes("\0");
+      }
+      return false;
     } catch {
       return false;
     }
@@ -165,33 +148,26 @@ export function createRendererContextMenu(options: RendererContextMenuOptions): 
       }
 
       const record = selectedDataRecord(item, ["type", "id", "label", "enabled", "submenu"]);
+      const validLabel = (v: unknown): v is string =>
+        typeof v === "string" && !!v && utf8ByteLength(v) <= MAX_LABEL_BYTES;
+      const validId = (v: unknown): v is string =>
+        typeof v === "string" && utf8ByteLength(v) <= commandLimit(v);
       if (
-        typeof record.label !== "string" ||
-        record.label.length === 0 ||
-        utf8ByteLength(record.label) > MAX_LABEL_BYTES
+        !validLabel(record.label) ||
+        (record.id !== undefined && !validId(record.id)) ||
+        (record.enabled !== undefined && typeof record.enabled !== "boolean")
       ) {
         throw appStateInvalidArgument();
       }
-      let id: string | undefined;
-      if (record.id !== undefined) {
-        if (typeof record.id !== "string" || utf8ByteLength(record.id) > commandLimit(record.id)) {
-          throw appStateInvalidArgument();
-        }
-        id = record.id;
-      }
-      if (record.enabled !== undefined && typeof record.enabled !== "boolean") {
-        throw appStateInvalidArgument();
-      }
-
-      const hasSubmenu = Object.prototype.hasOwnProperty.call(record, "submenu");
+      const id = record.id;
+      const hasSubmenu = Object.hasOwn(record, "submenu");
       if (hasSubmenu && record.label === "更多" && record.enabled !== false) {
         let childCount: number;
         try { childCount = denseEventArrayLength(record.submenu, MAX_ITEMS); } catch { throw appStateInvalidArgument(); }
         const children: { id: string; label: string; enabled: boolean }[] = [];
         for (let childIndex = 0; childIndex < childCount; childIndex += 1) {
           const child = selectedDataRecord(denseEventArrayItem(record.submenu as unknown[], childIndex), ["id", "label", "enabled", "submenu"]);
-          if (Object.hasOwn(child, "submenu") || typeof child.id !== "string" || utf8ByteLength(child.id) > commandLimit(child.id) ||
-            typeof child.label !== "string" || !child.label || utf8ByteLength(child.label) > MAX_LABEL_BYTES ||
+          if (Object.hasOwn(child, "submenu") || !validId(child.id) || !validLabel(child.label) ||
             (child.enabled !== undefined && typeof child.enabled !== "boolean")) throw appStateInvalidArgument();
           if (!child.id.startsWith("add-global-shortcut:") || !isEnabledKnownAction(child.id)) continue;
           const enabled = child.enabled !== false;
@@ -207,12 +183,7 @@ export function createRendererContextMenu(options: RendererContextMenuOptions): 
         !id.startsWith("add-global-shortcut:") &&
         record.enabled !== false &&
         isEnabledKnownAction(id);
-      const normalized: RendererContextMenuItem = {
-        id: id ?? DISABLED_ITEM_ID,
-        label: record.label,
-        enabled,
-      };
-      items.push(normalized);
+      items.push({ id: id ?? DISABLED_ITEM_ID, label: record.label, enabled });
       if (enabled && id !== undefined) enabledCommands.add(id);
     }
 

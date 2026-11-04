@@ -148,9 +148,9 @@ async function verifyFormalBuildProvenance() {
 }
 
 function verifyFrozenPolicy() {
-  assert.equal(manifest.build.budgetMilestone, 'original-vue-about-update-settings-2026-11-02')
-  assert.deepEqual(policy, { metric: 'uncompressed_emitted_resources_bytes', baselineBytes: 803857, maxIncreaseBytes: 8192, maxBytes: 812049 })
-  assert.equal(Math.min(policy.baselineBytes + policy.maxIncreaseBytes, policy.maxBytes), 812049)
+  assert.equal(manifest.build.budgetMilestone, 'original-vue-app-global-shortcuts-settings-2026-11-02')
+  assert.deepEqual(policy, { metric: 'uncompressed_emitted_resources_bytes', baselineBytes: 806371, maxIncreaseBytes: 16384, maxBytes: 822755 })
+  assert.equal(Math.min(policy.baselineBytes + policy.maxIncreaseBytes, policy.maxBytes), 822755)
 }
 
 function verifyLegacyPolicyBoundary() {

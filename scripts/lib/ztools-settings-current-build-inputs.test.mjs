@@ -28,8 +28,9 @@ async function metadata() {
   return { manifest: { build: { budgetMilestone: milestone } }, provenance: { build: { localBuildInputs: structuredClone(packageFiles) }, sourceCompatibility: result.compatibility }, packageFiles }
 }
 
-test('actual old R79 dist is rejected by actual source reader', async () => {
-  await assert.rejects(captureSettingsNativeSources(root), /Settings current build modules differ from provenance|Settings current entry patch receipt|Settings provenance host bridge source record is invalid/)
+test('actual R80 dist is accepted by actual source reader', async () => {
+  const result = await captureSettingsNativeSources(root)
+  assert.equal(result.bundle.resourceBytes, 817194)
 })
 test('synthetic new metadata accepts exact modules and applied child close entry patch', async () => {
   const m = await metadata(); assert.doesNotThrow(() => assertCurrentSettingsBuildInputs(m.manifest, m.provenance, m.packageFiles))
@@ -70,7 +71,6 @@ test('actual bundle reader accepts synthetic updated metadata then rejects same-
     const host = await captureHostBridgeSources(directory)
     provenance.build.hostBridgeSources = hostBridgeSourcesProvenance(host, provenance.build.hostBridgeSources.runtimeImports, 'packages/ztools-settings/src/hostBridgeEntry.ts')
     provenance.build.localBuildInputs = m.provenance.build.localBuildInputs
-    provenance.sourceCompatibility = m.provenance.sourceCompatibility
     await writeFile(provenancePath, JSON.stringify(provenance))
     const result = await captureSettingsNativeSources(directory)
     assert.ok(result.bundle.fileCount > 0)
@@ -89,7 +89,7 @@ test('R80 requires exact current modules and all three pinned patch receipts', a
   const { settingsSourceCompatibilityPatches } = await import('../../packages/ztools-settings/src/compatibility-patches/index.mjs')
   const after = new Map([
     ['internal-plugins/setting/src/main.ts', '5ed64fde74e3fe2bebb2f0bcafc7eefac88d341d6672aa1affed424dbcbbba75'],
-    ['internal-plugins/setting/src/components/common/ShortcutEditor/ShortcutEditor.vue', 'a943bc9e5389471c8570eb8e57097461ecc8a3f98d18e3a69439cc599db5dbbf'],
+    ['internal-plugins/setting/src/components/common/ShortcutEditor/ShortcutEditor.vue', 'c97a872a52b49a7d97ff05b93999b1df35d7751fccd676ea4a9b17c9c00e2b94'],
     ['internal-plugins/setting/src/views/ShortcutsSetting/ShortcutsSetting.vue', 'bea522589fce5b7c8017945395024170a34affb7bfc22e1f62296ccfe0b7cfd0']
   ])
   const entries = settingsSourceCompatibilityPatches.filter(p => after.has(p.path)).map(p => ({ path: p.path, beforeSha256: p.beforeSha256, afterSha256: after.get(p.path), changes: p.changes.map(({ id, kind }) => ({ id, kind })) }))
