@@ -1,0 +1,293 @@
+name: Release Multi-Platform & Sync Server
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to create or update (for example v3.0.0)"
+        required: true
+        type: string
+        default: "v3.0.0"
+      prerelease:
+        description: "Mark the GitHub Release as a pre-release"
+        required: false
+        type: boolean
+        default: false
+      draft:
+        description: "Create the GitHub Release as a draft"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: github-release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_TOOLCHAIN: "1.97.0"
+  PNPM_VERSION: "10.30.3"
+  NODE_VERSION: "20"
+
+jobs:
+  prepare-release:
+    name: Validate Release & Version Contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      version: ${{ steps.meta.outputs.version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify release & version contracts
+        run: |
+          node scripts/test-version-consistency.mjs
+          node scripts/test-updater-contract.mjs
+          node scripts/test-github-release-updater.mjs
+          node scripts/test-release-packages-workflow.mjs
+
+      - name: Resolve release tag and version
+        id: meta
+        run: |
+          tag="${{ github.event.inputs.tag || github.ref_name }}"
+          version=$(node -p "JSON.parse(require('node:fs').readFileSync('package.json', 'utf8')).version")
+          if [[ "$tag" != "v${version}" ]]; then
+            echo "Tag ${tag} does not match workspace version v${version}" >&2
+            exit 1
+          fi
+          {
+            echo "tag=${tag}"
+            echo "version=${version}"
+          } >> "$GITHUB_OUTPUT"
+
+  build-sync-server-binaries:
+    name: Build Sync Server (${{ matrix.target }})
+    needs: prepare-release
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            archive_ext: tar.gz
+            bin_name: atools-sync-server
+          - os: macos-14
+            target: aarch64-apple-darwin
+            archive_ext: tar.gz
+            bin_name: atools-sync-server
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            archive_ext: tar.gz
+            bin_name: atools-sync-server
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            archive_ext: zip
+            bin_name: atools-sync-server.exe
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@1.97.0
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Cargo registry and target
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: release-sync-server-${{ matrix.target }}
+
+      - name: Build atools-sync-server release binary
+        run: cargo build --release --locked -p atools-sync-server --target ${{ matrix.target }}
+
+      - name: Package sync server archive (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p dist-release
+          archive="atools-sync-server-${{ needs.prepare-release.outputs.tag }}-${{ matrix.target }}.tar.gz"
+          tar -C "target/${{ matrix.target }}/release" -czf "dist-release/${archive}" "${{ matrix.bin_name }}"
+          shasum -a 256 "dist-release/${archive}" > "dist-release/${archive}.sha256"
+
+      - name: Package sync server archive (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist-release | Out-Null
+          $archive = "atools-sync-server-${{ needs.prepare-release.outputs.tag }}-${{ matrix.target }}.zip"
+          Compress-Archive -Path "target/${{ matrix.target }}/release/${{ matrix.bin_name }}" -DestinationPath "dist-release/$archive" -Force
+          $hash = (Get-FileHash -Algorithm SHA256 "dist-release/$archive").Hash.ToLower()
+          "$hash  dist-release/$archive" | Set-Content -Path "dist-release/$archive.sha256" -Encoding utf8
+
+      - name: Upload sync server artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sync-server-${{ matrix.target }}
+          path: dist-release/*
+          if-no-files-found: error
+
+  build-desktop-bundles:
+    name: Build Desktop Bundle (${{ matrix.target }})
+    needs: prepare-release
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            target: aarch64-apple-darwin
+            bundles: "dmg,app"
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            bundles: "dmg,app"
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            bundles: "deb,appimage"
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: "nsis,msi"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libasound2-dev \
+            libxdo-dev \
+            libxcb1-dev \
+            libxrandr-dev \
+            libdbus-1-dev
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@1.97.0
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Cargo registry and target
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+          key: release-desktop-${{ matrix.target }}
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Tauri desktop bundles
+        env:
+          CI: "true"
+        run: pnpm tauri build --no-sign --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+
+      - name: Collect desktop bundle artifacts
+        shell: bash
+        run: |
+          mkdir -p dist-desktop
+          find "target/${{ matrix.target }}/release/bundle" -maxdepth 3 -type f \
+            \( -name "*.dmg" -o -name "*.app.tar.gz" -o -name "*.deb" -o -name "*.AppImage" -o -name "*.msi" -o -name "*-setup.exe" \) \
+            -exec cp -v {} dist-desktop/ \;
+
+      - name: Upload desktop bundle artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-bundles-${{ matrix.target }}
+          path: dist-desktop/*
+          if-no-files-found: warn
+
+  publish-github-release:
+    name: Publish GitHub Release
+    needs:
+      - prepare-release
+      - build-sync-server-binaries
+      - build-desktop-bundles
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Download all release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-Input
+
+      - name: Assemble release assets and SHA256SUMS.txt
+        run: |
+          mkdir -p release-assets
+          find release-Input -type f -exec cp -v {} release-assets/ \;
+          cd release-assets
+          shasum -a 256 * > SHA256SUMS.txt
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.prepare-release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          prerelease_flag=""
+          draft_flag=""
+          if [[ "${{ inputs.prerelease }}" == "true" ]]; then
+            prerelease_flag="--prerelease"
+          fi
+          if [[ "${{ inputs.draft }}" == "true" ]]; then
+            draft_flag="--draft"
+          fi
+          if gh release view "$RELEASE_TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" release-assets/* --clobber --repo "${{ github.repository }}"
+          else
+            gh release create "$RELEASE_TAG" release-assets/* \
+              --repo "${{ github.repository }}" \
+              --title "ATools ${RELEASE_TAG}" \
+              --generate-notes \
+              $prerelease_flag \
+              $draft_flag
+          fi

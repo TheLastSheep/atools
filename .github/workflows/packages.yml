@@ -1,0 +1,147 @@
+name: Publish GitHub Packages
+
+on:
+  push:
+    branches: [master, codex/atools-ztools-parity]
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      publish_registry:
+        description: "Publish staged packages to GitHub Packages registry"
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: github-packages-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_TOOLCHAIN: "1.97.0"
+  PNPM_VERSION: "10.30.3"
+  NODE_VERSION: "20"
+
+jobs:
+  publish-npm-packages:
+    name: Publish NPM Packages (@thelastsheep/*)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Install Node.js for GitHub Packages
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@thelastsheep"
+          cache: pnpm
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build pinned ZTools & updater bundles
+        run: |
+          pnpm --dir packages/ztools-renderer install --frozen-lockfile --ignore-workspace
+          node packages/ztools-renderer/build.mjs
+          pnpm --dir packages/ztools-settings install --frozen-lockfile --ignore-workspace
+          node packages/ztools-settings/build.mjs
+          node packages/ztools-updater/build.mjs
+
+      - name: Stage @thelastsheep/* GitHub NPM packages
+        run: node scripts/stage-github-npm-packages.mjs --output target/github-packages/npm
+
+      - name: Verify staged NPM package tarballs
+        run: |
+          for pkg_dir in target/github-packages/npm/*/; do
+            echo "Verifying $pkg_dir"
+            npm pack --dry-run "$pkg_dir"
+          done
+
+      - name: Publish staged NPM packages to npm.pkg.github.com
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.publish_registry }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          for pkg_dir in target/github-packages/npm/*/; do
+            pkg_name=$(node -p "JSON.parse(require('node:fs').readFileSync('${pkg_dir}package.json', 'utf8')).name")
+            pkg_version=$(node -p "JSON.parse(require('node:fs').readFileSync('${pkg_dir}package.json', 'utf8')).version")
+            echo "Publishing ${pkg_name}@${pkg_version} to GitHub Packages..."
+            if npm view "${pkg_name}@${pkg_version}" version --registry https://npm.pkg.github.com >/dev/null 2>&1; then
+              echo "${pkg_name}@${pkg_version} already exists in GitHub Packages; skipping."
+            else
+              npm publish "$pkg_dir" --registry https://npm.pkg.github.com
+            fi
+          done
+
+      - name: Upload staged NPM packages artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: atools-github-npm-packages
+          path: target/github-packages/npm
+          if-no-files-found: error
+
+  publish-container-package:
+    name: Publish Container Package (ghcr.io/thelastsheep/atools-sync-server)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Resolve image metadata
+        id: meta
+        run: |
+          owner_lc=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          version=$(node -p "JSON.parse(require('node:fs').readFileSync('package.json', 'utf8')).version")
+          short_sha=$(echo "${{ github.sha }}" | cut -c1-7)
+          {
+            echo "image=ghcr.io/${owner_lc}/atools-sync-server"
+            echo "version=${version}"
+            echo "short_sha=${short_sha}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GitHub Container Registry (GHCR)
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.publish_registry }}
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build atools-sync-server OCI container image
+        run: |
+          docker build \
+            -f crates/atools-sync-server/Dockerfile \
+            --label "org.opencontainers.image.version=${{ steps.meta.outputs.version }}" \
+            --label "org.opencontainers.image.revision=${{ github.sha }}" \
+            -t "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}" \
+            -t "${{ steps.meta.outputs.image }}:sha-${{ steps.meta.outputs.short_sha }}" \
+            -t "${{ steps.meta.outputs.image }}:latest" \
+            .
+
+      - name: Smoke-test container binary
+        run: |
+          docker run --rm --entrypoint /usr/local/bin/atools-sync-server \
+            -e PORT=23517 \
+            "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}" --help || true
+
+      - name: Push container image tags to GHCR
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.publish_registry }}
+        run: |
+          docker push "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}"
+          docker push "${{ steps.meta.outputs.image }}:sha-${{ steps.meta.outputs.short_sha }}"
+          docker push "${{ steps.meta.outputs.image }}:latest"
