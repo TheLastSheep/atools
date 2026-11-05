@@ -28,17 +28,14 @@ const MAX_NAME_BYTES: usize = 4096;
 pub const RENDERER_APP_STATE_GUARD_REJECTED: &str =
     "Renderer app state mutation rejected by session guard";
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum RendererDirectSubtype {
+    #[default]
     App,
     LocalShortcut,
-}
-
-impl Default for RendererDirectSubtype {
-    fn default() -> Self {
-        Self::App
-    }
 }
 
 impl RendererDirectSubtype {

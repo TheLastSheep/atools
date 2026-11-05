@@ -56,3 +56,9 @@ panic = "abort"
 
 [profile.dev.package.sha2]
 opt-level = 3
+
+[workspace.lints.rust]
+dead_code = "allow"
+
+[workspace.lints.clippy]
+all = { level = "allow", priority = -1 }

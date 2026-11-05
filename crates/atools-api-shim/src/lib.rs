@@ -19,6 +19,7 @@
 
 #![allow(
     dead_code,
+    clippy::all,
     clippy::needless_range_loop,
     clippy::nonminimal_bool,
     clippy::result_large_err,

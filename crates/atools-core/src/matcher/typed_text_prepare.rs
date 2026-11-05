@@ -55,7 +55,7 @@ fn append_witness(hir: &Hir, out: &mut String) -> Option<()> {
             out.push(c);
         }
         HirKind::Class(Class::Bytes(class)) => {
-            let c = [b'a', b'x', b'0', b' ', b'\n']
+            let c = (*b"ax0 \n")
                 .into_iter()
                 .find(|c| class.iter().any(|r| r.start() <= *c && *c <= r.end()))
                 .or_else(|| class.iter().next().map(|r| r.start()))?;

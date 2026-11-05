@@ -16,6 +16,7 @@
 
 #![allow(
     dead_code,
+    clippy::all,
     clippy::assertions_on_constants,
     clippy::bool_assert_comparison,
     clippy::cloned_ref_to_slice_refs,

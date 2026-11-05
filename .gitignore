@@ -13,3 +13,4 @@ src-tauri/gen/
 .superpowers/
 src-tauri/binaries/node-*
 src-tauri/binaries/.node-*
+.scratch/atools-replication/upstream/

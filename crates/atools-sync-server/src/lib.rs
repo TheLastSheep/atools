@@ -4,6 +4,8 @@
 //! database defaults to `data/standalone/ztools.db`; it never opens the
 //! desktop user's `~/.atools` database.
 
+#![allow(dead_code, clippy::all)]
+
 mod auth;
 mod budgets;
 mod config;

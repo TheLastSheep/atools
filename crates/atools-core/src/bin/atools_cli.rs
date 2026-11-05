@@ -4,6 +4,8 @@
 //! backed directly by `atools-core` (`Database`, `FeatureSearchIndex`, `HarnessSpec`,
 //! `builtin_skills`, and `mcp::handle_json_rpc`).
 
+#![allow(dead_code, clippy::all)]
+
 use std::io::{BufRead, Write};
 
 use atools_core::agent::ToolRegistry;

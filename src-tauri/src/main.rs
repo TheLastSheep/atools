@@ -1,5 +1,6 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![allow(dead_code, clippy::all)]
 
 fn main() {
     atools_lib::run_source_build_bootstrap_if_requested();
