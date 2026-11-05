@@ -1,8 +1,31 @@
 {
   "name": "atools-3",
   "productName": "ATools 3.0",
+  "description": "Local-first AI-Native desktop launcher & cross-platform plugin runtime built with Rust + Tauri v2, compatible with uTools and ZTools ecosystems.",
   "private": true,
   "version": "3.0.0",
+  "license": "MIT",
+  "author": "ATools Team",
+  "homepage": "https://github.com/TheLastSheep/atools#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TheLastSheep/atools.git"
+  },
+  "bugs": {
+    "url": "https://github.com/TheLastSheep/atools/issues"
+  },
+  "keywords": [
+    "atools",
+    "launcher",
+    "tauri",
+    "rust",
+    "utools",
+    "ztools",
+    "mcp",
+    "ai-agent",
+    "plugin-runtime",
+    "productivity"
+  ],
   "packageManager": "pnpm@11.7.0",
   "type": "module",
   "scripts": {

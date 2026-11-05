@@ -64,6 +64,11 @@
     "active": true,
     "createUpdaterArtifacts": true,
     "targets": "all",
+    "category": "Productivity",
+    "shortDescription": "Local-first AI-Native desktop launcher & uTools/ZTools plugin runtime",
+    "longDescription": "ATools 3.0 is a high-performance, local-first desktop launcher, cross-platform plugin runtime (compatible with uTools and ZTools), and AI-Native MCP/Skills capability workspace built with Rust, Tauri v2, and SQLite WAL.",
+    "copyright": "Copyright (c) 2026 ATools Contributors. Licensed under MIT.",
+    "licenseFile": "../LICENSE",
     "resources": {
       "../resources/plugins/builtin/": "plugins/builtin",
       "../packages/ztools-settings/dist/": "ztools-settings",

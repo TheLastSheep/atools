@@ -28,3 +28,30 @@ NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
 DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+---
+
+## ZTools Upstream Renderer, Settings & Updater Bundles
+
+Pinned compatibility bundles under `packages/ztools-renderer`,
+`packages/ztools-settings`, and `packages/ztools-updater` (along with their
+packaged `ZTools-LICENSE` and `source-manifest.json` artifacts) incorporate
+upstream open-source components from the ZTools project
+([`ZToolsCenter/ZTools`](https://github.com/ZToolsCenter/ZTools)). Original
+upstream license files (`ZTools-LICENSE`) and commit provenance manifests are
+retained verbatim inside each corresponding package directory and release
+resource bundle.
+
+---
+
+## Rust, Tauri & Web Open-Source Ecosystem
+
+ATools builds upon open-source crates and packages distributed under MIT,
+Apache-2.0, BSD, and ISC licenses, including:
+
+- **Tauri v2** (`tauri`, `tauri-build`, `tauri-plugin-*`) — Apache-2.0 / MIT
+- **Tokio & Axum** (`tokio`, `axum`, `tower`) — MIT
+- **SQLite & Rusqlite** (`rusqlite`, `libsqlite3-sys`) — MIT / Public Domain
+- **QuickJS Rust Bindings** (`rquickjs`) — MIT
+- **Svelte 5 & Vite** (`svelte`, `vite`, `@sveltejs/vite-plugin-svelte`) — MIT
+- **Pinyin Engines** (`pinyin`, `pinyin-pro`) — MIT

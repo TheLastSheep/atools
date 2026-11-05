@@ -12,7 +12,10 @@ members = [
 version = "3.0.0"
 edition = "2021"
 authors = ["ATools Team"]
+description = "Local-first AI-Native desktop launcher & cross-platform plugin runtime built with Rust + Tauri v2, compatible with uTools and ZTools ecosystems."
 license = "MIT"
+repository = "https://github.com/TheLastSheep/atools"
+homepage = "https://github.com/TheLastSheep/atools"
 rust-version = "1.80"
 
 [workspace.dependencies]
