@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({ invoke: vi.fn(), events: new Map<string, (even
 vi.mock("@tauri-apps/api/core", async original => ({ ...await original<typeof import("@tauri-apps/api/core")>(), invoke: mocks.invoke }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn(async (name, callback) => { mocks.events.set(name, callback); return () => mocks.events.delete(name); }) }));
 vi.mock("../../src/components/PluginPanel.svelte", async () => ({ default: (await import("./PluginLifecyclePanelFixture.svelte")).default }));
+vi.mock("../../src/components/PluginPanelMount.svelte", async () => ({ default: (await import("./PluginLifecyclePanelFixture.svelte")).default }));
 
 // Lifecycle assertions start after the async manual mock is resolved. Native probes cover cold panel loading.
 beforeAll(async () => {

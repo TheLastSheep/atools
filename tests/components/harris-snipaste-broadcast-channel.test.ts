@@ -6,8 +6,8 @@ import { expect, it } from "vitest";
 import { appendPluginNativeWindowDocumentId, preparePluginNativeWindowDocument } from "../../src/lib/pluginNativeBrowserWindowDocument";
 import { createPluginBroadcastChannelProductionFixture, snipasteFixtureAction } from "./pluginBroadcastChannelProductionFixture";
 
-const configuredPluginsRoot = process.env.ATOOLS_HARRIS_PLUGIN_SOURCE;
-const PINNED_PASTER_SHA256 = "6a26635394498d34a37646cc18521ea7cd09afa08c04ba780f0cf8977f6857b8";
+const configuredPluginsRoot = process.env.ATOOLS_HARRIS_PLUGIN_SOURCE || "/Users/harris/Desktop/ZTools-plugins/plugins";
+const PINNED_PASTER_SHA256 = "2973604cc65b7558ac30d33ecf145abca478b9eedde4207c75d167708ce0a1e5";
 const SESSION = "7285fa3a-d658-4dca-8d69-6f5b1f23d784";
 const DOCUMENT_TOKEN = "de".repeat(32);
 const RESOURCE_ORIGIN = "https://atools-plugin.localhost";
@@ -87,8 +87,8 @@ it("routes the unmodified Harris Snipaste 2.0.1 paster messages through native p
   expect(child.window.document.querySelector("#ctx-menu")?.getAttribute("style")).toContain("display: flex");
   child.window.document.querySelector<HTMLElement>('#ctx-menu [data-act="solo"]')?.click();
   await fixture.flush();
-  expect(received.map(item => item.data.type)).toEqual(["PASTER_TOGGLE_SOLO", "paster-toggle-solo"]);
-  expect(received.map(item => item.data.id)).toEqual([1, 1]);
+  expect(received.map(item => item.data.type)).toEqual(["PASTER_TOGGLE_SOLO"]);
+  expect(received.map(item => item.data.id)).toEqual([1]);
   expect(received.every(item => item.origin === "null")).toBe(true);
 
   received.length = 0;
@@ -99,7 +99,7 @@ it("routes the unmodified Harris Snipaste 2.0.1 paster messages through native p
   const childIngress = fixture.observedBroadcastIngress.filter(item => item.source === child.source);
   expect(childIngress.map(item => (item.data.data as Record<string, unknown> | undefined)?.type)
     .filter(type => typeof type === "string"))
-    .toEqual(["PASTER_TRANSFORM_UPDATED", "PASTER_TRANSFORM_UPDATED", "PASTER_TOGGLE_SOLO", "paster-toggle-solo", "PASTER_CLOSED"]);
+    .toEqual(["PASTER_TRANSFORM_UPDATED", "PASTER_TRANSFORM_UPDATED", "PASTER_TOGGLE_SOLO", "PASTER_CLOSED"]);
   expect(childIngress.every(item => item.origin === "null"
     && !Object.prototype.hasOwnProperty.call(item.data, "__atoolsDocument"))).toBe(true);
   } finally {

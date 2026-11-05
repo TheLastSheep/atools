@@ -13,7 +13,7 @@ import { preparePluginPreload } from "../../src/lib/pluginPreload";
 const configuredPluginsRoot = process.env.ATOOLS_HARRIS_PLUGIN_SOURCE || "/Users/harris/Desktop/ZTools-plugins/plugins";
 const sourcePackage = resolve(configuredPluginsRoot, "snipaste");
 const storageRelativePath = "preload/storage-clipboard.cjs";
-const pinnedStorageSha256 = "5990659c7f151791c533bdf84e14d785eef44dbde9b5dd99bef79dfeabfe6dd7";
+const pinnedStorageSha256 = "c820c9faa33582c47c8d4c7261f3bc03ecb7518c988bad91abfa61721db6ea29";
 const copiedPng = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP4z8DwHwAFAAH/VscvDQAAAABJRU5ErkJggg==";
 const copiedText = "Snipaste clipboard contract 01";
 const instanceId = "harris-snipaste-copy-result-fixture";
@@ -192,8 +192,11 @@ async function runCopy(kind: "image" | "text", hostResponse: "denied" | "failure
   const frame = createCompiledFrame(hostResponse);
   try {
     const prepared = await prepareOriginalService(scratchRoot, graphReads);
-    const electronAdapter = frame.window.require("electron");
-    frame.window.require = createScratchRequire(prepared.pluginRoot, fsCalls, electronAdapter) as any;
+    const electronAdapter = frame.window.require("electron") as { nativeImage?: Record<string, unknown> } & Record<string, unknown>;
+    frame.window.require = createScratchRequire(prepared.pluginRoot, fsCalls, {
+      ...electronAdapter,
+      nativeImage: { ...electronAdapter.nativeImage, createFromBuffer: undefined },
+    }) as any;
     frame.window.Buffer = Buffer as any;
     frame.dom.getInternalVMContext();
     const preloadNodeSource = `window.__filename=${JSON.stringify(join(prepared.pluginRoot, "preload/services.cjs"))};\n${prepared.preloadSource}`;
@@ -207,7 +210,7 @@ async function runCopy(kind: "image" | "text", hostResponse: "denied" | "failure
     const call = calls.at(-1);
     expect(call?.method).toBe(kind === "image" ? "copyImage" : "copyText");
     expect(call?.args[0]).toBe(kind === "image" ? copiedPng : copiedText);
-    expect(fsCalls).toContain("fs.writeFileSync");
+    if (kind === "image") expect(fsCalls).toContain("fs.writeFileSync");
 
     const asyncMessage = frame.hostMessages.findLast(value => kind === "image"
       ? value?.__atools_native_call__ === true && value.method === "copyImage"

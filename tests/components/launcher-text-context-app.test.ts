@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({ invoke: vi.fn(), events: new Map<string, (even
 vi.mock("@tauri-apps/api/core", async original => ({ ...await original<typeof import("@tauri-apps/api/core")>(), invoke: mocks.invoke }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn(async (name, callback) => { mocks.events.set(name, callback); return () => mocks.events.delete(name); }) }));
 vi.mock("../../src/lib/pinyinSearch", () => ({ loadSearchPinyinEngine: vi.fn(async () => false) }));
-vi.mock("../../src/components/PluginPanel.svelte", async () => ({ default: (await import("./LauncherTextPluginFixture.svelte")).default }));
+vi.mock("../../src/components/PluginPanelMount.svelte", async () => ({ default: (await import("./LauncherTextPluginMountFixture.svelte")).default }));
 
 type ContentResult = SearchResult & { content_search_terms?: string[] };
 const json: ContentResult = {

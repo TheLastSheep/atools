@@ -139,8 +139,8 @@ async function runOriginalStartupScenario(scenario: "text" | "files") {
       pluginDataRoot: pluginDataRealRoot, fixtureEnv: isolation.env, scenario, filePaths: fixtureFilePaths,
     });
     expect(worker.initialization).toMatchObject({ protocolVersion: 1, nodeVersion: "22.23.3" });
-    expect(packageCopy.builtHashes["preload.js"]).toBe("6566635ba6f1143379ec980e42248cd666b2fa8d871a621f65e76c04ab1c98d3");
-    expect(packageCopy.builtHashes["chunks/history-search-index-Bm2oYZYG.cjs"]).toBe("c5fb4fc0ec568f13dd4b411f13a6d91ead4eeac0bd3a1be904ec15daef9d84d7");
+    expect(packageCopy.builtHashes["preload.js"]).toBe("cf394cb02fcf7879f1e3a2410ff5253791275d199c213d6d785055454a3722ba");
+    expect(packageCopy.builtHashes["chunks/history-search-index-C5CG7yxr.cjs"]).toBe("83593ecc7176e00c98f80f251785c28b9bdffe92929924a914581ff5af7927c3");
 
     runtime = createPluginRuntimePreload(runtimeInvoke, "pasteboard-pro", () => true, undefined, ownerInstanceId);
     const graphReads: string[] = [];
@@ -262,7 +262,9 @@ async function runOriginalStartupScenario(scenario: "text" | "files") {
     expect(safeStoragePermissionPortCalls).toBe(1);
     expect(graphReads).toEqual([
       packageCopy.preloadPath,
-      resolve(packageCopy.pluginRoot, "chunks/history-search-index-Bm2oYZYG.cjs"),
+      resolve(packageCopy.pluginRoot, "chunks/history-search-index-C5CG7yxr.cjs"),
+      resolve(packageCopy.pluginRoot, "chunks/clipboard-tombstone-v2-28uC8Qy5.cjs"),
+      resolve(packageCopy.pluginRoot, "chunks/index-Cy80EH4d.cjs"),
     ]);
     expect(nodeCalls.map(call => call.command)).toEqual(["prepare_legacy_node", "get_legacy_node_session"]);
     expect(nodeCalls[0]?.args).toEqual({ pluginId: "pasteboard-pro", instanceId: ownerInstanceId });

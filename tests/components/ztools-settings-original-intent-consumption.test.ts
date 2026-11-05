@@ -42,6 +42,7 @@ function fixture() {
   })
   editor = compile('internal-plugins/setting/src/components/common/ShortcutEditor/ShortcutEditor.vue', name => {
     if (name === '@/components') return { HotkeyInput: stub, DetailPanel: { setup(_p: any, { slots }: any) { return () => vue.h('div', slots.default?.()) } } }
+    if (name === '@/components/common/Toast') return { useToast: () => ({ success: vi.fn(), error: vi.fn(), warning: vi.fn(), confirm: async () => true }) }
     if (name.endsWith('/CommandTargetSelector.vue')) return { default: selector }
     if (name.endsWith('/ShortcutsSetting')) return helpers
     throw Error(name)

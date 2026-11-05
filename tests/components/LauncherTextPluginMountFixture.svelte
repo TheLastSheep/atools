@@ -18,5 +18,7 @@
 </script>
 
 {#if action && panelProps}
-  <LauncherTextPluginFixture action={panelProps.action} onclose={panelProps.onclose} />
+  <div class="plugin-panel-host">
+    <LauncherTextPluginFixture action={panelProps.action} onclose={panelProps.onclose} />
+  </div>
 {/if}

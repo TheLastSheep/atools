@@ -171,7 +171,10 @@ describe("native browser-window source bindings", () => {
 
     tracker.begin();
     await expect(bindings.closeAll()).resolves.toBeUndefined();
-    await expect(tracker.drain()).rejects.toBe(expectedFailure);
+    await expect(tracker.drain()).rejects.toMatchObject({
+    code: "ERR_ATOOLS_PLUGIN_CLOSE_FAILED",
+    cause: expectedFailure,
+  });
   });
 
   it("revokes an older generation when the same frame source receives a new document", async () => {

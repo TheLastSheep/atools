@@ -8,7 +8,7 @@ import { nativePluginBrowserWindowOptions } from "../../src/lib/pluginNativeBrow
 
 const builderPath = resolve(process.env.ATOOLS_HARRIS_PLUGIN_SOURCE || "/Users/harris/Desktop/ZTools-plugins/plugins",
   "pasteboard-pro/apps/ztools/preload/window-presentation.ts");
-const builderSha256 = "22838e308ee60809d1095fde6f587b774709efaea897153090fb8a2f58f89522";
+const builderSha256 = "a6bee5bdd6564b49cb701073d45803e4d30de14c3e7c683d42c934d19ccfe49d";
 
 describe("native BrowserWindow option normalization", () => {
   it("flattens the reviewed WebPreferences hint while preserving the full original preload options", () => {

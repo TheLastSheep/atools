@@ -128,6 +128,7 @@ export async function managePasteStartupWorker<TReady extends PasteStartupReady 
     let cleanupError: unknown;
     try { if (!exited) await request(command, undefined, cleanupTimeoutMs); }
     catch (error) { cleanupError = error; }
+    if (!exited) await waitForExitWithin(Math.min(500, cleanupTimeoutMs));
     try { await terminateAndWait(); }
     catch (error) { throw new AggregateError([...(cleanupError ? [cleanupError] : []), error], "Paste startup Worker cleanup was not confirmed"); }
     if (cleanupError) throw cleanupError;

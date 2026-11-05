@@ -1,18 +1,100 @@
 import { createHash, randomUUID } from "node:crypto";
 import { chmod, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
-import { Worker } from "node:worker_threads";
+import { MessageChannel, receiveMessageOnPort, Worker } from "node:worker_threads";
 import { JSDOM } from "jsdom";
 import { managePasteStartupWorker, type PasteStartupEndpoints } from "./worker-lifecycle";
 import { createPasteStartupDocument } from "./document-fixture";
 
+function installSyncHttpBridge(window: Record<string, any>, origin: string) {
+  const worker = new Worker(
+    `const { parentPort } = require("node:worker_threads");
+parentPort.on("message", async ({ signal, port, method, url, headers, body }) => {
+  try {
+    const response = await fetch(url, { method, headers, body: body ?? undefined });
+    port.postMessage({ status: response.status, responseText: await response.text() });
+  } catch (error) {
+    port.postMessage({ status: 0, responseText: "", error: String(error?.message ?? error) });
+  } finally {
+    Atomics.store(signal, 0, 1);
+    Atomics.notify(signal, 0, 1);
+    port.close();
+  }
+});`,
+    { eval: true },
+  );
+  worker.unref();
+  const NativeXHR = window.XMLHttpRequest;
+  window.XMLHttpRequest = class LoopbackSyncXMLHttpRequest {
+    status = 0;
+    responseText = "";
+    timeout = 0;
+    onload: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    ontimeout: (() => void) | null = null;
+    onabort: (() => void) | null = null;
+    #async = true;
+    #method = "GET";
+    #url = "";
+    #headers: Record<string, string> = { Origin: origin };
+    #aborted = false;
+    #controller: AbortController | null = null;
+    open(method: string, url: string, async = true) {
+      this.#method = method;
+      this.#url = new URL(url, origin).href;
+      this.#async = async !== false;
+    }
+    setRequestHeader(name: string, value: string) {
+      this.#headers[name] = value;
+    }
+    abort() {
+      this.#aborted = true;
+      this.#controller?.abort();
+      this.onabort?.();
+    }
+    send(body?: string | null) {
+      if (this.#async) {
+        this.#controller = new AbortController();
+        void globalThis.fetch(this.#url, {
+          method: this.#method,
+          headers: this.#headers,
+          body: body ?? undefined,
+          signal: this.#controller.signal,
+        }).then(async response => {
+          if (this.#aborted) return;
+          this.status = response.status;
+          this.responseText = await response.text();
+          if (!this.#aborted) this.onload?.();
+        }).catch(() => {
+          if (!this.#aborted) this.onerror?.();
+        });
+        return;
+      }
+      const signal = new Int32Array(new SharedArrayBuffer(4));
+      const { port1, port2 } = new MessageChannel();
+      worker.postMessage({ signal, port: port2, method: this.#method, url: this.#url, headers: this.#headers, body: body ?? null }, [port2]);
+      Atomics.wait(signal, 0, 0, 10_000);
+      const message = receiveMessageOnPort(port1)?.message as { status: number; responseText: string; error?: string } | undefined;
+      port1.close();
+      if (!message || message.error) throw new Error(message?.error ?? "Sync XHR timed out");
+      this.status = message.status;
+      this.responseText = message.responseText;
+    }
+  };
+  void NativeXHR;
+  return () => { void worker.terminate(); };
+}
+
 const builtFiles = [
-  ["plugin.json", "58e89b2e6b9d3c95711fe5f41852b24e2de32e0c2575c4866eb9fc1cc9e62ae8"],
+  ["plugin.json", "c56457879db7cfea1b9b39de1e62ea9953f737651cba16ab56c4cc5c2c964939"],
   ["package.json", "8005a3491db7d92f36ac66369861589f9c47123d3a7c71e643fc2c06168cd45a"],
-  ["index.html", "ade347e2d942ed126fbb623f6604d81b0e4e90cf20ecb70d45cfafe59ec5b684"],
-  ["preload.js", "6566635ba6f1143379ec980e42248cd666b2fa8d871a621f65e76c04ab1c98d3"],
-  ["chunks/history-search-index-Bm2oYZYG.cjs", "c5fb4fc0ec568f13dd4b411f13a6d91ead4eeac0bd3a1be904ec15daef9d84d7"],
-  ["history-worker.cjs", "4dfd870808aecaaaecc4f0f7996ae2c27d9a0edf2a1c193fb817d36deff518cf"],
+  ["index.html", "ff46c4132bcb07c5929af9c48b37e41eb22f63004ddf175915b17eafb0a7fd84"],
+  ["preload.js", "cf394cb02fcf7879f1e3a2410ff5253791275d199c213d6d785055454a3722ba"],
+  ["chunks/history-search-index-C5CG7yxr.cjs", "83593ecc7176e00c98f80f251785c28b9bdffe92929924a914581ff5af7927c3"],
+  ["chunks/clipboard-tombstone-v2-28uC8Qy5.cjs", "d9d739344096da02dcdf31ee98ea9a1ed2c9ab53ae16891fcfdc1addc1116711"],
+  ["chunks/index-Cy80EH4d.cjs", "4df269f98e289aba0c308095ac2d478779d50aca8324adb0dd8196914ed88fe4"],
+  ["content-scan-worker.cjs", "09228265c43277d62f89f233189e4cae5f8f4509529ed2478ab524e21303781f"],
+  ["history-worker.cjs", "2cf8151743b2e799d6e94f24d59ff719b4516961bf5eb0bb62be7e80e98059ef"],
   ["paste-stack-key-monitor.py", "17b3cb5bbad34ef2de9ed27784277bb4b3e480600fda837ebc5f7e62149d3012"],
 ] as const;
 
@@ -33,9 +115,9 @@ export async function createReadOnlyBuiltPackage(pluginsRoot: string, scratchRoo
     builtHashes[relative] = digest;
   }
   const manifest = JSON.parse(await readFile(join(pluginRoot, "plugin.json"), "utf8"));
-  if (manifest.author !== "harris" || manifest.version !== "1.3.1" || manifest.preload !== "preload.js"
+  if (manifest.author !== "harris" || manifest.version !== "1.4.0" || manifest.preload !== "preload.js"
     || manifest.pluginSetting?.backgroundRunning !== true) {
-    throw new Error("Pinned Paste build manifest does not match Harris Paste 1.3.1 background startup");
+    throw new Error("Pinned Paste build manifest does not match Harris Paste 1.4.0 background startup");
   }
   // The CJS package root and every artifact are immutable to the test child.
   for (const relative of [...builtFiles].map(([path]) => path).sort((a, b) => b.length - a.length)) {
@@ -91,6 +173,7 @@ export function createPasteStartupFrame(options: {
   const dom = new JSDOM(injectedHtml, { runScripts: "outside-only", url: "https://pasteboard-pro.fixture.invalid/" });
   const window = dom.window as JSDOM["window"] & Record<string, any>;
   Object.assign(window, { TextEncoder, TextDecoder, Buffer, structuredClone: globalThis.structuredClone.bind(globalThis) });
+  const disposeSyncHttp = installSyncHttpBridge(window, "https://pasteboard-pro.fixture.invalid");
   let blockedFetches = 0;
   const nodeEndpoint = new URL(options.endpoints.node).href;
   window.fetch = (input: string | URL | Request, init?: RequestInit) => {
@@ -158,6 +241,7 @@ export function createPasteStartupFrame(options: {
       window.dispatchEvent(new window.Event("atools-plugin-out"));
       window.removeEventListener("message", messageListener);
       dom.window.close();
+      disposeSyncHttp();
     },
   };
 }

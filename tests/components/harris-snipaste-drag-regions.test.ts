@@ -15,7 +15,7 @@ import {
   makeNativeFrameAction,
 } from "./compiledPluginNativeWindowFrameFixture";
 
-const EXPECTED_PASTER_SHA256 = "6a26635394498d34a37646cc18521ea7cd09afa08c04ba780f0cf8977f6857b8";
+const EXPECTED_PASTER_SHA256 = "2973604cc65b7558ac30d33ecf145abca478b9eedde4207c75d167708ce0a1e5";
 const RESOURCE_ORIGIN = "https://atools-plugin.localhost";
 const RESOURCE_SESSION = "6fd849f2-c8f4-4fb9-91b3-2b9e65c44f1b";
 const DOCUMENT_ID = "d".repeat(64);
@@ -47,7 +47,7 @@ function sha256(source: string): string {
 }
 
 async function buildProductionDocument() {
-  const configuredPluginsRoot = process.env.ATOOLS_HARRIS_PLUGIN_SOURCE;
+  const configuredPluginsRoot = process.env.ATOOLS_HARRIS_PLUGIN_SOURCE || "/Users/harris/Desktop/ZTools-plugins/plugins";
   if (!configuredPluginsRoot) {
     throw new Error("ATOOLS_HARRIS_PLUGIN_SOURCE must point to /Users/harris/Desktop/ZTools-plugins/plugins; this regression must not skip when the source package is unavailable");
   }

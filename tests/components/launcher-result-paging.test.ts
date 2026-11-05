@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/core", async original => ({ ...await original<typeof import("@tauri-apps/api/core")>(), invoke: mocks.invoke }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn(async () => () => {}) }));
 vi.mock("../../src/lib/pinyinSearch", () => ({ loadSearchPinyinEngine: vi.fn(async () => false) }));
-vi.mock("../../src/components/PluginPanel.svelte", async () => ({ default: (await import("./LauncherTextPluginFixture.svelte")).default }));
+vi.mock("../../src/components/PluginPanelMount.svelte", async () => ({ default: (await import("./LauncherTextPluginMountFixture.svelte")).default }));
 
 function result(index: number, pluginId = `paging-${index % 2}`): SearchResult {
   return { code: `page-command-${index}`, plugin_id: pluginId, plugin_name: pluginId,

@@ -12,7 +12,7 @@ import { preparePluginPreload } from "../../src/lib/pluginPreload";
 const pluginsRoot = resolve(process.env.ATOOLS_HARRIS_PLUGIN_SOURCE || "/Users/harris/Desktop/ZTools-plugins/plugins");
 const snipasteRoot = resolve(pluginsRoot, "snipaste");
 const pasteRoot = resolve(pluginsRoot, "pasteboard-pro");
-const snipasteHash = "97b14b5737c45cd3f8c3bad61c3e09cb87f843c4465dc1127803e9e098e47a58";
+const snipasteHash = "77cc3ab6ef4d15a7b6356e61d504fc001fb444e1316b60acd7be8c12e260c577";
 const pasteAutoStartHash = "af88f84731177bfc12d84ca2fc401d9161ed2840e7589860ffcc4be67e8a7e18";
 const endpoint = (suffix: string) => `http://127.0.0.1:43128/data/${suffix.repeat(64)}`;
 const openSuites = existsSync(resolve(snipasteRoot, "preload/services.cjs"))

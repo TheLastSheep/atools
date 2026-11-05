@@ -21,7 +21,9 @@ export function executeCompiledPluginBridgeScripts(
   if (scripts.some(script => script.hasAttribute("src"))) {
     throw new Error("Compiled plugin bridge unexpectedly contains an external script");
   }
-  const coreScripts = scripts.filter(script => !script.hasAttribute("data-atools-plugin-ai"));
+  const coreScripts = scripts.filter(
+    script => !script.hasAttribute("data-atools-plugin-ai") && !script.hasAttribute("data-atools-api-standin-probe"),
+  );
   if (coreScripts.length !== expectedInlineScripts) {
     throw new Error(`Compiled plugin bridge core script count mismatch: ${coreScripts.length}`);
   }

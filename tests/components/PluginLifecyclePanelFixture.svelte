@@ -1,8 +1,34 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
   import type { FeatureAction } from "../../src/lib/types";
-  let { action }: { action: FeatureAction } = $props();
-  onMount(() => window.dispatchEvent(new CustomEvent("fixture-plugin-mounted", { detail: action.plugin_id })));
-  onDestroy(() => window.dispatchEvent(new CustomEvent("fixture-plugin-destroyed", { detail: action.plugin_id })));
+  import type { PluginPanelMountExports, PluginPanelMountProps } from "../../src/lib/pluginPanelMount";
+
+  type Props = {
+    action: FeatureAction | null;
+    panelProps?: PluginPanelMountProps | null;
+    oninstance?: (instance: PluginPanelMountExports | null) => void;
+  };
+
+  let { action, panelProps, oninstance }: Props = $props();
+
+  $effect(() => {
+    if (!oninstance) return;
+    oninstance({ requestEscape: () => panelProps?.onescape() });
+    return () => oninstance(null);
+  });
+
+  const activeAction = $derived(panelProps?.action ?? action ?? null);
+  const activePluginId = $derived(activeAction?.plugin_id ?? null);
+
+  $effect(() => {
+    const pluginId = activePluginId;
+    if (!pluginId) return;
+    window.dispatchEvent(new CustomEvent("fixture-plugin-mounted", { detail: pluginId }));
+    return () => {
+      window.dispatchEvent(new CustomEvent("fixture-plugin-destroyed", { detail: pluginId }));
+    };
+  });
 </script>
-<section aria-label="隔离插件面板" data-plugin-id={action.plugin_id}>{action.plugin_name}<button type="button">插件内部操作</button></section>
+{#if activeAction}
+  <section aria-label="隔离插件面板" data-plugin-id={activeAction.plugin_id}>{activeAction.plugin_name}<button type="button">插件内部操作</button></section>
+{/if}

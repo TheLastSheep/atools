@@ -71,7 +71,9 @@ export class PersistentPluginData {
 
   allDocs(options = {}) {
     let documents = this.database.prepare("SELECT body FROM documents ORDER BY id").all().map(row => JSON.parse(row.body));
-    if (Array.isArray(options.keys)) documents = documents.filter(document => options.keys.includes(document._id));
+    if (typeof options === "string") documents = documents.filter(document => document._id.startsWith(options));
+    else if (Array.isArray(options)) documents = documents.filter(document => options.includes(document._id));
+    else if (Array.isArray(options.keys)) documents = documents.filter(document => options.keys.includes(document._id));
     else {
       if (typeof options.startkey === "string") documents = documents.filter(document => document._id >= options.startkey);
       if (typeof options.endkey === "string") documents = documents.filter(document => document._id <= options.endkey);

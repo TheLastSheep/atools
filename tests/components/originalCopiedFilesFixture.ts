@@ -12,6 +12,13 @@ import { createPluginBrowserWorkerBridge } from "../../src/lib/pluginBrowserWork
 import { createPluginBrowserWindowBridge } from "../../src/lib/pluginBrowserWindowBridge";
 import { createPluginBrowserWindowGeometry } from "../../src/lib/pluginBrowserWindowGeometry";
 import { browserBufferFactoryScript } from "../../src/lib/browserBuffer";
+import { UTOOLS_BRIDGE } from "../../src/lib/pluginUtoolsBridgeSource";
+import { createPluginClipboardApi } from "../../src/lib/pluginUtoolsBridgeSource/clipboard-api";
+import { createPluginClipboardCopyApi } from "../../src/lib/pluginClipboardCopyApi";
+import { createClipboardHistoryCodec } from "../../src/lib/pluginUtoolsBridgeSource/clipboard-history";
+import { pluginPanelFileDropReceiverFactorySource } from "../../src/lib/pluginPanelFileDropReceiver";
+import { createPluginBroadcastChannelBridge } from "../../src/lib/pluginBroadcastChannelBridge";
+import { measurePluginBroadcastPayload } from "../../src/lib/pluginBroadcastPayload";
 
 const pinnedOriginals = {
   imgbatch: ["ZTools-plugins/plugins/imgbatch/preload.js", "d8ca3f4614c5ad336a1a6b7e667bf11fbb2499189a6ab546b71b740504123867", [
@@ -44,10 +51,7 @@ async function extractPinnedFunctions(key: keyof typeof pinnedOriginals) {
 
 /** Runs the exact serialized UTools template and final clipboard script in a generated, offline-only VM. */
 export async function originalCopiedFilesHost(options: { endpoints?: boolean; responses?: CopiedEntry[][] } = {}) {
-  const panel = await readFile("src/components/PluginPanel.svelte", "utf8");
-  const template = panel.match(/const UTOOLS_BRIDGE = `([\s\S]*?)`;/)?.[1];
-  if (!template) throw new Error("Production UTools template is missing");
-  let source = template;
+  let source = UTOOLS_BRIDGE.replace(/^<script>/, "").replace(/<\\\/script>$/, "");
   for (const [key, value] of Object.entries({
     __ATOOLS_HOSTED_IPC_FACTORY__: createPluginHostedIpcBridge.toString(),
     __ATOOLS_SUBINPUT_FACTORY__: createPluginSubInputBridge.toString(),
@@ -62,6 +66,17 @@ export async function originalCopiedFilesHost(options: { endpoints?: boolean; re
     __ATOOLS_MAIN_PUSH_CONFIG__: "null",
     __PLUGIN_ID__: '"original-copied-files-fixture"', __FEATURE_CODE__: '"copied-files"', __ACTION_PAYLOAD__: "null",
     __PLUGIN_PATH__: '"/fixture"', __APP_NAME__: '"ATools"', __APP_VERSION__: '"3.0.0"',
+    __ATOOLS_FILE_DROP_RECEIVER_FACTORY__: pluginPanelFileDropReceiverFactorySource(),
+    __ATOOLS_CLIPBOARD_FACTORY__: createPluginClipboardApi.toString(),
+    __ATOOLS_CLIPBOARD_COPY_FACTORY__: createPluginClipboardCopyApi.toString(),
+    __ATOOLS_CLIPBOARD_HISTORY_CODEC_FACTORY__: createClipboardHistoryCodec.toString(),
+    __ATOOLS_BROADCAST_CHANNEL_FACTORY__: createPluginBroadcastChannelBridge.toString(),
+    __ATOOLS_BROADCAST_PAYLOAD_MEASURE__: measurePluginBroadcastPayload.toString(),
+    __ATOOLS_NATIVE_WINDOW_DOM_CONTROLS_FACTORY__: "undefined",
+    __ATOOLS_NATIVE_WINDOW_DRAG_REGIONS_FACTORY__: "undefined",
+    __ATOOLS_NATIVE_APP_REGION_CSS_RUNTIME_FACTORY__: "undefined",
+    __ATOOLS_NATIVE_APP_REGION_CSS_FACTORY__: "undefined",
+    __ATOOLS_ENTRY_MODE__: '"activate"',
     __ATOOLS_MAIN_PUSH_FACTORY__: "undefined", __ATOOLS_MAIN_PUSH_BUDGET_FACTORY__: "undefined",
     __ATOOLS_MAIN_PUSH_PRESENTATION_FACTORY__: "undefined",
   })) source = source.replaceAll(key, value);
@@ -102,7 +117,7 @@ export async function originalCopiedFilesHost(options: { endpoints?: boolean; re
   vm.runInNewContext(clipboard, { window, parent, addEventListener: window.addEventListener, XMLHttpRequest: FakeXhr,
     TextEncoder, JSON, Object, Error, TypeError, Set, RegExp, String });
   const api = window.utools;
-  if (!api || window.ztools !== api) throw new Error("Serialized UTools facade was not installed");
+  if (!api || !window.ztools || window.ztools.getCopyedFiles !== api.getCopyedFiles) throw new Error("Serialized UTools facade was not installed");
   function deliver(data: unknown) { for (const fn of [...(listeners.get("message") ?? [])]) fn({ source: parent, data }); }
   return { api, calls, posts, endpoint, deliver, listeners, sourcePath: "src/components/PluginPanel.svelte" };
 }

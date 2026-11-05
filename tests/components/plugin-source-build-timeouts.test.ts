@@ -11,6 +11,10 @@ const path = "/synthetic/source-plugin";
 const revision = "a".repeat(64);
 const inspection: SourceBuildInspection = { status: "eligible", pluginId: "source-plugin", version: "1.0.0", blockers: [], sourceRevision: revision };
 const runtime: SourceBuildRuntime = { active: true, stage: "building", cancellable: true, cancelRequested: false };
+const inspectRun = (status: TaskRun["status"] = "succeeded", output: SourceBuildInspection | null = inspection): TaskRun => ({
+  id: "inspect-1", capabilityId: "inspect_ztools_source_build", initiator: { type: "human", clientId: "atools-ui" }, status,
+  input: { sourcePath: path }, output,
+} as TaskRun);
 const run = (status: TaskRun["status"] = "running"): TaskRun => ({
   id: "run-1", capabilityId: "convert_ztools_plugin", initiator: { type: "human", clientId: "atools-ui" }, status,
   input: { sourcePath: path, expectedRevision: revision, overwrite: true },
@@ -31,29 +35,34 @@ function setup() {
 beforeEach(() => {
   vi.useFakeTimers(); mocks.invoke.mockReset(); mocks.listen.mockReset();
   mocks.listen.mockResolvedValue(vi.fn());
-  mocks.invoke.mockImplementation(async command => {
-    if (command === "inspect_ztools_source_build") return inspection;
+  mocks.invoke.mockImplementation(async (command, args) => {
+    if (command === "start_agent_tool" && args?.name === "inspect_ztools_source_build") return inspectRun();
     if (command === "start_agent_tool" || command === "get_task_run" || command === "cancel_task_run") return run();
     if (command === "get_plugin_source_build_state") return runtime;
   });
 });
 afterEach(() => { controllers.splice(0).forEach(controller => controller.dispose()); vi.useRealTimers(); });
 
-it("releases an inspection deadline and ignores its late answer after a new check", async () => {
+it("pauses a stalled inspection task read and resumes it when the read succeeds", async () => {
   const f = setup();
-  const late = deferred<SourceBuildInspection>();
-  mocks.invoke.mockImplementationOnce(() => late.promise);
+  const late = [deferred<TaskRun>(), deferred<TaskRun>(), deferred<TaskRun>()];
+  let staleReads = 0;
+  const base = mocks.invoke.getMockImplementation()!;
+  mocks.invoke.mockImplementation((command, args) => {
+    if (command === "start_agent_tool" && args?.name === "inspect_ztools_source_build") return Promise.resolve(inspectRun("running", null));
+    if (command === "get_task_run" && args?.id === "inspect-1") return late[staleReads++].promise;
+    return base(command, args);
+  });
   const pending = f.controller.inspect(path);
-  await vi.advanceTimersByTimeAsync(10_000);
-  expect(f.entry().phase).toBe("failed");
-  expect(f.entry().message).toContain("超时");
-  expect(f.controller.snapshot.activePath).toBeNull();
-  await f.controller.inspect(path);
-  expect(f.entry().phase).toBe("eligible");
-  late.resolve({ status: "blocked", blockers: [{ code: "STALE", message: "stale answer" }] });
+  await vi.advanceTimersByTimeAsync(15_500);
+  expect(f.entry().observationError).toContain("超时");
+  expect(f.controller.snapshot.activePath).toBe(path);
+  mocks.invoke.mockImplementation((command, args) =>
+    command === "get_task_run" && args?.id === "inspect-1" ? Promise.resolve(inspectRun("succeeded", inspection)) : base(command, args));
+  await f.controller.resume(path);
   await pending;
   expect(f.entry().phase).toBe("eligible");
-  expect(mocks.invoke.mock.calls.filter(([command]) => command === "start_agent_tool")).toHaveLength(0);
+  expect(f.controller.snapshot.activePath).toBeNull();
 });
 
 it.each(["get_task_run", "get_plugin_source_build_state"])("pauses never-settling %s reads, ignores late answers and resumes the same run", async stalledCommand => {
@@ -89,7 +98,7 @@ it.each(["get_task_run", "get_plugin_source_build_state"])("pauses never-settlin
   await started;
   expect(f.entry().phase).toBe("succeeded");
   expect(f.installed).toHaveBeenCalledTimes(1);
-  expect(mocks.invoke.mock.calls.filter(([command]) => command === "start_agent_tool")).toHaveLength(1);
+  expect(mocks.invoke.mock.calls.filter(([command, args]) => command === "start_agent_tool" && args?.name === "convert_ztools_plugin")).toHaveLength(1);
   expect(mocks.invoke.mock.calls.filter(([command]) => command === "cancel_task_run")).toHaveLength(0);
   expect(mocks.invoke.mock.calls.filter(([command]) => command === "get_task_run").every(([, args]) => args.id === "run-1")).toBe(true);
 });
@@ -98,14 +107,15 @@ it("keeps the original pending start request without a timeout or duplicate job"
   const f = setup();
   const late = deferred<TaskRun>();
   const base = mocks.invoke.getMockImplementation()!;
-  mocks.invoke.mockImplementation((command, args) => command === "start_agent_tool" ? late.promise : base(command, args));
+  mocks.invoke.mockImplementation((command, args) =>
+    command === "start_agent_tool" && args?.name === "convert_ztools_plugin" ? late.promise : base(command, args));
   await f.controller.inspect(path);
   const pending = f.controller.convert(path);
   await vi.advanceTimersByTimeAsync(60_000);
   expect(f.entry().phase).toBe("starting");
   expect(f.controller.snapshot.activePath).toBe(path);
   await f.controller.convert(path);
-  expect(mocks.invoke.mock.calls.filter(([command]) => command === "start_agent_tool")).toHaveLength(1);
+  expect(mocks.invoke.mock.calls.filter(([command, args]) => command === "start_agent_tool" && args?.name === "convert_ztools_plugin")).toHaveLength(1);
   late.resolve(run()); await pending;
   expect(f.entry().phase).toBe("building");
 });
@@ -135,6 +145,7 @@ it("lets a new run cancel after the old run terminates despite an unanswered old
   let current = run();
   mocks.invoke.mockImplementation((command, args) => {
     if (command === "cancel_task_run") return args.id === "run-1" ? firstCancel.promise : secondCancel.promise;
+    if (command === "start_agent_tool" && args?.name === "inspect_ztools_source_build") return Promise.resolve(inspectRun());
     if (command === "start_agent_tool" || command === "get_task_run") return Promise.resolve(current);
     return base(command, args);
   });
@@ -155,7 +166,14 @@ it.each(["inspect_ztools_source_build", "get_task_run", "get_plugin_source_build
   const f = setup();
   const late = deferred<TaskRun | SourceBuildRuntime | SourceBuildInspection>();
   const base = mocks.invoke.getMockImplementation()!;
-  mocks.invoke.mockImplementation((command, args) => command === stalledCommand ? late.promise : base(command, args));
+  mocks.invoke.mockImplementation((command, args) => {
+    if (stalledCommand === "inspect_ztools_source_build") {
+      if (command === "start_agent_tool" && args?.name === "inspect_ztools_source_build") return Promise.resolve(inspectRun("running", null));
+      if (command === "get_task_run" && args?.id === "inspect-1") return late.promise;
+    }
+    if (command === stalledCommand) return late.promise;
+    return base(command, args);
+  });
   const checking = f.controller.inspect(path);
   if (stalledCommand !== "inspect_ztools_source_build") await checking;
   const pending = stalledCommand === "inspect_ztools_source_build" ? checking : f.controller.convert(path);
@@ -164,7 +182,7 @@ it.each(["inspect_ztools_source_build", "get_task_run", "get_plugin_source_build
   const published = f.changed.mock.calls.length;
   f.controller.dispose();
   expect(vi.getTimerCount()).toBe(0);
-  late.resolve(stalledCommand === "inspect_ztools_source_build" ? inspection : stalledCommand === "get_task_run" ? run("succeeded") : runtime);
+  late.resolve(stalledCommand === "inspect_ztools_source_build" ? inspectRun("succeeded", inspection) : stalledCommand === "get_task_run" ? run("succeeded") : runtime);
   await pending;
   expect(f.changed).toHaveBeenCalledTimes(published);
   expect(f.installed).not.toHaveBeenCalled();

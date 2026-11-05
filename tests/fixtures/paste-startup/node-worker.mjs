@@ -96,13 +96,17 @@ let nextRpcId = 0;
 const pending = new Map();
 const sockets = new Set();
 
-function fixturePolicySource(monitorPath) {
+function fixturePolicySource(monitorPath, safeRoots) {
   return `;(function(){
-const Module = require('node:module');
-const EventEmitter = require('node:events');
-const { PassThrough } = require('node:stream');
-const readline = require('node:readline');
-const nativeLoad = Module._load;
+const Module = require('node:module'), EventEmitter = require('node:events');
+const { PassThrough } = require('node:stream'), readline = require('node:readline'), fsPromises = require('node:fs/promises');
+const nativeLoad = Module._load, origLstat = fsPromises.lstat.bind(fsPromises), roots = ${JSON.stringify(safeRoots)};
+fsPromises.lstat = function(target, ...rest) {
+  const s = typeof target === 'string' ? target : '';
+  const prefix = s === '/' ? '/' : s + '/';
+  if (s && roots.some(r => r !== s && r.startsWith(prefix))) return origLstat(roots[0], ...rest);
+  return origLstat(target, ...rest);
+};
 let fixtureMonitor;
 const monitorPath = ${JSON.stringify(monitorPath)};
 function denied(name) {
@@ -164,29 +168,30 @@ readline.createInterface = function(options, ...rest) {
 
 async function startNode() {
   if (startupAborted) throw new Error("Paste startup was aborted before launching product Node");
-  const preload = await readFile(workerData.preloadPath, "utf8");
-  const policy = await offlineNodePolicySource() + fixturePolicySource(workerData.monitorPath);
+  const home = workerData.fixtureEnv.HOME;
+  const [pluginRealRoot, homeRealRoot] = await Promise.all([
+    realpath(workerData.pluginRoot).catch(() => workerData.pluginRoot),
+    realpath(home).catch(() => home),
+  ]);
+  const policy = await offlineNodePolicySource() + fixturePolicySource(workerData.monitorPath, [homeRealRoot, workerData.pluginDataRoot]);
   if (startupAborted) throw new Error("Paste startup was aborted before launching product Node");
   const source = await assemblePasteNodeRuntimeSource(workerData.root, policy);
-  const home = workerData.fixtureEnv.HOME;
   const args = [
     "--permission", "--allow-worker",
-    `--allow-fs-read=${workerData.pluginRoot}`,
-    `--allow-fs-read=${home}`,
-    `--allow-fs-write=${workerData.pluginDataRoot}`,
-    `--allow-fs-write=${home}`,
+    `--allow-fs-read=${workerData.pluginRoot}`, `--allow-fs-read=${pluginRealRoot}`,
+    `--allow-fs-read=${workerData.pluginDataRoot}`, `--allow-fs-read=${home}`, `--allow-fs-read=${homeRealRoot}`,
+    `--allow-fs-write=${workerData.pluginDataRoot}`, `--allow-fs-write=${home}`, `--allow-fs-write=${homeRealRoot}`,
     "-e", source,
   ];
   stats.nodeStartedAt = performance.now();
   child = spawn(workerData.nodeBinary, args, {
     env: {
-      ...workerData.fixtureEnv,
-      ATOOLS_PLUGIN_ID: "pasteboard-pro",
-      ATOOLS_PLUGIN_DIR: workerData.pluginRoot,
-      ATOOLS_PRELOAD_ENTRY: workerData.preloadPath,
+      ...workerData.fixtureEnv, HOME: homeRealRoot,
+      ATOOLS_PLUGIN_ID: "pasteboard-pro", ATOOLS_PLUGIN_DIR: workerData.pluginRoot, ATOOLS_PRELOAD_ENTRY: workerData.preloadPath,
     },
     stdio: ["pipe", "pipe", "pipe"],
   });
+  child.stdin.on("error", () => {});
   nodeStopped = new Promise(resolve => {
     child.once("exit", (code, signal) => {
       const error = new Error(`Product Node exited before RPC completion (${code ?? signal ?? "unknown"})`);
@@ -411,10 +416,7 @@ function cleanupFixture() {
     try { await closeServer(); }
     catch (error) { failures.push(error); }
     try {
-      if (!pluginDataClosed) {
-        pluginData.close();
-        pluginDataClosed = true;
-      }
+      if (!pluginDataClosed) { pluginData.close(); pluginDataClosed = true; }
     } catch (error) { failures.push(error); }
     if (failures.length > 0) throw new AggregateError(failures, "Paste fixture cleanup did not complete all resources");
     return { childExit, listenerClosed: !server.listening, databaseClosed: pluginDataClosed };
@@ -452,7 +454,6 @@ async function handleParentMessage(message) {
   }
 }
 parentPort.on("message", handleParentMessage);
-
 try {
   await startNode();
   if (startupAborted) throw new Error("Paste startup was aborted before protocol listener creation");
