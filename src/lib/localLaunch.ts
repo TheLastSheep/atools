@@ -1,6 +1,7 @@
 import type { SearchResult } from "./types";
 import {
   buildPreparedSearchTrigramIndex,
+  buildPreparedSearchTrigramSet,
   canSkipPreparedSearch,
   insertBoundedSearchResult,
   MAX_SEARCH_MATCH_SCORE,
@@ -195,10 +196,11 @@ function preparedLocalSearchEntries(entries: LocalLaunchEntry[]) {
         aliases: [entry.keyword],
       }),
     }));
-  const trigramIndex = buildPreparedSearchTrigramIndex(preparedEntries.map((entry) => entry.candidate));
+  const candidates = preparedEntries.map((entry) => entry.candidate);
+  const trigramIndex = buildPreparedSearchTrigramIndex(candidates);
   const prepared = {
     entries: preparedEntries,
-    trigrams: new Set(trigramIndex.keys()),
+    trigrams: buildPreparedSearchTrigramSet(candidates),
     trigramIndex,
   };
   localSearchCache.set(entries, prepared);

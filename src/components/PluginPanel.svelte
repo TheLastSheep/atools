@@ -142,7 +142,7 @@ import { createPluginPanelSurfaceApi } from "../lib/pluginPanelSurfaceApi";
   const pluginPanelRenderSmoke = createPluginPanelRenderSmokeController({
     action: () => currentAction, expectedSamples: () => desktopSmokeExpectedSamples,
     sampleIndex: () => desktopSmokeSampleIndex, externalPlanSample: () => desktopSmokeExternalPlanSample,
-    onRender: () => ondesktopsmokerender?.(), windows: () => browserWindowPanelState.windows,
+    onRender: () => ondesktopsmokerender, windows: () => browserWindowPanelState.windows,
     iframeSrc: () => iframeSrc, hasSubInput: () => hasSubInput,
     subInputPlaceholder: () => subInputOpts.placeholder, invoke, tick,
   });

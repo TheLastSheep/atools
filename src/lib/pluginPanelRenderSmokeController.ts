@@ -10,7 +10,7 @@ type Ports = {
   expectedSamples: () => number;
   sampleIndex: () => number;
   externalPlanSample: () => boolean;
-  onRender: () => void | Promise<void> | undefined;
+  onRender: () => (() => void | Promise<void>) | undefined;
   windows: () => PluginBrowserWindowState[];
   iframeSrc: () => string;
   hasSubInput: () => boolean;
@@ -96,7 +96,7 @@ export function createPluginPanelRenderSmokeController(ports: Ports) {
           subinputPlaceholder: ports.subInputPlaceholder() || bridgeProbe.domInputPlaceholder || "",
         },
       });
-      await ports.onRender();
+      await ports.onRender()?.();
     } catch (error) {
       console.warn("[PluginPanel] Failed to report desktop render smoke:", error);
     }
