@@ -153,6 +153,3 @@ required-features = ["legacy-node-smoke"]
 [[example]]
 name = "source_dependency_pipeline_smoke"
 required-features = ["source-dependency-smoke"]
-
-[lints]
-workspace = true

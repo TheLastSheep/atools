@@ -1,5 +1,3 @@
-#![allow(dead_code, clippy::all)]
-
 use std::error::Error;
 
 use atools_sync_server::{router, AppState, Config};

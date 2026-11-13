@@ -33,6 +33,3 @@ tempfile = "3.10"
 
 [features]
 native-smoke = []
-
-[lints]
-workspace = true
