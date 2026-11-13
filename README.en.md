@@ -8,7 +8,8 @@
 Seamless **uTools / ZTools** Ecosystem Compatibility · Zero-Alloc Sub-Millisecond Search · Native **MCP + Skills + Agent Harness**
 
 [![CI](https://github.com/TheLastSheep/atools/actions/workflows/ci.yml/badge.svg)](https://github.com/TheLastSheep/atools/actions/workflows/ci.yml)
-[![Release & Packages](https://github.com/TheLastSheep/atools/actions/workflows/publish.yml/badge.svg)](https://github.com/TheLastSheep/atools/actions/workflows/publish.yml)
+[![Release](https://github.com/TheLastSheep/atools/actions/workflows/release.yml/badge.svg)](https://github.com/TheLastSheep/atools/actions/workflows/release.yml)
+[![Packages](https://github.com/TheLastSheep/atools/actions/workflows/packages.yml/badge.svg)](https://github.com/TheLastSheep/atools/actions/workflows/packages.yml)
 [![Version](https://img.shields.io/badge/version-3.0.0-645cf0.svg)](https://github.com/TheLastSheep/atools/releases)
 [![Tauri](https://img.shields.io/badge/Tauri-v2-24c8db.svg)](https://v2.tauri.app/)
 [![Rust](https://img.shields.io/badge/Rust-1.80%2B-dea584.svg)](https://www.rust-lang.org/)
@@ -24,7 +25,7 @@ Seamless **uTools / ZTools** Ecosystem Compatibility · Zero-Alloc Sub-Milliseco
 
 **ATools 3.0** is a local-first desktop launcher, cross-platform plugin runtime, and AI-Native capability workspace built on **Rust + Tauri v2 + SQLite WAL**, featuring an embedded QuickJS sandbox and an on-demand Node.js compatibility runtime.
 
-- **Extreme Rust Performance**: Zero-allocation ASCII matching, compile-time static Pinyin indexing across 20,902+ Unicode CJK characters, and a 100,000-entry search index with **`~0.1 ms`** P99 latency.
+- **Extreme Rust Performance**: Zero-allocation ASCII matching, compile-time static Pinyin indexing across 20,902+ Unicode CJK characters, and a 100,000-entry search index with ~**`0.1 ms`** P99 latency (local run on Apple M5, 2026-11-12; reproduce with `pnpm benchmark:search:ci`). The 100,000-record pasteboard search does not yet meet its 150 ms gate.
 - **Dual-Namespace Plugin Compatibility**: First-class `window.utools` and `window.ztools` bidirectional API parity (125+ host API methods plus prototype-chain stand-in probes), running unmodified uTools/ZTools plugins alongside 40+ built-in workbench plugins.
 - **AI-Native Workspace**: Built-in local **MCP (Model Context Protocol) Server**, **Skills Registry**, and **Agent Harness** with fine-grained permission gates, prompt sanitization, and full audit trails for Claude Code, Cursor, and Codex.
 - **Local-First & Self-Hostable Sync**: All documents, clipboard history, settings, and plugin storage live in a local SQLite WAL database with optional AES-GCM encrypted WebDAV sync and a standalone Rust/Axum sync server (`atools-sync-server`).

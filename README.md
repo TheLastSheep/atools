@@ -8,7 +8,8 @@
 无缝兼容 **uTools / ZTools** 插件生态 · 零分配微秒级检索 · 原生 **MCP + Skills + Agent Harness**
 
 [![CI](https://github.com/TheLastSheep/atools/actions/workflows/ci.yml/badge.svg)](https://github.com/TheLastSheep/atools/actions/workflows/ci.yml)
-[![Release & Packages](https://github.com/TheLastSheep/atools/actions/workflows/publish.yml/badge.svg)](https://github.com/TheLastSheep/atools/actions/workflows/publish.yml)
+[![Release](https://github.com/TheLastSheep/atools/actions/workflows/release.yml/badge.svg)](https://github.com/TheLastSheep/atools/actions/workflows/release.yml)
+[![Packages](https://github.com/TheLastSheep/atools/actions/workflows/packages.yml/badge.svg)](https://github.com/TheLastSheep/atools/actions/workflows/packages.yml)
 [![Version](https://img.shields.io/badge/version-3.0.0-645cf0.svg)](https://github.com/TheLastSheep/atools/releases)
 [![Tauri](https://img.shields.io/badge/Tauri-v2-24c8db.svg)](https://v2.tauri.app/)
 [![Rust](https://img.shields.io/badge/Rust-1.80%2B-dea584.svg)](https://www.rust-lang.org/)
@@ -26,7 +27,7 @@
 
 相比基于重型 Chromium + 常驻 Node.js 主进程与 LevelDB/LMDB 的传统桌面工具箱，ATools 采用 **Rust 核心引擎 + Tauri v2 系统原生 WebView + SQLite WAL 嵌入式存储 + QuickJS 沙箱 + 按需（On-Demand）Node 兼容层** 构建：
 
-- **极致性能**：零分配 ASCII 匹配、全量 Unicode CJK 汉字（20,902+）编译期静态拼音索引、十万级（100,000）指令集 P99 搜索延迟 **`~0.1 ms`**。
+- **极致性能**：零分配 ASCII 匹配、全量 Unicode CJK 汉字（20,902+）编译期静态拼音索引、十万级（100,000）指令集 P99 搜索延迟约 **`0.1 ms`**（见下方基准表）。
 - **双命名空间生态兼容**：同时提供 `window.utools` 与 `window.ztools` 双向等价桥接（125+ 宿主 API 契约面 + 原型链兜底探针），支持直接导入并运行原版 uTools / ZTools 插件与内置 40+ 原生增强工作台插件。
 - **AI-Native 双向赋能**：内置本地 **MCP（Model Context Protocol）服务端**、**Skills 技能编排** 与 **Agent Harness 安全围栏**，让 Claude Code、Cursor、Codex 等外部智能体可经过细粒度权限审批与脱敏审计调用桌面与插件能力。
 - **数据主权与隐私优先**：所有文档、剪贴板历史、配置与插件数据默认保存在本地 SQLite WAL 数据库，支持 WebDAV 端到端加密同步与可选私有化部署的 Rust/Axum 同步服务（`atools-sync-server`）。
@@ -84,14 +85,15 @@ flowchart TB
 
 ## 四、性能基准对比
 
-所列数据均由仓库内置 CI 性能门禁脚本（`pnpm benchmark:*:ci`）实测验证：
+下表“门禁阈值”取自对应脚本的实际参数；“实测”为各场景中最差一项的 P99，于 2026-11-12 在 Apple M5 / macOS 27 / Node 24.15 本机运行得到（release 构建）。结果会写入 `artifacts/performance/*.json`，复现请运行对应命令。
 
-| 基准测试项 | 规模 / 场景 | CI 门禁阈值 | ATools 3.0 实测表现 |
+| 基准测试项 | 规模 / 场景 | 门禁阈值 | 实测（最差 P99） |
 | :--- | :--- | :---: | :---: |
-| **十万级搜索索引 (`benchmark:search:ci`)** | `10,000` & `100,000` 指令集混合检索 | `P99 ≤ 16.0 ms` | **`P99 ≈ 0.106 ms`** |
-| **Rust 核心特征匹配 (`FeatureSearchIndex`)** | `1,200` 插件特性 + 20,902 CJK 拼音 | `≤ 2.0 ms` | **`< 0.35 ms`** |
-| **SQLite WAL 增长基准 (`benchmark:database:ci`)** | `10,000` & `100,000` 文档读写与前缀枚举 | `P99 ≤ 80.0 ms` | **`P99 < 15.0 ms`** |
-| **剪贴板历史吞吐 (`benchmark:pasteboard:ci`)** | `10,000` & `100,000` 条剪贴板记录检索 | `P99 ≤ 150.0 ms` | **`P99 < 25.0 ms`** |
+| **搜索索引 (`pnpm benchmark:search:ci`)** | `10,000` / `100,000` 条别名 + 本地启动 + 网页快开 | `P99 ≤ 80 ms` | **`0.109 ms`** |
+| **Rust 特征匹配 (`cargo test -p atools-core --release --test matcher_performance_tests`)** | `1,200` 插件特性，逐条查询 | `≤ 25 ms` | **`0.24 ms`** |
+| **SQLite WAL 增长 (`pnpm benchmark:database:ci`)** | `10,000` / `100,000` 任务记录与记忆条目 | `P99 ≤ 80 ms` | **`13.1 ms`** |
+| **剪贴板历史检索 (`pnpm benchmark:pasteboard:ci`)** | `10,000` 条记录 | `P99 ≤ 150 ms` | **`3.0 ms`** |
+| **剪贴板历史检索 (`pnpm benchmark:pasteboard:ci`)** | `100,000` 条记录 | `P99 ≤ 150 ms` | ⚠️ **`857 ms`（未达标）**：无匹配全文检索 857 ms、唯一文本检索 213 ms，已列为待优化项 |
 
 ---
 
@@ -190,9 +192,9 @@ pnpm benchmark:pasteboard:ci
 仓库内置完整的 GitHub Actions 自动化流水线：
 
 - **持续集成 ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml))**：自动执行版本契约校验（`test:version-consistency`）、Rust Clippy/Test、前端类型检查、全量测试套件、性能基准门禁及 macOS / Linux / Windows 三端构建验证。
-- **多端发布与包分发 ([`.github/workflows/publish.yml`](./.github/workflows/publish.yml))**：推送 `v*` 标签（如 `v3.0.0`）或手动触发时：
-  1. 构建 **macOS Universal（Apple Silicon + Intel）**、**Windows x64**、**Linux x64** 安装包与签名更新清单 `latest.json`，自动发布至 **GitHub Releases**。
-  2. 自动打包并发布 4 个 npm 兼容包至 **GitHub Packages**（`@thelastsheep/atools-ztools-renderer`、`@thelastsheep/atools-ztools-settings`、`@thelastsheep/atools-ztools-updater`、`@thelastsheep/atools-host-api-shim`）。
+- **多端发布与包分发**：推送 `v*` 标签（如 `v3.0.0`）或手动触发时：
+  1. [`.github/workflows/release.yml`](./.github/workflows/release.yml) 构建 **macOS Universal（Apple Silicon + Intel）**、**Windows x64**、**Linux x64** 安装包与签名更新清单 `latest.json`，自动发布至 **GitHub Releases**。
+  2. [`.github/workflows/packages.yml`](./.github/workflows/packages.yml) 打包并发布 4 个 npm 兼容包至 **GitHub Packages**（`@thelastsheep/atools-ztools-renderer`、`@thelastsheep/atools-ztools-settings`、`@thelastsheep/atools-ztools-updater`、`@thelastsheep/atools-host-api-shim`）。
 
 ---
 
