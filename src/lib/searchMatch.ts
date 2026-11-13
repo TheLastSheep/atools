@@ -40,9 +40,12 @@ const MATCH_SCORE: Record<SearchMatchType, number> = {
 export const MAX_SEARCH_MATCH_SCORE = 112;
 
 let searchPinyinResolver: SearchPinyinResolver | null = null;
+/**
+ * Character masks for trigram sets produced by `buildPreparedSearchTrigramSet`.
+ * Masks come from the full haystacks/aliases, so they also cover names shorter
+ * than three characters that never produce a trigram.
+ */
 const trigramSetMaskCache = new WeakMap<Set<string>, { letterMask: number; digitMask: number }>();
-let lastMaskValue = "";
-let lastMaskResult = { letterMask: 0, digitMask: 0 };
 
 export function setSearchPinyinResolver(resolver: SearchPinyinResolver) {
   searchPinyinResolver = resolver;
@@ -190,8 +193,10 @@ export function canSkipPreparedSearch(
   normalizedQuery: string,
   availableTrigrams: Set<string>,
 ): boolean {
-  if (!searchPinyinResolver && availableTrigrams.size > 0) {
-    const setMasks = trigramSetMasks(availableTrigrams);
+  // Only sets built by `buildPreparedSearchTrigramSet` carry trustworthy masks;
+  // other sets fall through to the trigram check instead of guessing.
+  const setMasks = searchPinyinResolver ? undefined : trigramSetMaskCache.get(availableTrigrams);
+  if (setMasks) {
     const queryMasks = asciiCharacterMasks(normalizedQuery);
     if (
       (setMasks.letterMask & queryMasks.letterMask) !== queryMasks.letterMask
@@ -270,7 +275,6 @@ function candidateContainsQueryCharacters(
 }
 
 function asciiCharacterMasks(value: string) {
-  if (value === lastMaskValue) return lastMaskResult;
   let letterMask = 0;
   let digitMask = 0;
   for (let index = 0; index < value.length; index += 1) {
@@ -278,24 +282,7 @@ function asciiCharacterMasks(value: string) {
     if (code >= 97 && code <= 122) letterMask |= 1 << (code - 97);
     else if (code >= 48 && code <= 57) digitMask |= 1 << (code - 48);
   }
-  lastMaskValue = value;
-  lastMaskResult = { letterMask, digitMask };
-  return lastMaskResult;
-}
-
-function trigramSetMasks(availableTrigrams: Set<string>) {
-  const cached = trigramSetMaskCache.get(availableTrigrams);
-  if (cached) return cached;
-  let letterMask = 0;
-  let digitMask = 0;
-  for (const trigram of availableTrigrams) {
-    const masks = asciiCharacterMasks(trigram);
-    letterMask |= masks.letterMask;
-    digitMask |= masks.digitMask;
-  }
-  const result = { letterMask, digitMask };
-  trigramSetMaskCache.set(availableTrigrams, result);
-  return result;
+  return { letterMask, digitMask };
 }
 
 function trigramsFor(value: string): string[] {
