@@ -43,18 +43,22 @@ beforeEach(() => {
 });
 afterEach(() => { controllers.splice(0).forEach(controller => controller.dispose()); vi.useRealTimers(); });
 
-it("pauses a stalled inspection task read and resumes it when the read succeeds", async () => {
+it("pauses a stalled inspection task read, resumes it and ignores late stale answers", async () => {
   const f = setup();
-  const late = [deferred<TaskRun>(), deferred<TaskRun>(), deferred<TaskRun>()];
-  let staleReads = 0;
+  const stale: ReturnType<typeof deferred<TaskRun>>[] = [];
   const base = mocks.invoke.getMockImplementation()!;
   mocks.invoke.mockImplementation((command, args) => {
     if (command === "start_agent_tool" && args?.name === "inspect_ztools_source_build") return Promise.resolve(inspectRun("running", null));
-    if (command === "get_task_run" && args?.id === "inspect-1") return late[staleReads++].promise;
+    if (command === "get_task_run" && args?.id === "inspect-1") {
+      const read = deferred<TaskRun>();
+      stale.push(read);
+      return read.promise;
+    }
     return base(command, args);
   });
   const pending = f.controller.inspect(path);
   await vi.advanceTimersByTimeAsync(15_500);
+  expect(stale.length).toBeGreaterThan(0);
   expect(f.entry().observationError).toContain("超时");
   expect(f.controller.snapshot.activePath).toBe(path);
   mocks.invoke.mockImplementation((command, args) =>
@@ -63,6 +67,13 @@ it("pauses a stalled inspection task read and resumes it when the read succeeds"
   await pending;
   expect(f.entry().phase).toBe("eligible");
   expect(f.controller.snapshot.activePath).toBeNull();
+
+  const staleAnswer: SourceBuildInspection = { status: "blocked", blockers: [{ code: "STALE", message: "stale answer" }] };
+  stale.forEach(read => read.resolve(inspectRun("succeeded", staleAnswer)));
+  await vi.advanceTimersByTimeAsync(1_000);
+  expect(f.entry().phase).toBe("eligible");
+  expect(f.entry().message ?? "").not.toContain("stale answer");
+  expect(mocks.invoke.mock.calls.filter(([command, args]) => command === "start_agent_tool" && args?.name === "inspect_ztools_source_build")).toHaveLength(1);
 });
 
 it.each(["get_task_run", "get_plugin_source_build_state"])("pauses never-settling %s reads, ignores late answers and resumes the same run", async stalledCommand => {
